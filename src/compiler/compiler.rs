@@ -8,13 +8,13 @@
 use std::ascii::AsciiExt;
 use std::rc::Rc;
 
-#[derive(Copy,Clone)]
+#[derive(Copy,Clone,PartialEq)]
 enum TokenType{
   Terminal, Operator, Separator, Bracket, Bool, Int,
   String, Identifier, Keyword
 }
 
-#[derive(Copy,Clone)]
+#[derive(Copy,Clone,PartialEq)]
 enum TokenValue{
   None, Plus, Minus, Ast, Div, Idiv, Mod, Pow, Lt, Gt, In, Is,
   And, Or, Amp, Vline, Not, Tilde, Svert, Assignment,
@@ -337,32 +337,50 @@ pub fn print_vtoken(v: &Vec<Token>){
   println!();
 }
 
-struct ASTNode{
+struct ASTNode<'a>{
   line: usize, col: usize,
   token_type: TokenType,
   value: TokenValue,
-  s: Option<String>
+  s: Option<String>,
+  a: Option<&'a [Rc<ASTNode<'a>>]>
 }
 
 pub struct Compilation{
   mode_cmd: bool,
-  v: Vec<Token>,
   index: usize
 }
 
 impl Compilation{
 
-fn ast(&mut self) -> Rc<ASTNode>{
-  return Rc::new(ASTNode{line: 0, col: 0, token_type: TokenType::Terminal,
-    value: TokenValue::Null, s: None});
+fn atom(&mut self, v: &Vec<Token>) -> Result<Rc<ASTNode>,SyntaxError>{
+  let ref t = v[self.index];
+  if t.token_type==TokenType::Identifier {
+    self.index+=1;
+    return Ok(Rc::new(ASTNode{line: t.line, col: t.col, token_type: TokenType::Identifier,
+      value: TokenValue::Null, s: t.s.clone(), a: None}));
+  }else{
+    return Err(SyntaxError{line: t.line, col: t.col, s: String::from("expected identifier.")});
+  }
 }
 
-pub fn compile(v: Vec<Token>, mode_cmd: bool){
+fn ast(&mut self, v: &Vec<Token>) -> Result<Rc<ASTNode>,SyntaxError>{
+  let x1 = match self.atom(v) {Ok(x) => x, Err(e) => {return Err(e);}};
+  let ref t = v[self.index];
+  if t.value==TokenValue::Ast {
+    self.index+=1;
+    let x2 = match self.atom(v) {Ok(x) => x, Err(e) => {return Err(e);}};
+    return Ok(Rc::new(ASTNode{line: t.line, col: t.col, token_type: TokenType::Terminal,
+      value: TokenValue::Null, s: None, a: None}));
+  }else{
+    return Err(SyntaxError{line: t.line, col: t.col, s: String::from("expected '*'.")});    
+  }
+}
+
+pub fn compile(v: &Vec<Token>, mode_cmd: bool){
   let mut compilation = Compilation{
-    mode_cmd: mode_cmd,
-    v: v, index: 0
+    mode_cmd: mode_cmd, index: 0
   };
-  compilation.index+=1;
+  let y = compilation.ast(v);
 }
 
 }
