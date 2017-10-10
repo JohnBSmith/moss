@@ -1,0 +1,31 @@
+
+use std::io;
+use std::io::Write;
+
+#[path = "compiler/compiler.rs"]
+mod compiler;
+
+fn main(){
+  loop{
+    let mut input = String::new();
+    print!("> ");
+    io::stdout().flush().ok();
+    match io::stdin().read_line(&mut input) {
+      Ok(_) => {},
+      Err(error) => {println!("Error: {}", error);},
+    };
+    input.pop();
+    if input=="quit" {break}
+    // println!("input: '{}'",input);
+    match compiler::scan(&input) {
+      Ok(v) => {
+        compiler::print_vtoken(&v);
+      },
+      Err(error) => {
+        compiler::print_syntax_error(error);
+      }
+    }
+  }
+}
+
+

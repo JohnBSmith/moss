@@ -1,0 +1,15 @@
+[package]
+name = "moss"
+version = "0.0.1"
+authors = ["Finn <finn.bcd@gmail.com>"]
+
+[lib]
+name = "moss"
+path = "src/lib.rs"
+
+[[bin]]
+name = "moss"
+path = "src/main.rs"
+
+[dependencies]
+
