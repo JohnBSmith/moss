@@ -6,6 +6,7 @@
 // use std::io;
 // use std::io::Write;
 use std::ascii::AsciiExt;
+use std::rc::Rc;
 
 #[derive(Copy,Clone)]
 enum TokenType{
@@ -336,3 +337,32 @@ pub fn print_vtoken(v: &Vec<Token>){
   println!();
 }
 
+struct ASTNode{
+  line: usize, col: usize,
+  token_type: TokenType,
+  value: TokenValue,
+  s: Option<String>
+}
+
+pub struct Compilation{
+  mode_cmd: bool,
+  v: Vec<Token>,
+  index: usize
+}
+
+impl Compilation{
+
+fn ast(&mut self) -> Rc<ASTNode>{
+  return Rc::new(ASTNode{line: 0, col: 0, token_type: TokenType::Terminal,
+    value: TokenValue::Null, s: None});
+}
+
+pub fn compile(v: Vec<Token>, mode_cmd: bool){
+  let mut compilation = Compilation{
+    mode_cmd: mode_cmd,
+    v: v, index: 0
+  };
+  compilation.index+=1;
+}
+
+}
