@@ -337,12 +337,12 @@ pub fn print_vtoken(v: &Vec<Token>){
   println!();
 }
 
-struct ASTNode<'a>{
+struct ASTNode{
   line: usize, col: usize,
   token_type: TokenType,
   value: TokenValue,
   s: Option<String>,
-  a: Option<&'a [Rc<ASTNode<'a>>]>
+  a: Option<Box<[Rc<ASTNode>]>>
 }
 
 pub struct Compilation{
@@ -370,7 +370,7 @@ fn ast(&mut self, v: &Vec<Token>) -> Result<Rc<ASTNode>,SyntaxError>{
     self.index+=1;
     let x2 = match self.atom(v) {Ok(x) => x, Err(e) => {return Err(e);}};
     return Ok(Rc::new(ASTNode{line: t.line, col: t.col, token_type: TokenType::Terminal,
-      value: TokenValue::Null, s: None, a: None}));
+      value: TokenValue::Null, s: None, a: Some(Box::new([x1,x2]))}));
   }else{
     return Err(SyntaxError{line: t.line, col: t.col, s: String::from("expected '*'.")});    
   }
