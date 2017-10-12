@@ -3,8 +3,8 @@
 #![allow(unused_variables)]
 #![allow(unused_mut)]
 
-// use std::io;
-// use std::io::Write;
+use std::io;
+use std::io::Write;
 use std::ascii::AsciiExt;
 use std::rc::Rc;
 
@@ -43,6 +43,7 @@ static KEYWORDS: &'static [KeywordsElement] = &[
    KeywordsElement{s: "assert",  t: &TokenType::Keyword, v: &TokenValue::Assert},
    KeywordsElement{s: "and",     t: &TokenType::Operator,v: &TokenValue::And},
    KeywordsElement{s: "begin",   t: &TokenType::Keyword, v: &TokenValue::Begin},
+   KeywordsElement{s: "break",   t: &TokenType::Keyword, v: &TokenValue::Begin},
    KeywordsElement{s: "catch",   t: &TokenType::Keyword, v: &TokenValue::Catch},
    KeywordsElement{s: "continue",t: &TokenType::Keyword, v: &TokenValue::Continue},
    KeywordsElement{s: "do",      t: &TokenType::Keyword, v: &TokenValue::Do},
@@ -101,21 +102,22 @@ pub fn scan(s: &String) -> Result<Vec<Token>, SyntaxError>{
   let mut v: Vec<Token> = Vec::new();
   let mut line=1;
   let mut col=1;
+  let mut hcol: usize;
   let a: Vec<char> = s.chars().collect();
   let mut i=0;
   let n = a.len();
   while i<n {
     let c = a[i];
     if c.is_digit(10) {
-      let j=i;
+      let j=i; hcol=col;
       while i<n && a[i].is_digit(10) {
         i+=1; col+=1;
       }
       let number: &String = &a[j..i].iter().cloned().collect();
       v.push(Token{token_type: TokenType::Int,
-        value: TokenValue::None, line: line, col: col, s: Some(number.clone())});
+        value: TokenValue::None, line: line, col: hcol, s: Some(number.clone())});
     }else if (c.is_alphabetic() && c.is_ascii()) || a[i]=='_' {
-      let j=i;
+      let j=i; hcol=col;
       while i<n && (a[i].is_alphabetic() || a[i].is_digit(10) || a[i]=='_') {
         i+=1; col+=1;
       }
@@ -123,11 +125,11 @@ pub fn scan(s: &String) -> Result<Vec<Token>, SyntaxError>{
       match is_keyword(id) {
         Some(x) => {
           v.push(Token{token_type: *x.t, value: *x.v,
-            line: line, col: col, s: None});
+            line: line, col: hcol, s: None});
         },
         None => {
           v.push(Token{token_type: TokenType::Identifier,
-            value: TokenValue::None, line: line, col: col, s: Some(id.clone())});
+            value: TokenValue::None, line: line, col: hcol, s: Some(id.clone())});
         }
       }
     }else{
@@ -319,22 +321,56 @@ fn token_value_to_string(value: &TokenValue) -> &'static str {
   };
 }
 
-pub fn print_vtoken(v: &Vec<Token>){
-  for x in v {
-    match x.token_type {
-      TokenType::String | TokenType::Int | TokenType::Identifier => {
-        print!("[{}]",match x.s {Some(ref s) => s, None => compiler_error()});
-      },
-      TokenType::Operator | TokenType::Separator |
-      TokenType::Bracket  | TokenType::Keyword | TokenType::Bool => {
-        print!("[{}]",token_value_to_string(&x.value));
-      },
-      TokenType::Terminal => {
-        print!("[Terminal]");
-      }
+fn print_token(x: &Token){
+  match x.token_type {
+    TokenType::String | TokenType::Int | TokenType::Identifier => {
+      print!("[{}]",match x.s {Some(ref s) => s, None => compiler_error()});
+    },
+    TokenType::Operator | TokenType::Separator |
+    TokenType::Bracket  | TokenType::Keyword | TokenType::Bool => {
+      print!("[{}]",token_value_to_string(&x.value));
+    },
+    TokenType::Terminal => {
+      print!("[Terminal]");
     }
   }
+}
+
+pub fn print_vtoken(v: &Vec<Token>){
+  for x in v {print_token(x);}
   println!();
+}
+
+fn print_ast(t: &ASTNode, indent: usize){
+  print!("{:1$}","",indent);
+  match t.token_type {
+    TokenType::Identifier | TokenType::Int => {
+      println!("{}",match t.s {Some(ref s) => s, None => compiler_error()});
+    },
+    TokenType::Operator | TokenType::Separator |
+    TokenType::Keyword  | TokenType::Bool => {
+      println!("{}",token_value_to_string(&t.value));
+    },
+    _ => {compiler_error();}
+  }
+  match t.a {
+    Some(ref a) => {
+      for i in 0..a.len() {
+        print_ast(&a[i],indent+2);
+      }
+    },
+    None => {}
+  };
+}
+
+fn scan_line() -> Vec<Token>{
+  let mut input = String::new();
+  print!("| ");
+  io::stdout().flush().ok();
+  io::stdin().read_line(&mut input).ok();
+  input.pop();
+  let v = match scan(&input) {Ok(x) => x, Err(x) => panic!()};
+  return v;
 }
 
 struct ASTNode{
@@ -347,40 +383,65 @@ struct ASTNode{
 
 pub struct Compilation{
   mode_cmd: bool,
-  index: usize
+  index: usize,
+  list: Vec<Vec<Token>>
+}
+
+struct TokenIterator<'a>{
+  pub a: &'a [Token],
+  pub index: usize
+}
+
+impl<'a> TokenIterator<'a>{
+  fn get_token(&mut self, c: &mut Compilation) -> &'a Token{
+    let t = &self.a[self.index];
+    if t.token_type==TokenType::Terminal {
+      let v = scan_line();
+      c.list.push(v);
+      // TODO:
+      // self.a = &c.list[c.list.len()-1];
+      self.index=0;
+      return &self.a[self.index];
+    }else{
+      return t;
+    }
+  }
 }
 
 impl Compilation{
 
-fn atom(&mut self, v: &Vec<Token>) -> Result<Rc<ASTNode>,SyntaxError>{
-  let ref t = v[self.index];
-  if t.token_type==TokenType::Identifier {
-    self.index+=1;
-    return Ok(Rc::new(ASTNode{line: t.line, col: t.col, token_type: TokenType::Identifier,
+fn atom(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError> {
+  let ref t = i.get_token(self);
+  if t.token_type==TokenType::Identifier || t.token_type==TokenType::Int {
+    i.index+=1;
+    return Ok(Rc::new(ASTNode{line: t.line, col: t.col, token_type: t.token_type,
       value: TokenValue::Null, s: t.s.clone(), a: None}));
   }else{
     return Err(SyntaxError{line: t.line, col: t.col, s: String::from("expected identifier.")});
   }
 }
 
-fn ast(&mut self, v: &Vec<Token>) -> Result<Rc<ASTNode>,SyntaxError>{
-  let x1 = match self.atom(v) {Ok(x) => x, Err(e) => {return Err(e);}};
-  let ref t = v[self.index];
+fn ast(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError>{
+  let x1 = try!(self.atom(i));
+  let ref t = i.get_token(self);
   if t.value==TokenValue::Ast {
-    self.index+=1;
-    let x2 = match self.atom(v) {Ok(x) => x, Err(e) => {return Err(e);}};
-    return Ok(Rc::new(ASTNode{line: t.line, col: t.col, token_type: TokenType::Terminal,
-      value: TokenValue::Null, s: None, a: Some(Box::new([x1,x2]))}));
+    i.index+=1;
+    let x2 = try!(self.atom(i));
+    return Ok(Rc::new(ASTNode{line: t.line, col: t.col, token_type: TokenType::Operator,
+      value: TokenValue::Ast, s: None, a: Some(Box::new([x1,x2]))}));
   }else{
     return Err(SyntaxError{line: t.line, col: t.col, s: String::from("expected '*'.")});    
   }
 }
 
-pub fn compile(v: &Vec<Token>, mode_cmd: bool){
-  let mut compilation = Compilation{
-    mode_cmd: mode_cmd, index: 0
-  };
-  let y = compilation.ast(v);
-}
+}//impl
 
+pub fn compile(v: &Vec<Token>, mode_cmd: bool) -> Result<(),SyntaxError>{
+  let mut compilation = Compilation{
+    mode_cmd: mode_cmd, index: 0, list: vec![]
+  };
+  let mut i = TokenIterator{index: 0, a: &v};
+  let y = try!(compilation.ast(&mut i));
+  print_ast(&y,2);
+  return Ok(());
 }
