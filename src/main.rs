@@ -21,7 +21,7 @@ fn main(){
     input.pop();
     if input=="quit" {break}
     // println!("input: '{}'",input);
-    match compiler::scan(&input) {
+    match compiler::scan(&input,1) {
       Ok(v) => {
         // compiler::print_vtoken(&v);
         match compiler::compile(v,true) {

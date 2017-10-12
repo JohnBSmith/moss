@@ -98,9 +98,9 @@ fn is_keyword(id: &String) -> Option<&'static KeywordsElement> {
   return None;
 }
 
-pub fn scan(s: &String) -> Result<Vec<Token>, SyntaxError>{
+pub fn scan(s: &String, line_start: usize) -> Result<Vec<Token>, SyntaxError>{
   let mut v: Vec<Token> = Vec::new();
-  let mut line=1;
+  let mut line=line_start;
   let mut col=1;
   let mut hcol: usize;
   let a: Vec<char> = s.chars().collect();
@@ -363,14 +363,13 @@ fn print_ast(t: &ASTNode, indent: usize){
   };
 }
 
-fn scan_line() -> Vec<Token>{
+fn scan_line(line_start: usize) -> Result<Vec<Token>,SyntaxError>{
   let mut input = String::new();
   print!("| ");
   io::stdout().flush().ok();
   io::stdin().read_line(&mut input).ok();
   input.pop();
-  let v = match scan(&input) {Ok(x) => x, Err(x) => panic!()};
-  return v;
+  return scan(&input,line_start);
 }
 
 struct ASTNode{
@@ -384,6 +383,7 @@ struct ASTNode{
 pub struct Compilation{
   mode_cmd: bool,
   index: usize,
+  parens: bool
 }
 
 struct TokenIterator{
@@ -392,19 +392,25 @@ struct TokenIterator{
 }
 
 impl TokenIterator{
-  fn next_token(&mut self, c: &mut Compilation) -> Rc<Box<[Token]>>{
-    let token_type = self.a[self.index].token_type;
-    if token_type==TokenType::Terminal {
-      let v = scan_line();
-      self.a = Rc::new(v.into_boxed_slice());
-      self.index=0;
-      return self.a.clone();
-    }else{
-      return self.a.clone();
+  fn next_token(&mut self, c: &mut Compilation) -> Result<Rc<Box<[Token]>>,SyntaxError>{
+    if c.mode_cmd {
+      let token_type = self.a[self.index].token_type;
+      if token_type==TokenType::Terminal {
+        let line = self.a[self.index].line;
+        let v = try!(scan_line(line+1));
+        self.a = Rc::new(v.into_boxed_slice());
+        self.index=0;
+        return self.next_token(c);
+      }
     }
+    return Ok(self.a.clone());
   }
-  fn next_any_token(&mut self, c: &Compilation) -> Rc<Box<[Token]>>{
-    return self.a.clone();
+  fn next_any_token(&mut self, c: &mut Compilation) -> Result<Rc<Box<[Token]>>,SyntaxError>{
+    if c.parens {
+      return self.next_token(c);
+    }else{
+      return Ok(self.a.clone());
+    }
   }
 }
 
@@ -419,12 +425,24 @@ fn binary_operator(line: usize, col: usize, value: TokenValue,
 impl Compilation{
 
 fn atom(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError> {
-  let p = i.next_token(self);
+  let p = try!(i.next_token(self));
   let t = &p[i.index];
   if t.token_type==TokenType::Identifier || t.token_type==TokenType::Int {
     i.index+=1;
     return Ok(Rc::new(ASTNode{line: t.line, col: t.col, token_type: t.token_type,
       value: TokenValue::Null, s: t.s.clone(), a: None}));
+  }else if t.value==TokenValue::PLeft {
+    i.index+=1;
+    self.parens = true;
+    let y = self.ast(i);
+    let p = try!(i.next_token(self));
+    let t = &p[i.index];
+    self.parens = false;
+    if t.value!=TokenValue::PRight {
+      return Err(SyntaxError{line: t.line, col: t.col, s: String::from("expected ')'.")});
+    }
+    i.index+=1;
+    return y;
   }else{
     return Err(SyntaxError{line: t.line, col: t.col, s: String::from("expected identifier.")});
   }
@@ -432,14 +450,14 @@ fn atom(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError> {
 
 fn factor(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError>{
   let mut y = try!(self.atom(i));
-  let p = i.next_any_token(self);
+  let p = try!(i.next_any_token(self));
   let t = &p[i.index];
   if t.value==TokenValue::Ast {
     loop {
       i.index+=1;
       let x = try!(self.atom(i));
       y = binary_operator(t.line,t.col,TokenValue::Ast,y,x);
-      let p = i.next_any_token(self);
+      let p = try!(i.next_any_token(self));
       let t = &p[i.index];
       if t.value!=TokenValue::Ast {
         return Ok(y);
@@ -452,14 +470,14 @@ fn factor(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError>{
 
 fn ast(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError>{
   let mut y = try!(self.factor(i));
-  let p = i.next_any_token(self);
+  let p = try!(i.next_any_token(self));
   let t = &p[i.index];
   if t.value==TokenValue::Plus || t.value==TokenValue::Minus {
     loop {
       i.index+=1;
       let x = try!(self.factor(i));
       y = binary_operator(t.line,t.col,t.value,y,x);
-      let p = i.next_any_token(self);
+      let p = try!(i.next_any_token(self));
       let t = &p[i.index];
       if t.value!=TokenValue::Plus {
         return Ok(y);
@@ -472,12 +490,11 @@ fn ast(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError>{
 
 // return Err(SyntaxError{line: t.line, col: t.col, s: String::from("expected '*'.")});    
 
-
 }//impl
 
 pub fn compile(v: Vec<Token>, mode_cmd: bool) -> Result<(),SyntaxError>{
   let mut compilation = Compilation{
-    mode_cmd: mode_cmd, index: 0
+    mode_cmd: mode_cmd, index: 0, parens: false
   };
   let mut i = TokenIterator{index: 0, a: Rc::new(v.into_boxed_slice())};
   let y = try!(compilation.ast(&mut i));
