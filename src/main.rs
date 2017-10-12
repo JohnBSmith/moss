@@ -23,8 +23,8 @@ fn main(){
     // println!("input: '{}'",input);
     match compiler::scan(&input) {
       Ok(v) => {
-        compiler::print_vtoken(&v);
-        match compiler::compile(&v,true) {
+        // compiler::print_vtoken(&v);
+        match compiler::compile(v,true) {
           Ok(_) => {},
           Err(e) => {compiler::print_syntax_error(e);}
         };
