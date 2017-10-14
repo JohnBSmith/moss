@@ -3,24 +3,28 @@
 #![allow(unused_variables)]
 #![allow(unused_mut)]
 
-use std::io;
-use std::io::Write;
-
 #[path = "compiler/compiler.rs"]
 mod compiler;
+
+#[path = "system/system.rs"]
+mod system;
+
+fn _main(){
+  loop{
+    let s = system::getline("# ").unwrap();
+    println!("[{}]",s);
+  }
+}
+
 
 fn main(){
   loop{
     let mut input = String::new();
-    print!("> ");
-    io::stdout().flush().ok();
-    match io::stdin().read_line(&mut input) {
-      Ok(_) => {},
+    match system::getline("> ") {
+      Ok(s) => {input=s;},
       Err(error) => {println!("Error: {}", error);},
     };
-    input.pop();
     if input=="quit" {break}
-    // println!("input: '{}'",input);
     match compiler::scan(&input,1) {
       Ok(v) => {
         // compiler::print_vtoken(&v);
@@ -35,5 +39,3 @@ fn main(){
     }
   }
 }
-
-

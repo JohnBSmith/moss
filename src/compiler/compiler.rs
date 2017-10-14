@@ -3,8 +3,7 @@
 #![allow(unused_variables)]
 #![allow(unused_mut)]
 
-use std::io;
-use std::io::Write;
+use system;
 use std::ascii::AsciiExt;
 use std::rc::Rc;
 
@@ -364,11 +363,10 @@ fn print_ast(t: &ASTNode, indent: usize){
 }
 
 fn scan_line(line_start: usize) -> Result<Vec<Token>,SyntaxError>{
-  let mut input = String::new();
-  print!("| ");
-  io::stdout().flush().ok();
-  io::stdin().read_line(&mut input).ok();
-  input.pop();
+  let input = match system::getline("| ") {
+    Ok(x) => x,
+    Err(x) => panic!()
+  };
   return scan(&input,line_start);
 }
 
@@ -414,7 +412,6 @@ impl TokenIterator{
   }
 }
 
-#[inline(always)]
 fn binary_operator(line: usize, col: usize, value: TokenValue,
   x: Rc<ASTNode>, y: Rc<ASTNode>) -> Rc<ASTNode>
 {
@@ -444,7 +441,7 @@ fn atom(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError> {
     i.index+=1;
     return y;
   }else{
-    return Err(SyntaxError{line: t.line, col: t.col, s: String::from("expected identifier.")});
+    return Err(SyntaxError{line: t.line, col: t.col, s: String::from("unexpected token.")});
   }
 }
 
@@ -479,7 +476,7 @@ fn ast(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError>{
       y = binary_operator(t.line,t.col,t.value,y,x);
       let p = try!(i.next_any_token(self));
       let t = &p[i.index];
-      if t.value!=TokenValue::Plus {
+      if t.value!=TokenValue::Plus && t.value!=TokenValue::Minus {
         return Ok(y);
       }
     }
