@@ -48,15 +48,19 @@ pub fn getline(prompt: &str) -> io::Result<String> {
     if c==NEWLINE {
       println!();
       break;
-    }else if c==ESC {
-      let c2 = getchar();
-      if c2==ARROW {
-        let c3 = getchar();
-        if c3==LEFT {
-          if i>0 {i-=1;}
-        }else if c3==RIGHT {
-          if i<n {i+=1;}
+    }else if c<32 {
+      if c==ESC {
+        let c2 = getchar();
+        if c2==ARROW {
+          let c3 = getchar();
+          if c3==LEFT {
+            if i>0 {i-=1;}
+          }else if c3==RIGHT {
+            if i<n {i+=1;}
+          }
         }
+      }else{
+        continue;
       }
     }else if c==BACKSPACE {
       if i>0 {

@@ -15,4 +15,6 @@ path = "src/main.rs"
 libc = "0.2"
 termios = "0.2"
 
+[profile.dev]
+debug = true
 

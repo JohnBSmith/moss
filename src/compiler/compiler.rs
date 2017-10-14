@@ -15,13 +15,15 @@ enum TokenType{
 
 #[derive(Copy,Clone,PartialEq)]
 enum TokenValue{
-  None, Plus, Minus, Ast, Div, Idiv, Mod, Pow, Lt, Gt, In, Is,
+  None, Plus, Minus, Ast, Div, Idiv, Mod, Pow,
+  Lt, Gt, Le, Ge, Eq, Ne, In, Is,
   And, Or, Amp, Vline, Not, Tilde, Svert, Assignment,
   PLeft, PRight, BLeft, BRight, CLeft, CRight, Newline,
   Assert, Begin, Break, Catch, Continue,
   Elif, Else, End, For, Global, Goto, Label,
   If, While, Do, Raise, Return, Sub, Table, Then, Try,
-  Use, Yield, True, False, Null, Dot, Comma, Colon, Semicolon
+  Use, Yield, True, False, Null, Dot, Comma, Colon, Semicolon,
+  List
 }
 
 pub struct Token {
@@ -262,6 +264,17 @@ pub fn scan(s: &String, line_start: usize) -> Result<Vec<Token>, SyntaxError>{
             value: TokenValue::Tilde, line: line, col: col, s: None});
           i+=1; col+=1;
         },
+        '"' => {
+          hcol=col;
+          i+=1; col+=1;
+          let j=i;
+          while i<n && a[i]!='"' {i+=1; col+=1;}
+          let s: &String = &a[j..i].iter().cloned().collect();
+          v.push(Token{token_type: TokenType::String,
+            value: TokenValue::None, line: line, col: hcol, s: Some(s.clone())
+          });
+          i+=1; col+=1;
+        }
         _ => {
           return Err(SyntaxError{line: line, col: col,
             s: format!("unexpected character '{}'.", c)});
@@ -290,6 +303,7 @@ fn token_value_to_string(value: &TokenValue) -> &'static str {
     TokenValue::Lt    => "<", TokenValue::Gt => ">",
     TokenValue::Dot   => ".", TokenValue::Comma => ",",
     TokenValue::Colon => ":", TokenValue::Semicolon => ";",
+    TokenValue::List => "[]",
     TokenValue::Assignment => "=",
     TokenValue::Newline => "\\n",
     TokenValue::Assert => "assert",
@@ -345,6 +359,9 @@ fn print_ast(t: &ASTNode, indent: usize){
   match t.token_type {
     TokenType::Identifier | TokenType::Int => {
       println!("{}",match t.s {Some(ref s) => s, None => compiler_error()});
+    },
+    TokenType::String => {
+      println!("\"{}\"",match t.s {Some(ref s) => s, None => compiler_error()});    
     },
     TokenType::Operator | TokenType::Separator |
     TokenType::Keyword  | TokenType::Bool => {
@@ -412,19 +429,52 @@ impl TokenIterator{
   }
 }
 
+fn unary_operator(line: usize, col: usize,
+  value: TokenValue, x: Rc<ASTNode>) -> Rc<ASTNode>
+{
+  return Rc::new(ASTNode{line: line, col: col, token_type: TokenType::Operator,
+    value: value, s: None, a: Some(Box::new([x]))}); 
+}
+
 fn binary_operator(line: usize, col: usize, value: TokenValue,
   x: Rc<ASTNode>, y: Rc<ASTNode>) -> Rc<ASTNode>
 {
   return Rc::new(ASTNode{line: line, col: col, token_type: TokenType::Operator,
-      value: value, s: None, a: Some(Box::new([x,y]))}); 
+    value: value, s: None, a: Some(Box::new([x,y]))}); 
 }
 
 impl Compilation{
 
+fn list_literal(&mut self, i: &mut TokenIterator) -> Result<Box<[Rc<ASTNode>]>,SyntaxError> {
+  let mut v: Vec<Rc<ASTNode>> = Vec::new();
+  let p = try!(i.next_token(self));
+  let t = &p[i.index];
+  if t.value==TokenValue::BRight {
+    return Ok(v.into_boxed_slice());
+  }
+  loop{
+    let x = try!(self.expression(i));
+    v.push(x);
+    let p = try!(i.next_token(self));
+    let t = &p[i.index];
+    if t.value==TokenValue::Comma {
+      i.index+=1;
+    }else if t.value==TokenValue::BRight {
+      i.index+=1;
+      break;
+    }else{
+      return Err(SyntaxError{line: t.line, col: t.col, s: String::from("expected ',' or ']'.")});      
+    }
+  }
+  return Ok(v.into_boxed_slice());
+}
+
 fn atom(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError> {
   let p = try!(i.next_token(self));
   let t = &p[i.index];
-  if t.token_type==TokenType::Identifier || t.token_type==TokenType::Int {
+  if t.token_type==TokenType::Identifier || t.token_type==TokenType::Int ||
+     t.token_type==TokenType::String
+  {
     i.index+=1;
     return Ok(Rc::new(ASTNode{line: t.line, col: t.col, token_type: t.token_type,
       value: TokenValue::Null, s: t.s.clone(), a: None}));
@@ -440,49 +490,193 @@ fn atom(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError> {
     }
     i.index+=1;
     return y;
+  }else if t.value==TokenValue::BLeft {
+    i.index+=1;
+    let y = try!(self.list_literal(i));
+    return Ok(Rc::new(ASTNode{line: t.line, col: t.col,
+      token_type: TokenType::Operator, value: TokenValue::List,
+      s: None, a: Some(y)
+    }));
   }else{
     return Err(SyntaxError{line: t.line, col: t.col, s: String::from("unexpected token.")});
   }
 }
 
-fn factor(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError>{
-  let mut y = try!(self.atom(i));
+fn power(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError>{
+  let x = try!(self.atom(i));
   let p = try!(i.next_any_token(self));
   let t = &p[i.index];
-  if t.value==TokenValue::Ast {
-    loop {
-      i.index+=1;
-      let x = try!(self.atom(i));
-      y = binary_operator(t.line,t.col,TokenValue::Ast,y,x);
+  if t.value==TokenValue::Pow {
+    i.index+=1;
+    let y = try!(self.power(i));
+    return Ok(binary_operator(t.line,t.col,TokenValue::Pow,x,y));
+  }else{
+    return Ok(x);
+  }
+}
+
+fn signed_expression(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError>{
+  let p = try!(i.next_token(self));
+  let t = &p[i.index];
+  if t.value==TokenValue::Minus {
+    i.index+=1;
+    let x = try!(self.power(i));
+    return Ok(unary_operator(t.line,t.col,TokenValue::Minus,x));
+  }else{
+    return self.power(i);
+  }
+}
+
+fn factor(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError>{
+  let mut y = try!(self.signed_expression(i));
+  let p = try!(i.next_any_token(self));
+  let t = &p[i.index];
+  let value=t.value;
+  if value==TokenValue::Ast || value==TokenValue::Div || value==TokenValue::Idiv {
+    i.index+=1;
+    let x = try!(self.signed_expression(i));
+    y = binary_operator(t.line,t.col,value,y,x);
+    loop{
       let p = try!(i.next_any_token(self));
       let t = &p[i.index];
-      if t.value!=TokenValue::Ast {
+      let value = t.value;
+      if value!=TokenValue::Ast && value!=TokenValue::Div && value!=TokenValue::Idiv {
         return Ok(y);
       }
+      i.index+=1;
+      let x = try!(self.signed_expression(i));
+      y = binary_operator(t.line,t.col,value,y,x);  
     }
   }else{
     return Ok(y);
   }
 }
 
-fn ast(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError>{
+fn addition(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError>{
   let mut y = try!(self.factor(i));
   let p = try!(i.next_any_token(self));
   let t = &p[i.index];
-  if t.value==TokenValue::Plus || t.value==TokenValue::Minus {
-    loop {
-      i.index+=1;
-      let x = try!(self.factor(i));
-      y = binary_operator(t.line,t.col,t.value,y,x);
+  let value=t.value;
+  if value==TokenValue::Plus || value==TokenValue::Minus {
+    i.index+=1;
+    let x = try!(self.factor(i));
+    y = binary_operator(t.line,t.col,value,y,x);
+    loop{
       let p = try!(i.next_any_token(self));
       let t = &p[i.index];
-      if t.value!=TokenValue::Plus && t.value!=TokenValue::Minus {
+      let value=t.value;
+      if value!=TokenValue::Plus && value!=TokenValue::Minus {
         return Ok(y);
       }
+      i.index+=1;
+      let x = try!(self.factor(i));
+      y = binary_operator(t.line,t.col,value,y,x);  
     }
   }else{
     return Ok(y);
   }
+}
+
+fn comparison(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError>{
+  let x = try!(self.addition(i));
+  let p = try!(i.next_any_token(self));
+  let t = &p[i.index];
+  let value=t.value;
+  if value==TokenValue::Lt || value==TokenValue::Gt ||
+     value==TokenValue::Le || value==TokenValue::Ge
+  {
+    i.index+=1;
+    let y = try!(self.addition(i));
+    return Ok(binary_operator(t.line,t.col,value,x,y));
+  }else{
+    return Ok(x);
+  }
+}
+
+fn eq_expression(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError>{
+  let x = try!(self.comparison(i));
+  let p = try!(i.next_any_token(self));
+  let t = &p[i.index];
+  let value=t.value;
+  if value==TokenValue::Eq || value==TokenValue::Ne ||
+     value==TokenValue::Is || value==TokenValue::In
+  {
+    i.index+=1;
+    let y = try!(self.comparison(i));
+    return Ok(binary_operator(t.line,t.col,value,x,y));
+  }else{
+    return Ok(x);
+  }
+}
+
+fn negation(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError>{
+  let p = try!(i.next_token(self));
+  let t = &p[i.index];
+  if t.value==TokenValue::Not {
+    i.index+=1;
+    let x = try!(self.eq_expression(i));
+    return Ok(unary_operator(t.line,t.col,TokenValue::Not,x));
+  }else{
+    return self.eq_expression(i);
+  }
+}
+
+fn conjunction(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError>{
+  let x = try!(self.negation(i));
+  let p = try!(i.next_any_token(self));
+  let t = &p[i.index];
+  if t.value==TokenValue::And {
+    i.index+=1;
+    let y = try!(self.negation(i));
+    return Ok(binary_operator(t.line,t.col,TokenValue::And,x,y));
+  }else{
+    return Ok(x);
+  }
+}
+
+fn disjunction(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError>{
+  let x = try!(self.conjunction(i));
+  let p = try!(i.next_any_token(self));
+  let t = &p[i.index];
+  if t.value==TokenValue::Or {
+    i.index+=1;
+    let y = try!(self.conjunction(i));
+    return Ok(binary_operator(t.line,t.col,TokenValue::Or,x,y));
+  }else{
+    return Ok(x);
+  }
+}
+
+fn if_expression(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError>{
+  let x = try!(self.disjunction(i));
+  let p = try!(i.next_any_token(self));
+  let t = &p[i.index];
+  if t.value==TokenValue::If {
+    i.index+=1;
+    let condition = try!(self.expression(i));
+    let p2 = try!(i.next_any_token(self));
+    let t2 = &p[i.index];
+    if t2.value==TokenValue::Else {
+      i.index+=1;
+      let y = try!(self.expression(i));
+      return Ok(Rc::new(ASTNode{
+        line: t.line, col: t.col, token_type: TokenType::Operator,
+        value: TokenValue::If, a: Some(Box::new([condition,x,y])), s: None
+      }));
+    }else{
+      return Ok(binary_operator(t.line,t.col,TokenValue::If,condition,x));
+    }
+  }else{
+    return Ok(x);
+  }
+}
+
+fn expression(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError>{
+  return self.if_expression(i);
+}
+
+fn ast(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError>{
+  return self.expression(i);
 }
 
 // return Err(SyntaxError{line: t.line, col: t.col, s: String::from("expected '*'.")});    
