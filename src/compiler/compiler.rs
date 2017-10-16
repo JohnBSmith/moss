@@ -189,9 +189,15 @@ pub fn scan(s: &String, line_start: usize) -> Result<Vec<Token>, SyntaxError>{
           i+=1; col+=1;
         },
         '=' => {
-          v.push(Token{token_type: TokenType::Operator,
-            value: TokenValue::Assignment, line: line, col: col, s: None});
-          i+=1; col+=1;
+          if i+1<n && a[i+1]=='=' {
+            v.push(Token{token_type: TokenType::Operator,
+              value: TokenValue::Eq, line: line, col: col, s: None});
+            i+=2; col+=2;
+          }else{
+            v.push(Token{token_type: TokenType::Operator,
+              value: TokenValue::Assignment, line: line, col: col, s: None});
+            i+=1; col+=1;
+          }
         },
         '+' => {
           v.push(Token{token_type: TokenType::Operator,
@@ -235,14 +241,26 @@ pub fn scan(s: &String, line_start: usize) -> Result<Vec<Token>, SyntaxError>{
           i+=1; col+=1;
         },
         '<' => {
-          v.push(Token{token_type: TokenType::Operator,
-            value: TokenValue::Lt, line: line, col: col, s: None});
-          i+=1; col+=1;
+          if i+1<n && a[i+1]=='=' {
+            v.push(Token{token_type: TokenType::Operator,
+              value: TokenValue::Le, line: line, col: col, s: None});
+            i+=2; col+=2;
+          }else{
+            v.push(Token{token_type: TokenType::Operator,
+              value: TokenValue::Lt, line: line, col: col, s: None});
+            i+=1; col+=1;
+          }
         },
         '>' => {
-          v.push(Token{token_type: TokenType::Operator,
-            value: TokenValue::Gt, line: line, col: col, s: None});
-          i+=1; col+=1;
+          if i+1<n && a[i+1]=='=' {
+            v.push(Token{token_type: TokenType::Operator,
+              value: TokenValue::Ge, line: line, col: col, s: None});
+            i+=2; col+=2;
+          }else{
+            v.push(Token{token_type: TokenType::Operator,
+              value: TokenValue::Gt, line: line, col: col, s: None});
+            i+=1; col+=1;
+          }
         },
         '|' => {
           v.push(Token{token_type: TokenType::Operator,
@@ -274,7 +292,17 @@ pub fn scan(s: &String, line_start: usize) -> Result<Vec<Token>, SyntaxError>{
             value: TokenValue::None, line: line, col: hcol, s: Some(s.clone())
           });
           i+=1; col+=1;
-        }
+        },
+        '!' => {
+          if i+1<n && a[i+1]=='=' {
+            v.push(Token{token_type: TokenType::Operator,
+              value: TokenValue::Ne, line: line, col: col, s: None});
+            i+=2; col+=2;
+          }else{
+            return Err(SyntaxError{line: line, col: col,
+              s: format!("unexpected character '{}'.", c)});          
+          }
+        },
         _ => {
           return Err(SyntaxError{line: line, col: col,
             s: format!("unexpected character '{}'.", c)});
@@ -301,8 +329,10 @@ fn token_value_to_string(value: &TokenValue) -> &'static str {
     TokenValue::BLeft => "[", TokenValue::BRight => "]",
     TokenValue::CLeft => "{", TokenValue::CRight => "}",
     TokenValue::Lt    => "<", TokenValue::Gt => ">",
+    TokenValue::Le   => "<=", TokenValue::Ge => ">=",
     TokenValue::Dot   => ".", TokenValue::Comma => ",",
     TokenValue::Colon => ":", TokenValue::Semicolon => ";",
+    TokenValue::Eq   => "==", TokenValue::Ne => "!=",
     TokenValue::List => "[]",
     TokenValue::Assignment => "=",
     TokenValue::Newline => "\\n",
@@ -395,10 +425,11 @@ struct ASTNode{
   a: Option<Box<[Rc<ASTNode>]>>
 }
 
-pub struct Compilation{
+pub struct Compilation<'a>{
   mode_cmd: bool,
   index: usize,
-  parens: bool
+  parens: bool,
+  history: &'a system::History
 }
 
 struct TokenIterator{
@@ -443,7 +474,7 @@ fn binary_operator(line: usize, col: usize, value: TokenValue,
     value: value, s: None, a: Some(Box::new([x,y]))}); 
 }
 
-impl Compilation{
+impl<'a> Compilation<'a>{
 
 fn list_literal(&mut self, i: &mut TokenIterator) -> Result<Box<[Rc<ASTNode>]>,SyntaxError> {
   let mut v: Vec<Rc<ASTNode>> = Vec::new();
@@ -459,6 +490,12 @@ fn list_literal(&mut self, i: &mut TokenIterator) -> Result<Box<[Rc<ASTNode>]>,S
     let t = &p[i.index];
     if t.value==TokenValue::Comma {
       i.index+=1;
+      let p = try!(i.next_token(self));
+      let t = &p[i.index];
+      if t.value==TokenValue::BRight {
+        i.index+=1;
+        break;
+      }
     }else if t.value==TokenValue::BRight {
       i.index+=1;
       break;
@@ -675,17 +712,29 @@ fn expression(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxErro
   return self.if_expression(i);
 }
 
-fn ast(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError>{
-  return self.expression(i);
+fn assignment(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError>{
+  let x = try!(self.expression(i));
+  let p = try!(i.next_any_token(self));
+  let t = &p[i.index];
+  if t.value==TokenValue::Assignment {
+    i.index+=1;
+    let y = try!(self.expression(i));
+    return Ok(binary_operator(t.line,t.col,TokenValue::Assignment,x,y));
+  }else{
+    return Ok(x);
+  }
 }
 
-// return Err(SyntaxError{line: t.line, col: t.col, s: String::from("expected '*'.")});    
+fn ast(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError>{
+  return self.assignment(i);
+}
 
 }//impl
 
-pub fn compile(v: Vec<Token>, mode_cmd: bool) -> Result<(),SyntaxError>{
+pub fn compile(v: Vec<Token>, mode_cmd: bool, history: &mut system::History) -> Result<(),SyntaxError>{
   let mut compilation = Compilation{
-    mode_cmd: mode_cmd, index: 0, parens: false
+    mode_cmd: mode_cmd, index: 0, parens: false,
+    history: history
   };
   let mut i = TokenIterator{index: 0, a: Rc::new(v.into_boxed_slice())};
   let y = try!(compilation.ast(&mut i));

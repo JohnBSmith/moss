@@ -9,26 +9,23 @@ mod compiler;
 #[path = "system/system.rs"]
 mod system;
 
-fn _main(){
-  loop{
-    let s = system::getline("# ").unwrap();
-    println!("[{}]",s);
-  }
-}
-
-
-fn main(){
+fn command_line_session(){
+  let mut history = system::History::new();
   loop{
     let mut input = String::new();
-    match system::getline("> ") {
-      Ok(s) => {input=s;},
+    match system::getline_history("> ",&history) {
+      Ok(s) => {
+        if s=="" {continue;}
+        history.append(&s);
+        input=s;
+      },
       Err(error) => {println!("Error: {}", error);},
     };
     if input=="quit" {break}
     match compiler::scan(&input,1) {
       Ok(v) => {
         // compiler::print_vtoken(&v);
-        match compiler::compile(v,true) {
+        match compiler::compile(v,true,&mut history) {
           Ok(_) => {},
           Err(e) => {compiler::print_syntax_error(e);}
         };
@@ -37,5 +34,16 @@ fn main(){
         compiler::print_syntax_error(error);
       }
     }
+  }
+}
+
+fn main(){
+  command_line_session();
+}
+
+fn _main(){
+  loop{
+    let s = system::getline("# ").unwrap();
+    println!("[{}]",s);
   }
 }

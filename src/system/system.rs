@@ -18,6 +18,43 @@ const LEFT: i32 = 68;
 const RIGHT: i32 = 67;
 const BACKSPACE: i32 = 127;
 
+struct HistoryNode{
+  s: String,
+  next: Option<Box<HistoryNode>>
+}
+pub struct History{
+  first: Option<Box<HistoryNode>>
+}
+
+impl History{
+  pub fn get(&self, index: usize) -> Option<String> {
+    if index==0 {return None;}
+    if let Some(ref first) = self.first {
+      let mut p = first;
+      for _ in 0..index-1 {
+        if let Some(ref next) = p.next {
+          p = next;
+        }else{
+          return None;
+        }
+      }
+      return Some(p.s.clone());
+    }
+    return None;
+  }
+  pub fn new() -> History{
+    return History{first: None};
+  }
+  pub fn append(&mut self, s: &str){
+    if let Some(ref first) = self.first {
+      if &first.s==s {return;}
+    }
+    self.first = Some(Box::new(HistoryNode{
+      s: String::from(s), next: self.first.take()
+    }));
+  }
+}
+
 fn getchar() -> i32 {
   unsafe{libc::getchar()}
 }
@@ -31,7 +68,7 @@ fn number_of_bytes(c: u8) -> usize {
   return 7-i as usize;
 }
 
-pub fn getline(prompt: &str) -> io::Result<String> {
+pub fn getline_history(prompt: &str, history: &History) -> io::Result<String> {
   let fd: RawFd = STDIN_FILENO;
   let tio_backup = try!(Termios::from_fd(fd));
   let mut tio = tio_backup.clone();
@@ -39,6 +76,7 @@ pub fn getline(prompt: &str) -> io::Result<String> {
   tio.c_lflag &= !(ICANON|ECHO);
   try!(tcsetattr(fd, TCSANOW, &tio));
   let mut a: Vec<char> = Vec::new();
+  let mut history_index=0;
   print!("{}",prompt);
   io::stdout().flush().ok();
   let mut i=0;
@@ -57,6 +95,26 @@ pub fn getline(prompt: &str) -> io::Result<String> {
             if i>0 {i-=1;}
           }else if c3==RIGHT {
             if i<n {i+=1;}
+          }else if c3==UP {
+            if let Some(x) = history.get(history_index+1) {
+              a = x.chars().collect();
+              n = a.len(); i=n;
+              history_index+=1;
+            }
+          }else if c3==DOWN {
+            if history_index>0 {
+              if history_index==1 {
+                history_index=0;
+                a = vec![];
+                i=0; n=0;                  
+              }else if let Some(x) = history.get(history_index-1) {
+                history_index-=1;
+                a = x.chars().collect();
+                n = a.len(); i=n;
+              }else{
+                panic!();
+              }
+            }
           }
         }
       }else{
@@ -120,7 +178,13 @@ pub fn getline(prompt: &str) -> io::Result<String> {
   }
 
   try!(tcsetattr(fd, TCSANOW, &tio_backup));
-  return Ok(a.into_iter().collect());
+  let s: String = a.into_iter().collect();
+  return Ok(s);
+}
+
+pub fn getline(prompt: &str) -> io::Result<String>{
+  let history = History{first: None};
+  return getline_history(prompt,&history);
 }
 
 /*
