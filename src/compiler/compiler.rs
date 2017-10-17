@@ -23,7 +23,7 @@ enum TokenValue{
   Elif, Else, End, For, Global, Goto, Label,
   If, While, Do, Raise, Return, Sub, Table, Then, Try,
   Use, Yield, True, False, Null, Dot, Comma, Colon, Semicolon,
-  List, Application
+  List, Map, Application, Index
 }
 
 pub struct Token {
@@ -334,6 +334,7 @@ fn token_value_to_string(value: &TokenValue) -> &'static str {
     TokenValue::Colon => ":", TokenValue::Semicolon => ";",
     TokenValue::Eq   => "==", TokenValue::Ne => "!=",
     TokenValue::List => "[]", TokenValue::Application => "app",
+    TokenValue::Map  => "{}", TokenValue::Index => "index",
     TokenValue::Assignment => "=",
     TokenValue::Newline => "\\n",
     TokenValue::Assert => "assert",
@@ -507,7 +508,7 @@ fn list_literal(&mut self, i: &mut TokenIterator) -> Result<Box<[Rc<ASTNode>]>,S
   return Ok(v.into_boxed_slice());
 }
 
-fn application(&mut self, i: &mut TokenIterator, f: Rc<ASTNode>)
+fn application(&mut self, i: &mut TokenIterator, f: Rc<ASTNode>, terminal: TokenValue)
   -> Result<Rc<ASTNode>,SyntaxError>
 {
   let mut v: Vec<Rc<ASTNode>> = Vec::new();
@@ -521,15 +522,19 @@ fn application(&mut self, i: &mut TokenIterator, f: Rc<ASTNode>)
     let t = &p[i.index];
     if t.value == TokenValue::Comma {
       i.index+=1;
-    }else if t.value == TokenValue::PRight {
+    }else if t.value == terminal {
       i.index+=1;
       break;
     }else{
       return Err(SyntaxError{line: t.line, col: t.col, s: String::from("unexpected token.")});
     }
   }
+  let value = if terminal==TokenValue::PRight
+    {TokenValue::Application}
+  else
+    {TokenValue::Index};
   return Ok(Rc::new(ASTNode{line: line, col: col, token_type: TokenType::Operator,
-    value: TokenValue::Application, s: None, a: Some(v.into_boxed_slice())}));
+    value: value, s: None, a: Some(v.into_boxed_slice())}));
 }
 
 fn atom(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError> {
@@ -545,11 +550,11 @@ fn atom(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError> {
   }else if t.value==TokenValue::PLeft {
     i.index+=1;
     self.parens = true;
-    y = try!(self.ast(i));
+    y = try!(self.expression(i));
     let p = try!(i.next_token(self));
     let t = &p[i.index];
     self.parens = false;
-    if t.value!=TokenValue::PRight {
+    if t.value != TokenValue::PRight {
       return Err(SyntaxError{line: t.line, col: t.col, s: String::from("expected ')'.")});
     }
     i.index+=1;
@@ -564,10 +569,13 @@ fn atom(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError> {
     return Err(SyntaxError{line: t.line, col: t.col, s: String::from("unexpected token.")});
   }
   let p2 = try!(i.next_any_token(self));
-  let t2 = &p[i.index];
+  let t2 = &p2[i.index];
   if t2.value == TokenValue::PLeft {
     i.index+=1;
-    return self.application(i,y);
+    return self.application(i,y,TokenValue::PRight);
+  }else if t2.value == TokenValue::BLeft {
+    i.index+=1;
+    return self.application(i,y,TokenValue::BRight);
   }else{
     return Ok(y);
   }
