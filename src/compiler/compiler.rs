@@ -920,6 +920,82 @@ fn assignment(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxErro
   }
 }
 
+fn while_statement(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError>{
+  let condition = try!(self.expression(i));
+  let p = try!(i.next_any_token(self));
+  let t = &p[i.index];
+  if t.value == Symbol::Do || t.value == Symbol::Newline {
+    i.index+=1;
+  }else{
+    return Err(SyntaxError{line: t.line, col: t.col, s: String::from("expected 'do' or a line break.")});  
+  }
+  let body = try!(self.statements(i));
+  return Ok(Rc::new(ASTNode{line: t.line, col: t.col, symbol_type: SymbolType::Keyword,
+    value: Symbol::While, info: Info::None, s: None, a: Some(Box::new([condition,body]))}));  
+}
+
+fn for_statement(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError>{
+  let variable = try!(self.atom(i));
+  let p = try!(i.next_any_token(self));
+  let t = &p[i.index];
+  if t.value != Symbol::In {
+    return Err(SyntaxError{line: t.line, col: t.col, s: String::from("expected 'in'.")});  
+  }
+  i.index+=1;
+  let a = try!(self.expression(i));
+  let p = try!(i.next_any_token(self));
+  let t = &p[i.index];
+  if t.value == Symbol::Do || t.value == Symbol::Newline {
+    i.index+=1;
+  }else{
+    return Err(SyntaxError{line: t.line, col: t.col, s: String::from("expected 'do' or a line break.")});  
+  }
+  let body = try!(self.statements(i));
+  return Ok(Rc::new(ASTNode{line: t.line, col: t.col, symbol_type: SymbolType::Keyword,
+    value: Symbol::For, info: Info::None, s: None, a: Some(Box::new([variable,a,body]))}));  
+}
+
+fn if_statement(&mut self, i: &mut TokenIterator, t0: &Token) -> Result<Rc<ASTNode>,SyntaxError>{
+  let mut v: Vec<Rc<ASTNode>> = Vec::new();
+  let condition = try!(self.expression(i));
+  let p = try!(i.next_any_token(self));
+  let t = &p[i.index];
+  if t.value == Symbol::Then || t.value == Symbol::Newline {
+    i.index+=1;
+  }else{
+    return Err(SyntaxError{line: t.line, col: t.col, s: String::from("expected 'then' or a line break.")});
+  }
+  let body = try!(self.statements(i));
+  v.push(condition);
+  v.push(body);
+  loop{
+    let p = try!(i.next_any_token(self));
+    let t = &p[i.index];
+    if t.value == Symbol::Elif {
+      i.index+=1;
+      let condition = try!(self.expression(i));
+      let p = try!(i.next_any_token(self));
+      let t = &p[i.index];
+      if t.value == Symbol::Then || t.value == Symbol::Newline {
+        i.index+=1;
+      }else{
+        return Err(SyntaxError{line: t.line, col: t.col, s: String::from("expected 'then' or a line break.")});
+      }
+      let body = try!(self.statements(i));
+      v.push(condition);
+      v.push(body);
+    }else if t.value == Symbol::Else {
+      i.index+=1;
+      let body = try!(self.statements(i));
+      v.push(body);
+    }else if t.value == Symbol::End {
+      break;
+    }
+  }
+  return Ok(Rc::new(ASTNode{line: t0.line, col: t0.col, symbol_type: SymbolType::Keyword,
+    value: Symbol::If, info: Info::None, s: None, a: Some(v.into_boxed_slice())}));
+}
+
 fn statements(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError>{
   let mut v: Vec<Rc<ASTNode>> = Vec::new();
   let p0 = try!(i.next_any_token(self));
@@ -931,20 +1007,64 @@ fn statements(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxErro
       i.index+=1;
       continue;
     }
-    let x = try!(self.assignment(i));
-    v.push(x);
+    if t.value == Symbol::While {
+      i.index+=1;
+      let x = try!(self.while_statement(i));
+      v.push(x);
+      let p = try!(i.next_any_token(self));
+      let t = &p[i.index];
+      if t.value != Symbol::End {
+        return Err(SyntaxError{line: t.line, col: t.col, s: String::from("expected 'end'.")});        
+      }
+      i.index+=1;
+    }else if t.value == Symbol::For {
+      i.index+=1;
+      let x = try!(self.for_statement(i));
+      v.push(x);
+      let p = try!(i.next_any_token(self));
+      let t = &p[i.index];
+      if t.value != Symbol::End {
+        return Err(SyntaxError{line: t.line, col: t.col, s: String::from("expected 'end'.")});        
+      }
+      i.index+=1;
+    }else if t.value == Symbol::If {
+      i.index+=1;
+      let x = try!(self.if_statement(i,t));
+      v.push(x);
+      let p = try!(i.next_any_token(self));
+      let t = &p[i.index];
+      if t.value != Symbol::End {
+        return Err(SyntaxError{line: t.line, col: t.col, s: String::from("expected 'end'.")});        
+      }
+      i.index+=1;
+    }else if t.value == Symbol::End || t.value == Symbol::Elif ||
+      t.value == Symbol::Else
+    {
+      break;
+    }else{
+      let x = try!(self.assignment(i));
+      v.push(x);
+    }
     let p = try!(i.next_any_token(self));
     let t = &p[i.index];
     if t.value == Symbol::Semicolon {
       i.index+=1;
+    }else if t.value == Symbol::End || t.value == Symbol::Elif ||
+      t.value == Symbol::Else
+    {
+      break;
     }else if t.token_type == SymbolType::Terminal {
       break;
     }else{
       return Err(SyntaxError{line: t.line, col: t.col, s: String::from("unexpected token.")});
     }
   }
-  return Ok(Rc::new(ASTNode{line: t0.line, col: t0.col, symbol_type: SymbolType::Keyword,
-    value: Symbol::Block, info: Info::None, s: None, a: Some(v.into_boxed_slice())}));
+  if v.len()==1 {
+    return Ok(match v.pop() {Some(x) => x, None => compiler_error()});
+  }else{
+    return Ok(Rc::new(ASTNode{line: t0.line, col: t0.col, symbol_type: SymbolType::Keyword,
+      value: Symbol::Block, info: Info::None, s: None, a: Some(v.into_boxed_slice())}));
+  }
 }
 
 fn ast(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError>{
