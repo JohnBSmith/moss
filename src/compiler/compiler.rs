@@ -8,13 +8,13 @@ use std::ascii::AsciiExt;
 use std::rc::Rc;
 
 #[derive(Copy,Clone,PartialEq)]
-enum TokenType{
+enum SymbolType{
   Terminal, Operator, Separator, Bracket, Bool, Int,
   String, Identifier, Keyword
 }
 
 #[derive(Copy,Clone,PartialEq)]
-enum TokenValue{
+enum Symbol{
   None, Plus, Minus, Ast, Div, Idiv, Mod, Pow,
   Lt, Gt, Le, Ge, Eq, Ne, In, Is,
   And, Or, Amp, Vline, Not, Tilde, Svert, Assignment,
@@ -23,12 +23,12 @@ enum TokenValue{
   Elif, Else, End, For, Global, Goto, Label,
   If, While, Do, Raise, Return, Sub, Table, Then, Try,
   Use, Yield, True, False, Null, Dot, Comma, Colon, Semicolon,
-  List, Map, Application, Index
+  List, Map, Application, Index, Block, Statement
 }
 
 pub struct Token {
-  token_type: TokenType,
-  value: TokenValue,
+  token_type: SymbolType,
+  value: Symbol,
   line: usize,
   col: usize,
   s: Option<String>
@@ -36,42 +36,42 @@ pub struct Token {
 
 struct KeywordsElement {
   s: &'static str,
-  t: &'static TokenType,
-  v: &'static TokenValue
+  t: &'static SymbolType,
+  v: &'static Symbol
 }
 
 static KEYWORDS: &'static [KeywordsElement] = &[
-   KeywordsElement{s: "assert",  t: &TokenType::Keyword, v: &TokenValue::Assert},
-   KeywordsElement{s: "and",     t: &TokenType::Operator,v: &TokenValue::And},
-   KeywordsElement{s: "begin",   t: &TokenType::Keyword, v: &TokenValue::Begin},
-   KeywordsElement{s: "break",   t: &TokenType::Keyword, v: &TokenValue::Begin},
-   KeywordsElement{s: "catch",   t: &TokenType::Keyword, v: &TokenValue::Catch},
-   KeywordsElement{s: "continue",t: &TokenType::Keyword, v: &TokenValue::Continue},
-   KeywordsElement{s: "do",      t: &TokenType::Keyword, v: &TokenValue::Do},
-   KeywordsElement{s: "elif",    t: &TokenType::Keyword, v: &TokenValue::Elif},
-   KeywordsElement{s: "else",    t: &TokenType::Keyword, v: &TokenValue::Else},
-   KeywordsElement{s: "end",     t: &TokenType::Keyword, v: &TokenValue::End},
-   KeywordsElement{s: "false",   t: &TokenType::Bool,    v: &TokenValue::False},
-   KeywordsElement{s: "for",     t: &TokenType::Keyword, v: &TokenValue::For},
-   KeywordsElement{s: "global",  t: &TokenType::Keyword, v: &TokenValue::Global},
-   KeywordsElement{s: "goto",    t: &TokenType::Keyword, v: &TokenValue::Goto},
-   KeywordsElement{s: "label",   t: &TokenType::Keyword, v: &TokenValue::Label},
-   KeywordsElement{s: "if",      t: &TokenType::Keyword, v: &TokenValue::If},
-   KeywordsElement{s: "in",      t: &TokenType::Operator,v: &TokenValue::In},
-   KeywordsElement{s: "is",      t: &TokenType::Operator,v: &TokenValue::Is},
-   KeywordsElement{s: "not",     t: &TokenType::Operator,v: &TokenValue::Not},
-   KeywordsElement{s: "null",    t: &TokenType::Keyword, v: &TokenValue::Null},
-   KeywordsElement{s: "or",      t: &TokenType::Operator,v: &TokenValue::Or},
-   KeywordsElement{s: "raise",   t: &TokenType::Keyword, v: &TokenValue::Raise},
-   KeywordsElement{s: "return",  t: &TokenType::Keyword, v: &TokenValue::Return},
-   KeywordsElement{s: "sub",     t: &TokenType::Keyword, v: &TokenValue::Sub},
-   KeywordsElement{s: "table",   t: &TokenType::Keyword, v: &TokenValue::Table},
-   KeywordsElement{s: "then",    t: &TokenType::Keyword, v: &TokenValue::Then},
-   KeywordsElement{s: "true",    t: &TokenType::Bool,    v: &TokenValue::True},
-   KeywordsElement{s: "try",     t: &TokenType::Keyword, v: &TokenValue::Try},
-   KeywordsElement{s: "use",     t: &TokenType::Keyword, v: &TokenValue::Use},
-   KeywordsElement{s: "while",   t: &TokenType::Keyword, v: &TokenValue::While},
-   KeywordsElement{s: "yield",   t: &TokenType::Keyword, v: &TokenValue::Yield}
+   KeywordsElement{s: "assert",  t: &SymbolType::Keyword, v: &Symbol::Assert},
+   KeywordsElement{s: "and",     t: &SymbolType::Operator,v: &Symbol::And},
+   KeywordsElement{s: "begin",   t: &SymbolType::Keyword, v: &Symbol::Begin},
+   KeywordsElement{s: "break",   t: &SymbolType::Keyword, v: &Symbol::Begin},
+   KeywordsElement{s: "catch",   t: &SymbolType::Keyword, v: &Symbol::Catch},
+   KeywordsElement{s: "continue",t: &SymbolType::Keyword, v: &Symbol::Continue},
+   KeywordsElement{s: "do",      t: &SymbolType::Keyword, v: &Symbol::Do},
+   KeywordsElement{s: "elif",    t: &SymbolType::Keyword, v: &Symbol::Elif},
+   KeywordsElement{s: "else",    t: &SymbolType::Keyword, v: &Symbol::Else},
+   KeywordsElement{s: "end",     t: &SymbolType::Keyword, v: &Symbol::End},
+   KeywordsElement{s: "false",   t: &SymbolType::Bool,    v: &Symbol::False},
+   KeywordsElement{s: "for",     t: &SymbolType::Keyword, v: &Symbol::For},
+   KeywordsElement{s: "global",  t: &SymbolType::Keyword, v: &Symbol::Global},
+   KeywordsElement{s: "goto",    t: &SymbolType::Keyword, v: &Symbol::Goto},
+   KeywordsElement{s: "label",   t: &SymbolType::Keyword, v: &Symbol::Label},
+   KeywordsElement{s: "if",      t: &SymbolType::Keyword, v: &Symbol::If},
+   KeywordsElement{s: "in",      t: &SymbolType::Operator,v: &Symbol::In},
+   KeywordsElement{s: "is",      t: &SymbolType::Operator,v: &Symbol::Is},
+   KeywordsElement{s: "not",     t: &SymbolType::Operator,v: &Symbol::Not},
+   KeywordsElement{s: "null",    t: &SymbolType::Keyword, v: &Symbol::Null},
+   KeywordsElement{s: "or",      t: &SymbolType::Operator,v: &Symbol::Or},
+   KeywordsElement{s: "raise",   t: &SymbolType::Keyword, v: &Symbol::Raise},
+   KeywordsElement{s: "return",  t: &SymbolType::Keyword, v: &Symbol::Return},
+   KeywordsElement{s: "sub",     t: &SymbolType::Keyword, v: &Symbol::Sub},
+   KeywordsElement{s: "table",   t: &SymbolType::Keyword, v: &Symbol::Table},
+   KeywordsElement{s: "then",    t: &SymbolType::Keyword, v: &Symbol::Then},
+   KeywordsElement{s: "true",    t: &SymbolType::Bool,    v: &Symbol::True},
+   KeywordsElement{s: "try",     t: &SymbolType::Keyword, v: &Symbol::Try},
+   KeywordsElement{s: "use",     t: &SymbolType::Keyword, v: &Symbol::Use},
+   KeywordsElement{s: "while",   t: &SymbolType::Keyword, v: &Symbol::While},
+   KeywordsElement{s: "yield",   t: &SymbolType::Keyword, v: &Symbol::Yield}
 ];
 
 pub struct SyntaxError {
@@ -115,8 +115,8 @@ pub fn scan(s: &String, line_start: usize) -> Result<Vec<Token>, SyntaxError>{
         i+=1; col+=1;
       }
       let number: &String = &a[j..i].iter().cloned().collect();
-      v.push(Token{token_type: TokenType::Int,
-        value: TokenValue::None, line: line, col: hcol, s: Some(number.clone())});
+      v.push(Token{token_type: SymbolType::Int,
+        value: Symbol::None, line: line, col: hcol, s: Some(number.clone())});
     }else if (c.is_alphabetic() && c.is_ascii()) || a[i]=='_' {
       let j=i; hcol=col;
       while i<n && (a[i].is_alphabetic() || a[i].is_digit(10) || a[i]=='_') {
@@ -129,8 +129,8 @@ pub fn scan(s: &String, line_start: usize) -> Result<Vec<Token>, SyntaxError>{
             line: line, col: hcol, s: None});
         },
         None => {
-          v.push(Token{token_type: TokenType::Identifier,
-            value: TokenValue::None, line: line, col: hcol, s: Some(id.clone())});
+          v.push(Token{token_type: SymbolType::Identifier,
+            value: Symbol::None, line: line, col: hcol, s: Some(id.clone())});
         }
       }
     }else{
@@ -139,147 +139,147 @@ pub fn scan(s: &String, line_start: usize) -> Result<Vec<Token>, SyntaxError>{
           i+=1; col+=1;
         },
         '\n' => {
-          v.push(Token{token_type: TokenType::Separator,
-            value: TokenValue::Newline, line: line, col: col, s: None});
+          v.push(Token{token_type: SymbolType::Separator,
+            value: Symbol::Newline, line: line, col: col, s: None});
           i+=1; col=1; line+=1;
         },
         ',' => {
-          v.push(Token{token_type: TokenType::Separator,
-            value: TokenValue::Comma, line: line, col: col, s: None});
+          v.push(Token{token_type: SymbolType::Separator,
+            value: Symbol::Comma, line: line, col: col, s: None});
           i+=1; col+=1;
         },
         ':' => {
-          v.push(Token{token_type: TokenType::Separator,
-            value: TokenValue::Colon, line: line, col: col, s: None});
+          v.push(Token{token_type: SymbolType::Separator,
+            value: Symbol::Colon, line: line, col: col, s: None});
           i+=1; col+=1;
         },
         ';' => {
-          v.push(Token{token_type: TokenType::Separator,
-            value: TokenValue::Semicolon, line: line, col: col, s: None});
+          v.push(Token{token_type: SymbolType::Separator,
+            value: Symbol::Semicolon, line: line, col: col, s: None});
           i+=1; col+=1;
         },
         '(' => {
-          v.push(Token{token_type: TokenType::Bracket,
-            value: TokenValue::PLeft, line: line, col: col, s: None});
+          v.push(Token{token_type: SymbolType::Bracket,
+            value: Symbol::PLeft, line: line, col: col, s: None});
           i+=1; col+=1;
         },
         ')' => {
-          v.push(Token{token_type: TokenType::Bracket,
-            value: TokenValue::PRight, line: line, col: col, s: None});
+          v.push(Token{token_type: SymbolType::Bracket,
+            value: Symbol::PRight, line: line, col: col, s: None});
           i+=1; col+=1;
         },
         '[' => {
-          v.push(Token{token_type: TokenType::Bracket,
-            value: TokenValue::BLeft, line: line, col: col, s: None});
+          v.push(Token{token_type: SymbolType::Bracket,
+            value: Symbol::BLeft, line: line, col: col, s: None});
           i+=1; col+=1;
         },
         ']' => {
-          v.push(Token{token_type: TokenType::Bracket,
-            value: TokenValue::BRight, line: line, col: col, s: None});
+          v.push(Token{token_type: SymbolType::Bracket,
+            value: Symbol::BRight, line: line, col: col, s: None});
           i+=1; col+=1;
         },
         '{' => {
-          v.push(Token{token_type: TokenType::Bracket,
-            value: TokenValue::CLeft, line: line, col: col, s: None});
+          v.push(Token{token_type: SymbolType::Bracket,
+            value: Symbol::CLeft, line: line, col: col, s: None});
           i+=1; col+=1;
         },
         '}' => {
-          v.push(Token{token_type: TokenType::Bracket,
-            value: TokenValue::CRight, line: line, col: col, s: None});
+          v.push(Token{token_type: SymbolType::Bracket,
+            value: Symbol::CRight, line: line, col: col, s: None});
           i+=1; col+=1;
         },
         '=' => {
           if i+1<n && a[i+1]=='=' {
-            v.push(Token{token_type: TokenType::Operator,
-              value: TokenValue::Eq, line: line, col: col, s: None});
+            v.push(Token{token_type: SymbolType::Operator,
+              value: Symbol::Eq, line: line, col: col, s: None});
             i+=2; col+=2;
           }else{
-            v.push(Token{token_type: TokenType::Operator,
-              value: TokenValue::Assignment, line: line, col: col, s: None});
+            v.push(Token{token_type: SymbolType::Operator,
+              value: Symbol::Assignment, line: line, col: col, s: None});
             i+=1; col+=1;
           }
         },
         '+' => {
-          v.push(Token{token_type: TokenType::Operator,
-            value: TokenValue::Plus, line: line, col: col, s: None});
+          v.push(Token{token_type: SymbolType::Operator,
+            value: Symbol::Plus, line: line, col: col, s: None});
           i+=1; col+=1;
         },
         '-' => {
-          v.push(Token{token_type: TokenType::Operator,
-            value: TokenValue::Minus, line: line, col: col, s: None});
+          v.push(Token{token_type: SymbolType::Operator,
+            value: Symbol::Minus, line: line, col: col, s: None});
           i+=1; col+=1;
         },
         '*' => {
-          v.push(Token{token_type: TokenType::Operator,
-            value: TokenValue::Ast, line: line, col: col, s: None});
+          v.push(Token{token_type: SymbolType::Operator,
+            value: Symbol::Ast, line: line, col: col, s: None});
           i+=1; col+=1;
         },
         '/' => {
           if i+1<n && a[i+1]=='/' {
-            v.push(Token{token_type: TokenType::Operator,
-              value: TokenValue::Idiv, line: line, col: col, s: None});
+            v.push(Token{token_type: SymbolType::Operator,
+              value: Symbol::Idiv, line: line, col: col, s: None});
             i+=2; col+=2;
           }else{
-            v.push(Token{token_type: TokenType::Operator,
-              value: TokenValue::Div, line: line, col: col, s: None});
+            v.push(Token{token_type: SymbolType::Operator,
+              value: Symbol::Div, line: line, col: col, s: None});
             i+=1; col+=1;
           }
         },
         '%' => {
-          v.push(Token{token_type: TokenType::Operator,
-            value: TokenValue::Mod, line: line, col: col, s: None});
+          v.push(Token{token_type: SymbolType::Operator,
+            value: Symbol::Mod, line: line, col: col, s: None});
           i+=1; col+=1;
         },
         '^' => {
-          v.push(Token{token_type: TokenType::Operator,
-            value: TokenValue::Pow, line: line, col: col, s: None});
+          v.push(Token{token_type: SymbolType::Operator,
+            value: Symbol::Pow, line: line, col: col, s: None});
           i+=1; col+=1;
         },
         '.' => {
-          v.push(Token{token_type: TokenType::Operator,
-            value: TokenValue::Dot, line: line, col: col, s: None});
+          v.push(Token{token_type: SymbolType::Operator,
+            value: Symbol::Dot, line: line, col: col, s: None});
           i+=1; col+=1;
         },
         '<' => {
           if i+1<n && a[i+1]=='=' {
-            v.push(Token{token_type: TokenType::Operator,
-              value: TokenValue::Le, line: line, col: col, s: None});
+            v.push(Token{token_type: SymbolType::Operator,
+              value: Symbol::Le, line: line, col: col, s: None});
             i+=2; col+=2;
           }else{
-            v.push(Token{token_type: TokenType::Operator,
-              value: TokenValue::Lt, line: line, col: col, s: None});
+            v.push(Token{token_type: SymbolType::Operator,
+              value: Symbol::Lt, line: line, col: col, s: None});
             i+=1; col+=1;
           }
         },
         '>' => {
           if i+1<n && a[i+1]=='=' {
-            v.push(Token{token_type: TokenType::Operator,
-              value: TokenValue::Ge, line: line, col: col, s: None});
+            v.push(Token{token_type: SymbolType::Operator,
+              value: Symbol::Ge, line: line, col: col, s: None});
             i+=2; col+=2;
           }else{
-            v.push(Token{token_type: TokenType::Operator,
-              value: TokenValue::Gt, line: line, col: col, s: None});
+            v.push(Token{token_type: SymbolType::Operator,
+              value: Symbol::Gt, line: line, col: col, s: None});
             i+=1; col+=1;
           }
         },
         '|' => {
-          v.push(Token{token_type: TokenType::Operator,
-            value: TokenValue::Vline, line: line, col: col, s: None});
+          v.push(Token{token_type: SymbolType::Operator,
+            value: Symbol::Vline, line: line, col: col, s: None});
           i+=1; col+=1;
         },
         '&' => {
-          v.push(Token{token_type: TokenType::Operator,
-            value: TokenValue::Amp, line: line, col: col, s: None});
+          v.push(Token{token_type: SymbolType::Operator,
+            value: Symbol::Amp, line: line, col: col, s: None});
           i+=1; col+=1;
         },
         '$' => {
-          v.push(Token{token_type: TokenType::Operator,
-            value: TokenValue::Svert, line: line, col: col, s: None});
+          v.push(Token{token_type: SymbolType::Operator,
+            value: Symbol::Svert, line: line, col: col, s: None});
           i+=1; col+=1;
         },
         '~' => {
-          v.push(Token{token_type: TokenType::Operator,
-            value: TokenValue::Tilde, line: line, col: col, s: None});
+          v.push(Token{token_type: SymbolType::Operator,
+            value: Symbol::Tilde, line: line, col: col, s: None});
           i+=1; col+=1;
         },
         '"' => {
@@ -288,15 +288,15 @@ pub fn scan(s: &String, line_start: usize) -> Result<Vec<Token>, SyntaxError>{
           let j=i;
           while i<n && a[i]!='"' {i+=1; col+=1;}
           let s: &String = &a[j..i].iter().cloned().collect();
-          v.push(Token{token_type: TokenType::String,
-            value: TokenValue::None, line: line, col: hcol, s: Some(s.clone())
+          v.push(Token{token_type: SymbolType::String,
+            value: Symbol::None, line: line, col: hcol, s: Some(s.clone())
           });
           i+=1; col+=1;
         },
         '!' => {
           if i+1<n && a[i+1]=='=' {
-            v.push(Token{token_type: TokenType::Operator,
-              value: TokenValue::Ne, line: line, col: col, s: None});
+            v.push(Token{token_type: SymbolType::Operator,
+              value: Symbol::Ne, line: line, col: col, s: None});
             i+=2; col+=2;
           }else{
             return Err(SyntaxError{line: line, col: col,
@@ -310,71 +310,72 @@ pub fn scan(s: &String, line_start: usize) -> Result<Vec<Token>, SyntaxError>{
       }
     }
   }
-  v.push(Token{token_type: TokenType::Terminal,
-    value: TokenValue::None, line: line, col: col, s: None});
+  v.push(Token{token_type: SymbolType::Terminal,
+    value: Symbol::None, line: line, col: col, s: None});
   return Ok(v);
 }
 
-fn token_value_to_string(value: &TokenValue) -> &'static str {
+fn token_value_to_string(value: &Symbol) -> &'static str {
   return match *value {
-    TokenValue::Plus => "+",  TokenValue::Minus => "-",
-    TokenValue::Ast  => "*",  TokenValue::Div => "/",
-    TokenValue::Mod  => "%",  TokenValue::Pow => "^",
-    TokenValue::Vline=> "|",  TokenValue::Amp => "&",
-    TokenValue::Idiv => "//", TokenValue::Svert=> "$",
-    TokenValue::In   => "in", TokenValue::Is => "is",
-    TokenValue::And  => "and",TokenValue::Or => "or",
-    TokenValue::Not  => "not",TokenValue::Tilde => "~",
-    TokenValue::PLeft => "(", TokenValue::PRight => ")",
-    TokenValue::BLeft => "[", TokenValue::BRight => "]",
-    TokenValue::CLeft => "{", TokenValue::CRight => "}",
-    TokenValue::Lt    => "<", TokenValue::Gt => ">",
-    TokenValue::Le   => "<=", TokenValue::Ge => ">=",
-    TokenValue::Dot   => ".", TokenValue::Comma => ",",
-    TokenValue::Colon => ":", TokenValue::Semicolon => ";",
-    TokenValue::Eq   => "==", TokenValue::Ne => "!=",
-    TokenValue::List => "[]", TokenValue::Application => "app",
-    TokenValue::Map  => "{}", TokenValue::Index => "index",
-    TokenValue::Assignment => "=",
-    TokenValue::Newline => "\\n",
-    TokenValue::Assert => "assert",
-    TokenValue::Begin => "begin",
-    TokenValue::Break => "break",
-    TokenValue::Catch => "catch",
-    TokenValue::Continue => "continue",
-    TokenValue::Elif => "elif",
-    TokenValue::Else => "else",
-    TokenValue::End => "end",
-    TokenValue::False => "false",
-    TokenValue::For => "for",
-    TokenValue::Global => "global",
-    TokenValue::Goto => "goto",
-    TokenValue::If => "if",
-    TokenValue::Null => "null",
-    TokenValue::Raise => "raise",
-    TokenValue::Return => "return",
-    TokenValue::Sub => "sub",
-    TokenValue::Table => "table",
-    TokenValue::Then => "then",
-    TokenValue::True => "true",
-    TokenValue::Try => "try",
-    TokenValue::Use => "use",
-    TokenValue::While => "while",
-    TokenValue::Yield => "yield",
+    Symbol::Plus => "+",  Symbol::Minus => "-",
+    Symbol::Ast  => "*",  Symbol::Div => "/",
+    Symbol::Mod  => "%",  Symbol::Pow => "^",
+    Symbol::Vline=> "|",  Symbol::Amp => "&",
+    Symbol::Idiv => "//", Symbol::Svert=> "$",
+    Symbol::In   => "in", Symbol::Is => "is",
+    Symbol::And  => "and",Symbol::Or => "or",
+    Symbol::Not  => "not",Symbol::Tilde => "~",
+    Symbol::PLeft => "(", Symbol::PRight => ")",
+    Symbol::BLeft => "[", Symbol::BRight => "]",
+    Symbol::CLeft => "{", Symbol::CRight => "}",
+    Symbol::Lt    => "<", Symbol::Gt => ">",
+    Symbol::Le   => "<=", Symbol::Ge => ">=",
+    Symbol::Dot   => ".", Symbol::Comma => ",",
+    Symbol::Colon => ":", Symbol::Semicolon => ";",
+    Symbol::Eq   => "==", Symbol::Ne => "!=",
+    Symbol::List => "[]", Symbol::Application => "app",
+    Symbol::Map  => "{}", Symbol::Index => "index",
+    Symbol::Block => "block", Symbol::Statement => "statement",
+    Symbol::Assignment => "=",
+    Symbol::Newline => "\\n",
+    Symbol::Assert => "assert",
+    Symbol::Begin => "begin",
+    Symbol::Break => "break",
+    Symbol::Catch => "catch",
+    Symbol::Continue => "continue",
+    Symbol::Elif => "elif",
+    Symbol::Else => "else",
+    Symbol::End => "end",
+    Symbol::False => "false",
+    Symbol::For => "for",
+    Symbol::Global => "global",
+    Symbol::Goto => "goto",
+    Symbol::If => "if",
+    Symbol::Null => "null",
+    Symbol::Raise => "raise",
+    Symbol::Return => "return",
+    Symbol::Sub => "sub",
+    Symbol::Table => "table",
+    Symbol::Then => "then",
+    Symbol::True => "true",
+    Symbol::Try => "try",
+    Symbol::Use => "use",
+    Symbol::While => "while",
+    Symbol::Yield => "yield",
     _ => "unknown token value"
   };
 }
 
 fn print_token(x: &Token){
   match x.token_type {
-    TokenType::String | TokenType::Int | TokenType::Identifier => {
+    SymbolType::String | SymbolType::Int | SymbolType::Identifier => {
       print!("[{}]",match x.s {Some(ref s) => s, None => compiler_error()});
     },
-    TokenType::Operator | TokenType::Separator |
-    TokenType::Bracket  | TokenType::Keyword | TokenType::Bool => {
+    SymbolType::Operator | SymbolType::Separator |
+    SymbolType::Bracket  | SymbolType::Keyword | SymbolType::Bool => {
       print!("[{}]",token_value_to_string(&x.value));
     },
-    TokenType::Terminal => {
+    SymbolType::Terminal => {
       print!("[Terminal]");
     }
   }
@@ -387,15 +388,15 @@ pub fn print_vtoken(v: &Vec<Token>){
 
 fn print_ast(t: &ASTNode, indent: usize){
   print!("{:1$}","",indent);
-  match t.token_type {
-    TokenType::Identifier | TokenType::Int => {
+  match t.symbol_type {
+    SymbolType::Identifier | SymbolType::Int => {
       println!("{}",match t.s {Some(ref s) => s, None => compiler_error()});
     },
-    TokenType::String => {
+    SymbolType::String => {
       println!("\"{}\"",match t.s {Some(ref s) => s, None => compiler_error()});    
     },
-    TokenType::Operator | TokenType::Separator |
-    TokenType::Keyword  | TokenType::Bool => {
+    SymbolType::Operator | SymbolType::Separator |
+    SymbolType::Keyword  | SymbolType::Bool => {
       println!("{}",token_value_to_string(&t.value));
     },
     _ => {compiler_error();}
@@ -427,8 +428,8 @@ enum Info{
 
 struct ASTNode{
   line: usize, col: usize,
-  token_type: TokenType,
-  value: TokenValue,
+  symbol_type: SymbolType,
+  value: Symbol,
   info: Info,
   s: Option<String>,
   a: Option<Box<[Rc<ASTNode>]>>
@@ -450,7 +451,7 @@ impl TokenIterator{
   fn next_token(&mut self, c: &mut Compilation) -> Result<Rc<Box<[Token]>>,SyntaxError>{
     if c.mode_cmd {
       let token_type = self.a[self.index].token_type;
-      if token_type==TokenType::Terminal {
+      if token_type==SymbolType::Terminal {
         let line = self.a[self.index].line;
         let v = try!(scan_line(line+1));
         self.a = Rc::new(v.into_boxed_slice());
@@ -470,22 +471,22 @@ impl TokenIterator{
 }
 
 fn unary_operator(line: usize, col: usize,
-  value: TokenValue, x: Rc<ASTNode>) -> Rc<ASTNode>
+  value: Symbol, x: Rc<ASTNode>) -> Rc<ASTNode>
 {
-  return Rc::new(ASTNode{line: line, col: col, token_type: TokenType::Operator,
+  return Rc::new(ASTNode{line: line, col: col, symbol_type: SymbolType::Operator,
     value: value, info: Info::None, s: None, a: Some(Box::new([x]))}); 
 }
 
-fn binary_operator(line: usize, col: usize, value: TokenValue,
+fn binary_operator(line: usize, col: usize, value: Symbol,
   x: Rc<ASTNode>, y: Rc<ASTNode>) -> Rc<ASTNode>
 {
-  return Rc::new(ASTNode{line: line, col: col, token_type: TokenType::Operator,
+  return Rc::new(ASTNode{line: line, col: col, symbol_type: SymbolType::Operator,
     value: value, info: Info::None, s: None, a: Some(Box::new([x,y]))}); 
 }
 
-fn atomic_literal(line: usize, col: usize, value: TokenValue) -> Rc<ASTNode>{
-  return Rc::new(ASTNode{line: line, col: col, token_type: TokenType::Keyword,
-    value: value, info: Info::None, s: None, a: None}); 
+fn atomic_literal(line: usize, col: usize, value: Symbol) -> Rc<ASTNode>{
+  return Rc::new(ASTNode{line: line, col: col, symbol_type: SymbolType::Keyword,
+    value: value, info: Info::None, s: None, a: None});
 }
 
 impl<'a> Compilation<'a>{
@@ -494,7 +495,7 @@ fn list_literal(&mut self, i: &mut TokenIterator) -> Result<Box<[Rc<ASTNode>]>,S
   let mut v: Vec<Rc<ASTNode>> = Vec::new();
   let p = try!(i.next_token(self));
   let t = &p[i.index];
-  if t.value==TokenValue::BRight {
+  if t.value==Symbol::BRight {
     i.index+=1;
     return Ok(v.into_boxed_slice());
   }
@@ -503,15 +504,15 @@ fn list_literal(&mut self, i: &mut TokenIterator) -> Result<Box<[Rc<ASTNode>]>,S
     v.push(x);
     let p = try!(i.next_token(self));
     let t = &p[i.index];
-    if t.value==TokenValue::Comma {
+    if t.value==Symbol::Comma {
       i.index+=1;
       let p = try!(i.next_token(self));
       let t = &p[i.index];
-      if t.value==TokenValue::BRight {
+      if t.value==Symbol::BRight {
         i.index+=1;
         break;
       }
-    }else if t.value==TokenValue::BRight {
+    }else if t.value==Symbol::BRight {
       i.index+=1;
       break;
     }else{
@@ -525,7 +526,7 @@ fn map_literal(&mut self, i: &mut TokenIterator) -> Result<Box<[Rc<ASTNode>]>,Sy
   let mut v: Vec<Rc<ASTNode>> = Vec::new();
   let p = try!(i.next_token(self));
   let t = &p[i.index];
-  if t.value == TokenValue::CRight {
+  if t.value == Symbol::CRight {
     i.index+=1;
     return Ok(v.into_boxed_slice());
   }
@@ -533,50 +534,50 @@ fn map_literal(&mut self, i: &mut TokenIterator) -> Result<Box<[Rc<ASTNode>]>,Sy
     let key = try!(self.expression(i));
     let p = try!(i.next_token(self));
     let t = &p[i.index];
-    if t.value == TokenValue::Comma {
-      let value = atomic_literal(t.line, t.col, TokenValue::Null);
+    if t.value == Symbol::Comma {
+      let value = atomic_literal(t.line, t.col, Symbol::Null);
       v.push(key);
       v.push(value);
       i.index+=1;
-    }else if t.value == TokenValue::CRight {
-      let value = atomic_literal(t.line, t.col, TokenValue::Null);
+    }else if t.value == Symbol::CRight {
+      let value = atomic_literal(t.line, t.col, Symbol::Null);
       v.push(key);
       v.push(value);
       i.index+=1;
       break;
-    }else if t.value == TokenValue::Colon {
+    }else if t.value == Symbol::Colon {
       i.index+=1;
       let value = try!(self.expression(i));
       let p2 = try!(i.next_token(self));
       let t2 = &p2[i.index];
       v.push(key);
       v.push(value);
-      if t2.value == TokenValue::CRight {
+      if t2.value == Symbol::CRight {
         i.index+=1;
         break;
-      }else if t2.value != TokenValue::Comma {
+      }else if t2.value != Symbol::Comma {
         return Err(SyntaxError{line: t2.line, col: t2.col, s: String::from("expected ',' or '}'.")});              
       }
       i.index+=1;
-    }else if t.value== TokenValue::Assignment {
+    }else if t.value== Symbol::Assignment {
       i.index+=1;
-      if key.token_type != TokenType::Identifier {
+      if key.symbol_type != SymbolType::Identifier {
         return Err(SyntaxError{line: t.line, col: t.col, s: String::from("expected an identifier before '='.")});         
       }
       let value = try!(self.expression(i));
       let skey = Rc::new(ASTNode{
         line: key.line, col: key.col,
-        token_type: TokenType::String, value: TokenValue::None,
+        symbol_type: SymbolType::String, value: Symbol::None,
         info: Info::None, s: key.s.clone(), a: None
       });
       v.push(skey);
       v.push(value);
       let p2 = try!(i.next_token(self));
       let t2 = &p2[i.index];
-      if t2.value == TokenValue::CRight {
+      if t2.value == Symbol::CRight {
         i.index+=1;
         break;
-      }else if t2.value != TokenValue::Comma {
+      }else if t2.value != Symbol::Comma {
         return Err(SyntaxError{line: t2.line, col: t2.col, s: String::from("expected ',' or '}'.")});              
       }
       i.index+=1;
@@ -591,34 +592,34 @@ fn table_literal(&mut self, i: &mut TokenIterator, t0: &Token) -> Result<Rc<ASTN
   let mut v: Vec<Rc<ASTNode>> = Vec::new();
   let p = try!(i.next_token(self));
   let t = &p[i.index];
-  if t.value==TokenValue::BLeft {
+  if t.value==Symbol::BLeft {
     i.index+=1;
     let prototype = try!(self.expression(i));
     v.push(prototype);
     let p2 = try!(i.next_token(self));
     let t2 = &p2[i.index];
-    if t2.value != TokenValue::BRight {
+    if t2.value != Symbol::BRight {
       return Err(SyntaxError{line: t2.line, col: t2.col, s: String::from("expected ']'.")});
     }
     i.index+=1;
   }else{
-    v.push(atomic_literal(t0.line, t0.col, TokenValue::Null));
+    v.push(atomic_literal(t0.line, t0.col, Symbol::Null));
   }
   loop{
     let key = try!(self.expression(i));
     let p = try!(i.next_token(self));
     let t = &p[i.index];
-    if t.value == TokenValue::Colon {
+    if t.value == Symbol::Colon {
       i.index+=1;
       let value = try!(self.expression(i));
       v.push(key);
       v.push(value);
-    }else if t.value == TokenValue::Assignment {
+    }else if t.value == Symbol::Assignment {
       i.index+=1;
       let value = try!(self.expression(i));
       let skey = Rc::new(ASTNode{
         line: key.line, col: key.col,
-        token_type: TokenType::String, value: TokenValue::None,
+        symbol_type: SymbolType::String, value: Symbol::None,
         info: Info::None, s: key.s.clone(), a: None
       });
       v.push(skey);
@@ -628,20 +629,20 @@ fn table_literal(&mut self, i: &mut TokenIterator, t0: &Token) -> Result<Rc<ASTN
     }
     let p = try!(i.next_token(self));
     let t = &p[i.index];
-    if t.value == TokenValue::End {
+    if t.value == Symbol::End {
       i.index+=1;
       break;
-    }else if t.value == TokenValue::Comma {
+    }else if t.value == Symbol::Comma {
       i.index+=1;
     }else{
       return Err(SyntaxError{line: t.line, col: t.col, s: String::from("expected ',' or 'end'.")});
     }
   }
-  return Ok(Rc::new(ASTNode{line: t0.line, col: t0.col, token_type: TokenType::Keyword,
-    value: TokenValue::Table, info: Info::None, s: None, a: Some(v.into_boxed_slice())}));
+  return Ok(Rc::new(ASTNode{line: t0.line, col: t0.col, symbol_type: SymbolType::Keyword,
+    value: Symbol::Table, info: Info::None, s: None, a: Some(v.into_boxed_slice())}));
 }
 
-fn application(&mut self, i: &mut TokenIterator, f: Rc<ASTNode>, terminal: TokenValue)
+fn application(&mut self, i: &mut TokenIterator, f: Rc<ASTNode>, terminal: Symbol)
   -> Result<Rc<ASTNode>,SyntaxError>
 {
   let mut v: Vec<Rc<ASTNode>> = Vec::new();
@@ -653,7 +654,7 @@ fn application(&mut self, i: &mut TokenIterator, f: Rc<ASTNode>, terminal: Token
     v.push(x);
     let p = try!(i.next_token(self));
     let t = &p[i.index];
-    if t.value == TokenValue::Comma {
+    if t.value == Symbol::Comma {
       i.index+=1;
     }else if t.value == terminal {
       i.index+=1;
@@ -662,11 +663,11 @@ fn application(&mut self, i: &mut TokenIterator, f: Rc<ASTNode>, terminal: Token
       return Err(SyntaxError{line: t.line, col: t.col, s: String::from("unexpected token.")});
     }
   }
-  let value = if terminal==TokenValue::PRight
-    {TokenValue::Application}
+  let value = if terminal==Symbol::PRight
+    {Symbol::Application}
   else
-    {TokenValue::Index};
-  return Ok(Rc::new(ASTNode{line: line, col: col, token_type: TokenType::Operator,
+    {Symbol::Index};
+  return Ok(Rc::new(ASTNode{line: line, col: col, symbol_type: SymbolType::Operator,
     value: value, info: Info::None, s: None, a: Some(v.into_boxed_slice())}));
 }
 
@@ -674,43 +675,43 @@ fn atom(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError> {
   let p = try!(i.next_token(self));
   let t = &p[i.index];
   let y;
-  if t.token_type==TokenType::Identifier || t.token_type==TokenType::Int ||
-     t.token_type==TokenType::String
+  if t.token_type==SymbolType::Identifier || t.token_type==SymbolType::Int ||
+     t.token_type==SymbolType::String
   {
     i.index+=1;
-    y = Rc::new(ASTNode{line: t.line, col: t.col, token_type: t.token_type,
-      value: TokenValue::Null, info: Info::None, s: t.s.clone(), a: None});
-  }else if t.value==TokenValue::PLeft {
+    y = Rc::new(ASTNode{line: t.line, col: t.col, symbol_type: t.token_type,
+      value: Symbol::Null, info: Info::None, s: t.s.clone(), a: None});
+  }else if t.value==Symbol::PLeft {
     i.index+=1;
     self.parens = true;
     y = try!(self.expression(i));
     let p = try!(i.next_token(self));
     let t = &p[i.index];
     self.parens = false;
-    if t.value != TokenValue::PRight {
+    if t.value != Symbol::PRight {
       return Err(SyntaxError{line: t.line, col: t.col, s: String::from("expected ')'.")});
     }
     i.index+=1;
-  }else if t.value==TokenValue::BLeft {
+  }else if t.value==Symbol::BLeft {
     i.index+=1;
     let x = try!(self.list_literal(i));
     y = Rc::new(ASTNode{line: t.line, col: t.col,
-      token_type: TokenType::Operator, value: TokenValue::List,
+      symbol_type: SymbolType::Operator, value: Symbol::List,
       info: Info::None, s: None, a: Some(x)
     });
-  }else if t.value==TokenValue::CLeft {
+  }else if t.value==Symbol::CLeft {
     i.index+=1;
     let x = try!(self.map_literal(i));
     y = Rc::new(ASTNode{line: t.line, col: t.col,
-      token_type: TokenType::Operator, value: TokenValue::Map,
+      symbol_type: SymbolType::Operator, value: Symbol::Map,
       info: Info::None, s: None, a: Some(x)
     });
-  }else if t.value==TokenValue::Null ||
-    t.value==TokenValue::False || t.value==TokenValue::True
+  }else if t.value==Symbol::Null ||
+    t.value==Symbol::False || t.value==Symbol::True
   {
     i.index+=1;
     y = atomic_literal(t.line, t.col, t.value);
-  }else if t.value==TokenValue::Table {
+  }else if t.value==Symbol::Table {
     i.index+=1;
     y = try!(self.table_literal(i,t));
   }else{
@@ -718,12 +719,12 @@ fn atom(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError> {
   }
   let p2 = try!(i.next_any_token(self));
   let t2 = &p2[i.index];
-  if t2.value == TokenValue::PLeft {
+  if t2.value == Symbol::PLeft {
     i.index+=1;
-    return self.application(i,y,TokenValue::PRight);
-  }else if t2.value == TokenValue::BLeft {
+    return self.application(i,y,Symbol::PRight);
+  }else if t2.value == Symbol::BLeft {
     i.index+=1;
-    return self.application(i,y,TokenValue::BRight);
+    return self.application(i,y,Symbol::BRight);
   }else{
     return Ok(y);
   }
@@ -733,10 +734,10 @@ fn power(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError>{
   let x = try!(self.atom(i));
   let p = try!(i.next_any_token(self));
   let t = &p[i.index];
-  if t.value==TokenValue::Pow {
+  if t.value==Symbol::Pow {
     i.index+=1;
     let y = try!(self.power(i));
-    return Ok(binary_operator(t.line,t.col,TokenValue::Pow,x,y));
+    return Ok(binary_operator(t.line,t.col,Symbol::Pow,x,y));
   }else{
     return Ok(x);
   }
@@ -745,10 +746,10 @@ fn power(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError>{
 fn signed_expression(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError>{
   let p = try!(i.next_token(self));
   let t = &p[i.index];
-  if t.value==TokenValue::Minus {
+  if t.value==Symbol::Minus {
     i.index+=1;
     let x = try!(self.power(i));
-    return Ok(unary_operator(t.line,t.col,TokenValue::Minus,x));
+    return Ok(unary_operator(t.line,t.col,Symbol::Minus,x));
   }else{
     return self.power(i);
   }
@@ -759,7 +760,7 @@ fn factor(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError>{
   let p = try!(i.next_any_token(self));
   let t = &p[i.index];
   let value=t.value;
-  if value==TokenValue::Ast || value==TokenValue::Div || value==TokenValue::Idiv {
+  if value==Symbol::Ast || value==Symbol::Div || value==Symbol::Idiv {
     i.index+=1;
     let x = try!(self.signed_expression(i));
     y = binary_operator(t.line,t.col,value,y,x);
@@ -767,7 +768,7 @@ fn factor(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError>{
       let p = try!(i.next_any_token(self));
       let t = &p[i.index];
       let value = t.value;
-      if value!=TokenValue::Ast && value!=TokenValue::Div && value!=TokenValue::Idiv {
+      if value!=Symbol::Ast && value!=Symbol::Div && value!=Symbol::Idiv {
         return Ok(y);
       }
       i.index+=1;
@@ -784,7 +785,7 @@ fn addition(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError>
   let p = try!(i.next_any_token(self));
   let t = &p[i.index];
   let value=t.value;
-  if value==TokenValue::Plus || value==TokenValue::Minus {
+  if value==Symbol::Plus || value==Symbol::Minus {
     i.index+=1;
     let x = try!(self.factor(i));
     y = binary_operator(t.line,t.col,value,y,x);
@@ -792,7 +793,7 @@ fn addition(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError>
       let p = try!(i.next_any_token(self));
       let t = &p[i.index];
       let value=t.value;
-      if value!=TokenValue::Plus && value!=TokenValue::Minus {
+      if value!=Symbol::Plus && value!=Symbol::Minus {
         return Ok(y);
       }
       i.index+=1;
@@ -809,8 +810,8 @@ fn comparison(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxErro
   let p = try!(i.next_any_token(self));
   let t = &p[i.index];
   let value=t.value;
-  if value==TokenValue::Lt || value==TokenValue::Gt ||
-     value==TokenValue::Le || value==TokenValue::Ge
+  if value==Symbol::Lt || value==Symbol::Gt ||
+     value==Symbol::Le || value==Symbol::Ge
   {
     i.index+=1;
     let y = try!(self.addition(i));
@@ -825,8 +826,8 @@ fn eq_expression(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxE
   let p = try!(i.next_any_token(self));
   let t = &p[i.index];
   let value=t.value;
-  if value==TokenValue::Eq || value==TokenValue::Ne ||
-     value==TokenValue::Is || value==TokenValue::In
+  if value==Symbol::Eq || value==Symbol::Ne ||
+     value==Symbol::Is || value==Symbol::In
   {
     i.index+=1;
     let y = try!(self.comparison(i));
@@ -839,10 +840,10 @@ fn eq_expression(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxE
 fn negation(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError>{
   let p = try!(i.next_token(self));
   let t = &p[i.index];
-  if t.value==TokenValue::Not {
+  if t.value==Symbol::Not {
     i.index+=1;
     let x = try!(self.eq_expression(i));
-    return Ok(unary_operator(t.line,t.col,TokenValue::Not,x));
+    return Ok(unary_operator(t.line,t.col,Symbol::Not,x));
   }else{
     return self.eq_expression(i);
   }
@@ -852,10 +853,10 @@ fn conjunction(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxErr
   let x = try!(self.negation(i));
   let p = try!(i.next_any_token(self));
   let t = &p[i.index];
-  if t.value==TokenValue::And {
+  if t.value==Symbol::And {
     i.index+=1;
     let y = try!(self.negation(i));
-    return Ok(binary_operator(t.line,t.col,TokenValue::And,x,y));
+    return Ok(binary_operator(t.line,t.col,Symbol::And,x,y));
   }else{
     return Ok(x);
   }
@@ -865,10 +866,10 @@ fn disjunction(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxErr
   let x = try!(self.conjunction(i));
   let p = try!(i.next_any_token(self));
   let t = &p[i.index];
-  if t.value==TokenValue::Or {
+  if t.value==Symbol::Or {
     i.index+=1;
     let y = try!(self.conjunction(i));
-    return Ok(binary_operator(t.line,t.col,TokenValue::Or,x,y));
+    return Ok(binary_operator(t.line,t.col,Symbol::Or,x,y));
   }else{
     return Ok(x);
   }
@@ -878,21 +879,21 @@ fn if_expression(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxE
   let x = try!(self.disjunction(i));
   let p = try!(i.next_any_token(self));
   let t = &p[i.index];
-  if t.value==TokenValue::If {
+  if t.value==Symbol::If {
     i.index+=1;
     let condition = try!(self.expression(i));
     let p2 = try!(i.next_any_token(self));
     let t2 = &p[i.index];
-    if t2.value==TokenValue::Else {
+    if t2.value==Symbol::Else {
       i.index+=1;
       let y = try!(self.expression(i));
       return Ok(Rc::new(ASTNode{
-        line: t.line, col: t.col, token_type: TokenType::Operator,
-        value: TokenValue::If, info: Info::None,
+        line: t.line, col: t.col, symbol_type: SymbolType::Operator,
+        value: Symbol::If, info: Info::None,
         s: None, a: Some(Box::new([condition,x,y]))
       }));
     }else{
-      return Ok(binary_operator(t.line,t.col,TokenValue::If,condition,x));
+      return Ok(binary_operator(t.line,t.col,Symbol::If,condition,x));
     }
   }else{
     return Ok(x);
@@ -907,20 +908,50 @@ fn assignment(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxErro
   let x = try!(self.expression(i));
   let p = try!(i.next_any_token(self));
   let t = &p[i.index];
-  if t.value==TokenValue::Assignment {
+  if t.value==Symbol::Assignment {
     i.index+=1;
     let y = try!(self.expression(i));
-    return Ok(binary_operator(t.line,t.col,TokenValue::Assignment,x,y));
-  }else{
+    return Ok(binary_operator(t.line,t.col,Symbol::Assignment,x,y));
+  }else if self.mode_cmd {
     return Ok(x);
+  }else{
+    return Ok(Rc::new(ASTNode{line: t.line, col: t.col, symbol_type: SymbolType::Keyword,
+      value: Symbol::Statement, info: Info::None, s: None, a: Some(Box::new([x]))}));
   }
 }
 
-fn ast(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError>{
-  return self.assignment(i);
+fn statements(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError>{
+  let mut v: Vec<Rc<ASTNode>> = Vec::new();
+  let p0 = try!(i.next_any_token(self));
+  let t0 = &p0[i.index];
+  loop{
+    let p = try!(i.next_any_token(self));
+    let t = &p[i.index];
+    if t.value == Symbol::Newline {
+      i.index+=1;
+      continue;
+    }
+    let x = try!(self.assignment(i));
+    v.push(x);
+    let p = try!(i.next_any_token(self));
+    let t = &p[i.index];
+    if t.value == Symbol::Semicolon {
+      i.index+=1;
+    }else if t.token_type == SymbolType::Terminal {
+      break;
+    }else{
+      return Err(SyntaxError{line: t.line, col: t.col, s: String::from("unexpected token.")});
+    }
+  }
+  return Ok(Rc::new(ASTNode{line: t0.line, col: t0.col, symbol_type: SymbolType::Keyword,
+    value: Symbol::Block, info: Info::None, s: None, a: Some(v.into_boxed_slice())}));
 }
 
-}//impl
+fn ast(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError>{
+  return self.statements(i);
+}
+
+}//impl Compilation
 
 pub fn compile(v: Vec<Token>, mode_cmd: bool, history: &mut system::History) -> Result<(),SyntaxError>{
   let mut compilation = Compilation{
