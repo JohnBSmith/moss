@@ -418,10 +418,18 @@ fn scan_line(line_start: usize) -> Result<Vec<Token>,SyntaxError>{
   return scan(&input,line_start);
 }
 
+enum ComplexInfoA{
+}
+
+enum Info{
+  None, Some(u8), A(Box<ComplexInfoA>)
+}
+
 struct ASTNode{
   line: usize, col: usize,
   token_type: TokenType,
   value: TokenValue,
+  info: Info,
   s: Option<String>,
   a: Option<Box<[Rc<ASTNode>]>>
 }
@@ -465,14 +473,19 @@ fn unary_operator(line: usize, col: usize,
   value: TokenValue, x: Rc<ASTNode>) -> Rc<ASTNode>
 {
   return Rc::new(ASTNode{line: line, col: col, token_type: TokenType::Operator,
-    value: value, s: None, a: Some(Box::new([x]))}); 
+    value: value, info: Info::None, s: None, a: Some(Box::new([x]))}); 
 }
 
 fn binary_operator(line: usize, col: usize, value: TokenValue,
   x: Rc<ASTNode>, y: Rc<ASTNode>) -> Rc<ASTNode>
 {
   return Rc::new(ASTNode{line: line, col: col, token_type: TokenType::Operator,
-    value: value, s: None, a: Some(Box::new([x,y]))}); 
+    value: value, info: Info::None, s: None, a: Some(Box::new([x,y]))}); 
+}
+
+fn atomic_literal(line: usize, col: usize, value: TokenValue) -> Rc<ASTNode>{
+  return Rc::new(ASTNode{line: line, col: col, token_type: TokenType::Keyword,
+    value: value, info: Info::None, s: None, a: None}); 
 }
 
 impl<'a> Compilation<'a>{
@@ -508,6 +521,126 @@ fn list_literal(&mut self, i: &mut TokenIterator) -> Result<Box<[Rc<ASTNode>]>,S
   return Ok(v.into_boxed_slice());
 }
 
+fn map_literal(&mut self, i: &mut TokenIterator) -> Result<Box<[Rc<ASTNode>]>,SyntaxError> {
+  let mut v: Vec<Rc<ASTNode>> = Vec::new();
+  let p = try!(i.next_token(self));
+  let t = &p[i.index];
+  if t.value == TokenValue::CRight {
+    i.index+=1;
+    return Ok(v.into_boxed_slice());
+  }
+  loop{
+    let key = try!(self.expression(i));
+    let p = try!(i.next_token(self));
+    let t = &p[i.index];
+    if t.value == TokenValue::Comma {
+      let value = atomic_literal(t.line, t.col, TokenValue::Null);
+      v.push(key);
+      v.push(value);
+      i.index+=1;
+    }else if t.value == TokenValue::CRight {
+      let value = atomic_literal(t.line, t.col, TokenValue::Null);
+      v.push(key);
+      v.push(value);
+      i.index+=1;
+      break;
+    }else if t.value == TokenValue::Colon {
+      i.index+=1;
+      let value = try!(self.expression(i));
+      let p2 = try!(i.next_token(self));
+      let t2 = &p2[i.index];
+      v.push(key);
+      v.push(value);
+      if t2.value == TokenValue::CRight {
+        i.index+=1;
+        break;
+      }else if t2.value != TokenValue::Comma {
+        return Err(SyntaxError{line: t2.line, col: t2.col, s: String::from("expected ',' or '}'.")});              
+      }
+      i.index+=1;
+    }else if t.value== TokenValue::Assignment {
+      i.index+=1;
+      if key.token_type != TokenType::Identifier {
+        return Err(SyntaxError{line: t.line, col: t.col, s: String::from("expected an identifier before '='.")});         
+      }
+      let value = try!(self.expression(i));
+      let skey = Rc::new(ASTNode{
+        line: key.line, col: key.col,
+        token_type: TokenType::String, value: TokenValue::None,
+        info: Info::None, s: key.s.clone(), a: None
+      });
+      v.push(skey);
+      v.push(value);
+      let p2 = try!(i.next_token(self));
+      let t2 = &p2[i.index];
+      if t2.value == TokenValue::CRight {
+        i.index+=1;
+        break;
+      }else if t2.value != TokenValue::Comma {
+        return Err(SyntaxError{line: t2.line, col: t2.col, s: String::from("expected ',' or '}'.")});              
+      }
+      i.index+=1;
+    }else{
+      return Err(SyntaxError{line: t.line, col: t.col, s: String::from("expected ',' or '=' or ':' or '}'.")});      
+    }
+  }
+  return Ok(v.into_boxed_slice());
+}
+
+fn table_literal(&mut self, i: &mut TokenIterator, t0: &Token) -> Result<Rc<ASTNode>,SyntaxError> {
+  let mut v: Vec<Rc<ASTNode>> = Vec::new();
+  let p = try!(i.next_token(self));
+  let t = &p[i.index];
+  if t.value==TokenValue::BLeft {
+    i.index+=1;
+    let prototype = try!(self.expression(i));
+    v.push(prototype);
+    let p2 = try!(i.next_token(self));
+    let t2 = &p2[i.index];
+    if t2.value != TokenValue::BRight {
+      return Err(SyntaxError{line: t2.line, col: t2.col, s: String::from("expected ']'.")});
+    }
+    i.index+=1;
+  }else{
+    v.push(atomic_literal(t0.line, t0.col, TokenValue::Null));
+  }
+  loop{
+    let key = try!(self.expression(i));
+    let p = try!(i.next_token(self));
+    let t = &p[i.index];
+    if t.value == TokenValue::Colon {
+      i.index+=1;
+      let value = try!(self.expression(i));
+      v.push(key);
+      v.push(value);
+    }else if t.value == TokenValue::Assignment {
+      i.index+=1;
+      let value = try!(self.expression(i));
+      let skey = Rc::new(ASTNode{
+        line: key.line, col: key.col,
+        token_type: TokenType::String, value: TokenValue::None,
+        info: Info::None, s: key.s.clone(), a: None
+      });
+      v.push(skey);
+      v.push(value);
+    }else{
+      return Err(SyntaxError{line: t.line, col: t.col, s: String::from("expected ':' or '='.")});    
+    }
+    let p = try!(i.next_token(self));
+    let t = &p[i.index];
+    if t.value == TokenValue::End {
+      i.index+=1;
+      break;
+    }else if t.value == TokenValue::Comma {
+      i.index+=1;
+    }else{
+      return Err(SyntaxError{line: t.line, col: t.col, s: String::from("expected ',' or 'end'.")});
+    }
+  }
+  return Ok(Rc::new(ASTNode{line: t0.line, col: t0.col, token_type: TokenType::Keyword,
+    value: TokenValue::Table, info: Info::None, s: None, a: Some(v.into_boxed_slice())}));
+}
+
 fn application(&mut self, i: &mut TokenIterator, f: Rc<ASTNode>, terminal: TokenValue)
   -> Result<Rc<ASTNode>,SyntaxError>
 {
@@ -534,7 +667,7 @@ fn application(&mut self, i: &mut TokenIterator, f: Rc<ASTNode>, terminal: Token
   else
     {TokenValue::Index};
   return Ok(Rc::new(ASTNode{line: line, col: col, token_type: TokenType::Operator,
-    value: value, s: None, a: Some(v.into_boxed_slice())}));
+    value: value, info: Info::None, s: None, a: Some(v.into_boxed_slice())}));
 }
 
 fn atom(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError> {
@@ -546,7 +679,7 @@ fn atom(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError> {
   {
     i.index+=1;
     y = Rc::new(ASTNode{line: t.line, col: t.col, token_type: t.token_type,
-      value: TokenValue::Null, s: t.s.clone(), a: None});
+      value: TokenValue::Null, info: Info::None, s: t.s.clone(), a: None});
   }else if t.value==TokenValue::PLeft {
     i.index+=1;
     self.parens = true;
@@ -563,8 +696,23 @@ fn atom(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError> {
     let x = try!(self.list_literal(i));
     y = Rc::new(ASTNode{line: t.line, col: t.col,
       token_type: TokenType::Operator, value: TokenValue::List,
-      s: None, a: Some(x)
+      info: Info::None, s: None, a: Some(x)
     });
+  }else if t.value==TokenValue::CLeft {
+    i.index+=1;
+    let x = try!(self.map_literal(i));
+    y = Rc::new(ASTNode{line: t.line, col: t.col,
+      token_type: TokenType::Operator, value: TokenValue::Map,
+      info: Info::None, s: None, a: Some(x)
+    });
+  }else if t.value==TokenValue::Null ||
+    t.value==TokenValue::False || t.value==TokenValue::True
+  {
+    i.index+=1;
+    y = atomic_literal(t.line, t.col, t.value);
+  }else if t.value==TokenValue::Table {
+    i.index+=1;
+    y = try!(self.table_literal(i,t));
   }else{
     return Err(SyntaxError{line: t.line, col: t.col, s: String::from("unexpected token.")});
   }
@@ -740,7 +888,8 @@ fn if_expression(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxE
       let y = try!(self.expression(i));
       return Ok(Rc::new(ASTNode{
         line: t.line, col: t.col, token_type: TokenType::Operator,
-        value: TokenValue::If, a: Some(Box::new([condition,x,y])), s: None
+        value: TokenValue::If, info: Info::None,
+        s: None, a: Some(Box::new([condition,x,y]))
       }));
     }else{
       return Ok(binary_operator(t.line,t.col,TokenValue::If,condition,x));
