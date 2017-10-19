@@ -1,0 +1,10 @@
+
+
+a = [1,2]
+
+if size(a)==2
+  print("la")
+end
+
+
+
