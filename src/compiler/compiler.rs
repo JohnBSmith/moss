@@ -1255,6 +1255,10 @@ fn compile_ast(&mut self, v: &mut Vec<u8>, t: &Rc<ASTNode>) -> Result<(),SyntaxE
       try!(self.compile_operator(v,t,bc::IDIV));
     }else if value == Symbol::Neg {
       try!(self.compile_operator(v,t,bc::NEG));
+    }else if value == Symbol::List {
+      try!(self.compile_operator(v,t,bc::LIST));
+      let size = match t.a {Some(ref a) => a.len() as i32, None => panic!()};
+      push_i32(v,size);
     }else{
       return Err(self.syntax_error(t.line,t.col,
         format!("cannot compile Operator '{}'.",token_value_to_string(t.value))
@@ -1331,6 +1335,9 @@ fn asm_listing(a: &[u8]) -> String{
     }else if byte==bc::NEG {
       s.push_str("neg\n");
       i+=BCSIZE;
+    }else if byte==bc::LIST {
+      s.push_str("list\n");
+      i+=BCSIZE+4;
     }else if byte==bc::HALT {
       s.push_str("halt\n");
       break;
