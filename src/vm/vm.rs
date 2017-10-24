@@ -70,6 +70,21 @@ fn operator_plus(sp: usize, stack: &mut Vec<Object>) -> usize{
   }
 }
 
+fn operator_minus(sp: usize, stack: &mut Vec<Object>) -> usize{
+  match stack[sp-2] {
+    Object::Int(x) => {
+      match stack[sp-1] {
+        Object::Int(y) => {
+          stack[sp-1] = Object::Int(x-y);
+          return sp;
+        },
+        _ => panic!()
+      }
+    },
+    _ => panic!()
+  }
+}
+
 fn operator_list(sp: usize, stack: &mut Vec<Object>, size: usize) -> usize{
   let mut sp = sp;
   let mut v: Vec<Object> = Vec::new();
@@ -102,6 +117,10 @@ pub fn eval(a: &[u8]){
       },
       bc::ADD => {
         sp = operator_plus(sp, &mut stack);
+        ip+=BCSIZE;
+      },
+      bc::SUB => {
+        sp = operator_minus(sp, &mut stack);
         ip+=BCSIZE;
       },
       bc::LIST => {
