@@ -6,6 +6,8 @@
 use system;
 use std::ascii::AsciiExt;
 use std::rc::Rc;
+use vm::bc;
+use vm::BCSIZE;
 
 #[derive(Copy,Clone,PartialEq)]
 enum SymbolType{
@@ -16,10 +18,10 @@ enum SymbolType{
 #[derive(Copy,Clone,PartialEq)]
 enum Symbol{
   None, Plus, Minus, Ast, Div, Idiv, Mod, Pow,
-  Lt, Gt, Le, Ge, Eq, Ne, In, Is,
-  And, Or, Amp, Vline, Not, Tilde, Svert, Assignment,
+  Lt, Gt, Le, Ge, Eq, Ne, In, Is, Isin, Notin, Range,
+  And, Or, Amp, Vline, Neg, Not, Tilde, Svert, Assignment,
   PLeft, PRight, BLeft, BRight, CLeft, CRight, Newline,
-  Assert, Begin, Break, Catch, Continue,
+  Lshift, Rshift, Assert, Begin, Break, Catch, Continue,
   Elif, Else, End, For, Global, Goto, Label,
   If, While, Do, Raise, Return, Sub, Table, Then, Try,
   Use, Yield, True, False, Null, Dot, Comma, Colon, Semicolon,
@@ -125,6 +127,18 @@ pub fn scan(s: &str, line_start: usize, file: &str) -> Result<Vec<Token>, Syntax
       let id: &String = &a[j..i].iter().cloned().collect();
       match is_keyword(id) {
         Some(x) => {
+          if *x.v==Symbol::In {
+            let len = v.len();
+            if len>0 {
+              if v[len-1].value == Symbol::Not {
+                v[len-1].value = Symbol::Notin;
+                continue;
+              }else if v[len-1].value == Symbol::Is {
+                v[len-1].value = Symbol::Isin;
+                continue;
+              }
+            }
+          }
           v.push(Token{token_type: *x.t, value: *x.v,
             line: line, col: hcol, s: None});
         },
@@ -243,14 +257,24 @@ pub fn scan(s: &str, line_start: usize, file: &str) -> Result<Vec<Token>, Syntax
           i+=1; col+=1;
         },
         '.' => {
-          v.push(Token{token_type: SymbolType::Operator,
-            value: Symbol::Dot, line: line, col: col, s: None});
-          i+=1; col+=1;
+          if i+1<n && a[i+1]=='.' {
+            v.push(Token{token_type: SymbolType::Operator,
+              value: Symbol::Range, line: line, col: col, s: None});
+            i+=2; col+=2;
+          }else{
+            v.push(Token{token_type: SymbolType::Operator,
+              value: Symbol::Dot, line: line, col: col, s: None});
+            i+=1; col+=1;
+          }
         },
         '<' => {
           if i+1<n && a[i+1]=='=' {
             v.push(Token{token_type: SymbolType::Operator,
               value: Symbol::Le, line: line, col: col, s: None});
+            i+=2; col+=2;
+          }else if i+1<n && a[i+1]=='<' {
+            v.push(Token{token_type: SymbolType::Operator,
+              value: Symbol::Lshift, line: line, col: col, s: None});
             i+=2; col+=2;
           }else{
             v.push(Token{token_type: SymbolType::Operator,
@@ -263,6 +287,10 @@ pub fn scan(s: &str, line_start: usize, file: &str) -> Result<Vec<Token>, Syntax
             v.push(Token{token_type: SymbolType::Operator,
               value: Symbol::Ge, line: line, col: col, s: None});
             i+=2; col+=2;
+          }else if i+1<n && a[i+1]=='>' {
+            v.push(Token{token_type: SymbolType::Operator,
+              value: Symbol::Rshift, line: line, col: col, s: None});
+            i+=2; col+=2;            
           }else{
             v.push(Token{token_type: SymbolType::Operator,
               value: Symbol::Gt, line: line, col: col, s: None});
@@ -328,14 +356,15 @@ pub fn scan(s: &str, line_start: usize, file: &str) -> Result<Vec<Token>, Syntax
   return Ok(v);
 }
 
-fn token_value_to_string(value: &Symbol) -> &'static str {
-  return match *value {
+fn token_value_to_string(value: Symbol) -> &'static str {
+  return match value {
     Symbol::Plus => "+",  Symbol::Minus => "-",
     Symbol::Ast  => "*",  Symbol::Div => "/",
     Symbol::Mod  => "%",  Symbol::Pow => "^",
     Symbol::Vline=> "|",  Symbol::Amp => "&",
     Symbol::Idiv => "//", Symbol::Svert=> "$",
     Symbol::In   => "in", Symbol::Is => "is",
+    Symbol::Isin=>"is in",Symbol::Notin=> "not in",
     Symbol::And  => "and",Symbol::Or => "or",
     Symbol::Not  => "not",Symbol::Tilde => "~",
     Symbol::PLeft => "(", Symbol::PRight => ")",
@@ -343,12 +372,14 @@ fn token_value_to_string(value: &Symbol) -> &'static str {
     Symbol::CLeft => "{", Symbol::CRight => "}",
     Symbol::Lt    => "<", Symbol::Gt => ">",
     Symbol::Le   => "<=", Symbol::Ge => ">=",
+    Symbol::Lshift=>"<<", Symbol::Rshift=> ">>",
     Symbol::Dot   => ".", Symbol::Comma => ",",
     Symbol::Colon => ":", Symbol::Semicolon => ";",
     Symbol::Eq   => "==", Symbol::Ne => "!=",
     Symbol::List => "[]", Symbol::Application => "app",
     Symbol::Map  => "{}", Symbol::Index => "index",
     Symbol::Block => "block", Symbol::Statement => "statement",
+    Symbol::Range => "..",
     Symbol::Assignment => "=",
     Symbol::Newline => "\\n",
     Symbol::Assert => "assert",
@@ -387,7 +418,7 @@ fn print_token(x: &Token){
     },
     SymbolType::Operator | SymbolType::Separator |
     SymbolType::Bracket  | SymbolType::Keyword | SymbolType::Bool => {
-      print!("[{}]",token_value_to_string(&x.value));
+      print!("[{}]",token_value_to_string(x.value));
     }
   }
 }
@@ -408,7 +439,7 @@ fn print_ast(t: &ASTNode, indent: usize){
     },
     SymbolType::Operator | SymbolType::Separator |
     SymbolType::Keyword  | SymbolType::Bool => {
-      println!("{}",token_value_to_string(&t.value));
+      println!("{}",token_value_to_string(t.value));
     },
     _ => {compiler_error();}
   }
@@ -510,7 +541,7 @@ fn syntax_error(&self, line: usize, col: usize, s: String) -> SyntaxError{
   }
 }
 
-fn unexpected_token(&mut self, line: usize, col: usize, value: &Symbol) -> SyntaxError{
+fn unexpected_token(&mut self, line: usize, col: usize, value: Symbol) -> SyntaxError{
   // panic!();
   SyntaxError{line: line, col: col, file: String::from(self.file),
     s: format!("unexpected token: '{}'.",token_value_to_string(value))
@@ -686,7 +717,7 @@ fn application(&mut self, i: &mut TokenIterator, f: Rc<ASTNode>, terminal: Symbo
       i.index+=1;
       break;
     }else{
-      return Err(self.unexpected_token(t.line, t.col, &t.value));
+      return Err(self.unexpected_token(t.line, t.col, t.value));
     }
   }
   let value = if terminal==Symbol::PRight
@@ -741,7 +772,7 @@ fn atom(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError> {
     i.index+=1;
     y = try!(self.table_literal(i,t));
   }else{
-    return Err(self.unexpected_token(t.line, t.col, &t.value));
+    return Err(self.unexpected_token(t.line, t.col, t.value));
   }
   let p2 = try!(i.next_any_token(self));
   let t2 = &p2[i.index];
@@ -772,10 +803,15 @@ fn power(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError>{
 fn signed_expression(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError>{
   let p = try!(i.next_token(self));
   let t = &p[i.index];
-  if t.value==Symbol::Minus {
+  if t.value==Symbol::Minus || t.value==Symbol::Tilde {
     i.index+=1;
     let x = try!(self.power(i));
-    return Ok(unary_operator(t.line,t.col,Symbol::Minus,x));
+    let value = if t.value==Symbol::Minus
+      {Symbol::Neg} else {Symbol::Tilde};
+    return Ok(unary_operator(t.line,t.col,value,x));
+  }else if t.value==Symbol::Plus {
+    i.index+=1;
+    return self.power(i);
   }else{
     return self.power(i);
   }
@@ -786,7 +822,9 @@ fn factor(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError>{
   let p = try!(i.next_any_token(self));
   let t = &p[i.index];
   let value=t.value;
-  if value==Symbol::Ast || value==Symbol::Div || value==Symbol::Idiv {
+  if value==Symbol::Ast || value==Symbol::Div ||
+     value==Symbol::Mod || value==Symbol::Idiv
+  {
     i.index+=1;
     let x = try!(self.signed_expression(i));
     y = binary_operator(t.line,t.col,value,y,x);
@@ -794,7 +832,9 @@ fn factor(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError>{
       let p = try!(i.next_any_token(self));
       let t = &p[i.index];
       let value = t.value;
-      if value!=Symbol::Ast && value!=Symbol::Div && value!=Symbol::Idiv {
+      if value != Symbol::Ast && value != Symbol::Div &&
+         value != Symbol::Mod && value != Symbol::Idiv
+      {
         return Ok(y);
       }
       i.index+=1;
@@ -831,8 +871,96 @@ fn addition(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError>
   }
 }
 
-fn comparison(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError>{
+fn shift(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError>{
   let x = try!(self.addition(i));
+  let p = try!(i.next_any_token(self));
+  let t = &p[i.index];
+  if t.value==Symbol::Lshift || t.value==Symbol::Rshift {
+    i.index+=1;
+    let y = try!(self.addition(i));
+    return Ok(binary_operator(t.line,t.col,t.value,x,y));
+  }else{
+    return Ok(x);
+  }
+}
+
+fn intersection(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError>{
+  let mut y = try!(self.shift(i));
+  let p = try!(i.next_any_token(self));
+  let t = &p[i.index];
+  let value=t.value;
+  if value==Symbol::Amp {
+    i.index+=1;
+    let x = try!(self.shift(i));
+    y = binary_operator(t.line,t.col,value,y,x);
+    loop{
+      let p = try!(i.next_any_token(self));
+      let t = &p[i.index];
+      let value=t.value;
+      if value!=Symbol::Amp {
+        return Ok(y);
+      }
+      i.index+=1;
+      let x = try!(self.shift(i));
+      y = binary_operator(t.line,t.col,value,y,x);  
+    }
+  }else{
+    return Ok(y);
+  }
+}
+
+fn union(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError>{
+  let mut y = try!(self.intersection(i));
+  let p = try!(i.next_any_token(self));
+  let t = &p[i.index];
+  let value=t.value;
+  if value==Symbol::Vline || value==Symbol::Svert {
+    i.index+=1;
+    let x = try!(self.intersection(i));
+    y = binary_operator(t.line,t.col,value,y,x);
+    loop{
+      let p = try!(i.next_any_token(self));
+      let t = &p[i.index];
+      let value=t.value;
+      if value != Symbol::Vline && value != Symbol::Svert {
+        return Ok(y);
+      }
+      i.index+=1;
+      let x = try!(self.intersection(i));
+      y = binary_operator(t.line,t.col,value,y,x);  
+    }
+  }else{
+    return Ok(y);
+  }
+}
+
+fn range(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError>{
+  let x = try!(self.union(i));
+  let p = try!(i.next_any_token(self));
+  let t = &p[i.index];
+  if t.value==Symbol::Range {
+    i.index+=1;
+    let y = try!(self.union(i));
+    let p2 = try!(i.next_any_token(self));
+    let t2 = &p2[i.index];
+    if t2.value==Symbol::Colon {
+      i.index+=1;
+      let d = try!(self.union(i));
+      return Ok(Rc::new(ASTNode{
+        symbol_type: SymbolType::Operator, value: Symbol::Range,
+        line: t2.line, col: t2.col, info: Info::None,
+        s: None, a: Some(Box::new([x,y,d]))
+      }));
+    }else{
+      return Ok(binary_operator(t.line,t.col,t.value,x,y));
+    }
+  }else{
+    return Ok(x);
+  }
+}
+
+fn comparison(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError>{
+  let x = try!(self.range(i));
   let p = try!(i.next_any_token(self));
   let t = &p[i.index];
   let value=t.value;
@@ -840,7 +968,7 @@ fn comparison(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxErro
      value==Symbol::Le || value==Symbol::Ge
   {
     i.index+=1;
-    let y = try!(self.addition(i));
+    let y = try!(self.range(i));
     return Ok(binary_operator(t.line,t.col,value,x,y));
   }else{
     return Ok(x);
@@ -853,7 +981,8 @@ fn eq_expression(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxE
   let t = &p[i.index];
   let value=t.value;
   if value==Symbol::Eq || value==Symbol::Ne ||
-     value==Symbol::Is || value==Symbol::In
+     value==Symbol::Is || value==Symbol::Isin ||
+     value==Symbol::In || value==Symbol::Notin
   {
     i.index+=1;
     let y = try!(self.comparison(i));
@@ -1086,7 +1215,7 @@ fn statements(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxErro
     }else if t.value == Symbol::Terminal {
       break;
     }else{
-      return Err(self.unexpected_token(t.line, t.col, &t.value));
+      return Err(self.unexpected_token(t.line, t.col, t.value));
     }
   }
   if v.len()==1 {
@@ -1101,9 +1230,123 @@ fn ast(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError>{
   return self.statements(i);
 }
 
+fn compile_operator(&mut self, v: &mut Vec<u8>, t: &Rc<ASTNode>, byte_code: u8) -> Result<(),SyntaxError>{
+  let a = ast_argv(t);
+  for i in 0..a.len() {
+    try!(self.compile_ast(v,&a[i]));
+  }
+  v.push(byte_code);
+  push_line_col(v,t.line,t.col);
+  return Ok(());
+}
+
+fn compile_ast(&mut self, v: &mut Vec<u8>, t: &Rc<ASTNode>) -> Result<(),SyntaxError>{
+  if t.symbol_type == SymbolType::Operator {
+    let value = t.value;
+    if value == Symbol::Plus {
+      try!(self.compile_operator(v,t,bc::ADD));
+    }else if value == Symbol::Minus {
+      try!(self.compile_operator(v,t,bc::SUB));
+    }else if value == Symbol::Ast {
+      try!(self.compile_operator(v,t,bc::MPY));
+    }else if value == Symbol::Div {
+      try!(self.compile_operator(v,t,bc::DIV));
+    }else if value == Symbol::Idiv {
+      try!(self.compile_operator(v,t,bc::IDIV));
+    }else if value == Symbol::Neg {
+      try!(self.compile_operator(v,t,bc::NEG));
+    }else{
+      return Err(self.syntax_error(t.line,t.col,
+        format!("cannot compile Operator '{}'.",token_value_to_string(t.value))
+      ));
+    }
+  }else if t.symbol_type == SymbolType::Int {
+    v.push(bc::INT);
+    push_line_col(v,t.line,t.col);
+    let x: i32 = match t.s {Some(ref x)=>x.parse().unwrap(), None=>panic!()};
+    push_i32(v,x);
+  }
+  return Ok(());
+}
+
 }//impl Compilation
 
-pub fn compile(v: Vec<Token>, mode_cmd: bool, history: &mut system::History, id: &str) -> Result<(),SyntaxError>{
+fn ast_argv(t: &Rc<ASTNode>) -> &Box<[Rc<ASTNode>]>{
+  match t.a {Some(ref x)=> x, None=>panic!()}
+}
+
+fn push_i32(v: &mut Vec<u8>, x: i32){
+  let x = x as u32;
+  v.push(x as u8);
+  v.push((x>>8) as u8);
+  v.push((x>>16) as u8);
+  v.push((x>>24) as u8);
+}
+
+fn push_u16(v: &mut Vec<u8>, x: u16){
+  v.push(x as u8);
+  v.push((x>>8) as u8);
+}
+
+fn push_line_col(v: &mut Vec<u8>, line: usize, col: usize){
+  push_u16(v,line as u16);
+  v.push(col as u8);
+}
+
+fn compose_u16(b1: u8, b2: u8) -> u16{
+  return  (b2 as u16)<<8 | b1 as u16;
+}
+
+fn compose_i32(b1: u8, b2: u8, b3: u8, b4: u8) -> i32{
+  return (b4 as i32)<<24 | (b3 as i32)<<16 | (b2 as i32)<<8 | (b1 as i32);
+}
+
+fn asm_listing(a: &[u8]) -> String{
+  let mut s = String::from("Addr| Line:Col| Operation\n");
+  let mut i=0;
+  while i<a.len() {
+    let u = format!("{:04}| {:4}:{:02} | ",i,compose_u16(a[i+1],a[i+2]),a[i+3]);
+    s.push_str(&u);
+    let byte = a[i];
+    if byte==bc::INT {
+      let x = compose_i32(a[BCSIZE+i],a[BCSIZE+i+1],a[BCSIZE+i+2],a[BCSIZE+i+3]);
+      let u = format!("push int {} (0x{:x})\n",x,x);
+      s.push_str(&u);
+      i+=BCSIZE+4;
+    }else if byte==bc::ADD {
+      s.push_str("add\n");
+      i+=BCSIZE;
+    }else if byte==bc::SUB {
+      s.push_str("sub\n");
+      i+=BCSIZE;
+    }else if byte==bc::MPY {
+      s.push_str("mpy\n");
+      i+=BCSIZE;
+    }else if byte==bc::DIV {
+      s.push_str("div\n");
+      i+=BCSIZE;
+    }else if byte==bc::IDIV {
+      s.push_str("idiv\n");
+      i+=BCSIZE;
+    }else if byte==bc::NEG {
+      s.push_str("neg\n");
+      i+=BCSIZE;
+    }else if byte==bc::HALT {
+      s.push_str("halt\n");
+      break;
+    }else{
+      unimplemented!();
+    }
+  }
+  return s;
+}
+
+fn print_asm_listing(a: &[u8]){
+  let s = asm_listing(a);
+  println!("{}",&s);
+}
+
+pub fn compile(v: Vec<Token>, mode_cmd: bool, history: &mut system::History, id: &str) -> Result<Vec<u8>,SyntaxError>{
   let mut compilation = Compilation{
     mode_cmd: mode_cmd, index: 0, parens: false,
     history: history, file: id
@@ -1111,5 +1354,11 @@ pub fn compile(v: Vec<Token>, mode_cmd: bool, history: &mut system::History, id:
   let mut i = TokenIterator{index: 0, a: Rc::new(v.into_boxed_slice())};
   let y = try!(compilation.ast(&mut i));
   print_ast(&y,2);
-  return Ok(());
+  let mut v: Vec<u8> = Vec::new();
+  compilation.compile_ast(&mut v, &y).ok();
+  v.push(bc::HALT as u8);
+  push_line_col(&mut v,y.line,y.col);
+
+  print_asm_listing(&v);
+  return Ok(v);
 }

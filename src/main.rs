@@ -9,6 +9,9 @@ mod compiler;
 #[path = "system/system.rs"]
 mod system;
 
+#[path = "vm/vm.rs"]
+mod vm;
+
 use std::fs::File;
 use std::io::Read;
 use std::env;
@@ -30,7 +33,9 @@ fn command_line_session(){
       Ok(v) => {
         // compiler::print_vtoken(&v);
         match compiler::compile(v,true,&mut history,"command line") {
-          Ok(_) => {},
+          Ok(a) => {
+            ::vm::eval(&a);
+          },
           Err(e) => {compiler::print_syntax_error(e);}
         };
       },

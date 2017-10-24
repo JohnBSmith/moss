@@ -18,6 +18,22 @@ const LEFT: i32 = 68;
 const RIGHT: i32 = 67;
 const BACKSPACE: i32 = 127;
 
+fn get_win_size() -> (usize, usize) {
+  use std::mem::zeroed;
+  unsafe {
+    let mut size: libc::winsize = zeroed();
+    match libc::ioctl(libc::STDOUT_FILENO, libc::TIOCGWINSZ, &mut size) {
+      0 => (size.ws_col as usize, size.ws_row as usize),
+      _ => (80, 24),
+    }
+  }
+}
+
+fn get_cols() -> usize {
+  let (cols,_) = get_win_size();
+  return cols;
+}
+
 struct HistoryNode{
   s: String,
   next: Option<Box<HistoryNode>>
@@ -66,6 +82,19 @@ fn number_of_bytes(c: u8) -> usize {
     i-=1;
   }
   return 7-i as usize;
+}
+
+fn number_of_lines(cols: usize, prompt: &str, a: &Vec<char>) -> usize{
+  let n = prompt.len()+a.len();
+  return if n==0 {1} else {(n-1)/cols+1};
+}
+
+fn clear_input(lines: usize){
+  print!("\x1b[2K\r");
+  for _ in 1..lines {
+    print!("\x1b[1A");
+    print!("\x1b[2K\r");
+  }
 }
 
 pub fn getline_history(prompt: &str, history: &History) -> io::Result<String> {
@@ -166,10 +195,12 @@ pub fn getline_history(prompt: &str, history: &History) -> io::Result<String> {
       a[i] = cu32;
       n+=1; i+=1;
     }
-    print!("\x1b[2K\r");
+    let cols = get_cols();
+    let lines = number_of_lines(cols,prompt,&a);
+    clear_input(lines);
     print!("{}",prompt);
     for x in &a {print!("{}",x);}
-    
+
     // Bug: a hanzi, say 0x4567, hampers the cursor
     // to move backward by one character.
     // (GNOME Terminal 3.18.3)
