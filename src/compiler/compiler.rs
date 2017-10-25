@@ -1259,6 +1259,10 @@ fn compile_ast(&mut self, v: &mut Vec<u8>, t: &Rc<ASTNode>) -> Result<(),SyntaxE
       try!(self.compile_operator(v,t,bc::LIST));
       let size = match t.a {Some(ref a) => a.len() as i32, None => panic!()};
       push_i32(v,size);
+    }else if value == Symbol::Map {
+      try!(self.compile_operator(v,t,bc::MAP));
+      let size = match t.a {Some(ref a) => a.len() as i32, None => panic!()};
+      push_i32(v,size);      
     }else{
       return Err(self.syntax_error(t.line,t.col,
         format!("cannot compile Operator '{}'.",token_value_to_string(t.value))
@@ -1269,6 +1273,9 @@ fn compile_ast(&mut self, v: &mut Vec<u8>, t: &Rc<ASTNode>) -> Result<(),SyntaxE
     push_line_col(v,t.line,t.col);
     let x: i32 = match t.s {Some(ref x)=>x.parse().unwrap(), None=>panic!()};
     push_i32(v,x);
+  }else if t.value == Symbol::Null {
+    v.push(bc::NULL);
+    push_line_col(v,t.line,t.col);
   }
   return Ok(());
 }
@@ -1317,6 +1324,9 @@ fn asm_listing(a: &[u8]) -> String{
       let u = format!("push int {} (0x{:x})\n",x,x);
       s.push_str(&u);
       i+=BCSIZE+4;
+    }else if byte==bc::NULL {
+      s.push_str("null\n");
+      i+=BCSIZE;
     }else if byte==bc::ADD {
       s.push_str("add\n");
       i+=BCSIZE;
@@ -1337,6 +1347,9 @@ fn asm_listing(a: &[u8]) -> String{
       i+=BCSIZE;
     }else if byte==bc::LIST {
       s.push_str("list\n");
+      i+=BCSIZE+4;
+    }else if byte==bc::MAP {
+      s.push_str("map\n");
       i+=BCSIZE+4;
     }else if byte==bc::HALT {
       s.push_str("halt\n");

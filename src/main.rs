@@ -15,6 +15,7 @@ mod vm;
 use std::fs::File;
 use std::io::Read;
 use std::env;
+use vm::Process;
 
 fn command_line_session(){
   let mut history = system::History::new();
