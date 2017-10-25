@@ -146,6 +146,10 @@ fn compose_i32(b1: u8, b2: u8, b3: u8, b4: u8) -> i32{
   return (b4 as i32)<<24 | (b3 as i32)<<16 | (b2 as i32)<<8 | (b1 as i32);
 }
 
+fn compose_u32(b1: u8, b2: u8, b3: u8, b4: u8) -> u32{
+  return (b4 as u32)<<24 | (b3 as u32)<<16 | (b2 as u32)<<8 | (b1 as u32);
+}
+
 pub fn eval(a: &[u8]){
   let mut ip=0;
   let mut stack: Vec<Object> = Vec::new();
