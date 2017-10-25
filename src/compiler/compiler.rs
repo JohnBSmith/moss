@@ -91,12 +91,11 @@ fn compiler_error() -> !{
 }
 
 fn is_keyword(id: &String) -> Option<&'static KeywordsElement> {
-  let mut i: usize;
+  // let mut i: usize;
   let n: usize = KEYWORDS.len();
-  i=0;
-  while i<n {
+  // i=0;
+  for i in 0..n {
     if KEYWORDS[i].s==id  {return Some(&KEYWORDS[i]);}
-    i+=1;
   }
   return None;
 }
