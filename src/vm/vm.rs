@@ -48,10 +48,10 @@ fn object_to_string(x: &Object) -> String{
     &Object::Null => String::from("null"),
     &Object::Bool(b) => String::from(if b {"true"} else {"false"}),
     &Object::Int(i) => format!("{}",i),
+    &Object::Float(f) => format!("{}",f),
     &Object::List(ref a) => {
       list_to_string(&a.borrow().v)
     }
-    _ => panic!()
   }
 }
 
@@ -60,8 +60,8 @@ fn operator_plus(sp: usize, stack: &mut Vec<Object>) -> usize{
     Object::Int(x) => {
       match stack[sp-1] {
         Object::Int(y) => {
-          stack[sp-1] = Object::Int(x+y);
-          return sp;
+          stack[sp-2] = Object::Int(x+y);
+          return sp-1;
         },
         _ => panic!()
       }
@@ -75,8 +75,53 @@ fn operator_minus(sp: usize, stack: &mut Vec<Object>) -> usize{
     Object::Int(x) => {
       match stack[sp-1] {
         Object::Int(y) => {
-          stack[sp-1] = Object::Int(x-y);
-          return sp;
+          stack[sp-2] = Object::Int(x-y);
+          return sp-1;
+        },
+        _ => panic!()
+      }
+    },
+    _ => panic!()
+  }
+}
+
+fn operator_mpy(sp: usize, stack: &mut Vec<Object>) -> usize{
+  match stack[sp-2] {
+    Object::Int(x) => {
+      match stack[sp-1] {
+        Object::Int(y) => {
+          stack[sp-2] = Object::Int(x*y);
+          return sp-1;
+        },
+        _ => panic!()
+      }
+    },
+    _ => panic!()
+  }
+}
+
+fn operator_div(sp: usize, stack: &mut Vec<Object>) -> usize{
+  match stack[sp-2] {
+    Object::Int(x) => {
+      match stack[sp-1] {
+        Object::Int(y) => {
+          stack[sp-2] = Object::Float((x as f64)/(y as f64));
+          return sp-1;
+        },
+        _ => panic!()
+      }
+    },
+    _ => panic!()
+  }
+}
+
+fn operator_idiv(sp: usize, stack: &mut Vec<Object>) -> usize{
+  match stack[sp-2] {
+    Object::Int(x) => {
+      match stack[sp-1] {
+        Object::Int(y) => {
+          stack[sp-2] = Object::Int(x/y);
+          return sp-1;
         },
         _ => panic!()
       }
@@ -121,6 +166,18 @@ pub fn eval(a: &[u8]){
       },
       bc::SUB => {
         sp = operator_minus(sp, &mut stack);
+        ip+=BCSIZE;
+      },
+      bc::MPY => {
+        sp = operator_mpy(sp, &mut stack);
+        ip+=BCSIZE;
+      },
+      bc::DIV => {
+        sp = operator_div(sp, &mut stack);
+        ip+=BCSIZE;
+      },
+      bc::IDIV => {
+        sp = operator_idiv(sp, &mut stack);
         ip+=BCSIZE;
       },
       bc::LIST => {
