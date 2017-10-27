@@ -20,12 +20,20 @@ pub mod bc{
   pub const MPY:  u8 = 08;
   pub const DIV:  u8 = 09;
   pub const IDIV: u8 = 10;
-  pub const LIST: u8 = 11;
-  pub const MAP:  u8 = 12;
-  pub const EQ:   u8 = 13;
-  pub const NE:   u8 = 14;
-  pub const LOAD: u8 = 15;
-  pub const STORE:u8 = 16;
+  pub const EQ:   u8 = 11;
+  pub const NE:   u8 = 12;
+  pub const IS:   u8 = 13;
+  pub const ISNOT:u8 = 14;
+  pub const IN:   u8 = 15;
+  pub const NOTIN:u8 = 16; 
+  pub const LT:   u8 = 17;
+  pub const GT:   u8 = 18;
+  pub const LE:   u8 = 19;
+  pub const GE:   u8 = 20;
+  pub const LIST: u8 = 21;
+  pub const MAP:  u8 = 22;
+  pub const LOAD: u8 = 23;
+  pub const STORE:u8 = 24;
 }
 
 pub struct U32String{

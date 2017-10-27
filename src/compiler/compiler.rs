@@ -1410,6 +1410,30 @@ fn asm_listing(a: &[u8]) -> String{
     }else if byte==bc::NE {
       s.push_str("not eq\n");
       i+=BCSIZE;
+    }else if byte==bc::LT {
+      s.push_str("lt\n");
+      i+=BCSIZE;
+    }else if byte==bc::GT {
+      s.push_str("gt\n");
+      i+=BCSIZE;
+    }else if byte==bc::LE {
+      s.push_str("le\n");
+      i+=BCSIZE;
+    }else if byte==bc::GE {
+      s.push_str("not ge\n");
+      i+=BCSIZE;
+    }else if byte==bc::IS {
+      s.push_str("is\n");
+      i+=BCSIZE;
+    }else if byte==bc::ISNOT {
+      s.push_str("is not\n");
+      i+=BCSIZE;
+    }else if byte==bc::IN {
+      s.push_str("in\n");
+      i+=BCSIZE;
+    }else if byte==bc::NOTIN {
+      s.push_str("not in\n");
+      i+=BCSIZE;
     }else if byte==bc::LIST {
       s.push_str("list\n");
       i+=BCSIZE+4;
