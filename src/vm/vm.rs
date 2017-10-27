@@ -110,18 +110,39 @@ impl PartialEq for Object{
       &Object::Int(x) => {
         match b {
           &Object::Int(y) => x==y,
+          &Object::Float(y) => (x as f64)==y,
+          _ => false
+        }
+      },
+      &Object::Float(x) => {
+        match b {
+          &Object::Int(y) => x==(y as f64),
+          &Object::Float(y) => x==y,
           _ => false
         }
       },
       &Object::String(ref x) => {
         match b {
-          &Object::String(ref y) => {
-            x.v==y.v
+          &Object::String(ref y) => x.v==y.v,
+          _ => false
+        }
+      },
+      &Object::List(ref x) => {
+        match b {
+          &Object::List(ref y) => {
+            x.borrow().v == y.borrow().v
           },
           _ => false
         }
       },
-      _ => false
+      &Object::Map(ref x) => {
+        match b {
+          &Object::Map(ref y) => {
+            x.borrow().m == y.borrow().m
+          },
+          _ => false
+        }
+      }
     }
   }
 }
@@ -193,78 +214,316 @@ fn object_to_string(x: &Object) -> String{
   }
 }
 
-fn operator_plus(sp: usize, stack: &mut Vec<Object>) -> usize{
+fn operator_plus(sp: usize, stack: &mut Vec<Object>) -> bool{
   match stack[sp-2] {
     Object::Int(x) => {
       match stack[sp-1] {
         Object::Int(y) => {
           stack[sp-2] = Object::Int(x+y);
-          return sp-1;
+          false
         },
-        _ => panic!()
+        Object::Float(y) => {
+          stack[sp-2] = Object::Float((x as f64)+y);
+          false
+        },
+        _ => true
       }
     },
-    _ => panic!()
+    Object::Float(x) => {
+      match stack[sp-1] {
+        Object::Int(y) => {
+          stack[sp-2] = Object::Float(x+(y as f64));
+          false
+        },
+        Object::Float(y) => {
+          stack[sp-2] = Object::Float(x+y);
+          false
+        },
+        _ => true
+      }
+    },
+    _ => true
   }
 }
 
-fn operator_minus(sp: usize, stack: &mut Vec<Object>) -> usize{
+fn operator_minus(sp: usize, stack: &mut Vec<Object>) -> bool{
   match stack[sp-2] {
     Object::Int(x) => {
       match stack[sp-1] {
         Object::Int(y) => {
           stack[sp-2] = Object::Int(x-y);
-          return sp-1;
+          false
         },
-        _ => panic!()
+        Object::Float(y) => {
+          stack[sp-2] = Object::Float((x as f64)-y);
+          false
+        },
+        _ => true
       }
     },
-    _ => panic!()
+    Object::Float(x) => {
+      match stack[sp-1] {
+        Object::Int(y) => {
+          stack[sp-2] = Object::Float(x-(y as f64));
+          false
+        },
+        Object::Float(y) => {
+          stack[sp-2] = Object::Float(x-y);
+          false
+        },
+        _ => true
+      }
+    },
+    _ => true
   }
 }
 
-fn operator_mpy(sp: usize, stack: &mut Vec<Object>) -> usize{
+fn operator_mpy(sp: usize, stack: &mut Vec<Object>) -> bool{
   match stack[sp-2] {
     Object::Int(x) => {
       match stack[sp-1] {
         Object::Int(y) => {
           stack[sp-2] = Object::Int(x*y);
-          return sp-1;
+          false
         },
-        _ => panic!()
+        Object::Float(y) => {
+          stack[sp-2] = Object::Float((x as f64)*y);
+          false
+        },
+        _ => true
       }
     },
-    _ => panic!()
+    Object::Float(x) => {
+      match stack[sp-1] {
+        Object::Int(y) => {
+          stack[sp-2] = Object::Float(x*(y as f64));
+          false
+        },
+        Object::Float(y) => {
+          stack[sp-2] = Object::Float(x*y);
+          false
+        },
+        _ => true
+      }
+    },
+    _ => true
   }
 }
 
-fn operator_div(sp: usize, stack: &mut Vec<Object>) -> usize{
+fn operator_div(sp: usize, stack: &mut Vec<Object>) -> bool{
   match stack[sp-2] {
     Object::Int(x) => {
       match stack[sp-1] {
         Object::Int(y) => {
-          stack[sp-2] = Object::Float((x as f64)/(y as f64));
-          return sp-1;
+          stack[sp-2] = Object::Float((x as f64 )/(y as f64));
+          false
         },
-        _ => panic!()
+        Object::Float(y) => {
+          stack[sp-2] = Object::Float((x as f64)/y);
+          false
+        },
+        _ => true
       }
     },
-    _ => panic!()
+    Object::Float(x) => {
+      match stack[sp-1] {
+        Object::Int(y) => {
+          stack[sp-2] = Object::Float(x/(y as f64));
+          false
+        },
+        Object::Float(y) => {
+          stack[sp-2] = Object::Float(x/y);
+          false
+        },
+        _ => true
+      }
+    },
+    _ => true
   }
 }
 
-fn operator_idiv(sp: usize, stack: &mut Vec<Object>) -> usize{
+fn operator_idiv(sp: usize, stack: &mut Vec<Object>) -> bool{
   match stack[sp-2] {
     Object::Int(x) => {
       match stack[sp-1] {
         Object::Int(y) => {
           stack[sp-2] = Object::Int(x/y);
-          return sp-1;
+          false
         },
-        _ => panic!()
+        _ => true
       }
     },
-    _ => panic!()
+    _ => true
+  }
+}
+
+fn operator_lt(sp: usize, stack: &mut Vec<Object>) -> bool{
+  match stack[sp-2] {
+    Object::Int(x) => {
+      match stack[sp-1] {
+        Object::Int(y) => {
+          stack[sp-2] = Object::Bool(x<y);
+          false
+        },
+        Object::Float(y) => {
+          stack[sp-2] = Object::Bool((x as f64)<y);
+          false
+        },
+        _ => true
+      }
+    },
+    Object::Float(x) => {
+      match stack[sp-1] {
+        Object::Int(y) => {
+          stack[sp-2] = Object::Bool(x<(y as f64));
+          false
+        },
+        Object::Float(y) => {
+          stack[sp-2] = Object::Bool(x<y);
+          false
+        },
+        _ => true
+      }
+    },
+    _ => true
+  }
+}
+
+fn operator_gt(sp: usize, stack: &mut Vec<Object>) -> bool{
+  match stack[sp-2] {
+    Object::Int(x) => {
+      match stack[sp-1] {
+        Object::Int(y) => {
+          stack[sp-2] = Object::Bool(x>y);
+          false
+        },
+        Object::Float(y) => {
+          stack[sp-2] = Object::Bool((x as f64)>y);
+          false
+        },
+        _ => true
+      }
+    },
+    Object::Float(x) => {
+      match stack[sp-1] {
+        Object::Int(y) => {
+          stack[sp-2] = Object::Bool(x>(y as f64));
+          false
+        },
+        Object::Float(y) => {
+          stack[sp-2] = Object::Bool(x>y);
+          false
+        },
+        _ => true
+      }
+    },
+    _ => true
+  }
+}
+
+fn operator_le(sp: usize, stack: &mut Vec<Object>) -> bool{
+  match stack[sp-2] {
+    Object::Int(x) => {
+      match stack[sp-1] {
+        Object::Int(y) => {
+          stack[sp-2] = Object::Bool(x<=y);
+          false
+        },
+        Object::Float(y) => {
+          stack[sp-2] = Object::Bool((x as f64)<=y);
+          false
+        },
+        _ => true
+      }
+    },
+    Object::Float(x) => {
+      match stack[sp-1] {
+        Object::Int(y) => {
+          stack[sp-2] = Object::Bool(x<=(y as f64));
+          false
+        },
+        Object::Float(y) => {
+          stack[sp-2] = Object::Bool(x<=y);
+          false
+        },
+        _ => true
+      }
+    },
+    _ => true
+  }
+}
+
+fn operator_ge(sp: usize, stack: &mut Vec<Object>) -> bool{
+  match stack[sp-2] {
+    Object::Int(x) => {
+      match stack[sp-1] {
+        Object::Int(y) => {
+          stack[sp-2] = Object::Bool(x<y);
+          false
+        },
+        Object::Float(y) => {
+          stack[sp-2] = Object::Bool((x as f64)>=y);
+          false
+        },
+        _ => true
+      }
+    },
+    Object::Float(x) => {
+      match stack[sp-1] {
+        Object::Int(y) => {
+          stack[sp-2] = Object::Bool(x>=(y as f64));
+          false
+        },
+        Object::Float(y) => {
+          stack[sp-2] = Object::Bool(x>=y);
+          false
+        },
+        _ => true
+      }
+    },
+    _ => true
+  }
+}
+
+fn operator_is(sp: usize, stack: &mut Vec<Object>) -> bool{
+  match stack[sp-2] {
+    Object::Bool(x) => {
+      match stack[sp-1] {
+        Object::Bool(y) => {
+          stack[sp-2] = Object::Bool(x==y);
+          false
+        },
+        _ => {
+          stack[sp-2] = Object::Bool(false);
+          false
+        }
+      }
+    },
+    Object::Int(x) => {
+      match stack[sp-1] {
+        Object::Int(y) => {
+          stack[sp-2] = Object::Bool(x==y);
+          false
+        },
+        _ => {
+          stack[sp-2] = Object::Bool(false);
+          false
+        }
+      }
+    },
+    Object::Float(x) => {
+      match stack[sp-1] {
+        Object::Float(y) => {
+          stack[sp-2] = Object::Bool(x==y);
+          false
+        },
+        _ => {
+          stack[sp-2] = Object::Bool(false);
+          false        
+        }
+      }
+    },
+    _ => true
   }
 }
 
@@ -355,23 +614,28 @@ pub fn eval(module: &Module, a: &[u8], gtab: &Rc<RefCell<Map>>){
         sp-=1;
       },
       bc::ADD => {
-        sp = operator_plus(sp, &mut stack);
+        if operator_plus(sp, &mut stack) {panic!();}
+        sp-=1;
         ip+=BCSIZE;
       },
       bc::SUB => {
-        sp = operator_minus(sp, &mut stack);
+        if operator_minus(sp, &mut stack) {panic!();}
+        sp-=1;
         ip+=BCSIZE;
       },
       bc::MPY => {
-        sp = operator_mpy(sp, &mut stack);
+        if operator_mpy(sp, &mut stack) {panic!();}
+        sp-=1;
         ip+=BCSIZE;
       },
       bc::DIV => {
-        sp = operator_div(sp, &mut stack);
+        if operator_div(sp, &mut stack) {panic!();}
+        sp-=1;
         ip+=BCSIZE;
       },
       bc::IDIV => {
-        sp = operator_idiv(sp, &mut stack);
+        if operator_idiv(sp, &mut stack) {panic!();}
+        sp-=1;
         ip+=BCSIZE;
       },
       bc::EQ => {
@@ -387,6 +651,31 @@ pub fn eval(module: &Module, a: &[u8], gtab: &Rc<RefCell<Map>>){
         stack[sp] = Object::Null;
         stack[sp-1] = Object::Bool(value);
         ip+=BCSIZE;
+      },
+      bc::LT => {
+        if operator_lt(sp,&mut stack) {panic!();}
+        sp-=1;
+        ip+=BCSIZE;
+      },
+      bc::GT => {
+        if operator_gt(sp,&mut stack) {panic!();}
+        sp-=1;
+        ip+=BCSIZE;
+      },
+      bc::LE => {
+        if operator_le(sp,&mut stack) {panic!();}
+        sp-=1;
+        ip+=BCSIZE;
+      },
+      bc::GE => {
+        if operator_ge(sp,&mut stack) {panic!();}
+        sp-=1;
+        ip+=BCSIZE;
+      },
+      bc::IS => {
+        if operator_is(sp,&mut stack) {panic!();}
+        sp-=1;
+        ip+=BCSIZE;      
       },
       bc::LIST => {
         ip+=BCSIZEP4;

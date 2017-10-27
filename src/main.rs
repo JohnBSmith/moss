@@ -38,7 +38,7 @@ fn command_line_session(){
           Ok(module) => {
             ::vm::eval(&module,&module.program,&gtab);
           },
-          Err(e) => {compiler::print_syntax_error(e); panic!()}
+          Err(e) => {compiler::print_syntax_error(e);}
         };
       },
       Err(error) => {

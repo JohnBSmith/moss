@@ -22,7 +22,7 @@ enum SymbolType{
 #[derive(Copy,Clone,PartialEq)]
 enum Symbol{
   None, Plus, Minus, Ast, Div, Idiv, Mod, Pow,
-  Lt, Gt, Le, Ge, Eq, Ne, In, Is, Isin, Notin, Range,
+  Lt, Gt, Le, Ge, Eq, Ne, In, Is, Isin, Notin, Isnot, Range,
   And, Or, Amp, Vline, Neg, Not, Tilde, Svert, Assignment,
   PLeft, PRight, BLeft, BRight, CLeft, CRight, Newline,
   Lshift, Rshift, Assert, Begin, Break, Catch, Continue,
@@ -1290,6 +1290,18 @@ fn compile_ast(&mut self, v: &mut Vec<u8>, t: &Rc<ASTNode>) -> Result<(),SyntaxE
       try!(self.compile_operator(v,t,bc::EQ));
     }else if value == Symbol::Ne {
       try!(self.compile_operator(v,t,bc::NE));
+    }else if value == Symbol::Lt {
+      try!(self.compile_operator(v,t,bc::LT));
+    }else if value == Symbol::Gt {
+      try!(self.compile_operator(v,t,bc::GT));
+    }else if value == Symbol::Le {
+      try!(self.compile_operator(v,t,bc::LE));
+    }else if value == Symbol::Ge {
+      try!(self.compile_operator(v,t,bc::GE));
+    }else if value == Symbol::Is {
+      try!(self.compile_operator(v,t,bc::IS));
+    }else if value == Symbol::Isnot {
+      try!(self.compile_operator(v,t,bc::ISNOT));
     }else if value == Symbol::List {
       try!(self.compile_operator(v,t,bc::LIST));
       let size = match t.a {Some(ref a) => a.len() as i32, None => panic!()};
