@@ -15,10 +15,11 @@ mod vm;
 use std::fs::File;
 use std::io::Read;
 use std::env;
-use vm::Process;
+use vm::Map;
 
 fn command_line_session(){
   let mut history = system::History::new();
+  let gtab = Map::new();
   loop{
     let mut input = String::new();
     match system::getline_history("> ",&history) {
@@ -34,10 +35,10 @@ fn command_line_session(){
       Ok(v) => {
         // compiler::print_vtoken(&v);
         match compiler::compile(v,true,&mut history,"command line") {
-          Ok(a) => {
-            ::vm::eval(&a);
+          Ok(module) => {
+            ::vm::eval(&module,&module.program,&gtab);
           },
-          Err(e) => {compiler::print_syntax_error(e);}
+          Err(e) => {compiler::print_syntax_error(e); panic!()}
         };
       },
       Err(error) => {
@@ -51,6 +52,7 @@ fn eval_string(s: &str, id: &str){
   let mut history = system::History::new();
   match compiler::scan(s,1,id) {
     Ok(v) => {
+      let gtab = Map::new();
       match compiler::compile(v,false,&mut history,id) {
         Ok(_) => {},
         Err(e) => {compiler::print_syntax_error(e);}

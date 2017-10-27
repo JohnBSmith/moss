@@ -11,19 +11,34 @@ pub const BCSIZEP4: usize = BCSIZE+4;
 pub mod bc{
   pub const NULL: u8 = 00;
   pub const HALT: u8 = 01;
-  pub const INT:  u8 = 02;
-  pub const NEG:  u8 = 03;
-  pub const ADD:  u8 = 04;
-  pub const SUB:  u8 = 05;
-  pub const MPY:  u8 = 06;
-  pub const DIV:  u8 = 07;
-  pub const IDIV: u8 = 08;
-  pub const LIST: u8 = 09;
-  pub const MAP:  u8 = 10;
+  pub const FALSE:u8 = 02;
+  pub const TRUE: u8 = 03;
+  pub const INT:  u8 = 04;
+  pub const NEG:  u8 = 05;
+  pub const ADD:  u8 = 06;
+  pub const SUB:  u8 = 07;
+  pub const MPY:  u8 = 08;
+  pub const DIV:  u8 = 09;
+  pub const IDIV: u8 = 10;
+  pub const LIST: u8 = 11;
+  pub const MAP:  u8 = 12;
+  pub const EQ:   u8 = 13;
+  pub const NE:   u8 = 14;
+  pub const LOAD: u8 = 15;
+  pub const STORE:u8 = 16;
 }
 
 pub struct U32String{
   pub v: Vec<char>
+}
+
+impl U32String{
+  pub fn new_object(v: Vec<char>) -> Object{
+    return Object::String(Rc::new(U32String{v: v}));
+  }
+  pub fn new_object_str(s: &str) -> Object{
+    return Object::String(Rc::new(U32String{v: s.chars().collect()}));
+  }
 }
 
 pub struct List{
@@ -44,12 +59,29 @@ impl Map{
   pub fn new_object(m: HashMap<Object,Object>) -> Object{
     return Object::Map(Rc::new(RefCell::new(Map{m: m})));
   }
+  pub fn new() -> Rc<RefCell<Map>>{
+    return Rc::new(RefCell::new(Map{m: HashMap::new()}));
+  }
 }
 
 pub enum Object{
   Null, Bool(bool), Int(i32), Float(f64),
-  List(Rc<RefCell<List>>), String(Rc<RefCell<U32String>>),
+  List(Rc<RefCell<List>>), String(Rc<U32String>),
   Map(Rc<RefCell<Map>>)
+}
+
+impl Object{
+  pub fn clone(x: &Object) -> Object{
+    match x {
+      &Object::Null => {Object::Null},
+      &Object::Bool(x) => {Object::Bool(x)},
+      &Object::Int(x) => {Object::Int(x)},
+      &Object::Float(x) => {Object::Float(x)},
+      &Object::String(ref x) => {Object::String(x.clone())},
+      &Object::List(ref x) => {Object::List(x.clone())},
+      &Object::Map(ref x) => {Object::Map(x.clone())}
+    }
+  }
 }
 
 impl PartialEq for Object{
@@ -73,6 +105,14 @@ impl PartialEq for Object{
           _ => false
         }
       },
+      &Object::String(ref x) => {
+        match b {
+          &Object::String(ref y) => {
+            x.v==y.v
+          },
+          _ => false
+        }
+      },
       _ => false
     }
   }
@@ -84,21 +124,18 @@ impl Hash for Object{
     match self {
       &Object::Bool(x) => {x.hash(state);},
       &Object::Int(x) => {x.hash(state);},
+      &Object::String(ref x) => {
+        let s = &x.v;
+        s.hash(state);
+      },
       _ => panic!()
     }
   }
 }
 
-pub struct Process{
-  pub gtab: Rc<RefCell<Map>>
-}
-
-impl Process{
-  pub fn new() -> Self{
-    return Process{gtab: Rc::new(RefCell::new(Map{
-      m: HashMap::new()
-    }))};
-  }
+pub struct Module{
+  pub program: Vec<u8>,
+  pub data: Vec<Object>
 }
 
 fn list_to_string(a: &[Object]) -> String{
@@ -142,10 +179,9 @@ fn object_to_string(x: &Object) -> String{
       map_to_string(&a.borrow().m)
     },
     &Object::String(ref a) => {
-      let s: String = a.borrow().v.iter().cloned().collect();
+      let s: String = a.v.iter().cloned().collect();
       format!("\"{}\"",s)
-    },
-    _ => panic!()
+    }
   }
 }
 
@@ -261,7 +297,7 @@ fn compose_u32(b1: u8, b2: u8, b3: u8, b4: u8) -> u32{
   return (b4 as u32)<<24 | (b3 as u32)<<16 | (b2 as u32)<<8 | (b1 as u32);
 }
 
-pub fn eval(a: &[u8]){
+pub fn eval(module: &Module, a: &[u8], gtab: &Rc<RefCell<Map>>){
   let mut ip=0;
   let mut stack: Vec<Object> = Vec::new();
   for _ in 0..100 {
@@ -275,10 +311,40 @@ pub fn eval(a: &[u8]){
         sp+=1;
         ip+=BCSIZE;
       },
+      bc::TRUE => {
+        ip+=BCSIZE;
+        stack[sp] = Object::Bool(true);
+        sp+=1;
+      },
+      bc::FALSE => {
+        ip+=BCSIZE;
+        stack[sp] = Object::Bool(false);
+        sp+=1;
+      },
       bc::INT => {
         ip+=BCSIZEP4;
         stack[sp] = Object::Int(compose_i32(a[ip-4],a[ip-3],a[ip-2],a[ip-1]));
         sp+=1;
+      },
+      bc::LOAD => {
+        ip+=BCSIZEP4;
+        let index = compose_u32(a[ip-4],a[ip-3],a[ip-2],a[ip-1]);
+        match gtab.borrow().m.get(&module.data[index as usize]) {
+          Some(x) => {
+            stack[sp] = Object::clone(x);
+            sp+=1;
+          },
+          None => {
+            panic!()
+          }
+        }
+      },
+      bc::STORE => {
+        ip+=BCSIZEP4;
+        let index = compose_u32(a[ip-4],a[ip-3],a[ip-2],a[ip-1]);
+        let key = Object::clone(&module.data[index as usize]);
+        gtab.borrow_mut().m.insert(key,replace(&mut stack[sp-1],Object::Null));
+        sp-=1;
       },
       bc::ADD => {
         sp = operator_plus(sp, &mut stack);
@@ -298,6 +364,20 @@ pub fn eval(a: &[u8]){
       },
       bc::IDIV => {
         sp = operator_idiv(sp, &mut stack);
+        ip+=BCSIZE;
+      },
+      bc::EQ => {
+        let value = stack[sp-2]==stack[sp-1];
+        sp-=1;
+        stack[sp] = Object::Null;
+        stack[sp-1] = Object::Bool(value);
+        ip+=BCSIZE;
+      },
+      bc::NE => {
+        let value = stack[sp-2]!=stack[sp-1];
+        sp-=1;
+        stack[sp] = Object::Null;
+        stack[sp-1] = Object::Bool(value);
         ip+=BCSIZE;
       },
       bc::LIST => {

@@ -3,11 +3,15 @@
 #![allow(unused_variables)]
 #![allow(unused_mut)]
 
-use system;
 use std::ascii::AsciiExt;
 use std::rc::Rc;
+use std::collections::HashMap;
+use system;
 use vm::bc;
 use vm::BCSIZE;
+use vm::Object;
+use vm::U32String;
+use vm::Module;
 
 #[derive(Copy,Clone,PartialEq)]
 enum SymbolType{
@@ -91,9 +95,7 @@ fn compiler_error() -> !{
 }
 
 fn is_keyword(id: &String) -> Option<&'static KeywordsElement> {
-  // let mut i: usize;
   let n: usize = KEYWORDS.len();
-  // i=0;
   for i in 0..n {
     if KEYWORDS[i].s==id  {return Some(&KEYWORDS[i]);}
   }
@@ -482,7 +484,10 @@ pub struct Compilation<'a>{
   index: usize,
   parens: bool,
   history: &'a mut system::History,
-  file: &'a str
+  file: &'a str,
+  stab: HashMap<String,usize>,
+  stab_index: usize,
+  data: Vec<Object>
 }
 
 struct TokenIterator{
@@ -1239,10 +1244,37 @@ fn compile_operator(&mut self, v: &mut Vec<u8>, t: &Rc<ASTNode>, byte_code: u8) 
   return Ok(());
 }
 
+fn get_index(&mut self, key: &str) -> usize{
+  if let Some(index) = self.stab.get(key) {
+    return *index;
+  }
+  self.data.push(U32String::new_object_str(key));
+  self.stab.insert(String::from(key),self.stab_index);
+  self.stab_index+=1;
+  return self.stab_index-1;
+}
+
 fn compile_ast(&mut self, v: &mut Vec<u8>, t: &Rc<ASTNode>) -> Result<(),SyntaxError>{
-  if t.symbol_type == SymbolType::Operator {
+  if t.symbol_type == SymbolType::Identifier {
+    let key = match t.s {Some(ref x)=>x, None=>panic!()};
+    let index = self.get_index(key);
+    push_bc(v,bc::LOAD,t.line,t.col);
+    push_u32(v,index as u32);
+  }else if t.symbol_type == SymbolType::Operator {
     let value = t.value;
-    if value == Symbol::Plus {
+    if value == Symbol::Assignment {
+      let a = match t.a {Some(ref x)=>x, None=>panic!()};
+      try!(self.compile_ast(v,&a[1]));
+      if a[0].symbol_type == SymbolType::Identifier {
+        let key = match a[0].s {Some(ref x)=>x, None=>panic!()};
+        let index = self.get_index(key);
+        push_bc(v,bc::STORE,t.line,t.col);
+        push_u32(v,index as u32);
+      }else{
+        return Err(self.syntax_error(t.line,t.col,
+          String::from("expected identifier before '='.")));
+      }
+    }else if value == Symbol::Plus {
       try!(self.compile_operator(v,t,bc::ADD));
     }else if value == Symbol::Minus {
       try!(self.compile_operator(v,t,bc::SUB));
@@ -1254,6 +1286,10 @@ fn compile_ast(&mut self, v: &mut Vec<u8>, t: &Rc<ASTNode>) -> Result<(),SyntaxE
       try!(self.compile_operator(v,t,bc::IDIV));
     }else if value == Symbol::Neg {
       try!(self.compile_operator(v,t,bc::NEG));
+    }else if value == Symbol::Eq {
+      try!(self.compile_operator(v,t,bc::EQ));
+    }else if value == Symbol::Ne {
+      try!(self.compile_operator(v,t,bc::NE));
     }else if value == Symbol::List {
       try!(self.compile_operator(v,t,bc::LIST));
       let size = match t.a {Some(ref a) => a.len() as i32, None => panic!()};
@@ -1261,7 +1297,7 @@ fn compile_ast(&mut self, v: &mut Vec<u8>, t: &Rc<ASTNode>) -> Result<(),SyntaxE
     }else if value == Symbol::Map {
       try!(self.compile_operator(v,t,bc::MAP));
       let size = match t.a {Some(ref a) => a.len() as i32, None => panic!()};
-      push_i32(v,size);      
+      push_i32(v,size);
     }else{
       return Err(self.syntax_error(t.line,t.col,
         format!("cannot compile Operator '{}'.",token_value_to_string(t.value))
@@ -1275,6 +1311,12 @@ fn compile_ast(&mut self, v: &mut Vec<u8>, t: &Rc<ASTNode>) -> Result<(),SyntaxE
   }else if t.value == Symbol::Null {
     v.push(bc::NULL);
     push_line_col(v,t.line,t.col);
+  }else if t.value == Symbol::True {
+    push_bc(v,bc::TRUE,t.line,t.col);
+  }else if t.value == Symbol::False {
+    push_bc(v,bc::FALSE,t.line,t.col);
+  }else{
+    panic!();
   }
   return Ok(());
 }
@@ -1293,6 +1335,13 @@ fn push_i32(v: &mut Vec<u8>, x: i32){
   v.push((x>>24) as u8);
 }
 
+fn push_u32(v: &mut Vec<u8>, x: u32){
+  v.push(x as u8);
+  v.push((x>>8) as u8);
+  v.push((x>>16) as u8);
+  v.push((x>>24) as u8);
+}
+
 fn push_u16(v: &mut Vec<u8>, x: u16){
   v.push(x as u8);
   v.push((x>>8) as u8);
@@ -1301,6 +1350,11 @@ fn push_u16(v: &mut Vec<u8>, x: u16){
 fn push_line_col(v: &mut Vec<u8>, line: usize, col: usize){
   push_u16(v,line as u16);
   v.push(col as u8);
+}
+
+fn push_bc(v: &mut Vec<u8>, byte: u8, line: usize, col: usize){
+  v.push(byte);
+  push_line_col(v,line,col);
 }
 
 fn compose_u16(b1: u8, b2: u8) -> u16{
@@ -1326,6 +1380,12 @@ fn asm_listing(a: &[u8]) -> String{
     }else if byte==bc::NULL {
       s.push_str("null\n");
       i+=BCSIZE;
+    }else if byte==bc::TRUE {
+      s.push_str("true\n");
+      i+=BCSIZE;
+    }else if byte==bc::FALSE {
+      s.push_str("false\n");
+      i+=BCSIZE;
     }else if byte==bc::ADD {
       s.push_str("add\n");
       i+=BCSIZE;
@@ -1344,11 +1404,23 @@ fn asm_listing(a: &[u8]) -> String{
     }else if byte==bc::NEG {
       s.push_str("neg\n");
       i+=BCSIZE;
+    }else if byte==bc::EQ {
+      s.push_str("eq\n");
+      i+=BCSIZE;
+    }else if byte==bc::NE {
+      s.push_str("not eq\n");
+      i+=BCSIZE;
     }else if byte==bc::LIST {
       s.push_str("list\n");
       i+=BCSIZE+4;
     }else if byte==bc::MAP {
       s.push_str("map\n");
+      i+=BCSIZE+4;
+    }else if byte==bc::LOAD {
+      s.push_str("load global\n");
+      i+=BCSIZE+4;
+    }else if byte==bc::STORE {
+      s.push_str("store global\n");
       i+=BCSIZE+4;
     }else if byte==bc::HALT {
       s.push_str("halt\n");
@@ -1365,10 +1437,14 @@ fn print_asm_listing(a: &[u8]){
   println!("{}",&s);
 }
 
-pub fn compile(v: Vec<Token>, mode_cmd: bool, history: &mut system::History, id: &str) -> Result<Vec<u8>,SyntaxError>{
+pub fn compile(v: Vec<Token>, mode_cmd: bool,
+  history: &mut system::History, id: &str
+) -> Result<Module,SyntaxError>
+{
   let mut compilation = Compilation{
     mode_cmd: mode_cmd, index: 0, parens: false,
-    history: history, file: id
+    history: history, file: id, stab: HashMap::new(),
+    stab_index: 0, data: Vec::new()
   };
   let mut i = TokenIterator{index: 0, a: Rc::new(v.into_boxed_slice())};
   let y = try!(compilation.ast(&mut i));
@@ -1379,5 +1455,6 @@ pub fn compile(v: Vec<Token>, mode_cmd: bool, history: &mut system::History, id:
   push_line_col(&mut v,y.line,y.col);
 
   print_asm_listing(&v);
-  return Ok(v);
+  let m = Module{program: v, data: compilation.data};
+  return Ok(m);
 }
