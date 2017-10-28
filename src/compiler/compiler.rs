@@ -6,6 +6,7 @@
 use std::ascii::AsciiExt;
 use std::rc::Rc;
 use std::collections::HashMap;
+use std::mem::transmute;
 use system;
 use vm::bc;
 use vm::BCSIZE;
@@ -15,7 +16,8 @@ use vm::Module;
 
 #[derive(Copy,Clone,PartialEq)]
 enum SymbolType{
-  Operator, Separator, Bracket, Bool, Int,
+  Operator, Separator, Bracket,
+  Bool, Int, Float, Imag,
   String, Identifier, Keyword
 }
 
@@ -114,11 +116,19 @@ pub fn scan(s: &str, line_start: usize, file: &str) -> Result<Vec<Token>, Syntax
     let c = a[i];
     if c.is_digit(10) {
       let j=i; hcol=col;
-      while i<n && a[i].is_digit(10) {
-        i+=1; col+=1;
+      let mut is_float = false;
+      while i<n {
+        if a[i].is_digit(10) {
+          i+=1; col+=1;
+        }else if a[i]=='.' && !is_float {
+          i+=1; col+=1;
+          is_float = true;
+        }else{
+          break;
+        }
       }
       let number: &String = &a[j..i].iter().cloned().collect();
-      v.push(Token{token_type: SymbolType::Int,
+      v.push(Token{token_type: if is_float {SymbolType::Float} else {SymbolType::Int},
         value: Symbol::None, line: line, col: hcol, s: Some(number.clone())});
     }else if (c.is_alphabetic() && c.is_ascii()) || a[i]=='_' {
       let j=i; hcol=col;
@@ -364,10 +374,11 @@ fn token_value_to_string(value: Symbol) -> &'static str {
     Symbol::Mod  => "%",  Symbol::Pow => "^",
     Symbol::Vline=> "|",  Symbol::Amp => "&",
     Symbol::Idiv => "//", Symbol::Svert=> "$",
+    Symbol::Neg  => "u-", Symbol::Tilde=> "u~",
     Symbol::In   => "in", Symbol::Is => "is",
     Symbol::Isin=>"is in",Symbol::Notin=> "not in",
     Symbol::And  => "and",Symbol::Or => "or",
-    Symbol::Not  => "not",Symbol::Tilde => "~",
+    Symbol::Not  => "not",Symbol::Isnot => "is not",
     Symbol::PLeft => "(", Symbol::PRight => ")",
     Symbol::BLeft => "[", Symbol::BRight => "]",
     Symbol::CLeft => "{", Symbol::CRight => "}",
@@ -414,7 +425,8 @@ fn token_value_to_string(value: Symbol) -> &'static str {
 
 fn print_token(x: &Token){
   match x.token_type {
-    SymbolType::String | SymbolType::Int | SymbolType::Identifier => {
+    SymbolType::String | SymbolType::Int | SymbolType::Float |
+    SymbolType::Imag| SymbolType::Identifier => {
       print!("[{}]",match x.s {Some(ref s) => s, None => compiler_error()});
     },
     SymbolType::Operator | SymbolType::Separator |
@@ -432,7 +444,7 @@ pub fn print_vtoken(v: &Vec<Token>){
 fn print_ast(t: &ASTNode, indent: usize){
   print!("{:1$}","",indent);
   match t.symbol_type {
-    SymbolType::Identifier | SymbolType::Int => {
+    SymbolType::Identifier | SymbolType::Int | SymbolType::Float => {
       println!("{}",match t.s {Some(ref s) => s, None => compiler_error()});
     },
     SymbolType::String => {
@@ -737,11 +749,11 @@ fn atom(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError> {
   let t = &p[i.index];
   let y;
   if t.token_type==SymbolType::Identifier || t.token_type==SymbolType::Int ||
-     t.token_type==SymbolType::String
+     t.token_type==SymbolType::String || t.token_type==SymbolType::Float
   {
     i.index+=1;
     y = Rc::new(ASTNode{line: t.line, col: t.col, symbol_type: t.token_type,
-      value: Symbol::Null, info: Info::None, s: t.s.clone(), a: None});
+      value: t.value, info: Info::None, s: t.s.clone(), a: None});
   }else if t.value==Symbol::PLeft {
     i.index+=1;
     self.parens = true;
@@ -1286,6 +1298,8 @@ fn compile_ast(&mut self, v: &mut Vec<u8>, t: &Rc<ASTNode>) -> Result<(),SyntaxE
       try!(self.compile_operator(v,t,bc::IDIV));
     }else if value == Symbol::Neg {
       try!(self.compile_operator(v,t,bc::NEG));
+    }else if value == Symbol::Pow {
+      try!(self.compile_operator(v,t,bc::POW));
     }else if value == Symbol::Eq {
       try!(self.compile_operator(v,t,bc::EQ));
     }else if value == Symbol::Ne {
@@ -1304,22 +1318,25 @@ fn compile_ast(&mut self, v: &mut Vec<u8>, t: &Rc<ASTNode>) -> Result<(),SyntaxE
       try!(self.compile_operator(v,t,bc::ISNOT));
     }else if value == Symbol::List {
       try!(self.compile_operator(v,t,bc::LIST));
-      let size = match t.a {Some(ref a) => a.len() as i32, None => panic!()};
-      push_i32(v,size);
+      let size = match t.a {Some(ref a) => a.len() as u32, None => panic!()};
+      push_u32(v,size);
     }else if value == Symbol::Map {
       try!(self.compile_operator(v,t,bc::MAP));
-      let size = match t.a {Some(ref a) => a.len() as i32, None => panic!()};
-      push_i32(v,size);
+      let size = match t.a {Some(ref a) => a.len() as u32, None => panic!()};
+      push_u32(v,size);
     }else{
       return Err(self.syntax_error(t.line,t.col,
         format!("cannot compile Operator '{}'.",token_value_to_string(t.value))
       ));
     }
   }else if t.symbol_type == SymbolType::Int {
-    v.push(bc::INT);
-    push_line_col(v,t.line,t.col);
+    push_bc(v, bc::INT, t.line, t.col);
     let x: i32 = match t.s {Some(ref x)=>x.parse().unwrap(), None=>panic!()};
     push_i32(v,x);
+  }else if t.symbol_type == SymbolType::Float {
+    push_bc(v, bc::FLOAT, t.line, t.col);
+    let x: f64 = match t.s {Some(ref x)=>x.parse().unwrap(), None=>panic!()};
+    push_u64(v,unsafe{transmute::<f64,u64>(x)});
   }else if t.value == Symbol::Null {
     v.push(bc::NULL);
     push_line_col(v,t.line,t.col);
@@ -1339,12 +1356,9 @@ fn ast_argv(t: &Rc<ASTNode>) -> &Box<[Rc<ASTNode>]>{
   match t.a {Some(ref x)=> x, None=>panic!()}
 }
 
-fn push_i32(v: &mut Vec<u8>, x: i32){
-  let x = x as u32;
+fn push_u16(v: &mut Vec<u8>, x: u16){
   v.push(x as u8);
   v.push((x>>8) as u8);
-  v.push((x>>16) as u8);
-  v.push((x>>24) as u8);
 }
 
 fn push_u32(v: &mut Vec<u8>, x: u32){
@@ -1354,9 +1368,23 @@ fn push_u32(v: &mut Vec<u8>, x: u32){
   v.push((x>>24) as u8);
 }
 
-fn push_u16(v: &mut Vec<u8>, x: u16){
+fn push_i32(v: &mut Vec<u8>, x: i32){
+  let x = unsafe{transmute::<i32,u32>(x)};
   v.push(x as u8);
   v.push((x>>8) as u8);
+  v.push((x>>16) as u8);
+  v.push((x>>24) as u8);
+}
+
+fn push_u64(v: &mut Vec<u8>, x: u64){
+  v.push(x as u8);
+  v.push((x>>8) as u8);
+  v.push((x>>16) as u8);
+  v.push((x>>24) as u8);
+  v.push((x>>32) as u8);
+  v.push((x>>40) as u8);
+  v.push((x>>48) as u8);
+  v.push((x>>56) as u8);
 }
 
 fn push_line_col(v: &mut Vec<u8>, line: usize, col: usize){
@@ -1369,96 +1397,124 @@ fn push_bc(v: &mut Vec<u8>, byte: u8, line: usize, col: usize){
   push_line_col(v,line,col);
 }
 
-fn compose_u16(b1: u8, b2: u8) -> u16{
-  return  (b2 as u16)<<8 | b1 as u16;
+fn compose_u16(b0: u8, b1: u8) -> u16{
+  return  (b1 as u16)<<8 | b0 as u16;
 }
 
-fn compose_i32(b1: u8, b2: u8, b3: u8, b4: u8) -> i32{
-  return (b4 as i32)<<24 | (b3 as i32)<<16 | (b2 as i32)<<8 | (b1 as i32);
+fn compose_i32(b0: u8, b1: u8, b2: u8, b3: u8) -> i32{
+  return (b3 as i32)<<24 | (b2 as i32)<<16 | (b1 as i32)<<8 | (b0 as i32);
+}
+
+fn compose_u32(b0: u8, b1: u8, b2: u8, b3: u8) -> u32{
+  return (b3 as u32)<<24 | (b2 as u32)<<16 | (b1 as u32)<<8 | (b0 as u32);
+}
+
+fn compose_u64(b0: u8, b1: u8, b2: u8, b3: u8, b4: u8, b5: u8, b6: u8, b7: u8) -> u64{
+  return (b7 as u64)<<56 | (b6 as u64)<<48 | (b5 as u64)<<40 | (b4 as u64)<<32
+       | (b3 as u64)<<24 | (b2 as u64)<<16 | (b1 as u64)<<8 | (b0 as u64);
 }
 
 fn asm_listing(a: &[u8]) -> String{
-  let mut s = String::from("Addr| Line:Col| Operation\n");
+  let mut s = String::from("Adr | Line:Col| Operation\n");
   let mut i=0;
   while i<a.len() {
     let u = format!("{:04}| {:4}:{:02} | ",i,compose_u16(a[i+1],a[i+2]),a[i+3]);
     s.push_str(&u);
-    let byte = a[i];
-    if byte==bc::INT {
+    let op = a[i];
+    if op==bc::INT {
       let x = compose_i32(a[BCSIZE+i],a[BCSIZE+i+1],a[BCSIZE+i+2],a[BCSIZE+i+3]);
       let u = format!("push int {} (0x{:x})\n",x,x);
       s.push_str(&u);
       i+=BCSIZE+4;
-    }else if byte==bc::NULL {
+    }else if op==bc::FLOAT {
+      let x = unsafe{transmute::<u64,f64>(compose_u64(
+        a[BCSIZE+i],a[BCSIZE+i+1],a[BCSIZE+i+2],a[BCSIZE+i+3],
+        a[BCSIZE+i+4],a[BCSIZE+i+5],a[BCSIZE+i+6],a[BCSIZE+i+7]
+      ))};
+      let u = format!("push float {}\n",x);
+      s.push_str(&u);
+      i+=BCSIZE+8;
+    }else if op==bc::NULL {
       s.push_str("null\n");
       i+=BCSIZE;
-    }else if byte==bc::TRUE {
+    }else if op==bc::TRUE {
       s.push_str("true\n");
       i+=BCSIZE;
-    }else if byte==bc::FALSE {
+    }else if op==bc::FALSE {
       s.push_str("false\n");
       i+=BCSIZE;
-    }else if byte==bc::ADD {
+    }else if op==bc::ADD {
       s.push_str("add\n");
       i+=BCSIZE;
-    }else if byte==bc::SUB {
+    }else if op==bc::SUB {
       s.push_str("sub\n");
       i+=BCSIZE;
-    }else if byte==bc::MPY {
+    }else if op==bc::MPY {
       s.push_str("mpy\n");
       i+=BCSIZE;
-    }else if byte==bc::DIV {
+    }else if op==bc::DIV {
       s.push_str("div\n");
       i+=BCSIZE;
-    }else if byte==bc::IDIV {
+    }else if op==bc::IDIV {
       s.push_str("idiv\n");
       i+=BCSIZE;
-    }else if byte==bc::NEG {
+    }else if op==bc::POW {
+      s.push_str("pow\n");
+      i+=BCSIZE;
+    }else if op==bc::NEG {
       s.push_str("neg\n");
       i+=BCSIZE;
-    }else if byte==bc::EQ {
+    }else if op==bc::EQ {
       s.push_str("eq\n");
       i+=BCSIZE;
-    }else if byte==bc::NE {
+    }else if op==bc::NE {
       s.push_str("not eq\n");
       i+=BCSIZE;
-    }else if byte==bc::LT {
+    }else if op==bc::LT {
       s.push_str("lt\n");
       i+=BCSIZE;
-    }else if byte==bc::GT {
+    }else if op==bc::GT {
       s.push_str("gt\n");
       i+=BCSIZE;
-    }else if byte==bc::LE {
+    }else if op==bc::LE {
       s.push_str("le\n");
       i+=BCSIZE;
-    }else if byte==bc::GE {
+    }else if op==bc::GE {
       s.push_str("not ge\n");
       i+=BCSIZE;
-    }else if byte==bc::IS {
+    }else if op==bc::IS {
       s.push_str("is\n");
       i+=BCSIZE;
-    }else if byte==bc::ISNOT {
+    }else if op==bc::ISNOT {
       s.push_str("is not\n");
       i+=BCSIZE;
-    }else if byte==bc::IN {
+    }else if op==bc::IN {
       s.push_str("in\n");
       i+=BCSIZE;
-    }else if byte==bc::NOTIN {
+    }else if op==bc::NOTIN {
       s.push_str("not in\n");
       i+=BCSIZE;
-    }else if byte==bc::LIST {
-      s.push_str("list\n");
+    }else if op==bc::LIST {
+      let x = compose_u32(a[BCSIZE+i],a[BCSIZE+i+1],a[BCSIZE+i+2],a[BCSIZE+i+3]);
+      let u = format!("list, size={}\n",x);
+      s.push_str(&u);
       i+=BCSIZE+4;
-    }else if byte==bc::MAP {
-      s.push_str("map\n");
+    }else if op==bc::MAP {
+      let x = compose_u32(a[BCSIZE+i],a[BCSIZE+i+1],a[BCSIZE+i+2],a[BCSIZE+i+3]);
+      let u = format!("map, size={}\n",x);
+      s.push_str(&u);
       i+=BCSIZE+4;
-    }else if byte==bc::LOAD {
-      s.push_str("load global\n");
+    }else if op==bc::LOAD {
+      let x = compose_u32(a[BCSIZE+i],a[BCSIZE+i+1],a[BCSIZE+i+2],a[BCSIZE+i+3]);
+      let u = format!("load global [{}]\n",x);
+      s.push_str(&u);
       i+=BCSIZE+4;
-    }else if byte==bc::STORE {
-      s.push_str("store global\n");
+    }else if op==bc::STORE {
+      let x = compose_u32(a[BCSIZE+i],a[BCSIZE+i+1],a[BCSIZE+i+2],a[BCSIZE+i+3]);
+      let u = format!("store global [{}]\n",x);
+      s.push_str(&u);
       i+=BCSIZE+4;
-    }else if byte==bc::HALT {
+    }else if op==bc::HALT {
       s.push_str("halt\n");
       break;
     }else{
@@ -1486,7 +1542,7 @@ pub fn compile(v: Vec<Token>, mode_cmd: bool,
   let y = try!(compilation.ast(&mut i));
   print_ast(&y,2);
   let mut v: Vec<u8> = Vec::new();
-  compilation.compile_ast(&mut v, &y).ok();
+  try!(compilation.compile_ast(&mut v, &y));
   v.push(bc::HALT as u8);
   push_line_col(&mut v,y.line,y.col);
 

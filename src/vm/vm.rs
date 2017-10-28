@@ -2,11 +2,13 @@
 use std::rc::Rc;
 use std::cell::RefCell;
 use std::mem::replace;
+use std::mem::transmute;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 
 pub const BCSIZE: usize = 4;
 pub const BCSIZEP4: usize = BCSIZE+4;
+pub const BCSIZEP8: usize = BCSIZE+8;
 
 pub mod bc{
   pub const NULL: u8 = 00;
@@ -14,26 +16,29 @@ pub mod bc{
   pub const FALSE:u8 = 02;
   pub const TRUE: u8 = 03;
   pub const INT:  u8 = 04;
-  pub const NEG:  u8 = 05;
-  pub const ADD:  u8 = 06;
-  pub const SUB:  u8 = 07;
-  pub const MPY:  u8 = 08;
-  pub const DIV:  u8 = 09;
-  pub const IDIV: u8 = 10;
-  pub const EQ:   u8 = 11;
-  pub const NE:   u8 = 12;
-  pub const IS:   u8 = 13;
-  pub const ISNOT:u8 = 14;
-  pub const IN:   u8 = 15;
-  pub const NOTIN:u8 = 16; 
-  pub const LT:   u8 = 17;
-  pub const GT:   u8 = 18;
-  pub const LE:   u8 = 19;
-  pub const GE:   u8 = 20;
-  pub const LIST: u8 = 21;
-  pub const MAP:  u8 = 22;
-  pub const LOAD: u8 = 23;
-  pub const STORE:u8 = 24;
+  pub const FLOAT:u8 = 05;
+  pub const IMAG: u8 = 06;
+  pub const NEG:  u8 = 07;
+  pub const ADD:  u8 = 08;
+  pub const SUB:  u8 = 09;
+  pub const MPY:  u8 = 10;
+  pub const DIV:  u8 = 11;
+  pub const IDIV: u8 = 12;
+  pub const POW:  u8 = 13;
+  pub const EQ:   u8 = 14;
+  pub const NE:   u8 = 15;
+  pub const IS:   u8 = 16;
+  pub const ISNOT:u8 = 17;
+  pub const IN:   u8 = 18;
+  pub const NOTIN:u8 = 19; 
+  pub const LT:   u8 = 20;
+  pub const GT:   u8 = 21;
+  pub const LE:   u8 = 22;
+  pub const GE:   u8 = 23;
+  pub const LIST: u8 = 24;
+  pub const MAP:  u8 = 25;
+  pub const LOAD: u8 = 26;
+  pub const STORE:u8 = 27;
 }
 
 pub struct U32String{
@@ -214,6 +219,20 @@ fn object_to_string(x: &Object) -> String{
   }
 }
 
+fn operator_neg(sp: usize, stack: &mut Vec<Object>) -> bool{
+  match stack[sp-1] {
+    Object::Int(x) => {
+      stack[sp-1] = Object::Int(-x);
+      false
+    },
+    Object::Float(x) => {
+      stack[sp-1] = Object::Float(-x);
+      false
+    },
+    _ => true
+  }
+}
+
 fn operator_plus(sp: usize, stack: &mut Vec<Object>) -> bool{
   match stack[sp-2] {
     Object::Int(x) => {
@@ -348,6 +367,38 @@ fn operator_idiv(sp: usize, stack: &mut Vec<Object>) -> bool{
       match stack[sp-1] {
         Object::Int(y) => {
           stack[sp-2] = Object::Int(x/y);
+          false
+        },
+        _ => true
+      }
+    },
+    _ => true
+  }
+}
+
+fn operator_pow(sp: usize, stack: &mut Vec<Object>) -> bool{
+  match stack[sp-2] {
+    Object::Int(x) => {
+      match stack[sp-1] {
+        Object::Int(y) => {
+          stack[sp-2] = Object::Int(x.pow(y as u32));
+          false
+        },
+        Object::Float(y) => {
+          stack[sp-2] = Object::Float((x as f64).powf(y));
+          false
+        },
+        _ => true
+      }
+    },
+    Object::Float(x) => {
+      match stack[sp-1] {
+        Object::Int(y) => {
+          stack[sp-2] = Object::Float(x.powi(y));
+          false
+        },
+        Object::Float(y) => {
+          stack[sp-2] = Object::Float(x.powf(y));
           false
         },
         _ => true
@@ -556,18 +607,25 @@ fn operator_map(sp: usize, stack: &mut Vec<Object>, size: usize) -> usize{
   return sp;
 }
 
-fn compose_i32(b1: u8, b2: u8, b3: u8, b4: u8) -> i32{
-  return (b4 as i32)<<24 | (b3 as i32)<<16 | (b2 as i32)<<8 | (b1 as i32);
+fn compose_i32(b0: u8, b1: u8, b2: u8, b3: u8) -> i32{
+  return (b3 as i32)<<24 | (b2 as i32)<<16 | (b1 as i32)<<8 | (b0 as i32);
 }
 
-fn compose_u32(b1: u8, b2: u8, b3: u8, b4: u8) -> u32{
-  return (b4 as u32)<<24 | (b3 as u32)<<16 | (b2 as u32)<<8 | (b1 as u32);
+fn compose_u32(b0: u8, b1: u8, b2: u8, b3: u8) -> u32{
+  return (b3 as u32)<<24 | (b2 as u32)<<16 | (b1 as u32)<<8 | (b0 as u32);
 }
+
+fn compose_u64(b0: u8, b1: u8, b2: u8, b3: u8, b4: u8, b5: u8, b6: u8, b7: u8) -> u64{
+  return (b7 as u64)<<56 | (b6 as u64)<<48 | (b5 as u64)<<40 | (b4 as u64)<<32
+       | (b3 as u64)<<24 | (b2 as u64)<<16 | (b1 as u64)<<8 | (b0 as u64);
+}
+
+const STACK_SIZE: usize = 100;
 
 pub fn eval(module: &Module, a: &[u8], gtab: &Rc<RefCell<Map>>){
   let mut ip=0;
-  let mut stack: Vec<Object> = Vec::new();
-  for _ in 0..100 {
+  let mut stack: Vec<Object> = Vec::with_capacity(STACK_SIZE);
+  for _ in 0..STACK_SIZE {
     stack.push(Object::Null);
   }
   let mut sp=0;
@@ -593,6 +651,13 @@ pub fn eval(module: &Module, a: &[u8], gtab: &Rc<RefCell<Map>>){
         stack[sp] = Object::Int(compose_i32(a[ip-4],a[ip-3],a[ip-2],a[ip-1]));
         sp+=1;
       },
+      bc::FLOAT => {
+        ip+=BCSIZEP8;
+        stack[sp] = Object::Float(unsafe{transmute::<u64,f64>(compose_u64(
+          a[ip-8],a[ip-7],a[ip-6],a[ip-5],a[ip-4],a[ip-3],a[ip-2],a[ip-1]
+        ))});
+        sp+=1;
+      },
       bc::LOAD => {
         ip+=BCSIZEP4;
         let index = compose_u32(a[ip-4],a[ip-3],a[ip-2],a[ip-1]);
@@ -612,6 +677,10 @@ pub fn eval(module: &Module, a: &[u8], gtab: &Rc<RefCell<Map>>){
         let key = Object::clone(&module.data[index as usize]);
         gtab.borrow_mut().m.insert(key,replace(&mut stack[sp-1],Object::Null));
         sp-=1;
+      },
+      bc::NEG => {
+        if operator_neg(sp, &mut stack) {panic!();}
+        ip+=BCSIZE;
       },
       bc::ADD => {
         if operator_plus(sp, &mut stack) {panic!();}
@@ -635,6 +704,11 @@ pub fn eval(module: &Module, a: &[u8], gtab: &Rc<RefCell<Map>>){
       },
       bc::IDIV => {
         if operator_idiv(sp, &mut stack) {panic!();}
+        sp-=1;
+        ip+=BCSIZE;
+      },
+      bc::POW => {
+        if operator_pow(sp, &mut stack) {panic!();}
         sp-=1;
         ip+=BCSIZE;
       },
@@ -679,12 +753,12 @@ pub fn eval(module: &Module, a: &[u8], gtab: &Rc<RefCell<Map>>){
       },
       bc::LIST => {
         ip+=BCSIZEP4;
-        let size = compose_i32(a[ip-4],a[ip-3],a[ip-2],a[ip-1]) as usize;
+        let size = compose_u32(a[ip-4],a[ip-3],a[ip-2],a[ip-1]) as usize;
         sp = operator_list(sp,&mut stack,size);
       },
       bc::MAP => {
         ip+=BCSIZEP4;
-        let size = compose_i32(a[ip-4],a[ip-3],a[ip-2],a[ip-1]) as usize;
+        let size = compose_u32(a[ip-4],a[ip-3],a[ip-2],a[ip-1]) as usize;
         sp = operator_map(sp,&mut stack,size);
       },
       bc::HALT => {
