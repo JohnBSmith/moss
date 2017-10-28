@@ -3,13 +3,10 @@
 #![allow(unused_variables)]
 #![allow(unused_mut)]
 
-#[path = "compiler/compiler.rs"]
-mod compiler;
-
 #[path = "system/system.rs"]
 mod system;
 
-#[path = "vm/vm.rs"]
+mod compiler;
 mod vm;
 
 use std::fs::File;
