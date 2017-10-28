@@ -54,7 +54,9 @@ fn eval_string(s: &str, id: &str){
     Ok(v) => {
       let gtab = Map::new();
       match compiler::compile(v,false,&mut history,id) {
-        Ok(_) => {},
+        Ok(module) => {
+          ::vm::eval(&module,&module.program,&gtab);        
+        },
         Err(e) => {compiler::print_syntax_error(e);}
       };
     },

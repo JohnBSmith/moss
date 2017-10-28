@@ -1266,6 +1266,24 @@ fn get_index(&mut self, key: &str) -> usize{
   return self.stab_index-1;
 }
 
+// while c do b end
+// (1) c JPZ[2] b JMP[1] (2)
+fn compile_while(&mut self, v: &mut Vec<u8>, t: &Rc<ASTNode>) -> Result<(),SyntaxError>{
+  let index1 = v.len();
+  let a = ast_argv(t);
+  try!(self.compile_ast(v,&a[0]));
+  push_bc(v,bc::JZ,t.line,t.col);
+  let index2 = v.len();
+  push_u32(v,0xcafe);
+  try!(self.compile_ast(v,&a[1]));
+  push_bc(v,bc::JMP,t.line,t.col);
+  let len = v.len();
+  push_i32(v,(BCSIZE+index1) as i32-len as i32);
+  let len = v.len();
+  write_i32(&mut v[index2..index2+4],(BCSIZE+len) as i32-index2 as i32);
+  return Ok(());
+}
+
 fn compile_ast(&mut self, v: &mut Vec<u8>, t: &Rc<ASTNode>) -> Result<(),SyntaxError>{
   if t.symbol_type == SymbolType::Identifier {
     let key = match t.s {Some(ref x)=>x, None=>panic!()};
@@ -1344,6 +1362,17 @@ fn compile_ast(&mut self, v: &mut Vec<u8>, t: &Rc<ASTNode>) -> Result<(),SyntaxE
     push_bc(v,bc::TRUE,t.line,t.col);
   }else if t.value == Symbol::False {
     push_bc(v,bc::FALSE,t.line,t.col);
+  }else if t.symbol_type == SymbolType::Keyword {
+    if t.value == Symbol::While {
+      try!(self.compile_while(v,t));
+    }else if t.value == Symbol::Block {
+      let a = ast_argv(t);
+      for i in 0..a.len() {
+        try!(self.compile_ast(v,&a[i]));
+      }
+    }else{
+      panic!();
+    }
   }else{
     panic!();
   }
@@ -1374,6 +1403,14 @@ fn push_i32(v: &mut Vec<u8>, x: i32){
   v.push((x>>8) as u8);
   v.push((x>>16) as u8);
   v.push((x>>24) as u8);
+}
+
+fn write_i32(a: &mut [u8], x: i32){
+  let x = unsafe{transmute::<i32,u32>(x)};
+  a[0] = x as u8;
+  a[1] = (x>>8) as u8;
+  a[2] = (x>>16) as u8;
+  a[3] = (x>>24) as u8;
 }
 
 fn push_u64(v: &mut Vec<u8>, x: u64){
@@ -1512,6 +1549,21 @@ fn asm_listing(a: &[u8]) -> String{
     }else if op==bc::STORE {
       let x = compose_u32(a[BCSIZE+i],a[BCSIZE+i+1],a[BCSIZE+i+2],a[BCSIZE+i+3]);
       let u = format!("store global [{}]\n",x);
+      s.push_str(&u);
+      i+=BCSIZE+4;
+    }else if op==bc::JMP {
+      let x = compose_i32(a[BCSIZE+i],a[BCSIZE+i+1],a[BCSIZE+i+2],a[BCSIZE+i+3]);
+      let u = format!("jmp {}\n",i as i32+x);
+      s.push_str(&u);
+      i+=BCSIZE+4;
+    }else if op==bc::JZ {
+      let x = compose_i32(a[BCSIZE+i],a[BCSIZE+i+1],a[BCSIZE+i+2],a[BCSIZE+i+3]);
+      let u = format!("jz {}\n",i as i32+x);
+      s.push_str(&u);
+      i+=BCSIZE+4;
+    }else if op==bc::JNZ {
+      let x = compose_i32(a[BCSIZE+i],a[BCSIZE+i+1],a[BCSIZE+i+2],a[BCSIZE+i+3]);
+      let u = format!("jnz {}\n",i as i32+x);
       s.push_str(&u);
       i+=BCSIZE+4;
     }else if op==bc::HALT {

@@ -39,6 +39,9 @@ pub mod bc{
   pub const MAP:  u8 = 25;
   pub const LOAD: u8 = 26;
   pub const STORE:u8 = 27;
+  pub const JMP:  u8 = 28;
+  pub const JZ:   u8 = 29;
+  pub const JNZ:  u8 = 30;
 }
 
 pub struct U32String{
@@ -760,6 +763,31 @@ pub fn eval(module: &Module, a: &[u8], gtab: &Rc<RefCell<Map>>){
         ip+=BCSIZEP4;
         let size = compose_u32(a[ip-4],a[ip-3],a[ip-2],a[ip-1]) as usize;
         sp = operator_map(sp,&mut stack,size);
+      },
+      bc::JMP => {
+        ip = (ip as i32+compose_i32(a[ip+BCSIZE],a[ip+BCSIZE+1],a[ip+BCSIZE+2],a[ip+BCSIZE+3])) as usize;
+      },
+      bc::JZ => {
+        let condition = match stack[sp-1] {
+          Object::Bool(x)=>{sp-=1; x},
+          _ => panic!()
+        };
+        if condition {
+          ip+=BCSIZEP4;
+        }else{
+          ip = (ip as i32+compose_i32(a[ip+BCSIZE],a[ip+BCSIZE+1],a[ip+BCSIZE+2],a[ip+BCSIZE+3])) as usize;
+        }
+      },
+      bc::JNZ => {
+        let condition = match stack[sp-1] {
+          Object::Bool(x)=>{sp-=1; x},
+          _ => panic!()
+        };
+        if condition {
+          ip = (ip as i32+compose_i32(a[ip+BCSIZE],a[ip+BCSIZE+1],a[ip+BCSIZE+2],a[ip+BCSIZE+3])) as usize;
+        }else{
+          ip+=BCSIZEP4;
+        }
       },
       bc::HALT => {
         break;
