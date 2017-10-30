@@ -5,6 +5,7 @@ use std::mem::replace;
 use std::mem::transmute;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
+use complex::Complex64;
 
 pub const BCSIZE: usize = 4;
 pub const BCSIZEP4: usize = BCSIZE+4;
@@ -81,7 +82,7 @@ impl Map{
 }
 
 pub enum Object{
-  Null, Bool(bool), Int(i32), Float(f64),
+  Null, Bool(bool), Int(i32), Float(f64), Complex(Complex64),
   List(Rc<RefCell<List>>), String(Rc<U32String>),
   Map(Rc<RefCell<Map>>)
 }
@@ -93,6 +94,7 @@ impl Object{
       &Object::Bool(x) => {Object::Bool(x)},
       &Object::Int(x) => {Object::Int(x)},
       &Object::Float(x) => {Object::Float(x)},
+      &Object::Complex(x) => {Object::Complex(x)},
       &Object::String(ref x) => {Object::String(x.clone())},
       &Object::List(ref x) => {Object::List(x.clone())},
       &Object::Map(ref x) => {Object::Map(x.clone())}
@@ -119,6 +121,7 @@ impl PartialEq for Object{
         match b {
           &Object::Int(y) => x==y,
           &Object::Float(y) => (x as f64)==y,
+          &Object::Complex(y) => (x as f64)==y.re && y.im==0.0,
           _ => false
         }
       },
@@ -126,6 +129,15 @@ impl PartialEq for Object{
         match b {
           &Object::Int(y) => x==(y as f64),
           &Object::Float(y) => x==y,
+          &Object::Complex(y) => x==y.re && y.im==0.0,
+          _ => false
+        }
+      },
+      &Object::Complex(x) => {
+        match b {
+          &Object::Int(y) => x.re==(y as f64) && x.im==0.0,
+          &Object::Float(y) => x.re==y && x.im==0.0,
+          &Object::Complex(y) => x==y,
           _ => false
         }
       },
@@ -208,7 +220,8 @@ fn object_to_string(x: &Object) -> String{
     &Object::Null => String::from("null"),
     &Object::Bool(b) => String::from(if b {"true"} else {"false"}),
     &Object::Int(i) => format!("{}",i),
-    &Object::Float(f) => format!("{}",f),
+    &Object::Float(x) => format!("{}",x),
+    &Object::Complex(z) => format!("{}+{}i",z.re,z.im),
     &Object::List(ref a) => {
       list_to_string(&a.borrow().v)
     },
@@ -245,7 +258,11 @@ fn operator_plus(sp: usize, stack: &mut Vec<Object>) -> bool{
           false
         },
         Object::Float(y) => {
-          stack[sp-2] = Object::Float((x as f64)+y);
+          stack[sp-2] = Object::Float(x as f64+y);
+          false
+        },
+        Object::Complex(y) => {
+          stack[sp-2] = Object::Complex(x as f64+y);
           false
         },
         _ => true
@@ -259,6 +276,27 @@ fn operator_plus(sp: usize, stack: &mut Vec<Object>) -> bool{
         },
         Object::Float(y) => {
           stack[sp-2] = Object::Float(x+y);
+          false
+        },
+        Object::Complex(y) => {
+          stack[sp-2] = Object::Complex(x+y);
+          false
+        },
+        _ => true
+      }
+    },
+    Object::Complex(x) => {
+      match stack[sp-1] {
+        Object::Int(y) => {
+          stack[sp-2] = Object::Complex(x+y as f64);
+          false
+        },
+        Object::Float(y) => {
+          stack[sp-2] = Object::Complex(x+y);
+          false
+        },
+        Object::Complex(y) => {
+          stack[sp-2] = Object::Complex(x+y);
           false
         },
         _ => true
@@ -277,7 +315,11 @@ fn operator_minus(sp: usize, stack: &mut Vec<Object>) -> bool{
           false
         },
         Object::Float(y) => {
-          stack[sp-2] = Object::Float((x as f64)-y);
+          stack[sp-2] = Object::Float(x as f64-y);
+          false
+        },
+        Object::Complex(y) => {
+          stack[sp-2] = Object::Complex(x as f64-y);
           false
         },
         _ => true
@@ -291,6 +333,27 @@ fn operator_minus(sp: usize, stack: &mut Vec<Object>) -> bool{
         },
         Object::Float(y) => {
           stack[sp-2] = Object::Float(x-y);
+          false
+        },
+        Object::Complex(y) => {
+          stack[sp-2] = Object::Complex(x-y);
+          false
+        },
+        _ => true
+      }
+    },
+    Object::Complex(x) => {
+      match stack[sp-1] {
+        Object::Int(y) => {
+          stack[sp-2] = Object::Complex(x-y as f64);
+          false
+        },
+        Object::Float(y) => {
+          stack[sp-2] = Object::Complex(x-y);
+          false
+        },
+        Object::Complex(y) => {
+          stack[sp-2] = Object::Complex(x-y);
           false
         },
         _ => true
@@ -312,6 +375,10 @@ fn operator_mpy(sp: usize, stack: &mut Vec<Object>) -> bool{
           stack[sp-2] = Object::Float((x as f64)*y);
           false
         },
+        Object::Complex(y) => {
+          stack[sp-2] = Object::Complex(x as f64*y);
+          false
+        },
         _ => true
       }
     },
@@ -323,6 +390,27 @@ fn operator_mpy(sp: usize, stack: &mut Vec<Object>) -> bool{
         },
         Object::Float(y) => {
           stack[sp-2] = Object::Float(x*y);
+          false
+        },
+        Object::Complex(y) => {
+          stack[sp-2] = Object::Complex(x*y);
+          false
+        },
+        _ => true
+      }
+    },
+    Object::Complex(x) => {
+      match stack[sp-1] {
+        Object::Int(y) => {
+          stack[sp-2] = Object::Complex(y as f64*x);
+          false
+        },
+        Object::Float(y) => {
+          stack[sp-2] = Object::Complex(y*x);
+          false
+        },
+        Object::Complex(y) => {
+          stack[sp-2] = Object::Complex(x*y);
           false
         },
         _ => true
@@ -344,6 +432,10 @@ fn operator_div(sp: usize, stack: &mut Vec<Object>) -> bool{
           stack[sp-2] = Object::Float((x as f64)/y);
           false
         },
+        Object::Complex(y) => {
+          stack[sp-2] = Object::Complex(x as f64/y);
+          false
+        },
         _ => true
       }
     },
@@ -355,6 +447,27 @@ fn operator_div(sp: usize, stack: &mut Vec<Object>) -> bool{
         },
         Object::Float(y) => {
           stack[sp-2] = Object::Float(x/y);
+          false
+        },
+        Object::Complex(y) => {
+          stack[sp-2] = Object::Complex(x/y);
+          false
+        },
+        _ => true
+      }
+    },
+    Object::Complex(x) => {
+      match stack[sp-1] {
+        Object::Int(y) => {
+          stack[sp-2] = Object::Complex(x/y as f64);
+          false
+        },
+        Object::Float(y) => {
+          stack[sp-2] = Object::Complex(x/y);
+          false
+        },
+        Object::Complex(y) => {
+          stack[sp-2] = Object::Complex(x/y);
           false
         },
         _ => true
@@ -391,6 +504,10 @@ fn operator_pow(sp: usize, stack: &mut Vec<Object>) -> bool{
           stack[sp-2] = Object::Float((x as f64).powf(y));
           false
         },
+        Object::Complex(y) => {
+          stack[sp-2] = Object::Complex(y.expa(x as f64));
+          false
+        },
         _ => true
       }
     },
@@ -402,6 +519,27 @@ fn operator_pow(sp: usize, stack: &mut Vec<Object>) -> bool{
         },
         Object::Float(y) => {
           stack[sp-2] = Object::Float(x.powf(y));
+          false
+        },
+        Object::Complex(y) => {
+          stack[sp-2] = Object::Complex(y.expa(x));
+          false
+        },
+        _ => true
+      }
+    },
+    Object::Complex(x) => {
+      match stack[sp-1] {
+        Object::Int(y) => {
+          stack[sp-2] = Object::Complex(x.powf(y as f64));
+          false
+        },
+        Object::Float(y) => {
+          stack[sp-2] = Object::Complex(x.powf(y));
+          false
+        },
+        Object::Complex(y) => {
+          stack[sp-2] = Object::Complex(x.pow(y));
           false
         },
         _ => true
@@ -659,6 +797,14 @@ pub fn eval(module: &Module, a: &[u8], gtab: &Rc<RefCell<Map>>){
         stack[sp] = Object::Float(unsafe{transmute::<u64,f64>(compose_u64(
           a[ip-8],a[ip-7],a[ip-6],a[ip-5],a[ip-4],a[ip-3],a[ip-2],a[ip-1]
         ))});
+        sp+=1;
+      },
+      bc::IMAG => {
+        ip+=BCSIZEP8;
+        stack[sp] = Object::Complex(Complex64{re: 0.0,
+          im: unsafe{transmute::<u64,f64>(compose_u64(
+            a[ip-8],a[ip-7],a[ip-6],a[ip-5],a[ip-4],a[ip-3],a[ip-2],a[ip-1]
+        ))}});
         sp+=1;
       },
       bc::LOAD => {

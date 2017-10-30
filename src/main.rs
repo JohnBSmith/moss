@@ -9,6 +9,9 @@ mod system;
 mod compiler;
 mod vm;
 
+#[path = "modules/complex.rs"]
+mod complex;
+
 use std::fs::File;
 use std::io::Read;
 use std::env;

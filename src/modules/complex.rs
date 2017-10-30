@@ -1,5 +1,5 @@
 
-use std::ops;
+use std::ops::{Add,Sub,Mul,Div,Neg};
 
 #[derive(Clone,Copy,PartialEq)]
 pub struct Complex64{
@@ -7,63 +7,63 @@ pub struct Complex64{
   pub im: f64
 }
 
-impl ops::Add for Complex64{
+impl Add for Complex64{
   type Output = Complex64;
   fn add(self, b: Complex64) -> Complex64{
     Complex64{re: self.re+b.re, im: self.im+b.im}
   }
 }
 
-impl ops::Add<f64> for Complex64{
+impl Add<f64> for Complex64{
   type Output = Complex64;
   fn add(self, b: f64) -> Complex64{
     Complex64{re: self.re+b, im: self.im}
   }
 }
 
-impl ops::Add<Complex64> for f64{
+impl Add<Complex64> for f64{
   type Output = Complex64;
   fn add(self, b: Complex64) -> Complex64{
     Complex64{re: self+b.re, im: b.im}
   }
 }
 
-impl ops::Sub for Complex64{
+impl Sub for Complex64{
   type Output = Complex64;
   fn sub(self, b: Complex64) -> Complex64{
     Complex64{re: self.re-b.re, im: self.im-b.im}
   }
 }
 
-impl ops::Sub<f64> for Complex64{
+impl Sub<f64> for Complex64{
   type Output = Complex64;
   fn sub(self, b: f64) -> Complex64{
     Complex64{re: self.re-b, im: self.im}
   }
 }
 
-impl ops::Sub<Complex64> for f64{
+impl Sub<Complex64> for f64{
   type Output = Complex64;
   fn sub(self, b: Complex64) -> Complex64{
     Complex64{re: self-b.re, im: -b.im}
   }
 }
 
-impl ops::Mul<Complex64> for f64{
+impl Mul<Complex64> for f64{
   type Output = Complex64;
   fn mul(self, b: Complex64) -> Complex64{
     Complex64{re: self*b.re, im: self*b.im}
   }
 }
 
-impl ops::Mul for Complex64{
+impl Mul for Complex64{
   type Output = Complex64;
   fn mul(self, b: Complex64) -> Complex64{
     Complex64{re: self.re*b.re-self.im*b.im, im: self.re*b.im+self.im*b.re}
   }
 }
 
-impl ops::Div<Complex64> for f64{
+impl Div<Complex64> for f64{
   type Output = Complex64;
   fn div(self, b: Complex64) -> Complex64{
     let r2 = b.re*b.re+b.im*b.im;
@@ -71,7 +71,7 @@ impl ops::Div<Complex64> for f64{
   }
 }
 
-impl ops::Div for Complex64{
+impl Div for Complex64{
   type Output = Complex64;
   fn div(self, b: Complex64) -> Complex64{
     let r2 = b.re*b.re+b.im*b.im;
@@ -79,14 +79,14 @@ impl ops::Div for Complex64{
   }
 }
 
-impl ops::Div<f64> for Complex64{
+impl Div<f64> for Complex64{
   type Output = Complex64;
   fn div(self, b: f64) -> Complex64{
     Complex64{re: self.re/b, im: self.im/b}
   }
 }
 
-impl ops::Neg for Complex64{
+impl Neg for Complex64{
   type Output = Complex64;
   fn neg(self) -> Complex64{
     Complex64{re: -self.re, im: -self.im}
@@ -205,7 +205,4 @@ impl Complex64{
   }
 }
 
-pub fn la(){
-  let z = Complex64{re: 1.0, im: 0.0};
-  let w = z.pow(z);
-}
+

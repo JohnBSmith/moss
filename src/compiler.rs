@@ -116,19 +116,25 @@ pub fn scan(s: &str, line_start: usize, file: &str) -> Result<Vec<Token>, Syntax
     let c = a[i];
     if c.is_digit(10) {
       let j=i; hcol=col;
-      let mut is_float = false;
+      let mut token_type = SymbolType::Int;
       while i<n {
         if a[i].is_digit(10) {
           i+=1; col+=1;
-        }else if a[i]=='.' && !is_float {
+        }else if a[i]=='.' && token_type != SymbolType::Float{
           i+=1; col+=1;
-          is_float = true;
+          token_type = SymbolType::Float;
+        }else if a[i]=='i' {
+          token_type = SymbolType::Imag;
+          break;
         }else{
           break;
         }
       }
       let number: &String = &a[j..i].iter().cloned().collect();
-      v.push(Token{token_type: if is_float {SymbolType::Float} else {SymbolType::Int},
+      if token_type == SymbolType::Imag {
+        i+=1; col+=1;
+      }
+      v.push(Token{token_type: token_type,
         value: Symbol::None, line: line, col: hcol, s: Some(number.clone())});
     }else if (c.is_alphabetic() && c.is_ascii()) || a[i]=='_' {
       let j=i; hcol=col;
@@ -425,10 +431,15 @@ fn token_value_to_string(value: Symbol) -> &'static str {
 
 fn print_token(x: &Token){
   match x.token_type {
-    SymbolType::String | SymbolType::Int | SymbolType::Float |
-    SymbolType::Imag| SymbolType::Identifier => {
+    SymbolType::Identifier | SymbolType::Int | SymbolType::Float => {
       print!("[{}]",match x.s {Some(ref s) => s, None => compiler_error()});
     },
+    SymbolType::Imag => {
+      print!("[{}i]",match x.s {Some(ref s) => s, None => compiler_error()});    
+    },
+    SymbolType::String => {
+      print!("[\"{}\"]",match x.s {Some(ref s) => s, None => compiler_error()});    
+    }
     SymbolType::Operator | SymbolType::Separator |
     SymbolType::Bracket  | SymbolType::Keyword | SymbolType::Bool => {
       print!("[{}]",token_value_to_string(x.value));
@@ -446,6 +457,9 @@ fn print_ast(t: &ASTNode, indent: usize){
   match t.symbol_type {
     SymbolType::Identifier | SymbolType::Int | SymbolType::Float => {
       println!("{}",match t.s {Some(ref s) => s, None => compiler_error()});
+    },
+    SymbolType::Imag => {
+      println!("{}i",match t.s {Some(ref s) => s, None => compiler_error()});    
     },
     SymbolType::String => {
       println!("\"{}\"",match t.s {Some(ref s) => s, None => compiler_error()});    
@@ -749,7 +763,8 @@ fn atom(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError> {
   let t = &p[i.index];
   let y;
   if t.token_type==SymbolType::Identifier || t.token_type==SymbolType::Int ||
-     t.token_type==SymbolType::String || t.token_type==SymbolType::Float
+     t.token_type==SymbolType::String || t.token_type==SymbolType::Float ||
+     t.token_type==SymbolType::Imag
   {
     i.index+=1;
     y = Rc::new(ASTNode{line: t.line, col: t.col, symbol_type: t.token_type,
@@ -1268,7 +1283,9 @@ fn get_index(&mut self, key: &str) -> usize{
 
 // while c do b end
 // (1) c JPZ[2] b JMP[1] (2)
-fn compile_while(&mut self, v: &mut Vec<u8>, t: &Rc<ASTNode>) -> Result<(),SyntaxError>{
+fn compile_while(&mut self, v: &mut Vec<u8>, t: &Rc<ASTNode>)
+  -> Result<(),SyntaxError>
+{
   let index1 = v.len();
   let a = ast_argv(t);
   try!(self.compile_ast(v,&a[0]));
@@ -1284,7 +1301,59 @@ fn compile_while(&mut self, v: &mut Vec<u8>, t: &Rc<ASTNode>) -> Result<(),Synta
   return Ok(());
 }
 
-fn compile_ast(&mut self, v: &mut Vec<u8>, t: &Rc<ASTNode>) -> Result<(),SyntaxError>{
+// if   c1 then a1
+// elif c2 then a2
+// elif c3 then a3
+// end
+// c1 JPZ[1] a1 JMP[end] (1)
+// c2 JPZ[2] a2 JMP[end] (2)
+// c3 JPZ[3] a3 (3) (end)
+
+// if c1 then a1
+// elif c2 then a2
+// elif c3 then a3
+// else ae end
+// c1 JPZ[1] a1 JMP[end] (1)
+// c2 JPZ[2] a2 JMP[end] (2)
+// c3 JPZ[3] a3 JMP[end] (3)
+// ae (end)
+
+fn compile_if(&mut self, v: &mut Vec<u8>, t: &Rc<ASTNode>, is_op: bool)
+  -> Result<(),SyntaxError>
+{
+  let a = ast_argv(t);
+  let mut jumps: Vec<usize> = Vec::new();
+  let m = a.len()/2;
+  for i in 0..m {
+    try!(self.compile_ast(v,&a[2*i]));
+    push_bc(v, bc::JZ, a[2*i].line, a[2*i].col);
+    let index = v.len();
+    push_u32(v,0xcafe);
+    try!(self.compile_ast(v,&a[2*i+1]));
+    push_bc(v, bc::JMP, t.line, t.col);
+    jumps.push(v.len());
+    push_u32(v,0xcafe);
+    let len = v.len();
+    write_i32(&mut v[index..index+4],(BCSIZE+len) as i32-index as i32);
+  }
+  if a.len()%2==1 {
+    try!(self.compile_ast(v,&a[a.len()-1]));
+  }else{
+    if is_op {
+      push_bc(v, bc::NULL, t.line, t.col);
+    }
+  }
+  let len = v.len();
+  for i in 0..m {
+    let index = jumps[i];
+    write_i32(&mut v[index..index+4],(BCSIZE+len) as i32-index as i32);
+  }
+  return Ok(());
+}
+
+fn compile_ast(&mut self, v: &mut Vec<u8>, t: &Rc<ASTNode>)
+  -> Result<(),SyntaxError>
+{
   if t.symbol_type == SymbolType::Identifier {
     let key = match t.s {Some(ref x)=>x, None=>panic!()};
     let index = self.get_index(key);
@@ -1342,6 +1411,8 @@ fn compile_ast(&mut self, v: &mut Vec<u8>, t: &Rc<ASTNode>) -> Result<(),SyntaxE
       try!(self.compile_operator(v,t,bc::MAP));
       let size = match t.a {Some(ref a) => a.len() as u32, None => panic!()};
       push_u32(v,size);
+    }else if value == Symbol::If {
+      try!(self.compile_if(v,t,true));
     }else{
       return Err(self.syntax_error(t.line,t.col,
         format!("cannot compile Operator '{}'.",token_value_to_string(t.value))
@@ -1355,6 +1426,10 @@ fn compile_ast(&mut self, v: &mut Vec<u8>, t: &Rc<ASTNode>) -> Result<(),SyntaxE
     push_bc(v, bc::FLOAT, t.line, t.col);
     let x: f64 = match t.s {Some(ref x)=>x.parse().unwrap(), None=>panic!()};
     push_u64(v,unsafe{transmute::<f64,u64>(x)});
+  }else if t.symbol_type == SymbolType::Imag {
+    push_bc(v, bc::IMAG, t.line, t.col);
+    let x: f64 = match t.s {Some(ref x)=>x.parse().unwrap(), None=>panic!()};
+    push_u64(v,unsafe{transmute::<f64,u64>(x)});
   }else if t.value == Symbol::Null {
     v.push(bc::NULL);
     push_line_col(v,t.line,t.col);
@@ -1363,7 +1438,9 @@ fn compile_ast(&mut self, v: &mut Vec<u8>, t: &Rc<ASTNode>) -> Result<(),SyntaxE
   }else if t.value == Symbol::False {
     push_bc(v,bc::FALSE,t.line,t.col);
   }else if t.symbol_type == SymbolType::Keyword {
-    if t.value == Symbol::While {
+    if t.value == Symbol::If {
+      try!(self.compile_if(v,t,false));
+    }else if t.value == Symbol::While {
       try!(self.compile_while(v,t));
     }else if t.value == Symbol::Block {
       let a = ast_argv(t);
@@ -1469,6 +1546,14 @@ fn asm_listing(a: &[u8]) -> String{
         a[BCSIZE+i+4],a[BCSIZE+i+5],a[BCSIZE+i+6],a[BCSIZE+i+7]
       ))};
       let u = format!("push float {}\n",x);
+      s.push_str(&u);
+      i+=BCSIZE+8;
+    }else if op==bc::IMAG {
+      let x = unsafe{transmute::<u64,f64>(compose_u64(
+        a[BCSIZE+i],a[BCSIZE+i+1],a[BCSIZE+i+2],a[BCSIZE+i+3],
+        a[BCSIZE+i+4],a[BCSIZE+i+5],a[BCSIZE+i+6],a[BCSIZE+i+7]
+      ))};
+      let u = format!("push imag {}\n",x);
       s.push_str(&u);
       i+=BCSIZE+8;
     }else if op==bc::NULL {
