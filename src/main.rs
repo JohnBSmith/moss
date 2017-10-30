@@ -6,6 +6,7 @@
 #[path = "system/system.rs"]
 mod system;
 
+mod moss;
 mod compiler;
 mod vm;
 mod global;
@@ -16,13 +17,15 @@ mod complex;
 use std::fs::File;
 use std::io::Read;
 use std::env;
-use vm::Map;
-use vm::Function;
-use vm::U32String;
+use moss::{Map, Function};
 
 fn init_gtab(gtab: &mut Map){
   let f = Function::plain(::global::print);
-  gtab.m.insert(U32String::new_object_str("print"),f);
+  gtab.insert_str("print",f);
+  let f = Function::plain(::global::put);
+  gtab.insert_str("put",f);
+  let f = Function::plain(::global::abs);
+  gtab.insert_str("abs",f);
 }
 
 fn command_line_session(){

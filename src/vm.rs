@@ -5,6 +5,7 @@ use std::mem::replace;
 use std::mem::transmute;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
+use moss::{Object, Map, List, Function};
 use complex::Complex64;
 
 pub const BCSIZE: usize = 4;
@@ -44,80 +45,6 @@ pub mod bc{
   pub const JZ:   u8 = 29;
   pub const JNZ:  u8 = 30;
   pub const CALL: u8 = 31;
-}
-
-pub struct U32String{
-  pub v: Vec<char>
-}
-
-impl U32String{
-  pub fn new_object(v: Vec<char>) -> Object{
-    return Object::String(Rc::new(U32String{v: v}));
-  }
-  pub fn new_object_str(s: &str) -> Object{
-    return Object::String(Rc::new(U32String{v: s.chars().collect()}));
-  }
-}
-
-pub struct List{
-  pub v: Vec<Object>
-}
-
-impl List{
-  pub fn new_object(v: Vec<Object>) -> Object{
-    return Object::List(Rc::new(RefCell::new(List{v: v})));
-  }
-}
-
-pub struct Map{
-  pub m: HashMap<Object,Object>
-}
-
-impl Map{
-  pub fn new_object(m: HashMap<Object,Object>) -> Object{
-    return Object::Map(Rc::new(RefCell::new(Map{m: m})));
-  }
-  pub fn new() -> Rc<RefCell<Map>>{
-    return Rc::new(RefCell::new(Map{m: HashMap::new()}));
-  }
-}
-
-pub fn la(x: &mut Object, pself: &Object, argv: &[Object]) -> bool {
-  return true;
-}
-
-type PlainFn = fn(x: &mut Object, pself: &Object, argv: &[Object]) -> bool;
-
-pub enum Function{
-  Plain(PlainFn)
-}
-
-impl Function{
-  pub fn plain(fp: PlainFn) -> Object {
-    Object::Function(Rc::new(Function::Plain(fp)))
-  }
-}
-
-pub enum Object{
-  Null, Bool(bool), Int(i32), Float(f64), Complex(Complex64),
-  List(Rc<RefCell<List>>), String(Rc<U32String>),
-  Map(Rc<RefCell<Map>>), Function(Rc<Function>)
-}
-
-impl Object{
-  pub fn clone(x: &Object) -> Object{
-    match x {
-      &Object::Null => {Object::Null},
-      &Object::Bool(x) => {Object::Bool(x)},
-      &Object::Int(x) => {Object::Int(x)},
-      &Object::Float(x) => {Object::Float(x)},
-      &Object::Complex(x) => {Object::Complex(x)},
-      &Object::String(ref x) => {Object::String(x.clone())},
-      &Object::List(ref x) => {Object::List(x.clone())},
-      &Object::Map(ref x) => {Object::Map(x.clone())},
-      &Object::Function(ref x) => {Object::Function(x.clone())}
-    }
-  }
 }
 
 impl PartialEq for Object{
@@ -972,8 +899,9 @@ pub fn eval(module: &Module, a: &[u8], gtab: &Rc<RefCell<Map>>){
           Object::Function(ref f) => {
             match **f {
               Function::Plain(fp) => {
-                if fp(&mut y, &stack[sp-argc-1], &stack[sp-argc..sp]) {
-                  panic!()
+                match fp(&mut y, &stack[sp-argc-1], &stack[sp-argc..sp]) {
+                  Ok(()) => {},
+                  Err(x) => panic!()
                 }
                 sp-=argc+1;
               }

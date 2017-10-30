@@ -8,11 +8,8 @@ use std::rc::Rc;
 use std::collections::HashMap;
 use std::mem::transmute;
 use system;
-use vm::bc;
-use vm::BCSIZE;
-use vm::Object;
-use vm::U32String;
-use vm::Module;
+use vm::{bc, BCSIZE, Module};
+use moss::{Object, U32String};
 
 #[derive(Copy,Clone,PartialEq)]
 enum SymbolType{
