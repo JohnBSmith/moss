@@ -43,6 +43,7 @@ pub mod bc{
   pub const JMP:  u8 = 28;
   pub const JZ:   u8 = 29;
   pub const JNZ:  u8 = 30;
+  pub const CALL: u8 = 31;
 }
 
 pub struct U32String{
@@ -69,7 +70,7 @@ impl List{
 }
 
 pub struct Map{
-  m: HashMap<Object,Object>
+  pub m: HashMap<Object,Object>
 }
 
 impl Map{
@@ -81,10 +82,26 @@ impl Map{
   }
 }
 
+pub fn la(x: &mut Object, pself: &Object, argv: &[Object]) -> bool {
+  return true;
+}
+
+type PlainFn = fn(x: &mut Object, pself: &Object, argv: &[Object]) -> bool;
+
+pub enum Function{
+  Plain(PlainFn)
+}
+
+impl Function{
+  pub fn plain(fp: PlainFn) -> Object {
+    Object::Function(Rc::new(Function::Plain(fp)))
+  }
+}
+
 pub enum Object{
   Null, Bool(bool), Int(i32), Float(f64), Complex(Complex64),
   List(Rc<RefCell<List>>), String(Rc<U32String>),
-  Map(Rc<RefCell<Map>>)
+  Map(Rc<RefCell<Map>>), Function(Rc<Function>)
 }
 
 impl Object{
@@ -97,7 +114,8 @@ impl Object{
       &Object::Complex(x) => {Object::Complex(x)},
       &Object::String(ref x) => {Object::String(x.clone())},
       &Object::List(ref x) => {Object::List(x.clone())},
-      &Object::Map(ref x) => {Object::Map(x.clone())}
+      &Object::Map(ref x) => {Object::Map(x.clone())},
+      &Object::Function(ref x) => {Object::Function(x.clone())}
     }
   }
 }
@@ -162,6 +180,14 @@ impl PartialEq for Object{
           },
           _ => false
         }
+      },
+      &Object::Function(ref f) => {
+        match b {
+          &Object::Function(ref g) => {
+            Rc::ptr_eq(f,g)
+          },
+          _ => false
+        }
       }
     }
   }
@@ -215,7 +241,7 @@ fn map_to_string(a: &HashMap<Object,Object>) -> String{
   return s;
 }
 
-fn object_to_string(x: &Object) -> String{
+pub fn object_to_string(x: &Object) -> String{
   match x {
     &Object::Null => String::from("null"),
     &Object::Bool(b) => String::from(if b {"true"} else {"false"}),
@@ -231,6 +257,9 @@ fn object_to_string(x: &Object) -> String{
     &Object::String(ref a) => {
       let s: String = a.v.iter().cloned().collect();
       format!("\"{}\"",s)
+    },
+    &Object::Function(ref a) => {
+      format!("function")
     }
   }
 }
@@ -935,6 +964,25 @@ pub fn eval(module: &Module, a: &[u8], gtab: &Rc<RefCell<Map>>){
           ip+=BCSIZEP4;
         }
       },
+      bc::CALL => {
+        ip+=BCSIZEP4;
+        let argc = compose_u32(a[ip-4],a[ip-3],a[ip-2],a[ip-1]) as usize;
+        let mut y = Object::Null;
+        match stack[sp-argc-2] {
+          Object::Function(ref f) => {
+            match **f {
+              Function::Plain(fp) => {
+                if fp(&mut y, &stack[sp-argc-1], &stack[sp-argc..sp]) {
+                  panic!()
+                }
+                sp-=argc+1;
+              }
+            }
+          },
+          _ => panic!()
+        }
+        stack[sp-1]=y;
+      },
       bc::HALT => {
         break;
       },
@@ -942,6 +990,11 @@ pub fn eval(module: &Module, a: &[u8], gtab: &Rc<RefCell<Map>>){
     }
   }
   if sp>0 {
-    println!("{}",object_to_string(&stack[sp-1]));
+    match stack[sp-1] {
+      Object::Null => {},
+      _ => {
+        println!("{}",object_to_string(&stack[sp-1]));
+      }
+    }
   }
 }

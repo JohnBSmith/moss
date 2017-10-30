@@ -729,6 +729,53 @@ fn table_literal(&mut self, i: &mut TokenIterator, t0: &Token) -> Result<Rc<ASTN
     value: Symbol::Table, info: Info::None, s: None, a: Some(v.into_boxed_slice())}));
 }
 
+fn arguments_list(&mut self, i: &mut TokenIterator, t0: &Token)
+  -> Result<Rc<ASTNode>,SyntaxError>
+{
+  let mut v: Vec<Rc<ASTNode>> = Vec::new();
+  let p = try!(i.next_token(self));
+  let t = &p[i.index];
+  if t.value == Symbol::Vline {
+    i.index+=1;
+  }else{
+    loop{
+      let x = try!(self.atom(i));
+      v.push(x);
+      let p = try!(i.next_token(self));
+      let t = &p[i.index];
+      if t.value == Symbol::Comma {
+        i.index+=1;
+        let p = try!(i.next_token(self));
+        let t = &p[i.index];
+        if t.value==Symbol::Vline {
+          i.index+=1;
+          break;
+        }
+      }else if t.value==Symbol::Vline {
+        i.index+=1;
+        break;
+      }else{
+        return Err(self.syntax_error(t.line, t.col, String::from("expected ',' or '|'.")));
+      }
+    }
+  }
+  return Ok(Rc::new(ASTNode{line: t0.line, col: t0.col,
+    symbol_type: SymbolType::Operator, value: Symbol::List,
+    info: Info::None, s: None, a: Some(v.into_boxed_slice())
+  }));
+}
+
+fn function_literal(&mut self, i: &mut TokenIterator, t0: &Token)
+  -> Result<Rc<ASTNode>,SyntaxError>
+{
+  let args = try!(self.arguments_list(i,t0));
+  let x = try!(self.expression(i));
+  return Ok(Rc::new(ASTNode{line: t0.line, col: t0.col,
+    symbol_type: SymbolType::Keyword, value: Symbol::Sub,
+    info: Info::None, s: None, a: Some(Box::new([args,x]))
+  }));
+}
+
 fn application(&mut self, i: &mut TokenIterator, f: Rc<ASTNode>, terminal: Symbol)
   -> Result<Rc<ASTNode>,SyntaxError>
 {
@@ -802,6 +849,9 @@ fn atom(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError> {
   }else if t.value==Symbol::Table {
     i.index+=1;
     y = try!(self.table_literal(i,t));
+  }else if t.value==Symbol::Vline {
+    i.index+=1;
+    y = try!(self.function_literal(i,t));
   }else{
     return Err(self.unexpected_token(t.line, t.col, t.value));
   }
@@ -1351,6 +1401,32 @@ fn compile_if(&mut self, v: &mut Vec<u8>, t: &Rc<ASTNode>, is_op: bool)
   return Ok(());
 }
 
+fn compile_app(&mut self, v: &mut Vec<u8>, t: &Rc<ASTNode>)
+  -> Result<(),SyntaxError>
+{
+  let a = ast_argv(t);
+
+  // callee
+  try!(self.compile_ast(v,&a[0]));
+
+  // self argument
+  push_bc(v, bc::NULL, t.line, t.col);
+
+  // arguments
+  for i in 1..a.len() {
+    try!(self.compile_ast(v,&a[i]));
+  }
+
+  push_bc(v, bc::CALL, t.line, t.col);
+
+  // argument count,
+  // not counting the self argument,
+  // not counting the callee
+  push_u32(v, (a.len()-1) as u32);
+
+  return Ok(());
+}
+
 fn compile_ast(&mut self, v: &mut Vec<u8>, t: &Rc<ASTNode>)
   -> Result<(),SyntaxError>
 {
@@ -1411,6 +1487,8 @@ fn compile_ast(&mut self, v: &mut Vec<u8>, t: &Rc<ASTNode>)
       try!(self.compile_operator(v,t,bc::MAP));
       let size = match t.a {Some(ref a) => a.len() as u32, None => panic!()};
       push_u32(v,size);
+    }else if value == Symbol::Application {
+      try!(self.compile_app(v,t));
     }else if value == Symbol::If {
       try!(self.compile_if(v,t,true));
     }else{
@@ -1649,6 +1727,11 @@ fn asm_listing(a: &[u8]) -> String{
     }else if op==bc::JNZ {
       let x = compose_i32(a[BCSIZE+i],a[BCSIZE+i+1],a[BCSIZE+i+2],a[BCSIZE+i+3]);
       let u = format!("jnz {}\n",i as i32+x);
+      s.push_str(&u);
+      i+=BCSIZE+4;
+    }else if op==bc::CALL {
+      let argc = compose_u32(a[BCSIZE+i],a[BCSIZE+i+1],a[BCSIZE+i+2],a[BCSIZE+i+3]);
+      let u = format!("call, argc={}\n",argc);
       s.push_str(&u);
       i+=BCSIZE+4;
     }else if op==bc::HALT {

@@ -8,6 +8,7 @@ mod system;
 
 mod compiler;
 mod vm;
+mod global;
 
 #[path = "modules/complex.rs"]
 mod complex;
@@ -16,10 +17,18 @@ use std::fs::File;
 use std::io::Read;
 use std::env;
 use vm::Map;
+use vm::Function;
+use vm::U32String;
+
+fn init_gtab(gtab: &mut Map){
+  let f = Function::plain(::global::print);
+  gtab.m.insert(U32String::new_object_str("print"),f);
+}
 
 fn command_line_session(){
   let mut history = system::History::new();
   let gtab = Map::new();
+  init_gtab(&mut gtab.borrow_mut());
   loop{
     let mut input = String::new();
     match system::getline_history("> ",&history) {
