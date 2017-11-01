@@ -45,6 +45,7 @@ pub mod bc{
   pub const JZ:   u8 = 29;
   pub const JNZ:  u8 = 30;
   pub const CALL: u8 = 31;
+  pub const STR:  u8 = 32;
 }
 
 impl PartialEq for Object{
@@ -115,6 +116,14 @@ impl PartialEq for Object{
           },
           _ => false
         }
+      },
+      &Object::Range(ref x) => {
+        match b {
+          &Object::Range(ref y) => {
+            x.a==y.a && x.b==y.b && x.step==y.step
+          },
+          _ => false
+        }
       }
     }
   }
@@ -144,7 +153,7 @@ fn list_to_string(a: &[Object]) -> String{
   let mut s = String::from("[");
   for i in 0..a.len() {
     if i!=0 {s.push_str(", ");}
-    s.push_str(&object_to_string(&a[i]));
+    s.push_str(&object_to_repr(&a[i]));
   }
   s.push_str("]");
   return s;
@@ -155,12 +164,12 @@ fn map_to_string(a: &HashMap<Object,Object>) -> String{
   let mut first=true;
   for (key,value) in a {
     if first {first=false;} else{s.push_str(", ");}
-    s.push_str(&object_to_string(&key));
+    s.push_str(&object_to_repr(&key));
     match value {
       &Object::Null => {},
       _ => {
         s.push_str(": ");
-        s.push_str(&object_to_string(&value));
+        s.push_str(&object_to_repr(&value));
       }
     }
   }
@@ -169,25 +178,38 @@ fn map_to_string(a: &HashMap<Object,Object>) -> String{
 }
 
 pub fn object_to_string(x: &Object) -> String{
-  match x {
-    &Object::Null => String::from("null"),
-    &Object::Bool(b) => String::from(if b {"true"} else {"false"}),
-    &Object::Int(i) => format!("{}",i),
-    &Object::Float(x) => format!("{}",x),
-    &Object::Complex(z) => format!("{}+{}i",z.re,z.im),
-    &Object::List(ref a) => {
+  match *x {
+    Object::Null => String::from("null"),
+    Object::Bool(b) => String::from(if b {"true"} else {"false"}),
+    Object::Int(i) => format!("{}",i),
+    Object::Float(x) => format!("{}",x),
+    Object::Complex(z) => format!("{}+{}i",z.re,z.im),
+    Object::List(ref a) => {
       list_to_string(&a.borrow().v)
     },
-    &Object::Map(ref a) => {
+    Object::Map(ref a) => {
       map_to_string(&a.borrow().m)
     },
-    &Object::String(ref a) => {
+    Object::String(ref a) => {
+      let s: String = a.v.iter().cloned().collect();
+      format!("{}",s)
+    },
+    Object::Function(ref a) => {
+      format!("function")
+    },
+    Object::Range(ref r) => {
+      format!("{}..{}",object_to_string(&r.a),object_to_string(&r.b))
+    }
+  }
+}
+
+pub fn object_to_repr(x: &Object) -> String{
+  match *x {
+    Object::String(ref a) => {
       let s: String = a.v.iter().cloned().collect();
       format!("\"{}\"",s)
     },
-    &Object::Function(ref a) => {
-      format!("function")
-    }
+    _ => object_to_string(x)
   }
 }
 
@@ -763,12 +785,18 @@ pub fn eval(module: &Module, a: &[u8], gtab: &Rc<RefCell<Map>>){
         ))}});
         sp+=1;
       },
+      bc::STR => {
+        ip+=BCSIZEP4;
+        let index = compose_u32(a[ip-4],a[ip-3],a[ip-2],a[ip-1]);
+        stack[sp] = module.data[index as usize].clone();
+        sp+=1;
+      },
       bc::LOAD => {
         ip+=BCSIZEP4;
         let index = compose_u32(a[ip-4],a[ip-3],a[ip-2],a[ip-1]);
         match gtab.borrow().m.get(&module.data[index as usize]) {
           Some(x) => {
-            stack[sp] = Object::clone(x);
+            stack[sp] = x.clone();
             sp+=1;
           },
           None => {
@@ -779,7 +807,7 @@ pub fn eval(module: &Module, a: &[u8], gtab: &Rc<RefCell<Map>>){
       bc::STORE => {
         ip+=BCSIZEP4;
         let index = compose_u32(a[ip-4],a[ip-3],a[ip-2],a[ip-1]);
-        let key = Object::clone(&module.data[index as usize]);
+        let key = module.data[index as usize].clone();
         gtab.borrow_mut().m.insert(key,replace(&mut stack[sp-1],Object::Null));
         sp-=1;
       },
@@ -901,7 +929,9 @@ pub fn eval(module: &Module, a: &[u8], gtab: &Rc<RefCell<Map>>){
               Function::Plain(fp) => {
                 match fp(&mut y, &stack[sp-argc-1], &stack[sp-argc..sp]) {
                   Ok(()) => {},
-                  Err(x) => panic!()
+                  Err(e) => {
+                    println!("{}",object_to_string(&e.value));
+                  }
                 }
                 sp-=argc+1;
               }
@@ -921,7 +951,7 @@ pub fn eval(module: &Module, a: &[u8], gtab: &Rc<RefCell<Map>>){
     match stack[sp-1] {
       Object::Null => {},
       _ => {
-        println!("{}",object_to_string(&stack[sp-1]));
+        println!("{}",object_to_repr(&stack[sp-1]));
       }
     }
   }

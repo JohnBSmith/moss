@@ -24,6 +24,8 @@ fn init_gtab(gtab: &mut Map){
   gtab.insert_str("print",f);
   let f = Function::plain(::global::put);
   gtab.insert_str("put",f);
+  let f = Function::plain(::global::fstr);
+  gtab.insert_str("str",f);
   let f = Function::plain(::global::abs);
   gtab.insert_str("abs",f);
 }
