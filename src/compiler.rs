@@ -526,7 +526,8 @@ pub struct Compilation<'a>{
   stab: HashMap<String,usize>,
   stab_index: usize,
   data: Vec<Object>,
-  v: Vec<u8>
+  bv_blocks: Vec<u8>,
+  fn_indices: Vec<usize>
 }
 
 struct TokenIterator{
@@ -1469,16 +1470,55 @@ fn compile_app(&mut self, v: &mut Vec<u8>, t: &Rc<ASTNode>)
   return Ok(());
 }
 
-fn compile_fn(&mut self, v: &mut Vec<u8>, t: &Rc<ASTNode>)
+fn compile_fn(&mut self, bv: &mut Vec<u8>, t: &Rc<ASTNode>)
   -> Result<(),Error>
 {
   let a = ast_argv(t);
-  let mut v2: Vec<u8> = Vec::new();
-  push_bc(&mut v2, bc::FNSEP, t.line, t.col);
-  try!(self.compile_ast(&mut v2,&a[1]));
-  push_bc(&mut v2, bc::RET, t.line, t.col);
-  self.v.append(&mut v2);
+  let mut bv2: Vec<u8> = Vec::new();
+
+  // A separator to identify a new code block. Just needed
+  // to make the assembler listing human readable.
+  push_bc(&mut bv2, bc::FNSEP, t.line, t.col);
+
+  // Compile the function body.
+  try!(self.compile_ast(&mut bv2,&a[1]));
+
+  // Add an additional return statement that will be reached
+  // in case the control flow reaches the end of the function.
+  push_bc(&mut bv2, bc::NULL, t.line, t.col);
+  push_bc(&mut bv2, bc::RET, t.line, t.col);
+
+  // The name of the function or null in case
+  // the function is anonymous.
+  push_bc(bv, bc::NULL, t.line, t.col);
+
+  // Function constructor instruction.
+  push_bc(bv, bc::FN, t.line, t.col);
+
+  // Start address of the function body.
+  // Add four to point behind FNSEP.
+  // The size of bv will be added as the
+  // compilation is finished.
+  let index = bv.len();
+  self.fn_indices.push(index);
+  push_u32(bv,self.bv_blocks.len() as u32+4);
+
+  push_i32(bv,0); // minimal argument count
+  push_i32(bv,0); // maximal argument count
+  push_u32(bv,0); // number of local variables
+
+  // Append the code block to the buffer of code blocks.
+  self.bv_blocks.append(&mut bv2);
+
   return Ok(());
+}
+
+fn offsets(&self, bv: &mut Vec<u8>, offset: usize){
+  for &index in &self.fn_indices {
+    // let x = compose_i32(bv[index],bv[index+1],bv[index+2],bv[index+3]);
+    let x = compose_i32(&bv[index..index+4]);
+    write_i32(&mut bv[index..index+4], x+(BCSIZE+offset-index) as i32);
+  }
 }
 
 fn compile_ast(&mut self, v: &mut Vec<u8>, t: &Rc<ASTNode>)
@@ -1651,20 +1691,20 @@ fn push_bc(v: &mut Vec<u8>, byte: u8, line: usize, col: usize){
 }
 
 fn compose_u16(b0: u8, b1: u8) -> u16{
-  return  (b1 as u16)<<8 | b0 as u16;
+  (b1 as u16)<<8 | b0 as u16
 }
 
-fn compose_i32(b0: u8, b1: u8, b2: u8, b3: u8) -> i32{
-  return (b3 as i32)<<24 | (b2 as i32)<<16 | (b1 as i32)<<8 | (b0 as i32);
+fn compose_i32(a: &[u8]) -> i32 {
+  (a[3] as i32)<<24 | (a[2] as i32)<< 16 | (a[1] as i32)<<8 | (a[0] as i32)
 }
 
-fn compose_u32(b0: u8, b1: u8, b2: u8, b3: u8) -> u32{
-  return (b3 as u32)<<24 | (b2 as u32)<<16 | (b1 as u32)<<8 | (b0 as u32);
+fn compose_u32(a: &[u8]) -> u32{
+  (a[3] as u32)<<24 | (a[2] as u32)<<16 | (a[1] as u32)<<8 | (a[0] as u32)
 }
 
-fn compose_u64(b0: u8, b1: u8, b2: u8, b3: u8, b4: u8, b5: u8, b6: u8, b7: u8) -> u64{
-  return (b7 as u64)<<56 | (b6 as u64)<<48 | (b5 as u64)<<40 | (b4 as u64)<<32
-       | (b3 as u64)<<24 | (b2 as u64)<<16 | (b1 as u64)<<8 | (b0 as u64);
+fn compose_u64(a: &[u8]) -> u64{
+   (a[7] as u64)<<56 | (a[6] as u64)<<48 | (a[5] as u64)<<40 | (a[4] as u64)<<32
+ | (a[3] as u64)<<24 | (a[2] as u64)<<16 | (a[1] as u64)<< 8 | (a[0] as u64)
 }
 
 fn asm_listing(a: &[u8]) -> String{
@@ -1677,23 +1717,21 @@ fn asm_listing(a: &[u8]) -> String{
       s.push_str(&u);
     }
     if op==bc::INT {
-      let x = compose_i32(a[BCSIZE+i],a[BCSIZE+i+1],a[BCSIZE+i+2],a[BCSIZE+i+3]);
+      let x = compose_i32(&a[BCSIZE+i..BCSIZE+i+4]);
       let u = format!("push int {} (0x{:x})\n",x,x);
       s.push_str(&u);
       i+=BCSIZE+4;
     }else if op==bc::FLOAT {
-      let x = unsafe{transmute::<u64,f64>(compose_u64(
-        a[BCSIZE+i],a[BCSIZE+i+1],a[BCSIZE+i+2],a[BCSIZE+i+3],
-        a[BCSIZE+i+4],a[BCSIZE+i+5],a[BCSIZE+i+6],a[BCSIZE+i+7]
-      ))};
+      let x = unsafe{transmute::<u64,f64>(
+        compose_u64(&a[BCSIZE+i..BCSIZE+i+8])
+      )};
       let u = format!("push float {}\n",x);
       s.push_str(&u);
       i+=BCSIZE+8;
     }else if op==bc::IMAG {
-      let x = unsafe{transmute::<u64,f64>(compose_u64(
-        a[BCSIZE+i],a[BCSIZE+i+1],a[BCSIZE+i+2],a[BCSIZE+i+3],
-        a[BCSIZE+i+4],a[BCSIZE+i+5],a[BCSIZE+i+6],a[BCSIZE+i+7]
-      ))};
+      let x = unsafe{transmute::<u64,f64>(
+        compose_u64(&a[BCSIZE+i..BCSIZE+i+8])
+      )};
       let u = format!("push imag {}\n",x);
       s.push_str(&u);
       i+=BCSIZE+8;
@@ -1758,47 +1796,50 @@ fn asm_listing(a: &[u8]) -> String{
       s.push_str("not in\n");
       i+=BCSIZE;
     }else if op==bc::LIST {
-      let x = compose_u32(a[BCSIZE+i],a[BCSIZE+i+1],a[BCSIZE+i+2],a[BCSIZE+i+3]);
+      let x = compose_u32(&a[BCSIZE+i..BCSIZE+i+4]);
       let u = format!("list, size={}\n",x);
       s.push_str(&u);
       i+=BCSIZE+4;
     }else if op==bc::MAP {
-      let x = compose_u32(a[BCSIZE+i],a[BCSIZE+i+1],a[BCSIZE+i+2],a[BCSIZE+i+3]);
+      let x = compose_u32(&a[BCSIZE+i..BCSIZE+i+4]);
       let u = format!("map, size={}\n",x);
       s.push_str(&u);
       i+=BCSIZE+4;
     }else if op==bc::LOAD {
-      let x = compose_u32(a[BCSIZE+i],a[BCSIZE+i+1],a[BCSIZE+i+2],a[BCSIZE+i+3]);
+      let x = compose_u32(&a[BCSIZE+i..BCSIZE+i+4]);
       let u = format!("load global [{}]\n",x);
       s.push_str(&u);
       i+=BCSIZE+4;
     }else if op==bc::STORE {
-      let x = compose_u32(a[BCSIZE+i],a[BCSIZE+i+1],a[BCSIZE+i+2],a[BCSIZE+i+3]);
+      let x = compose_u32(&a[BCSIZE+i..BCSIZE+i+4]);
       let u = format!("store global [{}]\n",x);
       s.push_str(&u);
       i+=BCSIZE+4;
     }else if op==bc::STR {
-      let x = compose_u32(a[BCSIZE+i],a[BCSIZE+i+1],a[BCSIZE+i+2],a[BCSIZE+i+3]);
+      let x = compose_u32(&a[BCSIZE+i..BCSIZE+i+4]);
       let u = format!("str literal [{}]\n",x);
       s.push_str(&u);
       i+=BCSIZE+4;
     }else if op==bc::JMP {
-      let x = compose_i32(a[BCSIZE+i],a[BCSIZE+i+1],a[BCSIZE+i+2],a[BCSIZE+i+3]);
+      let x = compose_i32(&a[BCSIZE+i..BCSIZE+i+4]);
+
+      // Resolve position independent code
+      // to make the listing human readable.
       let u = format!("jmp {}\n",i as i32+x);
       s.push_str(&u);
       i+=BCSIZE+4;
     }else if op==bc::JZ {
-      let x = compose_i32(a[BCSIZE+i],a[BCSIZE+i+1],a[BCSIZE+i+2],a[BCSIZE+i+3]);
+      let x = compose_i32(&a[BCSIZE+i..BCSIZE+i+4]);
       let u = format!("jz {}\n",i as i32+x);
       s.push_str(&u);
       i+=BCSIZE+4;
     }else if op==bc::JNZ {
-      let x = compose_i32(a[BCSIZE+i],a[BCSIZE+i+1],a[BCSIZE+i+2],a[BCSIZE+i+3]);
+      let x = compose_i32(&a[BCSIZE+i..BCSIZE+i+4]);
       let u = format!("jnz {}\n",i as i32+x);
       s.push_str(&u);
       i+=BCSIZE+4;
     }else if op==bc::CALL {
-      let argc = compose_u32(a[BCSIZE+i],a[BCSIZE+i+1],a[BCSIZE+i+2],a[BCSIZE+i+3]);
+      let argc = compose_u32(&a[BCSIZE+i..BCSIZE+i+4]);
       let u = format!("call, argc={}\n",argc);
       s.push_str(&u);
       i+=BCSIZE+4;
@@ -1808,6 +1849,17 @@ fn asm_listing(a: &[u8]) -> String{
     }else if op==bc::FNSEP {
       s.push_str("\nFunction\n");
       i+=BCSIZE;
+    }else if op==bc::FN {
+      let address = compose_i32(&a[BCSIZE+i..BCSIZE+i+4]);
+      let argc_min = compose_i32(&a[BCSIZE+i+4..BCSIZE+i+8]);
+      let argc_max = compose_i32(&a[BCSIZE+i+8..BCSIZE+i+12]);
+      let var_count = compose_i32(&a[BCSIZE+i+12..BCSIZE+i+16]);
+
+      // Resolve position independent code
+      // to make the listing human readable.
+      let u = format!("fn [{}], argc_min={}, argc_max={}\n",i as i32+address,argc_min,argc_max);
+      s.push_str(&u);
+      i+=BCSIZE+16;
     }else if op==bc::HALT {
       s.push_str("halt\n");
       i+=BCSIZE;
@@ -1830,17 +1882,22 @@ pub fn compile(v: Vec<Token>, mode_cmd: bool,
   let mut compilation = Compilation{
     mode_cmd: mode_cmd, index: 0, parens: false,
     history: history, file: id, stab: HashMap::new(),
-    stab_index: 0, data: Vec::new(), v: Vec::new()
+    stab_index: 0, data: Vec::new(), bv_blocks: Vec::new(),
+    fn_indices: Vec::new()
   };
   let mut i = TokenIterator{index: 0, a: Rc::new(v.into_boxed_slice())};
   let y = try!(compilation.ast(&mut i));
   print_ast(&y,2);
-  let mut v: Vec<u8> = Vec::new();
-  try!(compilation.compile_ast(&mut v, &y));
-  push_bc(&mut v, bc::HALT, y.line, y.col);
-  v.append(&mut compilation.v);
 
-  print_asm_listing(&v);
-  let m = Module{program: v, data: compilation.data};
+  let mut bv: Vec<u8> = Vec::new();
+  try!(compilation.compile_ast(&mut bv, &y));
+  push_bc(&mut bv, bc::HALT, y.line, y.col);
+  let len = bv.len();
+  compilation.offsets(&mut bv, len);
+
+  bv.append(&mut compilation.bv_blocks);
+
+  print_asm_listing(&bv);
+  let m = Module{program: bv, data: compilation.data};
   return Ok(m);
 }
