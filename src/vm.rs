@@ -45,7 +45,10 @@ pub mod bc{
   pub const JZ:   u8 = 29;
   pub const JNZ:  u8 = 30;
   pub const CALL: u8 = 31;
-  pub const STR:  u8 = 32;
+  pub const RET:  u8 = 32;
+  pub const STR:  u8 = 33;
+  pub const FN:   u8 = 34;
+  pub const FNSEP:u8 = 35;
 }
 
 impl PartialEq for Object{

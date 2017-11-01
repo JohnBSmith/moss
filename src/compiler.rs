@@ -85,9 +85,22 @@ pub struct SyntaxError {
   file: String, s: String
 }
 
-pub fn print_syntax_error(e: SyntaxError){
+pub enum EnumError{
+  Syntax(SyntaxError)
+}
+type Error = Box<EnumError>;
+
+pub fn print_syntax_error(e: &SyntaxError){
   println!("Line {}, col {} ({}):",e.line,e.col,e.file);
   println!("Syntax error: {}",e.s);
+}
+
+pub fn print_error(e: &Error){
+  match **e {
+    EnumError::Syntax(ref e) => {
+      print_syntax_error(e);
+    }
+  }
 }
 
 fn compiler_error() -> !{
@@ -102,7 +115,7 @@ fn is_keyword(id: &String) -> Option<&'static KeywordsElement> {
   return None;
 }
 
-pub fn scan(s: &str, line_start: usize, file: &str) -> Result<Vec<Token>, SyntaxError>{
+pub fn scan(s: &str, line_start: usize, file: &str) -> Result<Vec<Token>,Error>{
   let mut v: Vec<Token> = Vec::new();
   let mut line=line_start;
   let mut col=1;
@@ -349,8 +362,8 @@ pub fn scan(s: &str, line_start: usize, file: &str) -> Result<Vec<Token>, Syntax
               value: Symbol::Ne, line: line, col: col, s: None});
             i+=2; col+=2;
           }else{
-            return Err(SyntaxError{line: line, col: col, file: String::from(file),
-              s: format!("unexpected character '{}'.", c)});          
+            return Err(Box::new(EnumError::Syntax(SyntaxError{line: line, col: col, file: String::from(file),
+              s: format!("unexpected character '{}'.", c)})));
           }
         },
         '#' => {
@@ -360,8 +373,8 @@ pub fn scan(s: &str, line_start: usize, file: &str) -> Result<Vec<Token>, Syntax
           i+=1; col=1; line+=1;
         },
         _ => {
-          return Err(SyntaxError{line: line, col: col, file: String::from(file),
-            s: format!("unexpected character '{}'.", c)});
+          return Err(Box::new(EnumError::Syntax(SyntaxError{line: line, col: col, file: String::from(file),
+            s: format!("unexpected character '{}'.", c)})));
         }
       }
     }
@@ -479,7 +492,7 @@ fn print_ast(t: &ASTNode, indent: usize){
   };
 }
 
-fn scan_line(line_start: usize, h: &mut system::History) -> Result<Vec<Token>,SyntaxError>{
+fn scan_line(line_start: usize, h: &mut system::History) -> Result<Vec<Token>,Error>{
   let input = match system::getline_history("| ",h) {
     Ok(x) => x,
     Err(x) => panic!()
@@ -512,7 +525,8 @@ pub struct Compilation<'a>{
   file: &'a str,
   stab: HashMap<String,usize>,
   stab_index: usize,
-  data: Vec<Object>
+  data: Vec<Object>,
+  v: Vec<u8>
 }
 
 struct TokenIterator{
@@ -521,7 +535,7 @@ struct TokenIterator{
 }
 
 impl TokenIterator{
-  fn next_token(&mut self, c: &mut Compilation) -> Result<Rc<Box<[Token]>>,SyntaxError>{
+  fn next_token(&mut self, c: &mut Compilation) -> Result<Rc<Box<[Token]>>,Error>{
     if c.mode_cmd {
       let value = self.a[self.index].value;
       if value==Symbol::Terminal {
@@ -534,7 +548,7 @@ impl TokenIterator{
     }
     return Ok(self.a.clone());
   }
-  fn next_any_token(&mut self, c: &mut Compilation) -> Result<Rc<Box<[Token]>>,SyntaxError>{
+  fn next_any_token(&mut self, c: &mut Compilation) -> Result<Rc<Box<[Token]>>,Error>{
     if c.parens {
       return self.next_token(c);
     }else{
@@ -564,20 +578,20 @@ fn atomic_literal(line: usize, col: usize, value: Symbol) -> Rc<ASTNode>{
 
 impl<'a> Compilation<'a>{
 
-fn syntax_error(&self, line: usize, col: usize, s: String) -> SyntaxError{
-  SyntaxError{line: line, col: col,
+fn syntax_error(&self, line: usize, col: usize, s: String) -> Error{
+  Box::new(EnumError::Syntax(SyntaxError{line: line, col: col,
     file: String::from(self.file), s: s
-  }
+  }))
 }
 
-fn unexpected_token(&mut self, line: usize, col: usize, value: Symbol) -> SyntaxError{
+fn unexpected_token(&mut self, line: usize, col: usize, value: Symbol) -> Error{
   // panic!();
-  SyntaxError{line: line, col: col, file: String::from(self.file),
+  Box::new(EnumError::Syntax(SyntaxError{line: line, col: col, file: String::from(self.file),
     s: format!("unexpected token: '{}'.",symbol_to_string(value))
-  }
+  }))
 }
 
-fn list_literal(&mut self, i: &mut TokenIterator) -> Result<Box<[Rc<ASTNode>]>,SyntaxError> {
+fn list_literal(&mut self, i: &mut TokenIterator) -> Result<Box<[Rc<ASTNode>]>,Error> {
   let mut v: Vec<Rc<ASTNode>> = Vec::new();
   let p = try!(i.next_token(self));
   let t = &p[i.index];
@@ -608,7 +622,7 @@ fn list_literal(&mut self, i: &mut TokenIterator) -> Result<Box<[Rc<ASTNode>]>,S
   return Ok(v.into_boxed_slice());
 }
 
-fn map_literal(&mut self, i: &mut TokenIterator) -> Result<Box<[Rc<ASTNode>]>,SyntaxError> {
+fn map_literal(&mut self, i: &mut TokenIterator) -> Result<Box<[Rc<ASTNode>]>,Error> {
   let mut v: Vec<Rc<ASTNode>> = Vec::new();
   let p = try!(i.next_token(self));
   let t = &p[i.index];
@@ -674,7 +688,7 @@ fn map_literal(&mut self, i: &mut TokenIterator) -> Result<Box<[Rc<ASTNode>]>,Sy
   return Ok(v.into_boxed_slice());
 }
 
-fn table_literal(&mut self, i: &mut TokenIterator, t0: &Token) -> Result<Rc<ASTNode>,SyntaxError> {
+fn table_literal(&mut self, i: &mut TokenIterator, t0: &Token) -> Result<Rc<ASTNode>,Error> {
   let mut v: Vec<Rc<ASTNode>> = Vec::new();
   let p = try!(i.next_token(self));
   let t = &p[i.index];
@@ -729,7 +743,7 @@ fn table_literal(&mut self, i: &mut TokenIterator, t0: &Token) -> Result<Rc<ASTN
 }
 
 fn arguments_list(&mut self, i: &mut TokenIterator, t0: &Token)
-  -> Result<Rc<ASTNode>,SyntaxError>
+  -> Result<Rc<ASTNode>,Error>
 {
   let mut v: Vec<Rc<ASTNode>> = Vec::new();
   let p = try!(i.next_token(self));
@@ -765,7 +779,7 @@ fn arguments_list(&mut self, i: &mut TokenIterator, t0: &Token)
 }
 
 fn function_literal(&mut self, i: &mut TokenIterator, t0: &Token)
-  -> Result<Rc<ASTNode>,SyntaxError>
+  -> Result<Rc<ASTNode>,Error>
 {
   let args = try!(self.arguments_list(i,t0));
   let x = try!(self.expression(i));
@@ -776,7 +790,7 @@ fn function_literal(&mut self, i: &mut TokenIterator, t0: &Token)
 }
 
 fn application(&mut self, i: &mut TokenIterator, f: Rc<ASTNode>, terminal: Symbol)
-  -> Result<Rc<ASTNode>,SyntaxError>
+  -> Result<Rc<ASTNode>,Error>
 {
   let mut v: Vec<Rc<ASTNode>> = Vec::new();
   let line = f.line;
@@ -811,7 +825,7 @@ fn application(&mut self, i: &mut TokenIterator, f: Rc<ASTNode>, terminal: Symbo
     value: value, info: Info::None, s: None, a: Some(v.into_boxed_slice())}));
 }
 
-fn atom(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError> {
+fn atom(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,Error> {
   let p = try!(i.next_token(self));
   let t = &p[i.index];
   let y;
@@ -874,7 +888,7 @@ fn atom(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError> {
   }
 }
 
-fn power(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError>{
+fn power(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,Error>{
   let x = try!(self.atom(i));
   let p = try!(i.next_any_token(self));
   let t = &p[i.index];
@@ -887,7 +901,7 @@ fn power(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError>{
   }
 }
 
-fn signed_expression(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError>{
+fn signed_expression(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,Error>{
   let p = try!(i.next_token(self));
   let t = &p[i.index];
   if t.value==Symbol::Minus || t.value==Symbol::Tilde {
@@ -904,7 +918,7 @@ fn signed_expression(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,Syn
   }
 }
 
-fn factor(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError>{
+fn factor(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,Error>{
   let mut y = try!(self.signed_expression(i));
   let p = try!(i.next_any_token(self));
   let t = &p[i.index];
@@ -933,7 +947,7 @@ fn factor(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError>{
   }
 }
 
-fn addition(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError>{
+fn addition(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,Error>{
   let mut y = try!(self.factor(i));
   let p = try!(i.next_any_token(self));
   let t = &p[i.index];
@@ -958,7 +972,7 @@ fn addition(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError>
   }
 }
 
-fn shift(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError>{
+fn shift(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,Error>{
   let x = try!(self.addition(i));
   let p = try!(i.next_any_token(self));
   let t = &p[i.index];
@@ -971,7 +985,7 @@ fn shift(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError>{
   }
 }
 
-fn intersection(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError>{
+fn intersection(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,Error>{
   let mut y = try!(self.shift(i));
   let p = try!(i.next_any_token(self));
   let t = &p[i.index];
@@ -996,7 +1010,7 @@ fn intersection(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxEr
   }
 }
 
-fn union(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError>{
+fn union(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,Error>{
   let mut y = try!(self.intersection(i));
   let p = try!(i.next_any_token(self));
   let t = &p[i.index];
@@ -1021,7 +1035,7 @@ fn union(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError>{
   }
 }
 
-fn range(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError>{
+fn range(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,Error>{
   let x = try!(self.union(i));
   let p = try!(i.next_any_token(self));
   let t = &p[i.index];
@@ -1046,7 +1060,7 @@ fn range(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError>{
   }
 }
 
-fn comparison(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError>{
+fn comparison(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,Error>{
   let x = try!(self.range(i));
   let p = try!(i.next_any_token(self));
   let t = &p[i.index];
@@ -1062,7 +1076,7 @@ fn comparison(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxErro
   }
 }
 
-fn eq_expression(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError>{
+fn eq_expression(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,Error>{
   let x = try!(self.comparison(i));
   let p = try!(i.next_any_token(self));
   let t = &p[i.index];
@@ -1079,7 +1093,7 @@ fn eq_expression(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxE
   }
 }
 
-fn negation(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError>{
+fn negation(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,Error>{
   let p = try!(i.next_token(self));
   let t = &p[i.index];
   if t.value==Symbol::Not {
@@ -1091,7 +1105,7 @@ fn negation(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError>
   }
 }
 
-fn conjunction(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError>{
+fn conjunction(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,Error>{
   let x = try!(self.negation(i));
   let p = try!(i.next_any_token(self));
   let t = &p[i.index];
@@ -1104,7 +1118,7 @@ fn conjunction(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxErr
   }
 }
 
-fn disjunction(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError>{
+fn disjunction(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,Error>{
   let x = try!(self.conjunction(i));
   let p = try!(i.next_any_token(self));
   let t = &p[i.index];
@@ -1117,7 +1131,7 @@ fn disjunction(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxErr
   }
 }
 
-fn if_expression(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError>{
+fn if_expression(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,Error>{
   let x = try!(self.disjunction(i));
   let p = try!(i.next_any_token(self));
   let t = &p[i.index];
@@ -1142,11 +1156,11 @@ fn if_expression(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxE
   }
 }
 
-fn expression(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError>{
+fn expression(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,Error>{
   return self.if_expression(i);
 }
 
-fn assignment(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError>{
+fn assignment(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,Error>{
   let x = try!(self.expression(i));
   let p = try!(i.next_any_token(self));
   let t = &p[i.index];
@@ -1162,7 +1176,7 @@ fn assignment(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxErro
   }
 }
 
-fn while_statement(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError>{
+fn while_statement(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,Error>{
   let condition = try!(self.expression(i));
   let p = try!(i.next_any_token(self));
   let t = &p[i.index];
@@ -1176,7 +1190,7 @@ fn while_statement(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,Synta
     value: Symbol::While, info: Info::None, s: None, a: Some(Box::new([condition,body]))}));  
 }
 
-fn for_statement(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError>{
+fn for_statement(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,Error>{
   let variable = try!(self.atom(i));
   let p = try!(i.next_any_token(self));
   let t = &p[i.index];
@@ -1197,7 +1211,7 @@ fn for_statement(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxE
     value: Symbol::For, info: Info::None, s: None, a: Some(Box::new([variable,a,body]))}));  
 }
 
-fn if_statement(&mut self, i: &mut TokenIterator, t0: &Token) -> Result<Rc<ASTNode>,SyntaxError>{
+fn if_statement(&mut self, i: &mut TokenIterator, t0: &Token) -> Result<Rc<ASTNode>,Error>{
   let mut v: Vec<Rc<ASTNode>> = Vec::new();
   let condition = try!(self.expression(i));
   let p = try!(i.next_any_token(self));
@@ -1238,7 +1252,7 @@ fn if_statement(&mut self, i: &mut TokenIterator, t0: &Token) -> Result<Rc<ASTNo
     value: Symbol::If, info: Info::None, s: None, a: Some(v.into_boxed_slice())}));
 }
 
-fn end_of(&mut self, i: &mut TokenIterator, symbol: Symbol) -> Result<(),SyntaxError>{
+fn end_of(&mut self, i: &mut TokenIterator, symbol: Symbol) -> Result<(),Error>{
   let p = try!(i.next_any_token(self));
   let t = &p[i.index];
   if t.value == Symbol::Of {
@@ -1257,7 +1271,7 @@ fn end_of(&mut self, i: &mut TokenIterator, symbol: Symbol) -> Result<(),SyntaxE
   return Ok(());
 }
 
-fn statements(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError>{
+fn statements(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,Error>{
   let mut v: Vec<Rc<ASTNode>> = Vec::new();
   let p0 = try!(i.next_any_token(self));
   let t0 = &p0[i.index];
@@ -1335,11 +1349,11 @@ fn statements(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxErro
   }
 }
 
-fn ast(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,SyntaxError>{
+fn ast(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,Error>{
   return self.statements(i);
 }
 
-fn compile_operator(&mut self, v: &mut Vec<u8>, t: &Rc<ASTNode>, byte_code: u8) -> Result<(),SyntaxError>{
+fn compile_operator(&mut self, v: &mut Vec<u8>, t: &Rc<ASTNode>, byte_code: u8) -> Result<(),Error>{
   let a = ast_argv(t);
   for i in 0..a.len() {
     try!(self.compile_ast(v,&a[i]));
@@ -1362,7 +1376,7 @@ fn get_index(&mut self, key: &str) -> usize{
 // while c do b end
 // (1) c JPZ[2] b JMP[1] (2)
 fn compile_while(&mut self, v: &mut Vec<u8>, t: &Rc<ASTNode>)
-  -> Result<(),SyntaxError>
+  -> Result<(),Error>
 {
   let index1 = v.len();
   let a = ast_argv(t);
@@ -1397,7 +1411,7 @@ fn compile_while(&mut self, v: &mut Vec<u8>, t: &Rc<ASTNode>)
 // ae (end)
 
 fn compile_if(&mut self, v: &mut Vec<u8>, t: &Rc<ASTNode>, is_op: bool)
-  -> Result<(),SyntaxError>
+  -> Result<(),Error>
 {
   let a = ast_argv(t);
   let mut jumps: Vec<usize> = Vec::new();
@@ -1430,7 +1444,7 @@ fn compile_if(&mut self, v: &mut Vec<u8>, t: &Rc<ASTNode>, is_op: bool)
 }
 
 fn compile_app(&mut self, v: &mut Vec<u8>, t: &Rc<ASTNode>)
-  -> Result<(),SyntaxError>
+  -> Result<(),Error>
 {
   let a = ast_argv(t);
 
@@ -1455,8 +1469,20 @@ fn compile_app(&mut self, v: &mut Vec<u8>, t: &Rc<ASTNode>)
   return Ok(());
 }
 
+fn compile_fn(&mut self, v: &mut Vec<u8>, t: &Rc<ASTNode>)
+  -> Result<(),Error>
+{
+  let a = ast_argv(t);
+  let mut v2: Vec<u8> = Vec::new();
+  push_bc(&mut v2, bc::FNSEP, t.line, t.col);
+  try!(self.compile_ast(&mut v2,&a[1]));
+  push_bc(&mut v2, bc::RET, t.line, t.col);
+  self.v.append(&mut v2);
+  return Ok(());
+}
+
 fn compile_ast(&mut self, v: &mut Vec<u8>, t: &Rc<ASTNode>)
-  -> Result<(),SyntaxError>
+  -> Result<(),Error>
 {
   if t.symbol_type == SymbolType::Identifier {
     let key = match t.s {Some(ref x)=>x, None=>panic!()};
@@ -1553,6 +1579,8 @@ fn compile_ast(&mut self, v: &mut Vec<u8>, t: &Rc<ASTNode>)
       for i in 0..a.len() {
         try!(self.compile_ast(v,&a[i]));
       }
+    }else if t.value == Symbol::Sub {
+      try!(self.compile_fn(v,t));
     }else{
       panic!();
     }
@@ -1643,9 +1671,11 @@ fn asm_listing(a: &[u8]) -> String{
   let mut s = String::from("Adr | Line:Col| Operation\n");
   let mut i=0;
   while i<a.len() {
-    let u = format!("{:04}| {:4}:{:02} | ",i,compose_u16(a[i+1],a[i+2]),a[i+3]);
-    s.push_str(&u);
     let op = a[i];
+    if op != bc::FNSEP {
+      let u = format!("{:04}| {:4}:{:02} | ",i,compose_u16(a[i+1],a[i+2]),a[i+3]);
+      s.push_str(&u);
+    }
     if op==bc::INT {
       let x = compose_i32(a[BCSIZE+i],a[BCSIZE+i+1],a[BCSIZE+i+2],a[BCSIZE+i+3]);
       let u = format!("push int {} (0x{:x})\n",x,x);
@@ -1772,9 +1802,15 @@ fn asm_listing(a: &[u8]) -> String{
       let u = format!("call, argc={}\n",argc);
       s.push_str(&u);
       i+=BCSIZE+4;
+    }else if op==bc::RET {
+      s.push_str("ret\n");
+      i+=BCSIZE;
+    }else if op==bc::FNSEP {
+      s.push_str("\nFunction\n");
+      i+=BCSIZE;
     }else if op==bc::HALT {
       s.push_str("halt\n");
-      break;
+      i+=BCSIZE;
     }else{
       unimplemented!();
     }
@@ -1789,20 +1825,20 @@ fn print_asm_listing(a: &[u8]){
 
 pub fn compile(v: Vec<Token>, mode_cmd: bool,
   history: &mut system::History, id: &str
-) -> Result<Module,SyntaxError>
+) -> Result<Module,Error>
 {
   let mut compilation = Compilation{
     mode_cmd: mode_cmd, index: 0, parens: false,
     history: history, file: id, stab: HashMap::new(),
-    stab_index: 0, data: Vec::new()
+    stab_index: 0, data: Vec::new(), v: Vec::new()
   };
   let mut i = TokenIterator{index: 0, a: Rc::new(v.into_boxed_slice())};
   let y = try!(compilation.ast(&mut i));
   print_ast(&y,2);
   let mut v: Vec<u8> = Vec::new();
   try!(compilation.compile_ast(&mut v, &y));
-  v.push(bc::HALT as u8);
-  push_line_col(&mut v,y.line,y.col);
+  push_bc(&mut v, bc::HALT, y.line, y.col);
+  v.append(&mut compilation.v);
 
   print_asm_listing(&v);
   let m = Module{program: v, data: compilation.data};

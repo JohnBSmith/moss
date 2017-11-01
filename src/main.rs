@@ -52,11 +52,11 @@ fn command_line_session(){
           Ok(module) => {
             ::vm::eval(&module,&module.program,&gtab);
           },
-          Err(e) => {compiler::print_syntax_error(e);}
+          Err(e) => {compiler::print_error(&e);}
         };
       },
       Err(error) => {
-        compiler::print_syntax_error(error);
+        compiler::print_error(&error);
       }
     }
   }
@@ -71,11 +71,11 @@ fn eval_string(s: &str, id: &str){
         Ok(module) => {
           ::vm::eval(&module,&module.program,&gtab);        
         },
-        Err(e) => {compiler::print_syntax_error(e);}
+        Err(e) => {compiler::print_error(&e);}
       };
     },
     Err(error) => {
-      compiler::print_syntax_error(error);
+      compiler::print_error(&error);
     }
   }
 }
