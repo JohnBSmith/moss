@@ -5,7 +5,7 @@ use std::mem::replace;
 use std::mem::transmute;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
-use moss::{Object, Map, List, Function};
+use moss::{Object, Map, List, Function, EnumFunction, StandardFn};
 use complex::Complex64;
 
 pub const BCSIZE: usize = 4;
@@ -744,7 +744,7 @@ fn compose_u64(b0: u8, b1: u8, b2: u8, b3: u8, b4: u8, b5: u8, b6: u8, b7: u8) -
 
 const STACK_SIZE: usize = 100;
 
-pub fn eval(module: &Module, a: &[u8], gtab: &Rc<RefCell<Map>>){
+pub fn eval(module: Rc<Module>, a: &[u8], gtab: &Rc<RefCell<Map>>){
   let mut ip=0;
   let mut stack: Vec<Object> = Vec::with_capacity(STACK_SIZE);
   for _ in 0..STACK_SIZE {
@@ -897,6 +897,18 @@ pub fn eval(module: &Module, a: &[u8], gtab: &Rc<RefCell<Map>>){
         let size = compose_u32(a[ip-4],a[ip-3],a[ip-2],a[ip-1]) as usize;
         sp = operator_map(sp,&mut stack,size);
       },
+      bc::FN => {
+        ip+=BCSIZE+16;
+        let address = (ip as i32+compose_i32(a[ip-16],a[ip-15],a[ip-14],a[ip-13])) as usize;
+        let argc_min = compose_i32(a[ip-12],a[ip-11],a[ip-10],a[ip-9]);
+        let argc_max = compose_i32(a[ip-8],a[ip-7],a[ip-6],a[ip-5]);
+        let var_count = compose_u32(a[ip-4],a[ip-3],a[ip-2],a[ip-1]);
+        stack[sp-1] = Function::new(StandardFn{
+          address: address,
+          module: module.clone(),
+          gtab: gtab.clone()
+        },argc_min,argc_max,var_count);
+      },
       bc::JMP => {
         ip = (ip as i32+compose_i32(a[ip+BCSIZE],a[ip+BCSIZE+1],a[ip+BCSIZE+2],a[ip+BCSIZE+3])) as usize;
       },
@@ -928,8 +940,8 @@ pub fn eval(module: &Module, a: &[u8], gtab: &Rc<RefCell<Map>>){
         let mut y = Object::Null;
         match stack[sp-argc-2] {
           Object::Function(ref f) => {
-            match **f {
-              Function::Plain(fp) => {
+            match f.f {
+              EnumFunction::Plain(fp) => {
                 match fp(&mut y, &stack[sp-argc-1], &stack[sp-argc..sp]) {
                   Ok(()) => {},
                   Err(e) => {
@@ -937,6 +949,9 @@ pub fn eval(module: &Module, a: &[u8], gtab: &Rc<RefCell<Map>>){
                   }
                 }
                 sp-=argc+1;
+              },
+              EnumFunction::Standard(ref x) => {
+                panic!()
               }
             }
           },

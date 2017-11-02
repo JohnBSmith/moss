@@ -3,6 +3,7 @@ use std::rc::Rc;
 use std::cell::RefCell;
 use complex::Complex64;
 use std::collections::HashMap;
+use vm::Module;
 
 pub enum Object{
   Null, Bool(bool), Int(i32), Float(f64), Complex(Complex64),
@@ -73,16 +74,6 @@ pub struct Range{
   pub step: Object
 }
 
-pub enum Function{
-  Plain(PlainFn)
-}
-
-impl Function{
-  pub fn plain(fp: PlainFn) -> Object {
-    Object::Function(Rc::new(Function::Plain(fp)))
-  }
-}
-
 pub struct Exception{
   pub value: Object,
   pub traceback: Option<List>
@@ -117,3 +108,36 @@ pub fn argc_error(argc: usize, min: isize, max: isize, id: &str) -> FnResult{
 
 pub type FnResult = Result<(),Box<Exception>>;
 pub type PlainFn = fn(ret: &mut Object, pself: &Object, argv: &[Object]) -> FnResult;
+pub struct StandardFn{
+  pub address: usize,
+  pub module: Rc<Module>,
+  pub gtab: Rc<RefCell<Map>>
+}
+
+pub enum EnumFunction{
+  Plain(PlainFn),
+  Standard(StandardFn)
+}
+
+pub struct Function{
+  pub f: EnumFunction,
+  pub argc_min: i32,
+  pub argc_max: i32
+}
+
+impl Function{
+  pub fn plain(fp: PlainFn, argc_min: i32, argc_max: i32) -> Object {
+    Object::Function(Rc::new(Function{
+      f: EnumFunction::Plain(fp),
+      argc_min: argc_min, argc_max: argc_max
+    }))
+  }
+  pub fn new(f: StandardFn, argc_min: i32, argc_max: i32, var_count: u32) -> Object {
+    Object::Function(Rc::new(Function{
+      f: EnumFunction::Standard(f),
+      argc_min: argc_min,
+      argc_max: argc_max
+    }))
+  }
+}
+

@@ -20,13 +20,13 @@ use std::env;
 use moss::{Map, Function};
 
 fn init_gtab(gtab: &mut Map){
-  let f = Function::plain(::global::print);
+  let f = Function::plain(::global::print,0,-1);
   gtab.insert_str("print",f);
-  let f = Function::plain(::global::put);
+  let f = Function::plain(::global::put,0,-1);
   gtab.insert_str("put",f);
-  let f = Function::plain(::global::fstr);
+  let f = Function::plain(::global::fstr,1,1);
   gtab.insert_str("str",f);
-  let f = Function::plain(::global::abs);
+  let f = Function::plain(::global::abs,1,1);
   gtab.insert_str("abs",f);
 }
 
@@ -50,7 +50,7 @@ fn command_line_session(){
         // compiler::print_vtoken(&v);
         match compiler::compile(v,true,&mut history,"command line") {
           Ok(module) => {
-            ::vm::eval(&module,&module.program,&gtab);
+            ::vm::eval(module.clone(),&module.program,&gtab);
           },
           Err(e) => {compiler::print_error(&e);}
         };
@@ -69,7 +69,7 @@ fn eval_string(s: &str, id: &str){
       let gtab = Map::new();
       match compiler::compile(v,false,&mut history,id) {
         Ok(module) => {
-          ::vm::eval(&module,&module.program,&gtab);        
+          ::vm::eval(module.clone(),&module.program,&gtab);        
         },
         Err(e) => {compiler::print_error(&e);}
       };

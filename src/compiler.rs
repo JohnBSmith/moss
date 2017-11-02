@@ -6,7 +6,7 @@
 use std::ascii::AsciiExt;
 use std::rc::Rc;
 use std::collections::HashMap;
-use std::mem::transmute;
+use std::mem::{transmute,replace};
 use system;
 use vm::{bc, BCSIZE, Module};
 use moss::{Object, U32String};
@@ -1480,8 +1480,21 @@ fn compile_fn(&mut self, bv: &mut Vec<u8>, t: &Rc<ASTNode>)
   // to make the assembler listing human readable.
   push_bc(&mut bv2, bc::FNSEP, t.line, t.col);
 
+  // Move self.fn_indices beside to allow nested functions.
+  let fn_indices = replace(&mut self.fn_indices,Vec::new());
+
   // Compile the function body.
   try!(self.compile_ast(&mut bv2,&a[1]));
+
+  // Shift the start adresses of nested functions
+  // by the now known offset and turn them into
+  // position independent code. The offset is negative
+  // because the code blocks of nested functions come
+  // before this code block. So we need to jump back.
+  self.offsets(&mut bv2,-(self.bv_blocks.len() as i32));
+
+  // Restore self.fn_indices.
+  replace(&mut self.fn_indices,fn_indices);
 
   // Add an additional return statement that will be reached
   // in case the control flow reaches the end of the function.
@@ -1503,8 +1516,9 @@ fn compile_fn(&mut self, bv: &mut Vec<u8>, t: &Rc<ASTNode>)
   self.fn_indices.push(index);
   push_u32(bv,self.bv_blocks.len() as u32+4);
 
-  push_i32(bv,0); // minimal argument count
-  push_i32(bv,0); // maximal argument count
+  let argv = ast_argv(&a[0]);
+  push_i32(bv,argv.len() as i32); // minimal argument count
+  push_i32(bv,argv.len() as i32); // maximal argument count
   push_u32(bv,0); // number of local variables
 
   // Append the code block to the buffer of code blocks.
@@ -1513,11 +1527,11 @@ fn compile_fn(&mut self, bv: &mut Vec<u8>, t: &Rc<ASTNode>)
   return Ok(());
 }
 
-fn offsets(&self, bv: &mut Vec<u8>, offset: usize){
+fn offsets(&self, bv: &mut Vec<u8>, offset: i32){
   for &index in &self.fn_indices {
     // let x = compose_i32(bv[index],bv[index+1],bv[index+2],bv[index+3]);
     let x = compose_i32(&bv[index..index+4]);
-    write_i32(&mut bv[index..index+4], x+(BCSIZE+offset-index) as i32);
+    write_i32(&mut bv[index..index+4], x+BCSIZE as i32+offset-index as i32);
   }
 }
 
@@ -1690,24 +1704,24 @@ fn push_bc(v: &mut Vec<u8>, byte: u8, line: usize, col: usize){
   push_line_col(v,line,col);
 }
 
-fn compose_u16(b0: u8, b1: u8) -> u16{
-  (b1 as u16)<<8 | b0 as u16
+fn compose_u16(b0: u8, b1: u8) -> u16 {
+  (b1 as u16)<<8 | (b0 as u16)
 }
 
 fn compose_i32(a: &[u8]) -> i32 {
-  (a[3] as i32)<<24 | (a[2] as i32)<< 16 | (a[1] as i32)<<8 | (a[0] as i32)
+  (a[3] as i32)<<24 | (a[2] as i32)<<16 | (a[1] as i32)<<8 | (a[0] as i32)
 }
 
-fn compose_u32(a: &[u8]) -> u32{
+fn compose_u32(a: &[u8]) -> u32 {
   (a[3] as u32)<<24 | (a[2] as u32)<<16 | (a[1] as u32)<<8 | (a[0] as u32)
 }
 
-fn compose_u64(a: &[u8]) -> u64{
+fn compose_u64(a: &[u8]) -> u64 {
    (a[7] as u64)<<56 | (a[6] as u64)<<48 | (a[5] as u64)<<40 | (a[4] as u64)<<32
  | (a[3] as u64)<<24 | (a[2] as u64)<<16 | (a[1] as u64)<< 8 | (a[0] as u64)
 }
 
-fn asm_listing(a: &[u8]) -> String{
+fn asm_listing(a: &[u8]) -> String {
   let mut s = String::from("Adr | Line:Col| Operation\n");
   let mut i=0;
   while i<a.len() {
@@ -1877,7 +1891,7 @@ fn print_asm_listing(a: &[u8]){
 
 pub fn compile(v: Vec<Token>, mode_cmd: bool,
   history: &mut system::History, id: &str
-) -> Result<Module,Error>
+) -> Result<Rc<Module>,Error>
 {
   let mut compilation = Compilation{
     mode_cmd: mode_cmd, index: 0, parens: false,
@@ -1893,11 +1907,11 @@ pub fn compile(v: Vec<Token>, mode_cmd: bool,
   try!(compilation.compile_ast(&mut bv, &y));
   push_bc(&mut bv, bc::HALT, y.line, y.col);
   let len = bv.len();
-  compilation.offsets(&mut bv, len);
+  compilation.offsets(&mut bv, len as i32);
 
   bv.append(&mut compilation.bv_blocks);
 
   print_asm_listing(&bv);
-  let m = Module{program: bv, data: compilation.data};
+  let m = Rc::new(Module{program: bv, data: compilation.data});
   return Ok(m);
 }
