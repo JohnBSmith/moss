@@ -50,7 +50,7 @@ fn command_line_session(){
         // compiler::print_vtoken(&v);
         match compiler::compile(v,true,&mut history,"command line") {
           Ok(module) => {
-            ::vm::eval(module.clone(),&module.program,&gtab);
+            ::vm::eval(module.clone(),gtab.clone());
           },
           Err(e) => {compiler::print_error(&e);}
         };
@@ -69,7 +69,7 @@ fn eval_string(s: &str, id: &str){
       let gtab = Map::new();
       match compiler::compile(v,false,&mut history,id) {
         Ok(module) => {
-          ::vm::eval(module.clone(),&module.program,&gtab);        
+          ::vm::eval(module.clone(),gtab.clone());
         },
         Err(e) => {compiler::print_error(&e);}
       };

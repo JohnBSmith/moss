@@ -49,6 +49,52 @@ pub mod bc{
   pub const STR:  u8 = 33;
   pub const FN:   u8 = 34;
   pub const FNSEP:u8 = 35;
+
+  pub fn op_to_str(x: u8) -> &'static str {
+    match x {
+      NULL => "NULL",
+      HALT => "HALT",
+      FALSE => "FALSE",
+      TRUE => "TRUE",
+      INT => "INT",
+      FLOAT => "FLOAT",
+      IMAG => "IMAG",
+      NEG => "NEG",
+      ADD => "ADD",
+      SUB => "SUB",
+      MPY => "MPY",
+      DIV => "DIV",
+      IDIV => "IDIV",
+      POW => "POW",
+      EQ => "EQ",
+      NE => "NE",
+      IS => "IS",
+      ISNOT => "ISNOT",
+      IN => "IN",
+      NOTIN => "NOTIN",
+      LT => "LT",
+      GT => "GT",
+      LE => "LE",
+      GE => "GE",
+      LIST => "LIST",
+      MAP => "MAP",
+      LOAD => "LOAD",
+      STORE => "STORE",
+      JMP => "JMP",
+      JZ => "JZ",
+      JNZ => "JNZ",
+      CALL => "CALL",
+      RET => "RET",
+      STR => "STR",
+      FN => "FN",
+      FNSEP => "FNSEP",
+      _ => "unknown"
+    }
+  }
+}
+
+fn print_op(x: u8){
+  println!("{}",bc::op_to_str(x));
 }
 
 impl PartialEq for Object{
@@ -742,16 +788,29 @@ fn compose_u64(b0: u8, b1: u8, b2: u8, b3: u8, b4: u8, b5: u8, b6: u8, b7: u8) -
        | (b3 as u64)<<24 | (b2 as u64)<<16 | (b1 as u64)<<8 | (b0 as u64);
 }
 
+struct Frame{
+  ip: usize,
+  f: Rc<Function>,
+  module: Rc<Module>,
+  gtab: Rc<RefCell<Map>>,
+  argc: usize
+}
+
 const STACK_SIZE: usize = 100;
 
-pub fn eval(module: Rc<Module>, a: &[u8], gtab: &Rc<RefCell<Map>>){
+pub fn eval(module: Rc<Module>, gtab: Rc<RefCell<Map>>){
+  let mut module = module;
+  let mut gtab = gtab;
+  let mut a: &[u8] = unsafe{&*(&module.program as &[u8] as *const [u8])};
   let mut ip=0;
   let mut stack: Vec<Object> = Vec::with_capacity(STACK_SIZE);
   for _ in 0..STACK_SIZE {
     stack.push(Object::Null);
   }
   let mut sp=0;
+  let mut frame_stack: Vec<Frame> = Vec::new();
   loop{
+    // print_op(a[ip]);
     match a[ip] {
       bc::NULL => {
         stack[sp] = Object::Null;
@@ -899,7 +958,8 @@ pub fn eval(module: Rc<Module>, a: &[u8], gtab: &Rc<RefCell<Map>>){
       },
       bc::FN => {
         ip+=BCSIZE+16;
-        let address = (ip as i32+compose_i32(a[ip-16],a[ip-15],a[ip-14],a[ip-13])) as usize;
+        let address = (ip as i32-20+compose_i32(a[ip-16],a[ip-15],a[ip-14],a[ip-13])) as usize;
+        // println!("fn [ip = {}]",address);
         let argc_min = compose_i32(a[ip-12],a[ip-11],a[ip-10],a[ip-9]);
         let argc_max = compose_i32(a[ip-8],a[ip-7],a[ip-6],a[ip-5]);
         let var_count = compose_u32(a[ip-4],a[ip-3],a[ip-2],a[ip-1]);
@@ -950,8 +1010,17 @@ pub fn eval(module: Rc<Module>, a: &[u8], gtab: &Rc<RefCell<Map>>){
                 }
                 sp-=argc+1;
               },
-              EnumFunction::Standard(ref x) => {
-                panic!()
+              EnumFunction::Std(ref sf) => {
+                frame_stack.push(Frame{
+                  ip: ip,
+                  f: (*f).clone(),
+                  module: replace(&mut module,sf.module.clone()),
+                  gtab: replace(&mut gtab,sf.gtab.clone()),
+                  argc: argc
+                });
+                a = unsafe{&*(&module.program as &[u8] as *const [u8])};
+                ip = sf.address;
+                continue;
               }
             }
           },
@@ -959,17 +1028,27 @@ pub fn eval(module: Rc<Module>, a: &[u8], gtab: &Rc<RefCell<Map>>){
         }
         stack[sp-1]=y;
       },
+      bc::RET => {
+        let frame = frame_stack.pop().unwrap();
+        module = frame.module;
+        ip = frame.ip;
+        a = unsafe{&*(&module.program as &[u8] as *const [u8])};
+        gtab = frame.gtab;
+        let y = replace(&mut stack[sp-1],Object::Null);
+        sp-=frame.argc+1;
+        stack[sp-1] = y;
+      },
       bc::HALT => {
         break;
       },
       _ => {panic!()}
     }
   }
-  if sp>0 {
-    match stack[sp-1] {
+  for i in 0..sp {
+    match stack[i] {
       Object::Null => {},
       _ => {
-        println!("{}",object_to_repr(&stack[sp-1]));
+        println!("{}",object_to_repr(&stack[i]));
       }
     }
   }

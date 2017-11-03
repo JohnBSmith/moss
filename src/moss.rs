@@ -116,7 +116,7 @@ pub struct StandardFn{
 
 pub enum EnumFunction{
   Plain(PlainFn),
-  Standard(StandardFn)
+  Std(StandardFn)
 }
 
 pub struct Function{
@@ -134,7 +134,7 @@ impl Function{
   }
   pub fn new(f: StandardFn, argc_min: i32, argc_max: i32, var_count: u32) -> Object {
     Object::Function(Rc::new(Function{
-      f: EnumFunction::Standard(f),
+      f: EnumFunction::Std(f),
       argc_min: argc_min,
       argc_max: argc_max
     }))
