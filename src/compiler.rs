@@ -517,17 +517,45 @@ struct ASTNode{
   a: Option<Box<[Rc<ASTNode>]>>
 }
 
+#[derive(Clone,Copy)]
+enum VarType{
+  Local, Argument, Context, Global
+}
+
+struct VarInfo{
+  s: String,
+  index: usize,
+  var_type: VarType
+}
+
+struct VarTab{
+  v: Vec<VarInfo>,
+  count_local: usize,
+  count_arg: usize,
+  count_context: usize,
+  count_global: usize
+}
+impl VarTab{
+  fn new() -> VarTab {
+    VarTab{v: Vec::new(),
+      count_local: 0, count_arg: 0, count_context: 0, count_global: 0
+    }
+  }
+}
+
 pub struct Compilation<'a>{
   mode_cmd: bool,
   index: usize,
   parens: bool,
+  statement: bool,
   history: &'a mut system::History,
   file: &'a str,
   stab: HashMap<String,usize>,
   stab_index: usize,
   data: Vec<Object>,
   bv_blocks: Vec<u8>,
-  fn_indices: Vec<usize>
+  fn_indices: Vec<usize>,
+  vtab: VarTab
 }
 
 struct TokenIterator{
@@ -586,7 +614,6 @@ fn syntax_error(&self, line: usize, col: usize, s: String) -> Error{
 }
 
 fn unexpected_token(&mut self, line: usize, col: usize, value: Symbol) -> Error{
-  // panic!();
   Box::new(EnumError::Syntax(SyntaxError{line: line, col: col, file: String::from(self.file),
     s: format!("unexpected token: '{}'.",symbol_to_string(value))
   }))
@@ -829,7 +856,7 @@ fn application(&mut self, i: &mut TokenIterator, f: Rc<ASTNode>, terminal: Symbo
 fn atom(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,Error> {
   let p = try!(i.next_token(self));
   let t = &p[i.index];
-  let y;
+  let mut y;
   if t.token_type==SymbolType::Identifier || t.token_type==SymbolType::Int ||
      t.token_type==SymbolType::String || t.token_type==SymbolType::Float ||
      t.token_type==SymbolType::Imag
@@ -876,16 +903,18 @@ fn atom(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,Error> {
   }else{
     return Err(self.unexpected_token(t.line, t.col, t.value));
   }
-  let p2 = try!(i.next_any_token(self));
-  let t2 = &p2[i.index];
-  if t2.value == Symbol::PLeft {
-    i.index+=1;
-    return self.application(i,y,Symbol::PRight);
-  }else if t2.value == Symbol::BLeft {
-    i.index+=1;
-    return self.application(i,y,Symbol::BRight);
-  }else{
-    return Ok(y);
+  loop{
+    let p2 = try!(i.next_any_token(self));
+    let t2 = &p2[i.index];
+    if t2.value == Symbol::PLeft {
+      i.index+=1;
+      y = try!(self.application(i,y,Symbol::PRight));
+    }else if t2.value == Symbol::BLeft {
+      i.index+=1;
+      y = try!(self.application(i,y,Symbol::BRight));
+    }else{
+      return Ok(y);
+    }
   }
 }
 
@@ -1169,11 +1198,11 @@ fn assignment(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,Error>{
     i.index+=1;
     let y = try!(self.expression(i));
     return Ok(binary_operator(t.line,t.col,Symbol::Assignment,x,y));
-  }else if self.mode_cmd {
-    return Ok(x);
-  }else{
+  }else if self.statement {
     return Ok(Rc::new(ASTNode{line: t.line, col: t.col, symbol_type: SymbolType::Keyword,
       value: Symbol::Statement, info: Info::None, s: None, a: Some(Box::new([x]))}));
+  }else{
+    return Ok(x);
   }
 }
 
@@ -1287,7 +1316,10 @@ fn statements(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,Error>{
     }
     if t.value == Symbol::While {
       i.index+=1;
+      let statement = self.statement;
+      self.statement = true;
       let x = try!(self.while_statement(i));
+      self.statement = statement;
       v.push(x);
       let p = try!(i.next_any_token(self));
       let t = &p[i.index];
@@ -1298,7 +1330,10 @@ fn statements(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,Error>{
       try!(self.end_of(i,Symbol::While));
     }else if t.value == Symbol::For {
       i.index+=1;
+      let statement = self.statement;
+      self.statement = true;
       let x = try!(self.for_statement(i));
+      self.statement = statement;
       v.push(x);
       let p = try!(i.next_any_token(self));
       let t = &p[i.index];
@@ -1309,7 +1344,10 @@ fn statements(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,Error>{
       try!(self.end_of(i,Symbol::For));
     }else if t.value == Symbol::If {
       i.index+=1;
+      let statement = self.statement;
+      self.statement = true;
       let x = try!(self.if_statement(i,t));
+      self.statement = statement;
       v.push(x);
       let p = try!(i.next_any_token(self));
       let t = &p[i.index];
@@ -1483,8 +1521,15 @@ fn compile_fn(&mut self, bv: &mut Vec<u8>, t: &Rc<ASTNode>)
   // Move self.fn_indices beside to allow nested functions.
   let fn_indices = replace(&mut self.fn_indices,Vec::new());
 
+  // Every function has its own table of variables.
+  let vtab = replace(&mut self.vtab,VarTab::new());
+  self.arguments(&a[0]);
+
   // Compile the function body.
   try!(self.compile_ast(&mut bv2,&a[1]));
+
+  // Restore.
+  self.vtab = vtab;
 
   // Shift the start adresses of nested functions
   // by the now known offset and turn them into
@@ -1498,7 +1543,6 @@ fn compile_fn(&mut self, bv: &mut Vec<u8>, t: &Rc<ASTNode>)
 
   // Add an additional return statement that will be reached
   // in case the control flow reaches the end of the function.
-  push_bc(&mut bv2, bc::NULL, t.line, t.col);
   push_bc(&mut bv2, bc::RET, t.line, t.col);
 
   // The name of the function or null in case
@@ -1529,120 +1573,167 @@ fn compile_fn(&mut self, bv: &mut Vec<u8>, t: &Rc<ASTNode>)
 
 fn offsets(&self, bv: &mut Vec<u8>, offset: i32){
   for &index in &self.fn_indices {
-    // let x = compose_i32(bv[index],bv[index+1],bv[index+2],bv[index+3]);
     let x = compose_i32(&bv[index..index+4]);
     write_i32(&mut bv[index..index+4], x+BCSIZE as i32+offset-index as i32);
   }
 }
 
-fn compile_ast(&mut self, v: &mut Vec<u8>, t: &Rc<ASTNode>)
+fn arguments(&mut self, t: &ASTNode){
+  let a = ast_argv(t);
+  for i in 0..a.len() {
+    if let Some(ref s) = a[i].s {
+      self.vtab.v.push(VarInfo{
+        s: s.clone(),
+        index: self.vtab.count_arg,
+        var_type: VarType::Argument
+      });
+      self.vtab.count_arg+=1;
+    }
+  }
+}
+
+fn index_type(&mut self, id: &str) -> Option<(usize,VarType)> {
+  let a = &self.vtab.v[..];
+  for i in 0..a.len() {
+    if a[i].s==id {
+      return Some((a[i].index, a[i].var_type));
+    }
+  }
+  return None;
+}
+
+fn compile_variable(&mut self, bv: &mut Vec<u8>, t: &ASTNode)
+  -> Result<(),Error>
+{
+  let key = match t.s {Some(ref x)=>x, None=>panic!()};
+  match self.index_type(key) {
+    Some((index,var_type)) => {
+      match var_type {
+        VarType::Argument => {
+          push_bc(bv,bc::LOAD_ARG,t.line,t.col);
+          push_u32(bv,index as u32+1);
+        },
+        _ => {panic!()}
+      }
+      return Ok(());
+    },
+    None => {
+      let index = self.get_index(key);
+      push_bc(bv,bc::LOAD,t.line,t.col);
+      push_u32(bv,index as u32);
+      return Ok(());
+    }
+  };
+}
+
+fn compile_ast(&mut self, bv: &mut Vec<u8>, t: &Rc<ASTNode>)
   -> Result<(),Error>
 {
   if t.symbol_type == SymbolType::Identifier {
-    let key = match t.s {Some(ref x)=>x, None=>panic!()};
-    let index = self.get_index(key);
-    push_bc(v,bc::LOAD,t.line,t.col);
-    push_u32(v,index as u32);
+    try!(self.compile_variable(bv,t));
   }else if t.symbol_type == SymbolType::Operator {
     let value = t.value;
     if value == Symbol::Assignment {
       let a = match t.a {Some(ref x)=>x, None=>panic!()};
-      try!(self.compile_ast(v,&a[1]));
+      try!(self.compile_ast(bv,&a[1]));
       if a[0].symbol_type == SymbolType::Identifier {
         let key = match a[0].s {Some(ref x)=>x, None=>panic!()};
         let index = self.get_index(key);
-        push_bc(v,bc::STORE,t.line,t.col);
-        push_u32(v,index as u32);
+        push_bc(bv,bc::STORE,t.line,t.col);
+        push_u32(bv,index as u32);
       }else{
         return Err(self.syntax_error(t.line,t.col,
           String::from("expected identifier before '='.")));
       }
     }else if value == Symbol::Plus {
-      try!(self.compile_operator(v,t,bc::ADD));
+      try!(self.compile_operator(bv,t,bc::ADD));
     }else if value == Symbol::Minus {
-      try!(self.compile_operator(v,t,bc::SUB));
+      try!(self.compile_operator(bv,t,bc::SUB));
     }else if value == Symbol::Ast {
-      try!(self.compile_operator(v,t,bc::MPY));
+      try!(self.compile_operator(bv,t,bc::MPY));
     }else if value == Symbol::Div {
-      try!(self.compile_operator(v,t,bc::DIV));
+      try!(self.compile_operator(bv,t,bc::DIV));
     }else if value == Symbol::Idiv {
-      try!(self.compile_operator(v,t,bc::IDIV));
+      try!(self.compile_operator(bv,t,bc::IDIV));
     }else if value == Symbol::Neg {
-      try!(self.compile_operator(v,t,bc::NEG));
+      try!(self.compile_operator(bv,t,bc::NEG));
     }else if value == Symbol::Pow {
-      try!(self.compile_operator(v,t,bc::POW));
+      try!(self.compile_operator(bv,t,bc::POW));
     }else if value == Symbol::Eq {
-      try!(self.compile_operator(v,t,bc::EQ));
+      try!(self.compile_operator(bv,t,bc::EQ));
     }else if value == Symbol::Ne {
-      try!(self.compile_operator(v,t,bc::NE));
+      try!(self.compile_operator(bv,t,bc::NE));
     }else if value == Symbol::Lt {
-      try!(self.compile_operator(v,t,bc::LT));
+      try!(self.compile_operator(bv,t,bc::LT));
     }else if value == Symbol::Gt {
-      try!(self.compile_operator(v,t,bc::GT));
+      try!(self.compile_operator(bv,t,bc::GT));
     }else if value == Symbol::Le {
-      try!(self.compile_operator(v,t,bc::LE));
+      try!(self.compile_operator(bv,t,bc::LE));
     }else if value == Symbol::Ge {
-      try!(self.compile_operator(v,t,bc::GE));
+      try!(self.compile_operator(bv,t,bc::GE));
     }else if value == Symbol::Is {
-      try!(self.compile_operator(v,t,bc::IS));
+      try!(self.compile_operator(bv,t,bc::IS));
     }else if value == Symbol::Isnot {
-      try!(self.compile_operator(v,t,bc::ISNOT));
+      try!(self.compile_operator(bv,t,bc::ISNOT));
     }else if value == Symbol::List {
-      try!(self.compile_operator(v,t,bc::LIST));
+      try!(self.compile_operator(bv,t,bc::LIST));
       let size = match t.a {Some(ref a) => a.len() as u32, None => panic!()};
-      push_u32(v,size);
+      push_u32(bv,size);
     }else if value == Symbol::Map {
-      try!(self.compile_operator(v,t,bc::MAP));
+      try!(self.compile_operator(bv,t,bc::MAP));
       let size = match t.a {Some(ref a) => a.len() as u32, None => panic!()};
-      push_u32(v,size);
+      push_u32(bv,size);
     }else if value == Symbol::Application {
-      try!(self.compile_app(v,t));
+      try!(self.compile_app(bv,t));
     }else if value == Symbol::If {
-      try!(self.compile_if(v,t,true));
+      try!(self.compile_if(bv,t,true));
     }else{
       return Err(self.syntax_error(t.line,t.col,
         format!("cannot compile Operator '{}'.",symbol_to_string(t.value))
       ));
     }
   }else if t.symbol_type == SymbolType::Int {
-    push_bc(v, bc::INT, t.line, t.col);
+    push_bc(bv, bc::INT, t.line, t.col);
     let x: i32 = match t.s {Some(ref x)=>x.parse().unwrap(), None=>panic!()};
-    push_i32(v,x);
+    push_i32(bv,x);
   }else if t.symbol_type == SymbolType::Float {
-    push_bc(v, bc::FLOAT, t.line, t.col);
+    push_bc(bv, bc::FLOAT, t.line, t.col);
     let x: f64 = match t.s {Some(ref x)=>x.parse().unwrap(), None=>panic!()};
-    push_u64(v,unsafe{transmute::<f64,u64>(x)});
+    push_u64(bv,unsafe{transmute::<f64,u64>(x)});
   }else if t.symbol_type == SymbolType::Imag {
-    push_bc(v, bc::IMAG, t.line, t.col);
+    push_bc(bv, bc::IMAG, t.line, t.col);
     let x: f64 = match t.s {Some(ref x)=>x.parse().unwrap(), None=>panic!()};
-    push_u64(v,unsafe{transmute::<f64,u64>(x)});
+    push_u64(bv,unsafe{transmute::<f64,u64>(x)});
   }else if t.value == Symbol::Null {
-    v.push(bc::NULL);
-    push_line_col(v,t.line,t.col);
+    push_bc(bv,bc::NULL,t.line,t.col);
   }else if t.value == Symbol::True {
-    push_bc(v,bc::TRUE,t.line,t.col);
+    push_bc(bv,bc::TRUE,t.line,t.col);
   }else if t.value == Symbol::False {
-    push_bc(v,bc::FALSE,t.line,t.col);
+    push_bc(bv,bc::FALSE,t.line,t.col);
   }else if t.symbol_type == SymbolType::Keyword {
     if t.value == Symbol::If {
-      try!(self.compile_if(v,t,false));
+      try!(self.compile_if(bv,t,false));
     }else if t.value == Symbol::While {
-      try!(self.compile_while(v,t));
+      try!(self.compile_while(bv,t));
     }else if t.value == Symbol::Block {
       let a = ast_argv(t);
       for i in 0..a.len() {
-        try!(self.compile_ast(v,&a[i]));
+        try!(self.compile_ast(bv,&a[i]));
       }
     }else if t.value == Symbol::Sub {
-      try!(self.compile_fn(v,t));
+      try!(self.compile_fn(bv,t));
+    }else if t.value == Symbol::Statement {
+      let a = ast_argv(t);
+      try!(self.compile_ast(bv,&a[0]));
+      push_bc(bv,bc::POP,t.line,t.col);
     }else{
       panic!();
     }
   }else if t.symbol_type == SymbolType::String {
     let key = match t.s {Some(ref x)=>x, None=>panic!()};
     let index = self.get_index(key);
-    push_bc(v,bc::STR,t.line,t.col);
-    push_u32(v,index as u32);
+    push_bc(bv,bc::STR,t.line,t.col);
+    push_u32(bv,index as u32);
   }else{
     panic!();
   }
@@ -1651,7 +1742,7 @@ fn compile_ast(&mut self, v: &mut Vec<u8>, t: &Rc<ASTNode>)
 
 }//impl Compilation
 
-fn ast_argv(t: &Rc<ASTNode>) -> &Box<[Rc<ASTNode>]>{
+fn ast_argv(t: &ASTNode) -> &Box<[Rc<ASTNode>]>{
   match t.a {Some(ref x)=> x, None=>panic!()}
 }
 
@@ -1758,6 +1849,9 @@ fn asm_listing(a: &[u8]) -> String {
     }else if op==bc::FALSE {
       s.push_str("false\n");
       i+=BCSIZE;
+    }else if op==bc::FNSELF {
+      s.push_str("function self\n");
+      i+=BCSIZE;
     }else if op==bc::ADD {
       s.push_str("add\n");
       i+=BCSIZE;
@@ -1824,9 +1918,39 @@ fn asm_listing(a: &[u8]) -> String {
       let u = format!("load global [{}]\n",x);
       s.push_str(&u);
       i+=BCSIZE+4;
+    }else if op==bc::LOAD_ARG {
+      let x = compose_u32(&a[BCSIZE+i..BCSIZE+i+4]);
+      let u = format!("load argument [{}]\n",x);
+      s.push_str(&u);
+      i+=BCSIZE+4;
+    }else if op==bc::LOAD_LOCAL {
+      let x = compose_u32(&a[BCSIZE+i..BCSIZE+i+4]);
+      let u = format!("load local [{}]\n",x);
+      s.push_str(&u);
+      i+=BCSIZE+4;
+    }else if op==bc::LOAD_CONTEXT {
+      let x = compose_u32(&a[BCSIZE+i..BCSIZE+i+4]);
+      let u = format!("load context [{}]\n",x);
+      s.push_str(&u);
+      i+=BCSIZE+4;
     }else if op==bc::STORE {
       let x = compose_u32(&a[BCSIZE+i..BCSIZE+i+4]);
       let u = format!("store global [{}]\n",x);
+      s.push_str(&u);
+      i+=BCSIZE+4;
+    }else if op==bc::STORE_ARG {
+      let x = compose_u32(&a[BCSIZE+i..BCSIZE+i+4]);
+      let u = format!("store argument [{}]\n",x);
+      s.push_str(&u);
+      i+=BCSIZE+4;
+    }else if op==bc::STORE_LOCAL {
+      let x = compose_u32(&a[BCSIZE+i..BCSIZE+i+4]);
+      let u = format!("store local [{}]\n",x);
+      s.push_str(&u);
+      i+=BCSIZE+4;
+    }else if op==bc::STORE_CONTEXT {
+      let x = compose_u32(&a[BCSIZE+i..BCSIZE+i+4]);
+      let u = format!("store context [{}]\n",x);
       s.push_str(&u);
       i+=BCSIZE+4;
     }else if op==bc::STR {
@@ -1874,6 +1998,9 @@ fn asm_listing(a: &[u8]) -> String {
       let u = format!("fn [{}], argc_min={}, argc_max={}\n",i as i32+address,argc_min,argc_max);
       s.push_str(&u);
       i+=BCSIZE+16;
+    }else if op==bc::POP {
+      s.push_str("pop\n");
+      i+=BCSIZE;
     }else if op==bc::HALT {
       s.push_str("halt\n");
       i+=BCSIZE;
@@ -1894,10 +2021,11 @@ pub fn compile(v: Vec<Token>, mode_cmd: bool,
 ) -> Result<Rc<Module>,Error>
 {
   let mut compilation = Compilation{
-    mode_cmd: mode_cmd, index: 0, parens: false,
+    mode_cmd: mode_cmd, index: 0,
+    parens: false, statement: !mode_cmd,
     history: history, file: id, stab: HashMap::new(),
     stab_index: 0, data: Vec::new(), bv_blocks: Vec::new(),
-    fn_indices: Vec::new()
+    fn_indices: Vec::new(), vtab: VarTab::new()
   };
   let mut i = TokenIterator{index: 0, a: Rc::new(v.into_boxed_slice())};
   let y = try!(compilation.ast(&mut i));

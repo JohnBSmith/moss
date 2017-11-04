@@ -49,6 +49,14 @@ pub mod bc{
   pub const STR:  u8 = 33;
   pub const FN:   u8 = 34;
   pub const FNSEP:u8 = 35;
+  pub const POP:  u8 = 36;
+  pub const LOAD_LOCAL: u8 = 37;
+  pub const LOAD_ARG: u8 = 38;
+  pub const LOAD_CONTEXT: u8 = 39;
+  pub const STORE_LOCAL: u8 = 40;
+  pub const STORE_ARG: u8 = 41;
+  pub const STORE_CONTEXT: u8 = 42;
+  pub const FNSELF: u8 = 43;
 
   pub fn op_to_str(x: u8) -> &'static str {
     match x {
@@ -88,6 +96,14 @@ pub mod bc{
       STR => "STR",
       FN => "FN",
       FNSEP => "FNSEP",
+      POP => "POP",
+      LOAD_LOCAL => "LOAD_LOCAL",
+      LOAD_ARG => "LOAD_ARG",
+      LOAD_CONTEXT => "LOAD_CONTEXT",
+      STORE_LOCAL => "STORE_LOCAL",
+      STORE_ARG => "STORE_ARG",
+      STORE_CONTEXT => "STORE_CONTEXT",
+      FNSELF => "FNSELF",
       _ => "unknown"
     }
   }
@@ -793,7 +809,8 @@ struct Frame{
   f: Rc<Function>,
   module: Rc<Module>,
   gtab: Rc<RefCell<Map>>,
-  argc: usize
+  argc: usize,
+  argv_ptr: usize
 }
 
 const STACK_SIZE: usize = 100;
@@ -808,6 +825,7 @@ pub fn eval(module: Rc<Module>, gtab: Rc<RefCell<Map>>){
     stack.push(Object::Null);
   }
   let mut sp=0;
+  let mut argv_ptr=0;
   let mut frame_stack: Vec<Frame> = Vec::new();
   loop{
     // print_op(a[ip]);
@@ -872,6 +890,12 @@ pub fn eval(module: Rc<Module>, gtab: Rc<RefCell<Map>>){
         let key = module.data[index as usize].clone();
         gtab.borrow_mut().m.insert(key,replace(&mut stack[sp-1],Object::Null));
         sp-=1;
+      },
+      bc::LOAD_ARG => {
+        ip+=BCSIZEP4;
+        let index = compose_u32(a[ip-4],a[ip-3],a[ip-2],a[ip-1]) as usize;
+        stack[sp] = stack[argv_ptr+index].clone();
+        sp+=1;
       },
       bc::NEG => {
         if operator_neg(sp, &mut stack) {panic!();}
@@ -1016,10 +1040,12 @@ pub fn eval(module: Rc<Module>, gtab: Rc<RefCell<Map>>){
                   f: (*f).clone(),
                   module: replace(&mut module,sf.module.clone()),
                   gtab: replace(&mut gtab,sf.gtab.clone()),
-                  argc: argc
+                  argc: argc,
+                  argv_ptr: argv_ptr
                 });
                 a = unsafe{&*(&module.program as &[u8] as *const [u8])};
                 ip = sf.address;
+                argv_ptr = sp-argc-1;
                 continue;
               }
             }
@@ -1032,11 +1058,17 @@ pub fn eval(module: Rc<Module>, gtab: Rc<RefCell<Map>>){
         let frame = frame_stack.pop().unwrap();
         module = frame.module;
         ip = frame.ip;
+        argv_ptr = frame.argv_ptr;
         a = unsafe{&*(&module.program as &[u8] as *const [u8])};
         gtab = frame.gtab;
         let y = replace(&mut stack[sp-1],Object::Null);
-        sp-=frame.argc+1;
+        sp-=frame.argc+2;
         stack[sp-1] = y;
+      },
+      bc::POP => {
+        sp-=1;
+        stack[sp] = Object::Null;
+        ip+=BCSIZE;
       },
       bc::HALT => {
         break;
