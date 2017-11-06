@@ -3,6 +3,10 @@ name = "moss"
 version = "0.0.1"
 authors = ["Finn <finn.bcd@gmail.com>"]
 
+description = "Experimental Moss interpreter"
+homepage = "https://johnbsmith.github.io/moss/home.htm"
+license = "Creative Commons CC0 1.0"
+
 [lib]
 name = "moss"
 path = "src/lib.rs"
