@@ -1,9 +1,5 @@
 
 
-
-x=1
-while x<1000000
-  x=x+1
-end
-
+fib = sub f|n| 1 if n<3 else f(n-1)+f(n-2) end
+print(fib(36))
 

@@ -9,7 +9,7 @@ use std::collections::HashMap;
 use std::mem::{transmute,replace};
 use system;
 use vm::{bc, BCSIZE, Module};
-use moss::{Object, U32String};
+use object::{Object, U32String};
 
 #[derive(Copy,Clone,PartialEq)]
 enum SymbolType{
@@ -356,6 +356,17 @@ pub fn scan(s: &str, line_start: usize, file: &str) -> Result<Vec<Token>,Error>{
           });
           i+=1; col+=1;
         },
+        '\'' => {
+          hcol=col;
+          i+=1; col+=1;
+          let j=i;
+          while i<n && a[i]!='\'' {i+=1; col+=1;}
+          let s: &String = &a[j..i].iter().cloned().collect();
+          v.push(Token{token_type: SymbolType::String,
+            value: Symbol::None, line: line, col: hcol, s: Some(s.clone())
+          });
+          i+=1; col+=1;
+        },
         '!' => {
           if i+1<n && a[i+1]=='=' {
             v.push(Token{token_type: SymbolType::Operator,
@@ -478,7 +489,14 @@ fn print_ast(t: &ASTNode, indent: usize){
     },
     SymbolType::Operator | SymbolType::Separator |
     SymbolType::Keyword  | SymbolType::Bool => {
-      println!("{}",symbol_to_string(t.value));
+      if t.value == Symbol::Sub {
+        match t.s {
+          Some(ref s) => {println!("sub {}",s);},
+          None => {println!("sub");}
+        }
+      }else{
+        println!("{}",symbol_to_string(t.value));
+      }
     },
     _ => {compiler_error();}
   }
@@ -519,7 +537,7 @@ struct ASTNode{
 
 #[derive(Clone,Copy)]
 enum VarType{
-  Local, Argument, Context, Global
+  Local, Argument, Context, Global, FnId
 }
 
 struct VarInfo{
@@ -533,12 +551,15 @@ struct VarTab{
   count_local: usize,
   count_arg: usize,
   count_context: usize,
-  count_global: usize
+  count_global: usize,
+  context: Option<Box<VarTab>>,
+  fn_id: Option<String>
 }
 impl VarTab{
-  fn new() -> VarTab {
+  fn new(id: Option<String>) -> VarTab {
     VarTab{v: Vec::new(),
-      count_local: 0, count_arg: 0, count_context: 0, count_global: 0
+      count_local: 0, count_arg: 0, count_context: 0, count_global: 0,
+      context: None, fn_id: id
     }
   }
 }
@@ -806,7 +827,7 @@ fn arguments_list(&mut self, i: &mut TokenIterator, t0: &Token)
   }));
 }
 
-fn function_literal(&mut self, i: &mut TokenIterator, t0: &Token)
+fn concise_function_literal(&mut self, i: &mut TokenIterator, t0: &Token)
   -> Result<Rc<ASTNode>,Error>
 {
   let args = try!(self.arguments_list(i,t0));
@@ -816,6 +837,44 @@ fn function_literal(&mut self, i: &mut TokenIterator, t0: &Token)
     info: Info::None, s: None, a: Some(Box::new([args,x]))
   }));
 }
+
+fn function_literal(&mut self, i: &mut TokenIterator, t0: &Token)
+  -> Result<Rc<ASTNode>,Error>
+{
+  let p = try!(i.next_token(self));
+  let t = &p[i.index];
+  let id = if t.token_type == SymbolType::Identifier {
+    i.index+=1;
+    t.s.clone()
+  }else{
+    None
+  };
+  let p = try!(i.next_token(self));
+  let t = &p[i.index];
+  if t.value != Symbol::Vline {
+    return Err(self.syntax_error(t.line, t.col, String::from("expected '|'.")));
+  }
+  i.index+=1;
+  let args = try!(self.arguments_list(i,t0));
+
+  let statement = self.statement;
+  self.statement = true;
+  let x = try!(self.statements(i,true));
+  self.statement = statement;
+
+  let p = try!(i.next_any_token(self));
+  let t = &p[i.index];
+  if t.value != Symbol::End {
+    return Err(self.syntax_error(t.line, t.col, String::from("expected 'end'.")));
+  }
+  i.index+=1;
+  try!(self.end_of(i,Symbol::Sub));
+  return Ok(Rc::new(ASTNode{line: t0.line, col: t0.col,
+    symbol_type: SymbolType::Keyword, value: Symbol::Sub,
+    info: Info::None, s: id, a: Some(Box::new([args,x]))
+  }));
+}
+
 
 fn application(&mut self, i: &mut TokenIterator, f: Rc<ASTNode>, terminal: Symbol)
   -> Result<Rc<ASTNode>,Error>
@@ -898,6 +957,9 @@ fn atom(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,Error> {
     i.index+=1;
     y = try!(self.table_literal(i,t));
   }else if t.value==Symbol::Vline {
+    i.index+=1;
+    y = try!(self.concise_function_literal(i,t));
+  }else if t.value==Symbol::Sub {
     i.index+=1;
     y = try!(self.function_literal(i,t));
   }else{
@@ -1215,7 +1277,7 @@ fn while_statement(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,Error
   }else{
     return Err(self.syntax_error(t.line, t.col, String::from("expected 'do' or a line break.")));
   }
-  let body = try!(self.statements(i));
+  let body = try!(self.statements(i,false));
   return Ok(Rc::new(ASTNode{line: t.line, col: t.col, symbol_type: SymbolType::Keyword,
     value: Symbol::While, info: Info::None, s: None, a: Some(Box::new([condition,body]))}));  
 }
@@ -1236,7 +1298,7 @@ fn for_statement(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,Error>{
   }else{
     return Err(self.syntax_error(t.line, t.col, String::from("expected 'do' or a line break.")));
   }
-  let body = try!(self.statements(i));
+  let body = try!(self.statements(i,false));
   return Ok(Rc::new(ASTNode{line: t.line, col: t.col, symbol_type: SymbolType::Keyword,
     value: Symbol::For, info: Info::None, s: None, a: Some(Box::new([variable,a,body]))}));  
 }
@@ -1251,7 +1313,7 @@ fn if_statement(&mut self, i: &mut TokenIterator, t0: &Token) -> Result<Rc<ASTNo
   }else{
     return Err(self.syntax_error(t.line, t.col, String::from("expected 'then' or a line break.")));
   }
-  let body = try!(self.statements(i));
+  let body = try!(self.statements(i,false));
   v.push(condition);
   v.push(body);
   loop{
@@ -1267,12 +1329,12 @@ fn if_statement(&mut self, i: &mut TokenIterator, t0: &Token) -> Result<Rc<ASTNo
       }else{
         return Err(self.syntax_error(t.line, t.col, String::from("expected 'then' or a line break.")));
       }
-      let body = try!(self.statements(i));
+      let body = try!(self.statements(i,false));
       v.push(condition);
       v.push(body);
     }else if t.value == Symbol::Else {
       i.index+=1;
-      let body = try!(self.statements(i));
+      let body = try!(self.statements(i,false));
       v.push(body);
     }else if t.value == Symbol::End {
       break;
@@ -1301,7 +1363,9 @@ fn end_of(&mut self, i: &mut TokenIterator, symbol: Symbol) -> Result<(),Error>{
   return Ok(());
 }
 
-fn statements(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,Error>{
+fn statements(&mut self, i: &mut TokenIterator, last_value: bool)
+  -> Result<Rc<ASTNode>,Error>
+{
   let mut v: Vec<Rc<ASTNode>> = Vec::new();
   let p0 = try!(i.next_any_token(self));
   let t0 = &p0[i.index];
@@ -1380,6 +1444,15 @@ fn statements(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,Error>{
       return Err(self.unexpected_token(t.line, t.col, t.value));
     }
   }
+  if last_value {
+    let n = v.len();
+    if n>0 && v[n-1].value == Symbol::Statement {
+      let x = ast_argv(&v[n-1])[0].clone();
+      v[n-1] = x;
+    }else{
+      v.push(atomic_literal(t0.line,t0.col,Symbol::Null));
+    }
+  }
   if v.len()==1 {
     return Ok(match v.pop() {Some(x) => x, None => compiler_error()});
   }else{
@@ -1389,7 +1462,7 @@ fn statements(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,Error>{
 }
 
 fn ast(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,Error>{
-  return self.statements(i);
+  return self.statements(i,true);
 }
 
 fn compile_operator(&mut self, v: &mut Vec<u8>, t: &Rc<ASTNode>, byte_code: u8) -> Result<(),Error>{
@@ -1522,7 +1595,7 @@ fn compile_fn(&mut self, bv: &mut Vec<u8>, t: &Rc<ASTNode>)
   let fn_indices = replace(&mut self.fn_indices,Vec::new());
 
   // Every function has its own table of variables.
-  let vtab = replace(&mut self.vtab,VarTab::new());
+  let vtab = replace(&mut self.vtab,VarTab::new(t.s.clone()));
   self.arguments(&a[0]);
 
   // Compile the function body.
@@ -1593,6 +1666,9 @@ fn arguments(&mut self, t: &ASTNode){
 }
 
 fn index_type(&mut self, id: &str) -> Option<(usize,VarType)> {
+  if let Some(ref s) = self.vtab.fn_id {
+    if id==s {return Some((0,VarType::FnId));}
+  }
   let a = &self.vtab.v[..];
   for i in 0..a.len() {
     if a[i].s==id {
@@ -1613,6 +1689,9 @@ fn compile_variable(&mut self, bv: &mut Vec<u8>, t: &ASTNode)
           push_bc(bv,bc::LOAD_ARG,t.line,t.col);
           push_u32(bv,index as u32+1);
         },
+        VarType::FnId => {
+          push_bc(bv,bc::FNSELF,t.line,t.col);
+        }
         _ => {panic!()}
       }
       return Ok(());
@@ -2016,6 +2095,18 @@ fn print_asm_listing(a: &[u8]){
   println!("{}",&s);
 }
 
+fn print_data(a: &[Object]){
+  println!("Data");
+  for i in 0..a.len() {
+    println!("[{}]: {}",i,::vm::object_to_repr(&a[i]));
+  }
+  if a.len()==0 {
+    println!("empty");
+  }else{
+    println!();
+  }
+}
+
 pub fn compile(v: Vec<Token>, mode_cmd: bool,
   history: &mut system::History, id: &str
 ) -> Result<Rc<Module>,Error>
@@ -2025,11 +2116,11 @@ pub fn compile(v: Vec<Token>, mode_cmd: bool,
     parens: false, statement: !mode_cmd,
     history: history, file: id, stab: HashMap::new(),
     stab_index: 0, data: Vec::new(), bv_blocks: Vec::new(),
-    fn_indices: Vec::new(), vtab: VarTab::new()
+    fn_indices: Vec::new(), vtab: VarTab::new(None)
   };
   let mut i = TokenIterator{index: 0, a: Rc::new(v.into_boxed_slice())};
   let y = try!(compilation.ast(&mut i));
-  print_ast(&y,2);
+  // print_ast(&y,2);
 
   let mut bv: Vec<u8> = Vec::new();
   try!(compilation.compile_ast(&mut bv, &y));
@@ -2039,7 +2130,8 @@ pub fn compile(v: Vec<Token>, mode_cmd: bool,
 
   bv.append(&mut compilation.bv_blocks);
 
-  print_asm_listing(&bv);
+  // print_asm_listing(&bv);
+  // print_data(&compilation.data);
   let m = Rc::new(Module{program: bv, data: compilation.data});
   return Ok(m);
 }

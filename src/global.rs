@@ -1,6 +1,6 @@
 
 use vm::{object_to_string};
-use moss::{Object, FnResult, U32String, type_error, argc_error};
+use object::{Object, FnResult, U32String, type_error, argc_error};
 
 pub fn print(ret: &mut Object, pself: &Object, argv: &[Object]) -> FnResult{
   for i in 0..argv.len() {
@@ -45,6 +45,26 @@ pub fn abs(ret: &mut Object, pself: &Object, argv: &[Object]) -> FnResult{
     },
     _ => {
       return type_error("Type error in abs(x): x is not an int, float, complex.");
+    }
+  }
+}
+
+pub fn fpanic(ret: &mut Object, pself: &Object, argv: &[Object]) -> FnResult{
+  panic!()
+}
+
+pub fn eval(ret: &mut Object, pself: &Object, argv: &[Object]) -> FnResult{
+  if argv.len() != 1 {
+    return argc_error(argv.len(),1,1,"eval");
+  }
+  match argv[0] {
+    Object::String(ref s) => {
+      let a: String = s.v.iter().collect();
+      *ret = ::eval_string(&a,"");
+      return Ok(());
+    },
+    _ => {
+      return type_error("Type error in eval(s): s is not a string.");
     }
   }
 }

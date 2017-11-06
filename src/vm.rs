@@ -5,7 +5,7 @@ use std::mem::replace;
 use std::mem::transmute;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
-use moss::{Object, Map, List, Function, EnumFunction, StandardFn};
+use object::{Object, Map, List, Function, EnumFunction, StandardFn};
 use complex::Complex64;
 
 pub const BCSIZE: usize = 4;
@@ -791,17 +791,23 @@ fn operator_map(sp: usize, stack: &mut Vec<Object>, size: usize) -> usize{
   return sp;
 }
 
-fn compose_i32(b0: u8, b1: u8, b2: u8, b3: u8) -> i32{
-  return (b3 as i32)<<24 | (b2 as i32)<<16 | (b1 as i32)<<8 | (b0 as i32);
+#[inline(always)]
+fn compose_i32(a: &[u8], ip: usize) -> i32{
+  // (a[ip+3] as i32)<<24 | (a[ip+2] as i32)<<16 | (a[ip+1] as i32)<<8 | (a[ip] as i32)
+  unsafe{*((a.as_ptr().offset(ip as isize)) as *const i32)}
 }
 
-fn compose_u32(b0: u8, b1: u8, b2: u8, b3: u8) -> u32{
-  return (b3 as u32)<<24 | (b2 as u32)<<16 | (b1 as u32)<<8 | (b0 as u32);
+#[inline(always)]
+fn compose_u32(a: &[u8], ip: usize) -> u32{
+  // (a[ip+3] as u32)<<24 | (a[ip+2] as u32)<<16 | (a[ip+1] as u32)<<8 | (a[ip] as u32)
+  unsafe{*((a.as_ptr().offset(ip as isize)) as *const u32)}
 }
 
-fn compose_u64(b0: u8, b1: u8, b2: u8, b3: u8, b4: u8, b5: u8, b6: u8, b7: u8) -> u64{
-  return (b7 as u64)<<56 | (b6 as u64)<<48 | (b5 as u64)<<40 | (b4 as u64)<<32
-       | (b3 as u64)<<24 | (b2 as u64)<<16 | (b1 as u64)<<8 | (b0 as u64);
+#[inline(always)]
+fn compose_u64(a: &[u8], ip: usize) -> u64{
+  (a[ip+7] as u64)<<56 | (a[ip+6] as u64)<<48 | (a[ip+5] as u64)<<40 | (a[ip+4] as u64)<<32 |
+  (a[ip+3] as u64)<<24 | (a[ip+2] as u64)<<16 | (a[ip+1] as u64)<< 8 | (a[ip] as u64)
+  // unsafe{*((a.as_ptr().offset(ip as isize)) as *const u64)}
 }
 
 struct Frame{
@@ -813,22 +819,30 @@ struct Frame{
   argv_ptr: usize
 }
 
-const STACK_SIZE: usize = 100;
+struct State{
+  stack: Vec<Object>,
+  sp: usize
+}
 
-pub fn eval(module: Rc<Module>, gtab: Rc<RefCell<Map>>){
+const STACK_SIZE: usize = 2000;
+const FRAME_STACK_SIZE: usize = 200;
+
+fn vm_loop(state: &mut State, module: Rc<Module>, gtab: Rc<RefCell<Map>>){
+  let mut stack = &mut state.stack;
   let mut module = module;
   let mut gtab = gtab;
   let mut a: &[u8] = unsafe{&*(&module.program as &[u8] as *const [u8])};
   let mut ip=0;
-  let mut stack: Vec<Object> = Vec::with_capacity(STACK_SIZE);
-  for _ in 0..STACK_SIZE {
-    stack.push(Object::Null);
-  }
-  let mut sp=0;
+  let mut sp=state.sp;
   let mut argv_ptr=0;
-  let mut frame_stack: Vec<Frame> = Vec::new();
+  let mut frame_stack: Vec<Frame> = Vec::with_capacity(FRAME_STACK_SIZE);
+  let mut fnself = Rc::new(Function{
+      f: EnumFunction::Plain(::global::fpanic),
+      argc_min: 0, argc_max: 0
+  });
   loop{
     // print_op(a[ip]);
+    // match unsafe{*a.get_unchecked(ip)} {
     match a[ip] {
       bc::NULL => {
         stack[sp] = Object::Null;
@@ -846,55 +860,61 @@ pub fn eval(module: Rc<Module>, gtab: Rc<RefCell<Map>>){
         sp+=1;
       },
       bc::INT => {
-        ip+=BCSIZEP4;
-        stack[sp] = Object::Int(compose_i32(a[ip-4],a[ip-3],a[ip-2],a[ip-1]));
+        stack[sp] = Object::Int(compose_i32(a,ip+BCSIZE));
         sp+=1;
+        ip+=BCSIZEP4;
       },
       bc::FLOAT => {
-        ip+=BCSIZEP8;
-        stack[sp] = Object::Float(unsafe{transmute::<u64,f64>(compose_u64(
-          a[ip-8],a[ip-7],a[ip-6],a[ip-5],a[ip-4],a[ip-3],a[ip-2],a[ip-1]
-        ))});
+        stack[sp] = Object::Float(unsafe{
+          transmute::<u64,f64>(compose_u64(a,ip+BCSIZE))
+        });
         sp+=1;
+        ip+=BCSIZEP8;
       },
       bc::IMAG => {
-        ip+=BCSIZEP8;
         stack[sp] = Object::Complex(Complex64{re: 0.0,
-          im: unsafe{transmute::<u64,f64>(compose_u64(
-            a[ip-8],a[ip-7],a[ip-6],a[ip-5],a[ip-4],a[ip-3],a[ip-2],a[ip-1]
-        ))}});
+          im: unsafe{transmute::<u64,f64>(compose_u64(a,ip+BCSIZE))}
+        });
         sp+=1;
+        ip+=BCSIZEP8;
       },
       bc::STR => {
-        ip+=BCSIZEP4;
-        let index = compose_u32(a[ip-4],a[ip-3],a[ip-2],a[ip-1]);
+        let index = compose_u32(a,ip+BCSIZE);
         stack[sp] = module.data[index as usize].clone();
         sp+=1;
+        ip+=BCSIZEP4;
       },
       bc::LOAD => {
-        ip+=BCSIZEP4;
-        let index = compose_u32(a[ip-4],a[ip-3],a[ip-2],a[ip-1]);
+        let index = compose_u32(a,ip+BCSIZE);
         match gtab.borrow().m.get(&module.data[index as usize]) {
           Some(x) => {
             stack[sp] = x.clone();
             sp+=1;
           },
           None => {
+            println!("not found: {}",object_to_repr(&module.data[index as usize]));
+            println!("gtab: {}",object_to_repr(&Object::Map(gtab.clone())));
             panic!()
           }
         }
+        ip+=BCSIZEP4;
       },
       bc::STORE => {
-        ip+=BCSIZEP4;
-        let index = compose_u32(a[ip-4],a[ip-3],a[ip-2],a[ip-1]);
+        let index = compose_u32(a,ip+BCSIZE);
         let key = module.data[index as usize].clone();
         gtab.borrow_mut().m.insert(key,replace(&mut stack[sp-1],Object::Null));
         sp-=1;
+        ip+=BCSIZEP4;
       },
       bc::LOAD_ARG => {
-        ip+=BCSIZEP4;
-        let index = compose_u32(a[ip-4],a[ip-3],a[ip-2],a[ip-1]) as usize;
+        let index = compose_u32(a,ip+BCSIZE) as usize;
         stack[sp] = stack[argv_ptr+index].clone();
+        sp+=1;
+        ip+=BCSIZEP4;
+      },
+      bc::FNSELF => {
+        ip+=BCSIZE;
+        stack[sp] = Object::Function(fnself.clone());
         sp+=1;
       },
       bc::NEG => {
@@ -971,22 +991,22 @@ pub fn eval(module: Rc<Module>, gtab: Rc<RefCell<Map>>){
         ip+=BCSIZE;      
       },
       bc::LIST => {
-        ip+=BCSIZEP4;
-        let size = compose_u32(a[ip-4],a[ip-3],a[ip-2],a[ip-1]) as usize;
+        let size = compose_u32(a,ip+BCSIZE) as usize;
         sp = operator_list(sp,&mut stack,size);
+        ip+=BCSIZEP4;
       },
       bc::MAP => {
-        ip+=BCSIZEP4;
-        let size = compose_u32(a[ip-4],a[ip-3],a[ip-2],a[ip-1]) as usize;
+        let size = compose_u32(a,ip+BCSIZE) as usize;
         sp = operator_map(sp,&mut stack,size);
+        ip+=BCSIZEP4;
       },
       bc::FN => {
         ip+=BCSIZE+16;
-        let address = (ip as i32-20+compose_i32(a[ip-16],a[ip-15],a[ip-14],a[ip-13])) as usize;
+        let address = (ip as i32-20+compose_i32(a,ip-16)) as usize;
         // println!("fn [ip = {}]",address);
-        let argc_min = compose_i32(a[ip-12],a[ip-11],a[ip-10],a[ip-9]);
-        let argc_max = compose_i32(a[ip-8],a[ip-7],a[ip-6],a[ip-5]);
-        let var_count = compose_u32(a[ip-4],a[ip-3],a[ip-2],a[ip-1]);
+        let argc_min = compose_i32(a,ip-12);
+        let argc_max = compose_i32(a,ip-8);
+        let var_count = compose_u32(a,ip-4);
         stack[sp-1] = Function::new(StandardFn{
           address: address,
           module: module.clone(),
@@ -994,7 +1014,7 @@ pub fn eval(module: Rc<Module>, gtab: Rc<RefCell<Map>>){
         },argc_min,argc_max,var_count);
       },
       bc::JMP => {
-        ip = (ip as i32+compose_i32(a[ip+BCSIZE],a[ip+BCSIZE+1],a[ip+BCSIZE+2],a[ip+BCSIZE+3])) as usize;
+        ip = (ip as i32+compose_i32(a,ip+BCSIZE)) as usize;
       },
       bc::JZ => {
         let condition = match stack[sp-1] {
@@ -1004,7 +1024,7 @@ pub fn eval(module: Rc<Module>, gtab: Rc<RefCell<Map>>){
         if condition {
           ip+=BCSIZEP4;
         }else{
-          ip = (ip as i32+compose_i32(a[ip+BCSIZE],a[ip+BCSIZE+1],a[ip+BCSIZE+2],a[ip+BCSIZE+3])) as usize;
+          ip = (ip as i32+compose_i32(a,ip+BCSIZE)) as usize;
         }
       },
       bc::JNZ => {
@@ -1013,14 +1033,14 @@ pub fn eval(module: Rc<Module>, gtab: Rc<RefCell<Map>>){
           _ => panic!()
         };
         if condition {
-          ip = (ip as i32+compose_i32(a[ip+BCSIZE],a[ip+BCSIZE+1],a[ip+BCSIZE+2],a[ip+BCSIZE+3])) as usize;
+          ip = (ip as i32+compose_i32(a,ip+BCSIZE)) as usize;
         }else{
           ip+=BCSIZEP4;
         }
       },
       bc::CALL => {
         ip+=BCSIZEP4;
-        let argc = compose_u32(a[ip-4],a[ip-3],a[ip-2],a[ip-1]) as usize;
+        let argc = compose_u32(a,ip-4) as usize;
         let mut y = Object::Null;
         match stack[sp-argc-2] {
           Object::Function(ref f) => {
@@ -1037,7 +1057,7 @@ pub fn eval(module: Rc<Module>, gtab: Rc<RefCell<Map>>){
               EnumFunction::Std(ref sf) => {
                 frame_stack.push(Frame{
                   ip: ip,
-                  f: (*f).clone(),
+                  f: replace(&mut fnself,(*f).clone()),
                   module: replace(&mut module,sf.module.clone()),
                   gtab: replace(&mut gtab,sf.gtab.clone()),
                   argc: argc,
@@ -1061,6 +1081,7 @@ pub fn eval(module: Rc<Module>, gtab: Rc<RefCell<Map>>){
         argv_ptr = frame.argv_ptr;
         a = unsafe{&*(&module.program as &[u8] as *const [u8])};
         gtab = frame.gtab;
+        fnself = frame.f;
         let y = replace(&mut stack[sp-1],Object::Null);
         sp-=frame.argc+2;
         stack[sp-1] = y;
@@ -1071,17 +1092,53 @@ pub fn eval(module: Rc<Module>, gtab: Rc<RefCell<Map>>){
         ip+=BCSIZE;
       },
       bc::HALT => {
-        break;
+        state.sp=sp;
+        return;
       },
       _ => {panic!()}
     }
   }
-  for i in 0..sp {
-    match stack[i] {
-      Object::Null => {},
-      _ => {
-        println!("{}",object_to_repr(&stack[i]));
+}
+
+fn list_from_slice(a: &[Object]) -> Object {
+  let n = a.len();
+  let mut v: Vec<Object> = Vec::with_capacity(n);
+  for i in 0..n {
+    v.push(a[i].clone());
+  }
+  return List::new_object(v);
+}
+
+pub fn eval(module: Rc<Module>, gtab: Rc<RefCell<Map>>, command_line: bool)
+  -> Object
+{
+  let mut stack: Vec<Object> = Vec::with_capacity(STACK_SIZE);
+  for _ in 0..STACK_SIZE {
+    stack.push(Object::Null);
+  }
+
+  let mut state = State{stack: stack, sp: 0};
+  vm_loop(&mut state, module, gtab);
+
+  let stack = state.stack;
+  let sp = state.sp;
+  if command_line {
+    for i in 0..sp {
+      match stack[i] {
+        Object::Null => {},
+        _ => {
+          println!("{}",object_to_repr(&stack[i]));
+        }
       }
+    }
+    return Object::Null;
+  }else{
+    if sp==0 {
+      return Object::Null;
+    }else if sp==1 {
+      return stack[0].clone();
+    }else{
+      return list_from_slice(&stack[0..sp]);
     }
   }
 }
