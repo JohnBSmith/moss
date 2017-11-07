@@ -2161,6 +2161,7 @@ pub fn compile(v: Vec<Token>, mode_cmd: bool,
 
   // print_asm_listing(&bv);
   // print_data(&compilation.data);
-  let m = Rc::new(Module{program: bv, data: compilation.data});
+  // let m = Rc::new(Module{program: bv, data: compilation.data});
+  let m = Rc::new(Module{program: Rc::new(bv), data: compilation.data});
   return Ok(m);
 }

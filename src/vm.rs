@@ -212,11 +212,6 @@ impl Hash for Object{
   }
 }
 
-pub struct Module{
-  pub program: Vec<u8>,
-  pub data: Vec<Object>
-}
-
 fn list_to_string(a: &[Object]) -> String{
   let mut s = String::from("[");
   for i in 0..a.len() {
@@ -796,14 +791,14 @@ fn operator_map(sp: usize, stack: &mut Vec<Object>, size: usize) -> usize{
 
 #[inline(always)]
 fn compose_i32(a: &[u8], ip: usize) -> i32{
-  // (a[ip+3] as i32)<<24 | (a[ip+2] as i32)<<16 | (a[ip+1] as i32)<<8 | (a[ip] as i32)
-  unsafe{*((a.as_ptr().offset(ip as isize)) as *const i32)}
+  (a[ip+3] as i32)<<24 | (a[ip+2] as i32)<<16 | (a[ip+1] as i32)<<8 | (a[ip] as i32)
+  // unsafe{*((a.as_ptr().offset(ip as isize)) as *const i32)}
 }
 
 #[inline(always)]
 fn compose_u32(a: &[u8], ip: usize) -> u32{
-  // (a[ip+3] as u32)<<24 | (a[ip+2] as u32)<<16 | (a[ip+1] as u32)<<8 | (a[ip] as u32)
-  unsafe{*((a.as_ptr().offset(ip as isize)) as *const u32)}
+  (a[ip+3] as u32)<<24 | (a[ip+2] as u32)<<16 | (a[ip+1] as u32)<<8 | (a[ip] as u32)
+  // unsafe{*((a.as_ptr().offset(ip as isize)) as *const u32)}
 }
 
 #[inline(always)]
@@ -811,6 +806,12 @@ fn compose_u64(a: &[u8], ip: usize) -> u64{
   (a[ip+7] as u64)<<56 | (a[ip+6] as u64)<<48 | (a[ip+5] as u64)<<40 | (a[ip+4] as u64)<<32 |
   (a[ip+3] as u64)<<24 | (a[ip+2] as u64)<<16 | (a[ip+1] as u64)<< 8 | (a[ip] as u64)
   // unsafe{*((a.as_ptr().offset(ip as isize)) as *const u64)}
+}
+
+pub struct Module{
+  pub program: Rc<Vec<u8>>,
+  // pub program: Vec<u8>,
+  pub data: Vec<Object>
 }
 
 struct Frame{
@@ -836,7 +837,8 @@ fn vm_loop(state: &mut State, module: Rc<Module>, gtab: Rc<RefCell<Map>>)
   let mut stack = &mut state.stack;
   let mut module = module;
   let mut gtab = gtab;
-  let mut a: &[u8] = unsafe{&*(&module.program as &[u8] as *const [u8])};
+  // let mut a: &[u8] = unsafe{&*(&module.program as &[u8] as *const [u8])};
+  let mut a = module.program.clone();
   let mut ip=0;
   let mut sp=state.sp;
   let mut argv_ptr=0;
@@ -865,32 +867,32 @@ fn vm_loop(state: &mut State, module: Rc<Module>, gtab: Rc<RefCell<Map>>)
         sp+=1;
       },
       bc::INT => {
-        stack[sp] = Object::Int(compose_i32(a,ip+BCSIZE));
+        stack[sp] = Object::Int(compose_i32(&a,ip+BCSIZE));
         sp+=1;
         ip+=BCSIZEP4;
       },
       bc::FLOAT => {
         stack[sp] = Object::Float(unsafe{
-          transmute::<u64,f64>(compose_u64(a,ip+BCSIZE))
+          transmute::<u64,f64>(compose_u64(&a,ip+BCSIZE))
         });
         sp+=1;
         ip+=BCSIZEP8;
       },
       bc::IMAG => {
         stack[sp] = Object::Complex(Complex64{re: 0.0,
-          im: unsafe{transmute::<u64,f64>(compose_u64(a,ip+BCSIZE))}
+          im: unsafe{transmute::<u64,f64>(compose_u64(&a,ip+BCSIZE))}
         });
         sp+=1;
         ip+=BCSIZEP8;
       },
       bc::STR => {
-        let index = compose_u32(a,ip+BCSIZE);
+        let index = compose_u32(&a,ip+BCSIZE);
         stack[sp] = module.data[index as usize].clone();
         sp+=1;
         ip+=BCSIZEP4;
       },
       bc::LOAD => {
-        let index = compose_u32(a,ip+BCSIZE);
+        let index = compose_u32(&a,ip+BCSIZE);
         match gtab.borrow().m.get(&module.data[index as usize]) {
           Some(x) => {
             stack[sp] = x.clone();
@@ -905,14 +907,14 @@ fn vm_loop(state: &mut State, module: Rc<Module>, gtab: Rc<RefCell<Map>>)
         ip+=BCSIZEP4;
       },
       bc::STORE => {
-        let index = compose_u32(a,ip+BCSIZE);
+        let index = compose_u32(&a,ip+BCSIZE);
         let key = module.data[index as usize].clone();
         gtab.borrow_mut().m.insert(key,replace(&mut stack[sp-1],Object::Null));
         sp-=1;
         ip+=BCSIZEP4;
       },
       bc::LOAD_ARG => {
-        let index = compose_u32(a,ip+BCSIZE) as usize;
+        let index = compose_u32(&a,ip+BCSIZE) as usize;
         stack[sp] = stack[argv_ptr+index].clone();
         sp+=1;
         ip+=BCSIZEP4;
@@ -996,22 +998,22 @@ fn vm_loop(state: &mut State, module: Rc<Module>, gtab: Rc<RefCell<Map>>)
         ip+=BCSIZE;      
       },
       bc::LIST => {
-        let size = compose_u32(a,ip+BCSIZE) as usize;
+        let size = compose_u32(&a,ip+BCSIZE) as usize;
         sp = operator_list(sp,&mut stack,size);
         ip+=BCSIZEP4;
       },
       bc::MAP => {
-        let size = compose_u32(a,ip+BCSIZE) as usize;
+        let size = compose_u32(&a,ip+BCSIZE) as usize;
         sp = operator_map(sp,&mut stack,size);
         ip+=BCSIZEP4;
       },
       bc::FN => {
         ip+=BCSIZE+16;
-        let address = (ip as i32-20+compose_i32(a,ip-16)) as usize;
+        let address = (ip as i32-20+compose_i32(&a,ip-16)) as usize;
         // println!("fn [ip = {}]",address);
-        let argc_min = compose_i32(a,ip-12);
-        let argc_max = compose_i32(a,ip-8);
-        let var_count = compose_u32(a,ip-4);
+        let argc_min = compose_i32(&a,ip-12);
+        let argc_max = compose_i32(&a,ip-8);
+        let var_count = compose_u32(&a,ip-4);
         stack[sp-1] = Function::new(StandardFn{
           address: address,
           module: module.clone(),
@@ -1019,7 +1021,7 @@ fn vm_loop(state: &mut State, module: Rc<Module>, gtab: Rc<RefCell<Map>>)
         },argc_min,argc_max,var_count);
       },
       bc::JMP => {
-        ip = (ip as i32+compose_i32(a,ip+BCSIZE)) as usize;
+        ip = (ip as i32+compose_i32(&a,ip+BCSIZE)) as usize;
       },
       bc::JZ => {
         let condition = match stack[sp-1] {
@@ -1029,7 +1031,7 @@ fn vm_loop(state: &mut State, module: Rc<Module>, gtab: Rc<RefCell<Map>>)
         if condition {
           ip+=BCSIZEP4;
         }else{
-          ip = (ip as i32+compose_i32(a,ip+BCSIZE)) as usize;
+          ip = (ip as i32+compose_i32(&a,ip+BCSIZE)) as usize;
         }
       },
       bc::JNZ => {
@@ -1038,14 +1040,14 @@ fn vm_loop(state: &mut State, module: Rc<Module>, gtab: Rc<RefCell<Map>>)
           _ => panic!()
         };
         if condition {
-          ip = (ip as i32+compose_i32(a,ip+BCSIZE)) as usize;
+          ip = (ip as i32+compose_i32(&a,ip+BCSIZE)) as usize;
         }else{
           ip+=BCSIZEP4;
         }
       },
       bc::CALL => {
         ip+=BCSIZEP4;
-        let argc = compose_u32(a,ip-4) as usize;
+        let argc = compose_u32(&a,ip-4) as usize;
         let mut y = Object::Null;
         match stack[sp-argc-2] {
           Object::Function(ref f) => {
@@ -1068,7 +1070,8 @@ fn vm_loop(state: &mut State, module: Rc<Module>, gtab: Rc<RefCell<Map>>)
                   argc: argc,
                   argv_ptr: argv_ptr
                 });
-                a = unsafe{&*(&module.program as &[u8] as *const [u8])};
+                // a = unsafe{&*(&module.program as &[u8] as *const [u8])};
+                a = module.program.clone();
                 ip = sf.address;
                 argv_ptr = sp-argc-1;
                 continue;
@@ -1084,7 +1087,8 @@ fn vm_loop(state: &mut State, module: Rc<Module>, gtab: Rc<RefCell<Map>>)
         module = frame.module;
         ip = frame.ip;
         argv_ptr = frame.argv_ptr;
-        a = unsafe{&*(&module.program as &[u8] as *const [u8])};
+        // a = unsafe{&*(&module.program as &[u8] as *const [u8])};
+        a = module.program.clone();
         gtab = frame.gtab;
         fnself = frame.f;
         let y = replace(&mut stack[sp-1],Object::Null);
