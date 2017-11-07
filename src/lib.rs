@@ -16,7 +16,7 @@ mod complex;
 
 use std::fs::File;
 use std::io::Read;
-use object::{Object, Map, Function};
+use object::{Object, Map, Function, Exception};
 use vm::eval;
 
 fn init_gtab(gtab: &mut Map){
@@ -52,7 +52,12 @@ pub fn command_line_session(){
         // compiler::print_vtoken(&v);
         match compiler::compile(v,true,&mut history,"command line") {
           Ok(module) => {
-            eval(module.clone(),gtab.clone(),true);
+            match eval(module.clone(),gtab.clone(),true) {
+              Ok(x) => {},
+              Err(e) => {
+                println!("{}",::vm::object_to_string(&e.value));
+              }
+            }
           },
           Err(e) => {compiler::print_error(&e);}
         };
@@ -64,7 +69,7 @@ pub fn command_line_session(){
   }
 }
 
-pub fn eval_string(s: &str, id: &str) -> Object {
+pub fn eval_string(s: &str, id: &str) -> Result<Object,Box<Exception>> {
   let mut history = system::History::new();
   match compiler::scan(s,1,id) {
     Ok(v) => {
@@ -81,7 +86,7 @@ pub fn eval_string(s: &str, id: &str) -> Object {
       compiler::print_error(&error);
     }
   }
-  return Object::Null;
+  return Ok(Object::Null);
 }
 
 pub fn eval_file(id: &str){
@@ -101,7 +106,12 @@ pub fn eval_file(id: &str){
   };
   let mut s = String::new();
   f.read_to_string(&mut s).expect("something went wrong reading the file");
-  eval_string(&s,id);
+  match eval_string(&s,id) {
+    Ok(x) => {},
+    Err(e) => {
+      println!("{}",::vm::object_to_string(&e.value));
+    }
+  }
 }
 
 pub struct Interpreter{}
@@ -111,6 +121,9 @@ impl Interpreter{
     return Self{}
   }
   pub fn eval(&self, s: &str) -> Object {
-    return eval_string(s,"");
+    return match eval_string(s,"") {
+      Ok(x) => x,
+      Err(e) => e.value
+    };
   }
 }

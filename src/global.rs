@@ -60,8 +60,10 @@ pub fn eval(ret: &mut Object, pself: &Object, argv: &[Object]) -> FnResult{
   match argv[0] {
     Object::String(ref s) => {
       let a: String = s.v.iter().collect();
-      *ret = ::eval_string(&a,"");
-      return Ok(());
+      return match ::eval_string(&a,"") {
+        Ok(x) => {*ret=x; Ok(())},
+        Err(e) => Err(e)
+      }
     },
     _ => {
       return type_error("Type error in eval(s): s is not a string.");

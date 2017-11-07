@@ -1705,6 +1705,34 @@ fn compile_variable(&mut self, bv: &mut Vec<u8>, t: &ASTNode)
   };
 }
 
+fn string_literal(&mut self, s: &str) -> Result<String,Error> {
+  let mut y = String::new();
+  let mut escape = false;
+  for c in s.chars() {
+    if escape {
+      if c=='n' {y.push('\n');}
+      else if c=='s' {y.push(' ');}
+      else if c=='t' {y.push('t');}
+      else if c=='d' {y.push('"');}
+      else if c=='q' {y.push('\'');}
+      else if c=='b' {y.push('\\');}
+      else if c=='r' {y.push('\r');}
+      else if c=='e' {y.push('\x1b');}
+      else if c=='f' {y.push('\x0c');}
+      else if c=='0' {y.push('\x00');}
+      else if c=='v' {y.push('\x0b');}
+      else if c=='a' {y.push('\x07');}
+      else{y.push(c);}
+      escape = false;
+    }else if c == '\\' {
+      escape = true;
+    }else{
+      y.push(c);
+    }
+  }
+  return Ok(y);
+}
+
 fn compile_ast(&mut self, bv: &mut Vec<u8>, t: &Rc<ASTNode>)
   -> Result<(),Error>
 {
@@ -1809,8 +1837,9 @@ fn compile_ast(&mut self, bv: &mut Vec<u8>, t: &Rc<ASTNode>)
       panic!();
     }
   }else if t.symbol_type == SymbolType::String {
-    let key = match t.s {Some(ref x)=>x, None=>panic!()};
-    let index = self.get_index(key);
+    let s = match t.s {Some(ref x)=>x, None=>panic!()};
+    let key = try!(self.string_literal(s));
+    let index = self.get_index(&key);
     push_bc(bv,bc::STR,t.line,t.col);
     push_u32(bv,index as u32);
   }else{

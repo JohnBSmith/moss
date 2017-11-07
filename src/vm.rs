@@ -5,7 +5,10 @@ use std::mem::replace;
 use std::mem::transmute;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
-use object::{Object, Map, List, Function, EnumFunction, StandardFn};
+use object::{
+  Object, Map, List, Function, EnumFunction, StandardFn,
+  FnResult, Exception
+};
 use complex::Complex64;
 
 pub const BCSIZE: usize = 4;
@@ -827,7 +830,9 @@ struct State{
 const STACK_SIZE: usize = 2000;
 const FRAME_STACK_SIZE: usize = 200;
 
-fn vm_loop(state: &mut State, module: Rc<Module>, gtab: Rc<RefCell<Map>>){
+fn vm_loop(state: &mut State, module: Rc<Module>, gtab: Rc<RefCell<Map>>)
+  -> FnResult
+{
   let mut stack = &mut state.stack;
   let mut module = module;
   let mut gtab = gtab;
@@ -1049,7 +1054,7 @@ fn vm_loop(state: &mut State, module: Rc<Module>, gtab: Rc<RefCell<Map>>){
                 match fp(&mut y, &stack[sp-argc-1], &stack[sp-argc..sp]) {
                   Ok(()) => {},
                   Err(e) => {
-                    println!("{}",object_to_string(&e.value));
+                    return Err(e);
                   }
                 }
                 sp-=argc+1;
@@ -1093,7 +1098,7 @@ fn vm_loop(state: &mut State, module: Rc<Module>, gtab: Rc<RefCell<Map>>){
       },
       bc::HALT => {
         state.sp=sp;
-        return;
+        return Ok(());
       },
       _ => {panic!()}
     }
@@ -1110,7 +1115,7 @@ fn list_from_slice(a: &[Object]) -> Object {
 }
 
 pub fn eval(module: Rc<Module>, gtab: Rc<RefCell<Map>>, command_line: bool)
-  -> Object
+  -> Result<Object,Box<Exception>>
 {
   let mut stack: Vec<Object> = Vec::with_capacity(STACK_SIZE);
   for _ in 0..STACK_SIZE {
@@ -1118,7 +1123,7 @@ pub fn eval(module: Rc<Module>, gtab: Rc<RefCell<Map>>, command_line: bool)
   }
 
   let mut state = State{stack: stack, sp: 0};
-  vm_loop(&mut state, module, gtab);
+  try!(vm_loop(&mut state, module, gtab));
 
   let stack = state.stack;
   let sp = state.sp;
@@ -1131,14 +1136,14 @@ pub fn eval(module: Rc<Module>, gtab: Rc<RefCell<Map>>, command_line: bool)
         }
       }
     }
-    return Object::Null;
+    return Ok(Object::Null);
   }else{
     if sp==0 {
-      return Object::Null;
+      return Ok(Object::Null);
     }else if sp==1 {
-      return stack[0].clone();
+      return Ok(stack[0].clone());
     }else{
-      return list_from_slice(&stack[0..sp]);
+      return Ok(list_from_slice(&stack[0..sp]));
     }
   }
 }
