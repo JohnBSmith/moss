@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use object::{
   Object, Map, List, Function, EnumFunction, StandardFn,
-  FnResult, Exception
+  FnResult, Exception, type_error
 };
 use complex::Complex64;
 
@@ -281,459 +281,459 @@ pub fn object_to_repr(x: &Object) -> String{
   }
 }
 
-fn operator_neg(sp: usize, stack: &mut Vec<Object>) -> bool{
+fn operator_neg(sp: usize, stack: &mut Vec<Object>) -> FnResult {
   match stack[sp-1] {
     Object::Int(x) => {
       stack[sp-1] = Object::Int(-x);
-      false
+      Ok(())
     },
     Object::Float(x) => {
       stack[sp-1] = Object::Float(-x);
-      false
+      Ok(())
     },
-    _ => true
+    _ => type_error("Type error in -a.")
   }
 }
 
-fn operator_plus(sp: usize, stack: &mut Vec<Object>) -> bool{
+fn operator_plus(sp: usize, stack: &mut Vec<Object>) -> FnResult {
   match stack[sp-2] {
     Object::Int(x) => {
       match stack[sp-1] {
         Object::Int(y) => {
           stack[sp-2] = Object::Int(x+y);
-          false
+          Ok(())
         },
         Object::Float(y) => {
           stack[sp-2] = Object::Float(x as f64+y);
-          false
+          Ok(())
         },
         Object::Complex(y) => {
           stack[sp-2] = Object::Complex(x as f64+y);
-          false
+          Ok(())
         },
-        _ => true
+        _ => type_error("Type error in a+b.")
       }
     },
     Object::Float(x) => {
       match stack[sp-1] {
         Object::Int(y) => {
           stack[sp-2] = Object::Float(x+(y as f64));
-          false
+          Ok(())
         },
         Object::Float(y) => {
           stack[sp-2] = Object::Float(x+y);
-          false
+          Ok(())
         },
         Object::Complex(y) => {
           stack[sp-2] = Object::Complex(x+y);
-          false
+          Ok(())
         },
-        _ => true
+        _ => type_error("Type error in a+b.")
       }
     },
     Object::Complex(x) => {
       match stack[sp-1] {
         Object::Int(y) => {
           stack[sp-2] = Object::Complex(x+y as f64);
-          false
+          Ok(())
         },
         Object::Float(y) => {
           stack[sp-2] = Object::Complex(x+y);
-          false
+          Ok(())
         },
         Object::Complex(y) => {
           stack[sp-2] = Object::Complex(x+y);
-          false
+          Ok(())
         },
-        _ => true
+        _ => type_error("Type error in a+b.")
       }
     },
-    _ => true
+    _ => type_error("Type error in a+b.")
   }
 }
 
-fn operator_minus(sp: usize, stack: &mut Vec<Object>) -> bool{
+fn operator_minus(sp: usize, stack: &mut Vec<Object>) -> FnResult {
   match stack[sp-2] {
     Object::Int(x) => {
       match stack[sp-1] {
         Object::Int(y) => {
           stack[sp-2] = Object::Int(x-y);
-          false
+          Ok(())
         },
         Object::Float(y) => {
           stack[sp-2] = Object::Float(x as f64-y);
-          false
+          Ok(())
         },
         Object::Complex(y) => {
           stack[sp-2] = Object::Complex(x as f64-y);
-          false
+          Ok(())
         },
-        _ => true
+        _ => type_error("Type error in a-b.")
       }
     },
     Object::Float(x) => {
       match stack[sp-1] {
         Object::Int(y) => {
           stack[sp-2] = Object::Float(x-(y as f64));
-          false
+          Ok(())
         },
         Object::Float(y) => {
           stack[sp-2] = Object::Float(x-y);
-          false
+          Ok(())
         },
         Object::Complex(y) => {
           stack[sp-2] = Object::Complex(x-y);
-          false
+          Ok(())
         },
-        _ => true
+        _ => type_error("Type error in a-b.")
       }
     },
     Object::Complex(x) => {
       match stack[sp-1] {
         Object::Int(y) => {
           stack[sp-2] = Object::Complex(x-y as f64);
-          false
+          Ok(())
         },
         Object::Float(y) => {
           stack[sp-2] = Object::Complex(x-y);
-          false
+          Ok(())
         },
         Object::Complex(y) => {
           stack[sp-2] = Object::Complex(x-y);
-          false
+          Ok(())
         },
-        _ => true
+        _ => type_error("Type error in a-b.")
       }
     },
-    _ => true
+    _ => type_error("Type error in a-b.")
   }
 }
 
-fn operator_mpy(sp: usize, stack: &mut Vec<Object>) -> bool{
+fn operator_mpy(sp: usize, stack: &mut Vec<Object>) -> FnResult {
   match stack[sp-2] {
     Object::Int(x) => {
       match stack[sp-1] {
         Object::Int(y) => {
           stack[sp-2] = Object::Int(x*y);
-          false
+          Ok(())
         },
         Object::Float(y) => {
           stack[sp-2] = Object::Float((x as f64)*y);
-          false
+          Ok(())
         },
         Object::Complex(y) => {
           stack[sp-2] = Object::Complex(x as f64*y);
-          false
+          Ok(())
         },
-        _ => true
+        _ => type_error("Type error in a*b.")
       }
     },
     Object::Float(x) => {
       match stack[sp-1] {
         Object::Int(y) => {
           stack[sp-2] = Object::Float(x*(y as f64));
-          false
+          Ok(())
         },
         Object::Float(y) => {
           stack[sp-2] = Object::Float(x*y);
-          false
+          Ok(())
         },
         Object::Complex(y) => {
           stack[sp-2] = Object::Complex(x*y);
-          false
+          Ok(())
         },
-        _ => true
+        _ => type_error("Type error in a*b.")
       }
     },
     Object::Complex(x) => {
       match stack[sp-1] {
         Object::Int(y) => {
           stack[sp-2] = Object::Complex(y as f64*x);
-          false
+          Ok(())
         },
         Object::Float(y) => {
           stack[sp-2] = Object::Complex(y*x);
-          false
+          Ok(())
         },
         Object::Complex(y) => {
           stack[sp-2] = Object::Complex(x*y);
-          false
+          Ok(())
         },
-        _ => true
+        _ => type_error("Type error in a*b.")
       }
     },
-    _ => true
+    _ => type_error("Type error in a*b.")
   }
 }
 
-fn operator_div(sp: usize, stack: &mut Vec<Object>) -> bool{
+fn operator_div(sp: usize, stack: &mut Vec<Object>) -> FnResult {
   match stack[sp-2] {
     Object::Int(x) => {
       match stack[sp-1] {
         Object::Int(y) => {
           stack[sp-2] = Object::Float((x as f64 )/(y as f64));
-          false
+          Ok(())
         },
         Object::Float(y) => {
           stack[sp-2] = Object::Float((x as f64)/y);
-          false
+          Ok(())
         },
         Object::Complex(y) => {
           stack[sp-2] = Object::Complex(x as f64/y);
-          false
+          Ok(())
         },
-        _ => true
+        _ => type_error("Type error in a/b.")
       }
     },
     Object::Float(x) => {
       match stack[sp-1] {
         Object::Int(y) => {
           stack[sp-2] = Object::Float(x/(y as f64));
-          false
+          Ok(())
         },
         Object::Float(y) => {
           stack[sp-2] = Object::Float(x/y);
-          false
+          Ok(())
         },
         Object::Complex(y) => {
           stack[sp-2] = Object::Complex(x/y);
-          false
+          Ok(())
         },
-        _ => true
+        _ => type_error("Type error in a/b.")
       }
     },
     Object::Complex(x) => {
       match stack[sp-1] {
         Object::Int(y) => {
           stack[sp-2] = Object::Complex(x/y as f64);
-          false
+          Ok(())
         },
         Object::Float(y) => {
           stack[sp-2] = Object::Complex(x/y);
-          false
+          Ok(())
         },
         Object::Complex(y) => {
           stack[sp-2] = Object::Complex(x/y);
-          false
+          Ok(())
         },
-        _ => true
+        _ => type_error("Type error in a/b.")
       }
     },
-    _ => true
+    _ => type_error("Type error in a/b.")
   }
 }
 
-fn operator_idiv(sp: usize, stack: &mut Vec<Object>) -> bool{
+fn operator_idiv(sp: usize, stack: &mut Vec<Object>) -> FnResult {
   match stack[sp-2] {
     Object::Int(x) => {
       match stack[sp-1] {
         Object::Int(y) => {
           stack[sp-2] = Object::Int(x/y);
-          false
+          Ok(())
         },
-        _ => true
+        _ => type_error("Type error in a//b.")
       }
     },
-    _ => true
+    _ => type_error("Type error in a//b.")
   }
 }
 
-fn operator_pow(sp: usize, stack: &mut Vec<Object>) -> bool{
+fn operator_pow(sp: usize, stack: &mut Vec<Object>) -> FnResult {
   match stack[sp-2] {
     Object::Int(x) => {
       match stack[sp-1] {
         Object::Int(y) => {
           stack[sp-2] = Object::Int(x.pow(y as u32));
-          false
+          Ok(())
         },
         Object::Float(y) => {
           stack[sp-2] = Object::Float((x as f64).powf(y));
-          false
+          Ok(())
         },
         Object::Complex(y) => {
           stack[sp-2] = Object::Complex(y.expa(x as f64));
-          false
+          Ok(())
         },
-        _ => true
+        _ => type_error("Type error in a^b.")
       }
     },
     Object::Float(x) => {
       match stack[sp-1] {
         Object::Int(y) => {
           stack[sp-2] = Object::Float(x.powi(y));
-          false
+          Ok(())
         },
         Object::Float(y) => {
           stack[sp-2] = Object::Float(x.powf(y));
-          false
+          Ok(())
         },
         Object::Complex(y) => {
           stack[sp-2] = Object::Complex(y.expa(x));
-          false
+          Ok(())
         },
-        _ => true
+        _ => type_error("Type error in a^b.")
       }
     },
     Object::Complex(x) => {
       match stack[sp-1] {
         Object::Int(y) => {
           stack[sp-2] = Object::Complex(x.powf(y as f64));
-          false
+          Ok(())
         },
         Object::Float(y) => {
           stack[sp-2] = Object::Complex(x.powf(y));
-          false
+          Ok(())
         },
         Object::Complex(y) => {
           stack[sp-2] = Object::Complex(x.pow(y));
-          false
+          Ok(())
         },
-        _ => true
+        _ => type_error("Type error in a^b.")
       }
     },
-    _ => true
+    _ => type_error("Type error in a^b.")
   }
 }
 
-fn operator_lt(sp: usize, stack: &mut Vec<Object>) -> bool{
+fn operator_lt(sp: usize, stack: &mut Vec<Object>) -> FnResult {
   match stack[sp-2] {
     Object::Int(x) => {
       match stack[sp-1] {
         Object::Int(y) => {
           stack[sp-2] = Object::Bool(x<y);
-          false
+          Ok(())
         },
         Object::Float(y) => {
           stack[sp-2] = Object::Bool((x as f64)<y);
-          false
+          Ok(())
         },
-        _ => true
+        _ => type_error("Type error in a<b.")
       }
     },
     Object::Float(x) => {
       match stack[sp-1] {
         Object::Int(y) => {
           stack[sp-2] = Object::Bool(x<(y as f64));
-          false
+          Ok(())
         },
         Object::Float(y) => {
           stack[sp-2] = Object::Bool(x<y);
-          false
+          Ok(())
         },
-        _ => true
+        _ => type_error("Type error in a<b.")
       }
     },
-    _ => true
+    _ => type_error("Type error in a<b.")
   }
 }
 
-fn operator_gt(sp: usize, stack: &mut Vec<Object>) -> bool{
+fn operator_gt(sp: usize, stack: &mut Vec<Object>) -> FnResult {
   match stack[sp-2] {
     Object::Int(x) => {
       match stack[sp-1] {
         Object::Int(y) => {
           stack[sp-2] = Object::Bool(x>y);
-          false
+          Ok(())
         },
         Object::Float(y) => {
           stack[sp-2] = Object::Bool((x as f64)>y);
-          false
+          Ok(())
         },
-        _ => true
+        _ => type_error("Type error in a>b.")
       }
     },
     Object::Float(x) => {
       match stack[sp-1] {
         Object::Int(y) => {
           stack[sp-2] = Object::Bool(x>(y as f64));
-          false
+          Ok(())
         },
         Object::Float(y) => {
           stack[sp-2] = Object::Bool(x>y);
-          false
+          Ok(())
         },
-        _ => true
+        _ => type_error("Type error in a>b.")
       }
     },
-    _ => true
+    _ => type_error("Type error in a>b.")
   }
 }
 
-fn operator_le(sp: usize, stack: &mut Vec<Object>) -> bool{
+fn operator_le(sp: usize, stack: &mut Vec<Object>) -> FnResult {
   match stack[sp-2] {
     Object::Int(x) => {
       match stack[sp-1] {
         Object::Int(y) => {
           stack[sp-2] = Object::Bool(x<=y);
-          false
+          Ok(())
         },
         Object::Float(y) => {
           stack[sp-2] = Object::Bool((x as f64)<=y);
-          false
+          Ok(())
         },
-        _ => true
+        _ => type_error("Type error in a<=b.")
       }
     },
     Object::Float(x) => {
       match stack[sp-1] {
         Object::Int(y) => {
           stack[sp-2] = Object::Bool(x<=(y as f64));
-          false
+          Ok(())
         },
         Object::Float(y) => {
           stack[sp-2] = Object::Bool(x<=y);
-          false
+          Ok(())
         },
-        _ => true
+        _ => type_error("Type error in a<=b.")
       }
     },
-    _ => true
+    _ => type_error("Type error in a<=b.")
   }
 }
 
-fn operator_ge(sp: usize, stack: &mut Vec<Object>) -> bool{
+fn operator_ge(sp: usize, stack: &mut Vec<Object>) -> FnResult {
   match stack[sp-2] {
     Object::Int(x) => {
       match stack[sp-1] {
         Object::Int(y) => {
           stack[sp-2] = Object::Bool(x<y);
-          false
+          Ok(())
         },
         Object::Float(y) => {
           stack[sp-2] = Object::Bool((x as f64)>=y);
-          false
+          Ok(())
         },
-        _ => true
+        _ => type_error("Type error in a>=b.")
       }
     },
     Object::Float(x) => {
       match stack[sp-1] {
         Object::Int(y) => {
           stack[sp-2] = Object::Bool(x>=(y as f64));
-          false
+          Ok(())
         },
         Object::Float(y) => {
           stack[sp-2] = Object::Bool(x>=y);
-          false
+          Ok(())
         },
-        _ => true
+        _ => type_error("Type error in a>=b.")
       }
     },
-    _ => true
+    _ => type_error("Type error in a>=b.")
   }
 }
 
-fn operator_is(sp: usize, stack: &mut Vec<Object>) -> bool{
+fn operator_is(sp: usize, stack: &mut Vec<Object>) -> FnResult {
   match stack[sp-2] {
     Object::Bool(x) => {
       match stack[sp-1] {
         Object::Bool(y) => {
           stack[sp-2] = Object::Bool(x==y);
-          false
+          Ok(())
         },
         _ => {
           stack[sp-2] = Object::Bool(false);
-          false
+          Ok(())
         }
       }
     },
@@ -741,11 +741,11 @@ fn operator_is(sp: usize, stack: &mut Vec<Object>) -> bool{
       match stack[sp-1] {
         Object::Int(y) => {
           stack[sp-2] = Object::Bool(x==y);
-          false
+          Ok(())
         },
         _ => {
           stack[sp-2] = Object::Bool(false);
-          false
+          Ok(())
         }
       }
     },
@@ -753,15 +753,15 @@ fn operator_is(sp: usize, stack: &mut Vec<Object>) -> bool{
       match stack[sp-1] {
         Object::Float(y) => {
           stack[sp-2] = Object::Bool(x==y);
-          false
+          Ok(())
         },
         _ => {
           stack[sp-2] = Object::Bool(false);
-          false        
+          Ok(())       
         }
       }
     },
-    _ => true
+    _ => type_error("Type error in a is b.")
   }
 }
 
@@ -923,36 +923,36 @@ fn vm_loop(state: &mut State, module: Rc<Module>, gtab: Rc<RefCell<Map>>)
         sp+=1;
       },
       bc::NEG => {
-        if operator_neg(sp, &mut stack) {panic!();}
+        try!(operator_neg(sp, &mut stack));
         ip+=BCSIZE;
       },
       bc::ADD => {
-        if operator_plus(sp, &mut stack) {panic!();}
+        try!(operator_plus(sp, &mut stack));
         sp-=1;
         ip+=BCSIZE;
       },
       bc::SUB => {
-        if operator_minus(sp, &mut stack) {panic!();}
+        try!(operator_minus(sp, &mut stack));
         sp-=1;
         ip+=BCSIZE;
       },
       bc::MPY => {
-        if operator_mpy(sp, &mut stack) {panic!();}
+        try!(operator_mpy(sp, &mut stack));
         sp-=1;
         ip+=BCSIZE;
       },
       bc::DIV => {
-        if operator_div(sp, &mut stack) {panic!();}
+        try!(operator_div(sp, &mut stack));
         sp-=1;
         ip+=BCSIZE;
       },
       bc::IDIV => {
-        if operator_idiv(sp, &mut stack) {panic!();}
+        try!(operator_idiv(sp, &mut stack));
         sp-=1;
         ip+=BCSIZE;
       },
       bc::POW => {
-        if operator_pow(sp, &mut stack) {panic!();}
+        try!(operator_pow(sp, &mut stack));
         sp-=1;
         ip+=BCSIZE;
       },
@@ -971,27 +971,27 @@ fn vm_loop(state: &mut State, module: Rc<Module>, gtab: Rc<RefCell<Map>>)
         ip+=BCSIZE;
       },
       bc::LT => {
-        if operator_lt(sp,&mut stack) {panic!();}
+        try!(operator_lt(sp,&mut stack));
         sp-=1;
         ip+=BCSIZE;
       },
       bc::GT => {
-        if operator_gt(sp,&mut stack) {panic!();}
+        try!(operator_gt(sp,&mut stack));
         sp-=1;
         ip+=BCSIZE;
       },
       bc::LE => {
-        if operator_le(sp,&mut stack) {panic!();}
+        try!(operator_le(sp,&mut stack));
         sp-=1;
         ip+=BCSIZE;
       },
       bc::GE => {
-        if operator_ge(sp,&mut stack) {panic!();}
+        try!(operator_ge(sp,&mut stack));
         sp-=1;
         ip+=BCSIZE;
       },
       bc::IS => {
-        if operator_is(sp,&mut stack) {panic!();}
+        try!(operator_is(sp,&mut stack));
         sp-=1;
         ip+=BCSIZE;      
       },
