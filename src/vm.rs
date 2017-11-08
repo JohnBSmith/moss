@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use object::{
   Object, Map, List, Function, EnumFunction, StandardFn,
-  FnResult, Exception, type_error
+  FnResult, Exception, type_error, argc_error
 };
 use complex::Complex64;
 
@@ -811,21 +811,30 @@ fn compose_u64(a: &[u8], ip: usize) -> u64{
 pub struct Module{
   pub program: Rc<Vec<u8>>,
   // pub program: Vec<u8>,
+
+  // pub program: Rc<[u8]>,
+  // The type Rc<[T]> is available in Rust version 1.21 onwards.
+
   pub data: Vec<Object>
 }
 
 struct Frame{
   ip: usize,
+  base_pointer: usize,
   f: Rc<Function>,
   module: Rc<Module>,
   gtab: Rc<RefCell<Map>>,
   argc: usize,
-  argv_ptr: usize
+  argv_ptr: usize,
+  var_count: usize,
+  ret: bool,
+  catch: bool
 }
 
 struct State{
   stack: Vec<Object>,
-  sp: usize
+  sp: usize,
+  frame_stack: Vec<Frame>
 }
 
 const STACK_SIZE: usize = 2000;
@@ -841,12 +850,16 @@ fn vm_loop(state: &mut State, module: Rc<Module>, gtab: Rc<RefCell<Map>>)
   let mut a = module.program.clone();
   let mut ip=0;
   let mut sp=state.sp;
+  let mut bp=sp;
   let mut argv_ptr=0;
-  let mut frame_stack: Vec<Frame> = Vec::with_capacity(FRAME_STACK_SIZE);
   let mut fnself = Rc::new(Function{
       f: EnumFunction::Plain(::global::fpanic),
-      argc_min: 0, argc_max: 0
+      argc: 0, argc_min: 0, argc_max: 0
   });
+
+  let mut ret = true;
+  let mut catch = false;
+
   loop{
     // print_op(a[ip]);
     // match unsafe{*a.get_unchecked(ip)} {
@@ -1011,14 +1024,15 @@ fn vm_loop(state: &mut State, module: Rc<Module>, gtab: Rc<RefCell<Map>>)
         ip+=BCSIZE+16;
         let address = (ip as i32-20+compose_i32(&a,ip-16)) as usize;
         // println!("fn [ip = {}]",address);
-        let argc_min = compose_i32(&a,ip-12);
-        let argc_max = compose_i32(&a,ip-8);
+        let argc_min = compose_u32(&a,ip-12);
+        let argc_max = compose_u32(&a,ip-8);
         let var_count = compose_u32(&a,ip-4);
         stack[sp-1] = Function::new(StandardFn{
           address: address,
           module: module.clone(),
-          gtab: gtab.clone()
-        },argc_min,argc_max,var_count);
+          gtab: gtab.clone(),
+          var_count: var_count
+        },argc_min,argc_max);
       },
       bc::JMP => {
         ip = (ip as i32+compose_i32(&a,ip+BCSIZE)) as usize;
@@ -1048,11 +1062,12 @@ fn vm_loop(state: &mut State, module: Rc<Module>, gtab: Rc<RefCell<Map>>)
       bc::CALL => {
         ip+=BCSIZEP4;
         let argc = compose_u32(&a,ip-4) as usize;
-        let mut y = Object::Null;
-        match stack[sp-argc-2] {
+        let f = stack[sp-argc-2].clone();
+        match f {
           Object::Function(ref f) => {
             match f.f {
               EnumFunction::Plain(fp) => {
+                let mut y = Object::Null;
                 match fp(&mut y, &stack[sp-argc-1], &stack[sp-argc..sp]) {
                   Ok(()) => {},
                   Err(e) => {
@@ -1060,39 +1075,68 @@ fn vm_loop(state: &mut State, module: Rc<Module>, gtab: Rc<RefCell<Map>>)
                   }
                 }
                 sp-=argc+1;
+                stack[sp-1]=y;
+                continue;
               },
               EnumFunction::Std(ref sf) => {
-                frame_stack.push(Frame{
-                  ip: ip,
+                if argc != f.argc as usize {
+                  state.sp = sp;
+                  return argc_error(argc, f.argc_min, f.argc_max, "anonymous function");
+                }
+                state.frame_stack.push(Frame{
+                  ip: ip, base_pointer: bp,
                   f: replace(&mut fnself,(*f).clone()),
                   module: replace(&mut module,sf.module.clone()),
                   gtab: replace(&mut gtab,sf.gtab.clone()),
                   argc: argc,
-                  argv_ptr: argv_ptr
+                  argv_ptr: argv_ptr,
+                  var_count: sf.var_count as usize,
+                  ret: ret, catch: catch
                 });
                 // a = unsafe{&*(&module.program as &[u8] as *const [u8])};
                 a = module.program.clone();
                 ip = sf.address;
                 argv_ptr = sp-argc-1;
+                ret = false;
+                catch = false;
+
+                bp = sp;
+                for _ in 0..sf.var_count {
+                  stack[sp] = Object::Null;
+                  sp+=1;
+                }
+
                 continue;
               }
             }
           },
           _ => panic!()
         }
-        stack[sp-1]=y;
       },
       bc::RET => {
-        let frame = frame_stack.pop().unwrap();
+        if ret {
+          state.sp = sp;
+          return Ok(());
+        }
+        let frame = state.frame_stack.pop().unwrap();
         module = frame.module;
         ip = frame.ip;
         argv_ptr = frame.argv_ptr;
+        bp = frame.base_pointer;
         // a = unsafe{&*(&module.program as &[u8] as *const [u8])};
         a = module.program.clone();
         gtab = frame.gtab;
         fnself = frame.f;
+        ret = frame.ret;
+        catch = frame.catch;
+
         let y = replace(&mut stack[sp-1],Object::Null);
-        sp-=frame.argc+2;
+        let n = frame.argc+2+frame.var_count;
+        sp-=n;
+        for x in stack[sp..sp+n].iter_mut() {
+          *x = Object::Null;
+        }
+
         stack[sp-1] = y;
       },
       bc::POP => {
@@ -1125,8 +1169,9 @@ pub fn eval(module: Rc<Module>, gtab: Rc<RefCell<Map>>, command_line: bool)
   for _ in 0..STACK_SIZE {
     stack.push(Object::Null);
   }
+  let mut frame_stack: Vec<Frame> = Vec::with_capacity(FRAME_STACK_SIZE);
 
-  let mut state = State{stack: stack, sp: 0};
+  let mut state = State{stack, frame_stack, sp: 0};
   try!(vm_loop(&mut state, module, gtab));
 
   let stack = state.stack;

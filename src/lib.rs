@@ -16,13 +16,13 @@ mod complex;
 
 use std::fs::File;
 use std::io::Read;
-use object::{Object, Map, Function, Exception};
+use object::{Object, Map, Function, Exception, VARIADIC};
 use vm::eval;
 
 fn init_gtab(gtab: &mut Map){
-  let f = Function::plain(::global::print,0,-1);
+  let f = Function::plain(::global::print,0,VARIADIC);
   gtab.insert_str("print",f);
-  let f = Function::plain(::global::put,0,-1);
+  let f = Function::plain(::global::put,0,VARIADIC);
   gtab.insert_str("put",f);
   let f = Function::plain(::global::fstr,1,1);
   gtab.insert_str("str",f);

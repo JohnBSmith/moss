@@ -92,7 +92,7 @@ pub fn type_error(s: &str) -> FnResult{
   Exception::new(s)
 }
 
-pub fn argc_error(argc: usize, min: isize, max: isize, id: &str) -> FnResult{
+pub fn argc_error(argc: usize, min: u32, max: u32, id: &str) -> FnResult{
   if min==max {
     if min==0 {
       Exception::new(&format!("Error in {}: expected no argument, but got {}.",id,argc))
@@ -111,7 +111,8 @@ pub type PlainFn = fn(ret: &mut Object, pself: &Object, argv: &[Object]) -> FnRe
 pub struct StandardFn{
   pub address: usize,
   pub module: Rc<Module>,
-  pub gtab: Rc<RefCell<Map>>
+  pub gtab: Rc<RefCell<Map>>,
+  pub var_count: u32
 }
 
 pub enum EnumFunction{
@@ -121,22 +122,26 @@ pub enum EnumFunction{
 
 pub struct Function{
   pub f: EnumFunction,
-  pub argc_min: i32,
-  pub argc_max: i32
+  pub argc: u32,
+  pub argc_min: u32,
+  pub argc_max: u32
 }
 
+pub const VARIADIC: u32 = 0xffffffff;
+
 impl Function{
-  pub fn plain(fp: PlainFn, argc_min: i32, argc_max: i32) -> Object {
+  pub fn plain(fp: PlainFn, argc_min: u32, argc_max: u32) -> Object {
     Object::Function(Rc::new(Function{
       f: EnumFunction::Plain(fp),
+      argc: if argc_min==argc_max {argc_min} else {VARIADIC},
       argc_min: argc_min, argc_max: argc_max
     }))
   }
-  pub fn new(f: StandardFn, argc_min: i32, argc_max: i32, var_count: u32) -> Object {
+  pub fn new(f: StandardFn, argc_min: u32, argc_max: u32) -> Object {
     Object::Function(Rc::new(Function{
       f: EnumFunction::Std(f),
-      argc_min: argc_min,
-      argc_max: argc_max
+      argc: if argc_min==argc_max {argc_min} else {VARIADIC},
+      argc_min: argc_min, argc_max: argc_max
     }))
   }
 }
