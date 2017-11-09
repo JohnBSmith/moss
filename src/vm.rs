@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use object::{
   Object, Map, List, Function, EnumFunction, StandardFn,
-  FnResult, Exception, type_error, argc_error
+  FnResult, Exception, type_error, argc_error, index_error
 };
 use complex::Complex64;
 
@@ -60,6 +60,8 @@ pub mod bc{
   pub const STORE_ARG: u8 = 41;
   pub const STORE_CONTEXT: u8 = 42;
   pub const FNSELF: u8 = 43;
+  pub const GET_INDEX: u8 = 44;
+  pub const SET_INDEX: u8 = 45;
 
   pub fn op_to_str(x: u8) -> &'static str {
     match x {
@@ -114,6 +116,11 @@ pub mod bc{
 
 fn print_op(x: u8){
   println!("{}",bc::op_to_str(x));
+}
+
+fn print_stack(a: &[Object]){
+  let s = list_to_string(a);
+  println!("stack: {}",s);
 }
 
 impl PartialEq for Object{
@@ -248,10 +255,16 @@ pub fn object_to_string(x: &Object) -> String{
     Object::Float(x) => format!("{}",x),
     Object::Complex(z) => format!("{}+{}i",z.re,z.im),
     Object::List(ref a) => {
-      list_to_string(&a.borrow().v)
+      match a.try_borrow_mut() {
+        Ok(a) => list_to_string(&a.v),
+        Err(_) => String::from("[...]")        
+      }
     },
     Object::Map(ref a) => {
-      map_to_string(&a.borrow().m)
+      match a.try_borrow_mut() {
+        Ok(a) => map_to_string(&a.m),
+        Err(_) => String::from("[...]")        
+      }
     },
     Object::String(ref a) => {
       let s: String = a.v.iter().cloned().collect();
@@ -295,7 +308,10 @@ fn operator_plus(sp: usize, stack: &mut Vec<Object>) -> FnResult {
     Object::Int(x) => {
       match stack[sp-1] {
         Object::Int(y) => {
-          stack[sp-2] = Object::Int(x+y);
+          stack[sp-2] = match x.checked_add(y) {
+            Some(z) => Object::Int(z),
+            None => panic!()
+          };
           Ok(())
         },
         Object::Float(y) => {
@@ -352,7 +368,10 @@ fn operator_minus(sp: usize, stack: &mut Vec<Object>) -> FnResult {
     Object::Int(x) => {
       match stack[sp-1] {
         Object::Int(y) => {
-          stack[sp-2] = Object::Int(x-y);
+          stack[sp-2] = match x.checked_sub(y) {
+            Some(z) => Object::Int(z),
+            None => panic!()
+          };
           Ok(())
         },
         Object::Float(y) => {
@@ -409,7 +428,10 @@ fn operator_mpy(sp: usize, stack: &mut Vec<Object>) -> FnResult {
     Object::Int(x) => {
       match stack[sp-1] {
         Object::Int(y) => {
-          stack[sp-2] = Object::Int(x*y);
+          stack[sp-2] = match x.checked_mul(y) {
+            Some(z) => Object::Int(z),
+            None => panic!()
+          };
           Ok(())
         },
         Object::Float(y) => {
@@ -420,7 +442,9 @@ fn operator_mpy(sp: usize, stack: &mut Vec<Object>) -> FnResult {
           stack[sp-2] = Object::Complex(x as f64*y);
           Ok(())
         },
-        _ => type_error("Type error in a*b.")
+        _ => type_error(&format!("Type error in a*b: a={}, b={}.",
+          stack[sp-2].str(), stack[sp-1].str()
+        ))
       }
     },
     Object::Float(x) => {
@@ -437,7 +461,9 @@ fn operator_mpy(sp: usize, stack: &mut Vec<Object>) -> FnResult {
           stack[sp-2] = Object::Complex(x*y);
           Ok(())
         },
-        _ => type_error("Type error in a*b.")
+        _ => type_error(&format!("Type error in a*b: a={}, b={}.",
+          stack[sp-2].str(), stack[sp-1].str()
+        ))
       }
     },
     Object::Complex(x) => {
@@ -454,10 +480,14 @@ fn operator_mpy(sp: usize, stack: &mut Vec<Object>) -> FnResult {
           stack[sp-2] = Object::Complex(x*y);
           Ok(())
         },
-        _ => type_error("Type error in a*b.")
+        _ => type_error(&format!("Type error in a*b: a={}, b={}.",
+          stack[sp-2].str(), stack[sp-1].str()
+        ))
       }
     },
-    _ => type_error("Type error in a*b.")
+    _ => type_error(&format!("Type error in a*b: a={}, b={}.",
+      stack[sp-2].str(), stack[sp-1].str()
+    ))
   }
 }
 
@@ -789,6 +819,57 @@ fn operator_map(sp: usize, stack: &mut Vec<Object>, size: usize) -> usize{
   return sp;
 }
 
+fn operator_index(sp: usize, stack: &mut Vec<Object>) -> FnResult {
+  match stack[sp-2].clone() {
+    Object::List(a) => {
+      match stack[sp-1] {
+        Object::Int(i) => {
+          if i>=0 {
+            stack[sp-2] = match a.borrow().v.get(i as usize) {
+              Some(x) => x.clone(),
+              None => {
+                return index_error("Error in a[i]: i is out of bounds.");
+              }
+            };
+          }else{
+            return index_error("Error in a[i]: i is out of bounds.");
+          }
+          Ok(())
+        },
+        _ => type_error("Type error in a[i]: i is not an integer.")
+      }
+    },
+    _ => type_error("Type error in a[i]: a is not a list.")
+  }
+}
+
+fn index_assignment(sp: usize, stack: &mut Vec<Object>) -> FnResult {
+  match stack[sp-2].clone() {
+    Object::List(a) => {
+      match stack[sp-1] {
+        Object::Int(i) => {
+          if i>=0 {
+            match a.borrow_mut().v.get_mut(i as usize) {
+              Some(x) => {
+                *x = replace(&mut stack[sp-3],Object::Null);
+                stack[sp-2] = Object::Null;
+              },
+              None => {
+                return index_error("Error in a[i]: i is out of bounds.");
+              }
+            }
+          }else{
+            return index_error("Error in a[i]: i is out of bounds.");
+          }
+          Ok(())          
+        },
+        _ => type_error("Type error in a[i]=value: i is not an integer.")
+      }    
+    },
+    _ => type_error("Type error in a[i]=value: a is not a list.")
+  }
+}
+
 #[inline(always)]
 fn compose_i32(a: &[u8], ip: usize) -> i32{
   (a[ip+3] as i32)<<24 | (a[ip+2] as i32)<<16 | (a[ip+1] as i32)<<8 | (a[ip] as i32)
@@ -813,7 +894,7 @@ pub struct Module{
   // pub program: Vec<u8>,
 
   // pub program: Rc<[u8]>,
-  // The type Rc<[T]> is available in Rust version 1.21 onwards.
+  // Rc<[T]> is available in Rust version 1.21 onwards.
 
   pub data: Vec<Object>
 }
@@ -861,6 +942,7 @@ fn vm_loop(state: &mut State, module: Rc<Module>, gtab: Rc<RefCell<Map>>)
   let mut catch = false;
 
   loop{
+    // print_stack(&stack[0..10]);
     // print_op(a[ip]);
     // match unsafe{*a.get_unchecked(ip)} {
     match a[ip] {
@@ -904,32 +986,22 @@ fn vm_loop(state: &mut State, module: Rc<Module>, gtab: Rc<RefCell<Map>>)
         sp+=1;
         ip+=BCSIZEP4;
       },
-      bc::LOAD => {
-        let index = compose_u32(&a,ip+BCSIZE);
-        match gtab.borrow().m.get(&module.data[index as usize]) {
-          Some(x) => {
-            stack[sp] = x.clone();
-            sp+=1;
-          },
-          None => {
-            println!("not found: {}",object_to_repr(&module.data[index as usize]));
-            println!("gtab: {}",object_to_repr(&Object::Map(gtab.clone())));
-            panic!()
-          }
-        }
-        ip+=BCSIZEP4;
-      },
-      bc::STORE => {
-        let index = compose_u32(&a,ip+BCSIZE);
-        let key = module.data[index as usize].clone();
-        gtab.borrow_mut().m.insert(key,replace(&mut stack[sp-1],Object::Null));
-        sp-=1;
-        ip+=BCSIZEP4;
-      },
       bc::LOAD_ARG => {
         let index = compose_u32(&a,ip+BCSIZE) as usize;
         stack[sp] = stack[argv_ptr+index].clone();
         sp+=1;
+        ip+=BCSIZEP4;
+      },
+      bc::LOAD_LOCAL => {
+        let index = compose_u32(&a,ip+BCSIZE) as usize;
+        stack[sp] = stack[bp+index].clone();
+        sp+=1;
+        ip+=BCSIZEP4;
+      },
+      bc::STORE_LOCAL => {
+        sp-=1;
+        let index = compose_u32(&a,ip+BCSIZE) as usize;
+        stack[bp+index] = replace(&mut stack[sp],Object::Null);
         ip+=BCSIZEP4;
       },
       bc::FNSELF => {
@@ -1019,20 +1091,6 @@ fn vm_loop(state: &mut State, module: Rc<Module>, gtab: Rc<RefCell<Map>>)
         let size = compose_u32(&a,ip+BCSIZE) as usize;
         sp = operator_map(sp,&mut stack,size);
         ip+=BCSIZEP4;
-      },
-      bc::FN => {
-        ip+=BCSIZE+16;
-        let address = (ip as i32-20+compose_i32(&a,ip-16)) as usize;
-        // println!("fn [ip = {}]",address);
-        let argc_min = compose_u32(&a,ip-12);
-        let argc_max = compose_u32(&a,ip-8);
-        let var_count = compose_u32(&a,ip-4);
-        stack[sp-1] = Function::new(StandardFn{
-          address: address,
-          module: module.clone(),
-          gtab: gtab.clone(),
-          var_count: var_count
-        },argc_min,argc_max);
       },
       bc::JMP => {
         ip = (ip as i32+compose_i32(&a,ip+BCSIZE)) as usize;
@@ -1138,6 +1196,64 @@ fn vm_loop(state: &mut State, module: Rc<Module>, gtab: Rc<RefCell<Map>>)
         }
 
         stack[sp-1] = y;
+      },
+      bc::LOAD => {
+        let index = compose_u32(&a,ip+BCSIZE);
+        match gtab.borrow().m.get(&module.data[index as usize]) {
+          Some(x) => {
+            stack[sp] = x.clone();
+            sp+=1;
+          },
+          None => {
+            println!("not found: {}",object_to_repr(&module.data[index as usize]));
+            println!("gtab: {}",object_to_repr(&Object::Map(gtab.clone())));
+            panic!()
+          }
+        }
+        ip+=BCSIZEP4;
+      },
+      bc::STORE => {
+        let index = compose_u32(&a,ip+BCSIZE);
+        let key = module.data[index as usize].clone();
+        gtab.borrow_mut().m.insert(key,replace(&mut stack[sp-1],Object::Null));
+        sp-=1;
+        ip+=BCSIZEP4;
+      },
+      bc::STORE_ARG => {
+        sp-=1;
+        let index = compose_u32(&a,ip+BCSIZE) as usize;
+        stack[argv_ptr+index] = replace(&mut stack[sp],Object::Null);
+        ip+=BCSIZEP4;
+      },
+      bc::STORE_CONTEXT => {
+        panic!()
+      },
+      bc::LOAD_CONTEXT => {
+        panic!()
+      },
+      bc::FN => {
+        ip+=BCSIZE+16;
+        let address = (ip as i32-20+compose_i32(&a,ip-16)) as usize;
+        // println!("fn [ip = {}]",address);
+        let argc_min = compose_u32(&a,ip-12);
+        let argc_max = compose_u32(&a,ip-8);
+        let var_count = compose_u32(&a,ip-4);
+        stack[sp-1] = Function::new(StandardFn{
+          address: address,
+          module: module.clone(),
+          gtab: gtab.clone(),
+          var_count: var_count
+        },argc_min,argc_max);
+      },
+      bc::GET_INDEX => {
+        try!(operator_index(sp,&mut stack));
+        sp-=1;
+        ip+=BCSIZE;
+      },
+      bc::SET_INDEX => {
+        try!(index_assignment(sp,&mut stack));
+        sp-=3;
+        ip+=BCSIZE;
       },
       bc::POP => {
         sp-=1;

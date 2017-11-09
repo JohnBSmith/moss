@@ -576,7 +576,8 @@ pub struct Compilation<'a>{
   data: Vec<Object>,
   bv_blocks: Vec<u8>,
   fn_indices: Vec<usize>,
-  vtab: VarTab
+  vtab: VarTab,
+  function_nesting: usize
 }
 
 struct TokenIterator{
@@ -859,7 +860,9 @@ fn function_literal(&mut self, i: &mut TokenIterator, t0: &Token)
 
   let statement = self.statement;
   self.statement = true;
+  self.function_nesting+=1;
   let x = try!(self.statements(i,true));
+  self.function_nesting-=1;
   self.statement = statement;
 
   let p = try!(i.next_any_token(self));
@@ -1599,7 +1602,11 @@ fn compile_fn(&mut self, bv: &mut Vec<u8>, t: &Rc<ASTNode>)
   self.arguments(&a[0]);
 
   // Compile the function body.
+  self.function_nesting+=1;
   try!(self.compile_ast(&mut bv2,&a[1]));
+  self.function_nesting-=1;
+  
+  let var_count = self.vtab.count_local;
 
   // Restore.
   self.vtab = vtab;
@@ -1636,7 +1643,7 @@ fn compile_fn(&mut self, bv: &mut Vec<u8>, t: &Rc<ASTNode>)
   let argv = ast_argv(&a[0]);
   push_i32(bv,argv.len() as i32); // minimal argument count
   push_i32(bv,argv.len() as i32); // maximal argument count
-  push_u32(bv,0); // number of local variables
+  push_u32(bv,var_count as u32); // number of local variables
 
   // Append the code block to the buffer of code blocks.
   self.bv_blocks.append(&mut bv2);
@@ -1649,6 +1656,34 @@ fn offsets(&self, bv: &mut Vec<u8>, offset: i32){
     let x = compose_i32(&bv[index..index+4]);
     write_i32(&mut bv[index..index+4], x+BCSIZE as i32+offset-index as i32);
   }
+}
+
+fn string_literal(&mut self, s: &str) -> Result<String,Error> {
+  let mut y = String::new();
+  let mut escape = false;
+  for c in s.chars() {
+    if escape {
+      if c=='n' {y.push('\n');}
+      else if c=='s' {y.push(' ');}
+      else if c=='t' {y.push('t');}
+      else if c=='d' {y.push('"');}
+      else if c=='q' {y.push('\'');}
+      else if c=='b' {y.push('\\');}
+      else if c=='r' {y.push('\r');}
+      else if c=='e' {y.push('\x1b');}
+      else if c=='f' {y.push('\x0c');}
+      else if c=='0' {y.push('\x00');}
+      else if c=='v' {y.push('\x0b');}
+      else if c=='a' {y.push('\x07');}
+      else{y.push(c);}
+      escape = false;
+    }else if c == '\\' {
+      escape = true;
+    }else{
+      y.push(c);
+    }
+  }
+  return Ok(y);
 }
 
 fn arguments(&mut self, t: &ASTNode){
@@ -1689,6 +1724,10 @@ fn compile_variable(&mut self, bv: &mut Vec<u8>, t: &ASTNode)
           push_bc(bv,bc::LOAD_ARG,t.line,t.col);
           push_u32(bv,index as u32+1);
         },
+        VarType::Local => {
+          push_bc(bv,bc::LOAD_LOCAL,t.line,t.col);
+          push_u32(bv,index as u32);
+        },
         VarType::FnId => {
           push_bc(bv,bc::FNSELF,t.line,t.col);
         }
@@ -1705,32 +1744,37 @@ fn compile_variable(&mut self, bv: &mut Vec<u8>, t: &ASTNode)
   };
 }
 
-fn string_literal(&mut self, s: &str) -> Result<String,Error> {
-  let mut y = String::new();
-  let mut escape = false;
-  for c in s.chars() {
-    if escape {
-      if c=='n' {y.push('\n');}
-      else if c=='s' {y.push(' ');}
-      else if c=='t' {y.push('t');}
-      else if c=='d' {y.push('"');}
-      else if c=='q' {y.push('\'');}
-      else if c=='b' {y.push('\\');}
-      else if c=='r' {y.push('\r');}
-      else if c=='e' {y.push('\x1b');}
-      else if c=='f' {y.push('\x0c');}
-      else if c=='0' {y.push('\x00');}
-      else if c=='v' {y.push('\x0b');}
-      else if c=='a' {y.push('\x07');}
-      else{y.push(c);}
-      escape = false;
-    }else if c == '\\' {
-      escape = true;
-    }else{
-      y.push(c);
+fn compile_assignment(&mut self, bv: &mut Vec<u8>, t: &ASTNode,
+  line: usize, col: usize
+){
+  let key = match t.s {Some(ref x)=>x, None=>panic!()};
+  if self.function_nesting>0 {
+    match self.index_type(key) {
+      Some((index,var_type)) => {
+        match var_type {
+          VarType::Local => {
+            push_bc(bv,bc::STORE_LOCAL,line,col);
+            push_u32(bv,index as u32);
+          },
+          _ => panic!()
+        }
+      },
+      None => {
+        push_bc(bv,bc::STORE_LOCAL,line,col);
+        push_u32(bv,self.vtab.count_local as u32);
+        self.vtab.v.push(VarInfo{
+          s: key.clone(),
+          index: self.vtab.count_local,
+          var_type: VarType::Local
+        });
+        self.vtab.count_local+=1;
+      }
     }
+  }else{
+    let index = self.get_index(key);
+    push_bc(bv,bc::STORE,line,col);
+    push_u32(bv,index as u32);
   }
-  return Ok(y);
 }
 
 fn compile_ast(&mut self, bv: &mut Vec<u8>, t: &Rc<ASTNode>)
@@ -1741,13 +1785,15 @@ fn compile_ast(&mut self, bv: &mut Vec<u8>, t: &Rc<ASTNode>)
   }else if t.symbol_type == SymbolType::Operator {
     let value = t.value;
     if value == Symbol::Assignment {
-      let a = match t.a {Some(ref x)=>x, None=>panic!()};
+      let a = ast_argv(t);
       try!(self.compile_ast(bv,&a[1]));
       if a[0].symbol_type == SymbolType::Identifier {
-        let key = match a[0].s {Some(ref x)=>x, None=>panic!()};
-        let index = self.get_index(key);
-        push_bc(bv,bc::STORE,t.line,t.col);
-        push_u32(bv,index as u32);
+        self.compile_assignment(bv,&a[0],t.line,t.col);
+      }else if a[0].value == Symbol::Index {
+        let b = ast_argv(&a[0]);
+        try!(self.compile_ast(bv,&b[0]));
+        try!(self.compile_ast(bv,&b[1]));
+        push_bc(bv,bc::SET_INDEX,t.line,t.col);
       }else{
         return Err(self.syntax_error(t.line,t.col,
           String::from("expected identifier before '='.")));
@@ -1782,6 +1828,8 @@ fn compile_ast(&mut self, bv: &mut Vec<u8>, t: &Rc<ASTNode>)
       try!(self.compile_operator(bv,t,bc::IS));
     }else if value == Symbol::Isnot {
       try!(self.compile_operator(bv,t,bc::ISNOT));
+    }else if value == Symbol::Index {
+      try!(self.compile_operator(bv,t,bc::GET_INDEX));
     }else if value == Symbol::List {
       try!(self.compile_operator(bv,t,bc::LIST));
       let size = match t.a {Some(ref a) => a.len() as u32, None => panic!()};
@@ -2106,6 +2154,12 @@ fn asm_listing(a: &[u8]) -> String {
       let u = format!("fn [{}], argc_min={}, argc_max={}\n",i as i32+address,argc_min,argc_max);
       s.push_str(&u);
       i+=BCSIZE+16;
+    }else if op==bc::GET_INDEX {
+      s.push_str("get index\n");
+      i+=BCSIZE;
+    }else if op==bc::SET_INDEX {
+      s.push_str("set index\n");
+      i+=BCSIZE;
     }else if op==bc::POP {
       s.push_str("pop\n");
       i+=BCSIZE;
@@ -2145,11 +2199,12 @@ pub fn compile(v: Vec<Token>, mode_cmd: bool,
     parens: false, statement: !mode_cmd,
     history: history, file: id, stab: HashMap::new(),
     stab_index: 0, data: Vec::new(), bv_blocks: Vec::new(),
-    fn_indices: Vec::new(), vtab: VarTab::new(None)
+    fn_indices: Vec::new(), vtab: VarTab::new(None),
+    function_nesting: 0
   };
   let mut i = TokenIterator{index: 0, a: Rc::new(v.into_boxed_slice())};
   let y = try!(compilation.ast(&mut i));
-  // print_ast(&y,2);
+  print_ast(&y,2);
 
   let mut bv: Vec<u8> = Vec::new();
   try!(compilation.compile_ast(&mut bv, &y));
@@ -2159,8 +2214,8 @@ pub fn compile(v: Vec<Token>, mode_cmd: bool,
 
   bv.append(&mut compilation.bv_blocks);
 
-  // print_asm_listing(&bv);
-  // print_data(&compilation.data);
+  print_asm_listing(&bv);
+  print_data(&compilation.data);
   // let m = Rc::new(Module{program: bv, data: compilation.data});
   let m = Rc::new(Module{program: Rc::new(bv), data: compilation.data});
   return Ok(m);

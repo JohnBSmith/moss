@@ -27,6 +27,9 @@ impl Object{
       Object::Range(ref x) => {Object::Range(x.clone())}
     }
   }
+  pub fn str(&self) -> String {
+    ::vm::object_to_string(self)
+  }
 }
 
 pub struct U32String{
@@ -89,6 +92,10 @@ impl Exception{
 }
 
 pub fn type_error(s: &str) -> FnResult{
+  Exception::new(s)
+}
+
+pub fn index_error(s: &str) -> FnResult{
   Exception::new(s)
 }
 
