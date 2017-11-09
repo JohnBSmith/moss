@@ -66,7 +66,7 @@ impl Map{
   pub fn new() -> Rc<RefCell<Map>>{
     return Rc::new(RefCell::new(Map{m: HashMap::new()}));
   }
-  pub fn insert_str(&mut self, key: &str, value: Object){
+  pub fn insert(&mut self, key: &str, value: Object){
     self.m.insert(U32String::new_object_str(key),value);
   }
 }

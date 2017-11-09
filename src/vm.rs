@@ -62,6 +62,10 @@ pub mod bc{
   pub const FNSELF: u8 = 43;
   pub const GET_INDEX: u8 = 44;
   pub const SET_INDEX: u8 = 45;
+  pub const DOT: u8 = 46;
+  pub const DOT_SET: u8 = 47;
+  pub const SWAP: u8 = 48;
+  pub const DUP: u8 = 49;
 
   pub fn op_to_str(x: u8) -> &'static str {
     match x {
@@ -109,6 +113,12 @@ pub mod bc{
       STORE_ARG => "STORE_ARG",
       STORE_CONTEXT => "STORE_CONTEXT",
       FNSELF => "FNSELF",
+      GET_INDEX => "GET_INDEX",
+      SET_INDEX => "SET_INDEX",
+      DOT => "DOT",
+      DOT_SET => "DOT_SET",
+      SWAP => "SWAP",
+      DUP => "DUP",
       _ => "unknown"
     }
   }
@@ -828,18 +838,31 @@ fn operator_index(sp: usize, stack: &mut Vec<Object>) -> FnResult {
             stack[sp-2] = match a.borrow().v.get(i as usize) {
               Some(x) => x.clone(),
               None => {
-                return index_error("Error in a[i]: i is out of bounds.");
+                return index_error(&format!(
+                  "Error in a[i]: i=={} is out of upper bound, size(a)=={}.",
+                  i, a.borrow().v.len()
+                ));
               }
             };
           }else{
-            return index_error("Error in a[i]: i is out of bounds.");
+            return index_error(&format!("Error in a[i]: i=={} is out of lower bound.",i));
           }
           Ok(())
         },
         _ => type_error("Type error in a[i]: i is not an integer.")
       }
     },
-    _ => type_error("Type error in a[i]: a is not a list.")
+    Object::Map(m) => {
+      match m.borrow().m.get(&stack[sp-1]) {
+        Some(x) => {
+          stack[sp-1] = Object::Null;
+          stack[sp-2] = x.clone();
+          Ok(())
+        },
+        None => index_error("Index error in m[key]: key not found.")
+      }
+    },
+    _ => type_error("Type error in a[i]: a is not index-able.")
   }
 }
 
@@ -866,7 +889,16 @@ fn index_assignment(sp: usize, stack: &mut Vec<Object>) -> FnResult {
         _ => type_error("Type error in a[i]=value: i is not an integer.")
       }    
     },
-    _ => type_error("Type error in a[i]=value: a is not a list.")
+    Object::Map(m) => {
+      let key = replace(&mut stack[sp-1],Object::Null);
+      let value = replace(&mut stack[sp-3],Object::Null);
+      match m.borrow_mut().m.insert(key,value) {
+        Some(_) => {},
+        None => {}
+      }
+      Ok(())
+    },
+    _ => type_error("Type error in a[i]=value: a is not index-able.")
   }
 }
 

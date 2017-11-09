@@ -1842,6 +1842,8 @@ fn compile_ast(&mut self, bv: &mut Vec<u8>, t: &Rc<ASTNode>)
       try!(self.compile_app(bv,t));
     }else if value == Symbol::If {
       try!(self.compile_if(bv,t,true));
+    }else if value == Symbol::Dot {
+      try!(self.compile_operator(bv,t,bc::DOT));
     }else{
       return Err(self.syntax_error(t.line,t.col,
         format!("cannot compile Operator '{}'.",symbol_to_string(t.value))
@@ -1977,197 +1979,166 @@ fn asm_listing(a: &[u8]) -> String {
       let u = format!("{:04}| {:4}:{:02} | ",i,compose_u16(a[i+1],a[i+2]),a[i+3]);
       s.push_str(&u);
     }
-    if op==bc::INT {
-      let x = compose_i32(&a[BCSIZE+i..BCSIZE+i+4]);
-      let u = format!("push int {} (0x{:x})\n",x,x);
-      s.push_str(&u);
-      i+=BCSIZE+4;
-    }else if op==bc::FLOAT {
-      let x = unsafe{transmute::<u64,f64>(
-        compose_u64(&a[BCSIZE+i..BCSIZE+i+8])
-      )};
-      let u = format!("push float {}\n",x);
-      s.push_str(&u);
-      i+=BCSIZE+8;
-    }else if op==bc::IMAG {
-      let x = unsafe{transmute::<u64,f64>(
-        compose_u64(&a[BCSIZE+i..BCSIZE+i+8])
-      )};
-      let u = format!("push imag {}\n",x);
-      s.push_str(&u);
-      i+=BCSIZE+8;
-    }else if op==bc::NULL {
-      s.push_str("null\n");
-      i+=BCSIZE;
-    }else if op==bc::TRUE {
-      s.push_str("true\n");
-      i+=BCSIZE;
-    }else if op==bc::FALSE {
-      s.push_str("false\n");
-      i+=BCSIZE;
-    }else if op==bc::FNSELF {
-      s.push_str("function self\n");
-      i+=BCSIZE;
-    }else if op==bc::ADD {
-      s.push_str("add\n");
-      i+=BCSIZE;
-    }else if op==bc::SUB {
-      s.push_str("sub\n");
-      i+=BCSIZE;
-    }else if op==bc::MPY {
-      s.push_str("mpy\n");
-      i+=BCSIZE;
-    }else if op==bc::DIV {
-      s.push_str("div\n");
-      i+=BCSIZE;
-    }else if op==bc::IDIV {
-      s.push_str("idiv\n");
-      i+=BCSIZE;
-    }else if op==bc::POW {
-      s.push_str("pow\n");
-      i+=BCSIZE;
-    }else if op==bc::NEG {
-      s.push_str("neg\n");
-      i+=BCSIZE;
-    }else if op==bc::EQ {
-      s.push_str("eq\n");
-      i+=BCSIZE;
-    }else if op==bc::NE {
-      s.push_str("not eq\n");
-      i+=BCSIZE;
-    }else if op==bc::LT {
-      s.push_str("lt\n");
-      i+=BCSIZE;
-    }else if op==bc::GT {
-      s.push_str("gt\n");
-      i+=BCSIZE;
-    }else if op==bc::LE {
-      s.push_str("le\n");
-      i+=BCSIZE;
-    }else if op==bc::GE {
-      s.push_str("not ge\n");
-      i+=BCSIZE;
-    }else if op==bc::IS {
-      s.push_str("is\n");
-      i+=BCSIZE;
-    }else if op==bc::ISNOT {
-      s.push_str("is not\n");
-      i+=BCSIZE;
-    }else if op==bc::IN {
-      s.push_str("in\n");
-      i+=BCSIZE;
-    }else if op==bc::NOTIN {
-      s.push_str("not in\n");
-      i+=BCSIZE;
-    }else if op==bc::LIST {
-      let x = compose_u32(&a[BCSIZE+i..BCSIZE+i+4]);
-      let u = format!("list, size={}\n",x);
-      s.push_str(&u);
-      i+=BCSIZE+4;
-    }else if op==bc::MAP {
-      let x = compose_u32(&a[BCSIZE+i..BCSIZE+i+4]);
-      let u = format!("map, size={}\n",x);
-      s.push_str(&u);
-      i+=BCSIZE+4;
-    }else if op==bc::LOAD {
-      let x = compose_u32(&a[BCSIZE+i..BCSIZE+i+4]);
-      let u = format!("load global [{}]\n",x);
-      s.push_str(&u);
-      i+=BCSIZE+4;
-    }else if op==bc::LOAD_ARG {
-      let x = compose_u32(&a[BCSIZE+i..BCSIZE+i+4]);
-      let u = format!("load argument [{}]\n",x);
-      s.push_str(&u);
-      i+=BCSIZE+4;
-    }else if op==bc::LOAD_LOCAL {
-      let x = compose_u32(&a[BCSIZE+i..BCSIZE+i+4]);
-      let u = format!("load local [{}]\n",x);
-      s.push_str(&u);
-      i+=BCSIZE+4;
-    }else if op==bc::LOAD_CONTEXT {
-      let x = compose_u32(&a[BCSIZE+i..BCSIZE+i+4]);
-      let u = format!("load context [{}]\n",x);
-      s.push_str(&u);
-      i+=BCSIZE+4;
-    }else if op==bc::STORE {
-      let x = compose_u32(&a[BCSIZE+i..BCSIZE+i+4]);
-      let u = format!("store global [{}]\n",x);
-      s.push_str(&u);
-      i+=BCSIZE+4;
-    }else if op==bc::STORE_ARG {
-      let x = compose_u32(&a[BCSIZE+i..BCSIZE+i+4]);
-      let u = format!("store argument [{}]\n",x);
-      s.push_str(&u);
-      i+=BCSIZE+4;
-    }else if op==bc::STORE_LOCAL {
-      let x = compose_u32(&a[BCSIZE+i..BCSIZE+i+4]);
-      let u = format!("store local [{}]\n",x);
-      s.push_str(&u);
-      i+=BCSIZE+4;
-    }else if op==bc::STORE_CONTEXT {
-      let x = compose_u32(&a[BCSIZE+i..BCSIZE+i+4]);
-      let u = format!("store context [{}]\n",x);
-      s.push_str(&u);
-      i+=BCSIZE+4;
-    }else if op==bc::STR {
-      let x = compose_u32(&a[BCSIZE+i..BCSIZE+i+4]);
-      let u = format!("str literal [{}]\n",x);
-      s.push_str(&u);
-      i+=BCSIZE+4;
-    }else if op==bc::JMP {
-      let x = compose_i32(&a[BCSIZE+i..BCSIZE+i+4]);
+    match op {
+      bc::INT => {
+        let x = compose_i32(&a[BCSIZE+i..BCSIZE+i+4]);
+        let u = format!("push int {} (0x{:x})\n",x,x);
+        s.push_str(&u);
+        i+=BCSIZE+4;
+      },
+      bc::FLOAT => {
+        let x = unsafe{transmute::<u64,f64>(
+          compose_u64(&a[BCSIZE+i..BCSIZE+i+8])
+        )};
+        let u = format!("push float {}\n",x);
+        s.push_str(&u);
+        i+=BCSIZE+8;
+      },
+      bc::IMAG => {
+        let x = unsafe{transmute::<u64,f64>(
+          compose_u64(&a[BCSIZE+i..BCSIZE+i+8])
+        )};
+        let u = format!("push imag {}\n",x);
+        s.push_str(&u);
+        i+=BCSIZE+8;
+      },
+      bc::NULL => {s.push_str("null\n"); i+=BCSIZE;},
+      bc::TRUE => {s.push_str("true\n"); i+=BCSIZE;},
+      bc::FALSE => {s.push_str("false\n"); i+=BCSIZE;},
+      bc::FNSELF => {s.push_str("function self\n"); i+=BCSIZE;},
+      bc::ADD => {s.push_str("add\n"); i+=BCSIZE;},
+      bc::SUB => {s.push_str("sub\n"); i+=BCSIZE;},
+      bc::MPY => {s.push_str("mpy\n"); i+=BCSIZE;},
+      bc::DIV => {s.push_str("div\n"); i+=BCSIZE;},
+      bc::IDIV => {s.push_str("idiv\n"); i+=BCSIZE;},
+      bc::POW => {s.push_str("pow\n"); i+=BCSIZE;},
+      bc::NEG => {s.push_str("neg\n"); i+=BCSIZE;},
+      bc::EQ => {s.push_str("eq\n"); i+=BCSIZE;},
+      bc::NE => {s.push_str("not eq\n"); i+=BCSIZE;},
+      bc::LT => {s.push_str("lt\n"); i+=BCSIZE;},
+      bc::GT => {s.push_str("gt\n"); i+=BCSIZE;},
+      bc::LE => {s.push_str("le\n"); i+=BCSIZE;},
+      bc::GE => {s.push_str("not ge\n"); i+=BCSIZE;},
+      bc::IS => {s.push_str("is\n"); i+=BCSIZE;},
+      bc::ISNOT => {s.push_str("is not\n"); i+=BCSIZE;},
+      bc::IN => {s.push_str("in\n"); i+=BCSIZE;},
+      bc::NOTIN => {s.push_str("not in\n"); i+=BCSIZE;},
+      bc::LIST => {
+        let x = compose_u32(&a[BCSIZE+i..BCSIZE+i+4]);
+        let u = format!("list, size={}\n",x);
+        s.push_str(&u);
+        i+=BCSIZE+4;
+      },
+      bc::MAP => {
+        let x = compose_u32(&a[BCSIZE+i..BCSIZE+i+4]);
+        let u = format!("map, size={}\n",x);
+        s.push_str(&u);
+        i+=BCSIZE+4;
+      },
+      bc::LOAD => {
+        let x = compose_u32(&a[BCSIZE+i..BCSIZE+i+4]);
+        let u = format!("load global [{}]\n",x);
+        s.push_str(&u);
+        i+=BCSIZE+4;
+      },
+      bc::LOAD_ARG => {
+        let x = compose_u32(&a[BCSIZE+i..BCSIZE+i+4]);
+        let u = format!("load argument [{}]\n",x);
+        s.push_str(&u);
+        i+=BCSIZE+4;
+      },
+      bc::LOAD_LOCAL => {
+        let x = compose_u32(&a[BCSIZE+i..BCSIZE+i+4]);
+        let u = format!("load local [{}]\n",x);
+        s.push_str(&u);
+        i+=BCSIZE+4;
+      },
+      bc::LOAD_CONTEXT => {
+        let x = compose_u32(&a[BCSIZE+i..BCSIZE+i+4]);
+        let u = format!("load context [{}]\n",x);
+        s.push_str(&u);
+        i+=BCSIZE+4;
+      },
+      bc::STORE => {
+        let x = compose_u32(&a[BCSIZE+i..BCSIZE+i+4]);
+        let u = format!("store global [{}]\n",x);
+        s.push_str(&u);
+        i+=BCSIZE+4;
+      },
+      bc::STORE_ARG => {
+        let x = compose_u32(&a[BCSIZE+i..BCSIZE+i+4]);
+        let u = format!("store argument [{}]\n",x);
+        s.push_str(&u);
+        i+=BCSIZE+4;
+      },
+      bc::STORE_LOCAL => {
+        let x = compose_u32(&a[BCSIZE+i..BCSIZE+i+4]);
+        let u = format!("store local [{}]\n",x);
+        s.push_str(&u);
+        i+=BCSIZE+4;
+      },
+      bc::STORE_CONTEXT => {
+        let x = compose_u32(&a[BCSIZE+i..BCSIZE+i+4]);
+        let u = format!("store context [{}]\n",x);
+        s.push_str(&u);
+        i+=BCSIZE+4;
+      },
+      bc::STR => {
+        let x = compose_u32(&a[BCSIZE+i..BCSIZE+i+4]);
+        let u = format!("str literal [{}]\n",x);
+        s.push_str(&u);
+        i+=BCSIZE+4;
+      },
+      bc::JMP => {
+        let x = compose_i32(&a[BCSIZE+i..BCSIZE+i+4]);
 
-      // Resolve position independent code
-      // to make the listing human readable.
-      let u = format!("jmp {}\n",i as i32+x);
-      s.push_str(&u);
-      i+=BCSIZE+4;
-    }else if op==bc::JZ {
-      let x = compose_i32(&a[BCSIZE+i..BCSIZE+i+4]);
-      let u = format!("jz {}\n",i as i32+x);
-      s.push_str(&u);
-      i+=BCSIZE+4;
-    }else if op==bc::JNZ {
-      let x = compose_i32(&a[BCSIZE+i..BCSIZE+i+4]);
-      let u = format!("jnz {}\n",i as i32+x);
-      s.push_str(&u);
-      i+=BCSIZE+4;
-    }else if op==bc::CALL {
-      let argc = compose_u32(&a[BCSIZE+i..BCSIZE+i+4]);
-      let u = format!("call, argc={}\n",argc);
-      s.push_str(&u);
-      i+=BCSIZE+4;
-    }else if op==bc::RET {
-      s.push_str("ret\n");
-      i+=BCSIZE;
-    }else if op==bc::FNSEP {
-      s.push_str("\nFunction\n");
-      i+=BCSIZE;
-    }else if op==bc::FN {
-      let address = compose_i32(&a[BCSIZE+i..BCSIZE+i+4]);
-      let argc_min = compose_i32(&a[BCSIZE+i+4..BCSIZE+i+8]);
-      let argc_max = compose_i32(&a[BCSIZE+i+8..BCSIZE+i+12]);
-      let var_count = compose_i32(&a[BCSIZE+i+12..BCSIZE+i+16]);
+        // Resolve position independent code
+        // to make the listing human readable.
+        let u = format!("jmp {}\n",i as i32+x);
+        s.push_str(&u);
+        i+=BCSIZE+4;
+      },
+      bc::JZ => {
+        let x = compose_i32(&a[BCSIZE+i..BCSIZE+i+4]);
+        let u = format!("jz {}\n",i as i32+x);
+        s.push_str(&u);
+        i+=BCSIZE+4;
+      },
+      bc::JNZ => {
+        let x = compose_i32(&a[BCSIZE+i..BCSIZE+i+4]);
+        let u = format!("jnz {}\n",i as i32+x);
+        s.push_str(&u);
+        i+=BCSIZE+4;
+      },
+      bc::CALL => {
+        let argc = compose_u32(&a[BCSIZE+i..BCSIZE+i+4]);
+        let u = format!("call, argc={}\n",argc);
+        s.push_str(&u);
+        i+=BCSIZE+4;
+      },
+      bc::RET => {s.push_str("ret\n"); i+=BCSIZE;},
+      bc::FNSEP => {s.push_str("\nFunction\n"); i+=BCSIZE;},
+      bc::FN => {
+        let address = compose_i32(&a[BCSIZE+i..BCSIZE+i+4]);
+        let argc_min = compose_i32(&a[BCSIZE+i+4..BCSIZE+i+8]);
+        let argc_max = compose_i32(&a[BCSIZE+i+8..BCSIZE+i+12]);
+        let var_count = compose_i32(&a[BCSIZE+i+12..BCSIZE+i+16]);
 
-      // Resolve position independent code
-      // to make the listing human readable.
-      let u = format!("fn [{}], argc_min={}, argc_max={}\n",i as i32+address,argc_min,argc_max);
-      s.push_str(&u);
-      i+=BCSIZE+16;
-    }else if op==bc::GET_INDEX {
-      s.push_str("get index\n");
-      i+=BCSIZE;
-    }else if op==bc::SET_INDEX {
-      s.push_str("set index\n");
-      i+=BCSIZE;
-    }else if op==bc::POP {
-      s.push_str("pop\n");
-      i+=BCSIZE;
-    }else if op==bc::HALT {
-      s.push_str("halt\n");
-      i+=BCSIZE;
-    }else{
-      unimplemented!();
+        // Resolve position independent code
+        // to make the listing human readable.
+        let u = format!("fn [{}], argc_min={}, argc_max={}\n",i as i32+address,argc_min,argc_max);
+        s.push_str(&u);
+        i+=BCSIZE+16;
+      },
+      bc::GET_INDEX => {s.push_str("get index\n"); i+=BCSIZE;},
+      bc::SET_INDEX => {s.push_str("set index\n"); i+=BCSIZE;},
+      bc::DOT => {s.push_str("dot\n"); i+=BCSIZE;},
+      bc::DOT_SET => {s.push_str("dot set\n"); i+=BCSIZE;},
+      bc::SWAP => {s.push_str("swap\n"); i+=BCSIZE;},
+      bc::DUP => {s.push_str("dup\n"); i+=BCSIZE;},
+      bc::POP => {s.push_str("pop\n"); i+=BCSIZE;},
+      bc::HALT => {s.push_str("halt\n"); i+=BCSIZE;},
+      _ => {unimplemented!();}
     }
   }
   return s;

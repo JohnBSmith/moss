@@ -20,16 +20,13 @@ use object::{Object, Map, Function, Exception, VARIADIC};
 use vm::eval;
 
 fn init_gtab(gtab: &mut Map){
-  let f = Function::plain(::global::print,0,VARIADIC);
-  gtab.insert_str("print",f);
-  let f = Function::plain(::global::put,0,VARIADIC);
-  gtab.insert_str("put",f);
-  let f = Function::plain(::global::fstr,1,1);
-  gtab.insert_str("str",f);
-  let f = Function::plain(::global::abs,1,1);
-  gtab.insert_str("abs",f);
-  let f = Function::plain(::global::eval,1,1);
-  gtab.insert_str("eval",f);
+  gtab.insert("print",Function::plain(::global::print,0,VARIADIC));
+  gtab.insert("put",Function::plain(::global::put,0,VARIADIC));
+  gtab.insert("str",Function::plain(::global::fstr,1,1));
+  gtab.insert("repr",Function::plain(::global::repr,1,1));
+  gtab.insert("abs",Function::plain(::global::abs,1,1));
+  gtab.insert("eval",Function::plain(::global::eval,1,1));
+  gtab.insert("size",Function::plain(::global::size,1,1));
 }
 
 pub fn command_line_session(){

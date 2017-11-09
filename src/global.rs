@@ -1,5 +1,5 @@
 
-use vm::{object_to_string};
+use vm::{object_to_string, object_to_repr};
 use object::{Object, FnResult, U32String, type_error, argc_error};
 
 pub fn print(ret: &mut Object, pself: &Object, argv: &[Object]) -> FnResult{
@@ -19,9 +19,18 @@ pub fn put(ret: &mut Object, pself: &Object, argv: &[Object]) -> FnResult{
 
 pub fn fstr(ret: &mut Object, pself: &Object, argv: &[Object]) -> FnResult{
   if argv.len() != 1 {
-    return argc_error(argv.len(),1,1,"abs");
+    return argc_error(argv.len(),1,1,"str");
   }
   let s = object_to_string(&argv[0]);
+  *ret = U32String::new_object_str(&s);
+  return Ok(());
+}
+
+pub fn repr(ret: &mut Object, pself: &Object, argv: &[Object]) -> FnResult{
+  if argv.len() != 1 {
+    return argc_error(argv.len(),1,1,"repr");
+  }
+  let s = object_to_repr(&argv[0]);
   *ret = U32String::new_object_str(&s);
   return Ok(());
 }
@@ -68,5 +77,26 @@ pub fn eval(ret: &mut Object, pself: &Object, argv: &[Object]) -> FnResult{
     _ => {
       return type_error("Type error in eval(s): s is not a string.");
     }
+  }
+}
+
+pub fn size(ret: &mut Object, pself: &Object, argv: &[Object]) -> FnResult{
+  if argv.len() != 1 {
+    return argc_error(argv.len(),1,1,"size");
+  }
+  match argv[0] {
+    Object::List(ref a) => {
+      *ret = Object::Int(a.borrow().v.len() as i32);
+      Ok(())
+    },
+    Object::Map(ref m) => {
+      *ret = Object::Int(m.borrow().m.len() as i32);
+      Ok(())
+    },
+    Object::String(ref s) => {
+      *ret = Object::Int(s.v.len() as i32);
+      Ok(())
+    }
+    _ => type_error("Type error in size(a): cannot determine the size of a.")
   }
 }
