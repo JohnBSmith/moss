@@ -182,7 +182,10 @@ impl PartialEq for Object{
       &Object::List(ref x) => {
         match b {
           &Object::List(ref y) => {
-            x.borrow().v == y.borrow().v
+            match x.try_borrow_mut() {
+              Some(x) => x.v == y.borrow().v,
+              None => y.try_borrow_mut() == None
+            }
           },
           _ => false
         }
