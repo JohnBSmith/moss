@@ -46,25 +46,27 @@ impl U32String{
 }
 
 pub struct List{
-  pub v: Vec<Object>
+  pub v: Vec<Object>,
+  pub frozen: bool
 }
 
 impl List{
   pub fn new_object(v: Vec<Object>) -> Object{
-    return Object::List(Rc::new(RefCell::new(List{v: v})));
+    return Object::List(Rc::new(RefCell::new(List{v: v, frozen: false})));
   }
 }
 
 pub struct Map{
-  pub m: HashMap<Object,Object>
+  pub m: HashMap<Object,Object>,
+  pub frozen: bool
 }
 
 impl Map{
   pub fn new_object(m: HashMap<Object,Object>) -> Object{
-    return Object::Map(Rc::new(RefCell::new(Map{m: m})));
+    return Object::Map(Rc::new(RefCell::new(Map{m: m, frozen: false})));
   }
   pub fn new() -> Rc<RefCell<Map>>{
-    return Rc::new(RefCell::new(Map{m: HashMap::new()}));
+    return Rc::new(RefCell::new(Map{m: HashMap::new(), frozen: false}));
   }
   pub fn insert(&mut self, key: &str, value: Object){
     self.m.insert(U32String::new_object_str(key),value);

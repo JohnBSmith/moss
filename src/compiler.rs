@@ -15,7 +15,8 @@ use object::{Object, U32String};
 enum SymbolType{
   Operator, Separator, Bracket,
   Bool, Int, Float, Imag,
-  String, Identifier, Keyword
+  String, Identifier, Keyword,
+  Assignment
 }
 
 #[derive(Copy,Clone,PartialEq)]
@@ -28,7 +29,8 @@ enum Symbol{
   Elif, Else, End, For, Global, Goto, Label, Of,
   If, While, Do, Raise, Return, Sub, Table, Then, Try,
   Use, Yield, True, False, Null, Dot, Comma, Colon, Semicolon,
-  List, Map, Application, Index, Block, Statement, Terminal
+  List, Map, Application, Index, Block, Statement, Terminal,
+  APlus, AMinus, AAst, ADiv, AIdiv, AMod, AAmp, AVline, ASvert
 }
 
 pub struct Token {
@@ -242,19 +244,37 @@ pub fn scan(s: &str, line_start: usize, file: &str) -> Result<Vec<Token>,Error>{
           }
         },
         '+' => {
-          v.push(Token{token_type: SymbolType::Operator,
-            value: Symbol::Plus, line: line, col: col, s: None});
-          i+=1; col+=1;
+          if i+1<n && a[i+1]=='=' {
+            v.push(Token{token_type: SymbolType::Assignment,
+              value: Symbol::APlus, line: line, col: col, s: None});
+            i+=2; col+=2;
+          }else{
+            v.push(Token{token_type: SymbolType::Operator,
+              value: Symbol::Plus, line: line, col: col, s: None});
+            i+=1; col+=1;
+          }
         },
         '-' => {
-          v.push(Token{token_type: SymbolType::Operator,
-            value: Symbol::Minus, line: line, col: col, s: None});
-          i+=1; col+=1;
+          if i+1<n && a[i+1]=='=' {
+            v.push(Token{token_type: SymbolType::Assignment,
+              value: Symbol::AMinus, line: line, col: col, s: None});
+            i+=2; col+=2;
+          }else{
+            v.push(Token{token_type: SymbolType::Operator,
+              value: Symbol::Minus, line: line, col: col, s: None});
+            i+=1; col+=1;
+          }
         },
         '*' => {
-          v.push(Token{token_type: SymbolType::Operator,
-            value: Symbol::Ast, line: line, col: col, s: None});
-          i+=1; col+=1;
+          if i+1<n && a[i+1]=='=' {
+            v.push(Token{token_type: SymbolType::Assignment,
+              value: Symbol::AAst, line: line, col: col, s: None});
+            i+=2; col+=2;
+          }else{
+            v.push(Token{token_type: SymbolType::Operator,
+              value: Symbol::Ast, line: line, col: col, s: None});
+            i+=1; col+=1;
+          }
         },
         '/' => {
           if i+1<n && a[i+1]=='*' {
@@ -265,8 +285,18 @@ pub fn scan(s: &str, line_start: usize, file: &str) -> Result<Vec<Token>,Error>{
               i+=1;
             }
           }else if i+1<n && a[i+1]=='/' {
-            v.push(Token{token_type: SymbolType::Operator,
-              value: Symbol::Idiv, line: line, col: col, s: None});
+            if i+2<n && a[i+2]=='=' {
+              v.push(Token{token_type: SymbolType::Assignment,
+                value: Symbol::AIdiv, line: line, col: col, s: None});
+              i+=3; col+=3;
+            }else{
+              v.push(Token{token_type: SymbolType::Operator,
+                value: Symbol::Idiv, line: line, col: col, s: None});
+              i+=2; col+=2;
+            }
+          }else if i+1<n && a[i+1]=='=' {
+            v.push(Token{token_type: SymbolType::Assignment,
+              value: Symbol::ADiv, line: line, col: col, s: None});
             i+=2; col+=2;
           }else{
             v.push(Token{token_type: SymbolType::Operator,
@@ -275,9 +305,15 @@ pub fn scan(s: &str, line_start: usize, file: &str) -> Result<Vec<Token>,Error>{
           }
         },
         '%' => {
-          v.push(Token{token_type: SymbolType::Operator,
-            value: Symbol::Mod, line: line, col: col, s: None});
-          i+=1; col+=1;
+          if i+1<n && a[i+1]=='=' {
+            v.push(Token{token_type: SymbolType::Assignment,
+              value: Symbol::AMod, line: line, col: col, s: None});
+            i+=2; col+=2;
+          }else{
+            v.push(Token{token_type: SymbolType::Operator,
+              value: Symbol::Mod, line: line, col: col, s: None});
+            i+=1; col+=1;
+          }
         },
         '^' => {
           v.push(Token{token_type: SymbolType::Operator,
@@ -326,19 +362,37 @@ pub fn scan(s: &str, line_start: usize, file: &str) -> Result<Vec<Token>,Error>{
           }
         },
         '|' => {
-          v.push(Token{token_type: SymbolType::Operator,
-            value: Symbol::Vline, line: line, col: col, s: None});
-          i+=1; col+=1;
+          if i+1<n && a[i+1]=='=' {
+            v.push(Token{token_type: SymbolType::Assignment,
+              value: Symbol::AVline, line: line, col: col, s: None});
+            i+=2; col+=2;   
+          }else{
+            v.push(Token{token_type: SymbolType::Operator,
+              value: Symbol::Vline, line: line, col: col, s: None});
+            i+=1; col+=1;
+          }
         },
         '&' => {
-          v.push(Token{token_type: SymbolType::Operator,
-            value: Symbol::Amp, line: line, col: col, s: None});
-          i+=1; col+=1;
+          if i+1<n && a[i+1]=='=' {
+            v.push(Token{token_type: SymbolType::Assignment,
+              value: Symbol::AAmp, line: line, col: col, s: None});
+            i+=2; col+=2;
+          }else{
+            v.push(Token{token_type: SymbolType::Operator,
+              value: Symbol::Amp, line: line, col: col, s: None});
+            i+=1; col+=1;
+          }
         },
         '$' => {
-          v.push(Token{token_type: SymbolType::Operator,
-            value: Symbol::Svert, line: line, col: col, s: None});
-          i+=1; col+=1;
+          if i+1<n && a[i+1]=='=' {
+            v.push(Token{token_type: SymbolType::Assignment,
+              value: Symbol::ASvert, line: line, col: col, s: None});
+            i+=2; col+=2;
+          }else{
+            v.push(Token{token_type: SymbolType::Operator,
+              value: Symbol::Svert, line: line, col: col, s: None});
+            i+=1; col+=1;
+          }
         },
         '~' => {
           v.push(Token{token_type: SymbolType::Operator,
@@ -418,6 +472,15 @@ fn symbol_to_string(value: Symbol) -> &'static str {
     Symbol::Eq   => "==", Symbol::Ne => "!=",
     Symbol::List => "[]", Symbol::Application => "app",
     Symbol::Map  => "{}", Symbol::Index => "index",
+    Symbol::APlus => "+=",
+    Symbol::AMinus => "-=",
+    Symbol::AAst => "*=",
+    Symbol::ADiv => "/=",
+    Symbol::AIdiv => "//=",
+    Symbol::AMod => "%=",
+    Symbol::AVline => "|=",
+    Symbol::AAmp => "&=",
+    Symbol::ASvert => "$=",
     Symbol::Block => "block", Symbol::Statement => "statement",
     Symbol::Range => "..",
     Symbol::Assignment => "=",
@@ -462,9 +525,10 @@ fn print_token(x: &Token){
     },
     SymbolType::String => {
       print!("[\"{}\"]",match x.s {Some(ref s) => s, None => compiler_error()});    
-    }
+    },
     SymbolType::Operator | SymbolType::Separator |
-    SymbolType::Bracket  | SymbolType::Keyword | SymbolType::Bool => {
+    SymbolType::Bracket  | SymbolType::Keyword | SymbolType::Bool |
+    SymbolType::Assignment => {
       print!("[{}]",symbol_to_string(x.value));
     }
   }
@@ -488,7 +552,7 @@ fn print_ast(t: &ASTNode, indent: usize){
       println!("\"{}\"",match t.s {Some(ref s) => s, None => compiler_error()});    
     },
     SymbolType::Operator | SymbolType::Separator |
-    SymbolType::Keyword  | SymbolType::Bool => {
+    SymbolType::Keyword  | SymbolType::Bool | SymbolType::Assignment => {
       if t.value == Symbol::Sub {
         match t.s {
           Some(ref s) => {println!("sub {}",s);},
@@ -1263,6 +1327,11 @@ fn assignment(&mut self, i: &mut TokenIterator) -> Result<Rc<ASTNode>,Error>{
     i.index+=1;
     let y = try!(self.expression(i));
     return Ok(binary_operator(t.line,t.col,Symbol::Assignment,x,y));
+  }else if t.token_type == SymbolType::Assignment {
+    i.index+=1;
+    let y = try!(self.expression(i));
+    return Ok(Rc::new(ASTNode{line: t.line, col: t.col, symbol_type: SymbolType::Assignment,
+      value: t.value, info: Info::None, s: None, a: Some(Box::new([x,y]))}));
   }else if self.statement {
     return Ok(Rc::new(ASTNode{line: t.line, col: t.col, symbol_type: SymbolType::Keyword,
       value: Symbol::Statement, info: Info::None, s: None, a: Some(Box::new([x]))}));
@@ -1777,6 +1846,32 @@ fn compile_assignment(&mut self, bv: &mut Vec<u8>, t: &ASTNode,
   }
 }
 
+fn compile_compound_assignment(
+  &mut self, bv: &mut Vec<u8>, t: &ASTNode
+) -> Result<(),Error> {
+  let a = ast_argv(t);
+  if a[0].symbol_type == SymbolType::Identifier {
+    let value = match t.value {
+      Symbol::APlus => Symbol::Plus,
+      Symbol::AMinus => Symbol::Minus,
+      Symbol::AAst => Symbol::Ast,
+      Symbol::ADiv => Symbol::Div,
+      Symbol::AIdiv => Symbol::Idiv,
+      Symbol::AMod => Symbol::Mod,
+      Symbol::AAmp => Symbol::Amp,
+      Symbol::AVline => Symbol::Vline,
+      Symbol::ASvert => Symbol::Svert,
+      _ => panic!()
+    };
+    let op = binary_operator(t.line,t.col,value,a[0].clone(),a[1].clone());
+    try!(self.compile_ast(bv,&op));
+    self.compile_assignment(bv,&a[0],t.line,t.col);
+  }else{
+    unimplemented!();
+  }
+  return Ok(());
+}
+
 fn compile_ast(&mut self, bv: &mut Vec<u8>, t: &Rc<ASTNode>)
   -> Result<(),Error>
 {
@@ -1892,6 +1987,8 @@ fn compile_ast(&mut self, bv: &mut Vec<u8>, t: &Rc<ASTNode>)
     let index = self.get_index(&key);
     push_bc(bv,bc::STR,t.line,t.col);
     push_u32(bv,index as u32);
+  }else if t.symbol_type == SymbolType::Assignment {
+    try!(self.compile_compound_assignment(bv,t));
   }else{
     panic!();
   }

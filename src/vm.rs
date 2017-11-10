@@ -4,6 +4,7 @@ use std::cell::RefCell;
 use std::mem::replace;
 use std::mem::transmute;
 use std::collections::HashMap;
+use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use object::{
   Object, Map, List, Function, EnumFunction, StandardFn,
@@ -217,12 +218,30 @@ impl Eq for Object{}
 
 impl Hash for Object{
   fn hash<H: Hasher>(&self, state: &mut H){
-    match self {
-      &Object::Bool(x) => {x.hash(state);},
-      &Object::Int(x) => {x.hash(state);},
-      &Object::String(ref x) => {
+    match *self {
+      Object::Null => {},
+      Object::Bool(x) => {x.hash(state);},
+      Object::Int(x) => {x.hash(state);},
+      Object::String(ref x) => {
         let s = &x.v;
         s.hash(state);
+      },
+      Object::List(ref a) => {
+        let mut a = a.borrow_mut();
+        a.frozen = true;
+        a.v.hash(state);
+      },
+      Object::Map(ref m) => {
+        let mut m = m.borrow_mut();
+        m.frozen = true;
+        let mut hash: u64 = 0;
+        for (key,value) in &m.m {
+          let mut hstate = DefaultHasher::new();
+          key.hash(&mut hstate);
+          value.hash(&mut hstate);
+          hash = hash.wrapping_add(hstate.finish());
+        }
+        state.write_u64(hash);
       },
       _ => panic!()
     }
@@ -872,7 +891,11 @@ fn index_assignment(sp: usize, stack: &mut Vec<Object>) -> FnResult {
       match stack[sp-1] {
         Object::Int(i) => {
           if i>=0 {
-            match a.borrow_mut().v.get_mut(i as usize) {
+            let mut a = a.borrow_mut();
+            if a.frozen {
+              return index_error("Error in a[i]: a is immutable.");
+            }
+            match a.v.get_mut(i as usize) {
               Some(x) => {
                 *x = replace(&mut stack[sp-3],Object::Null);
                 stack[sp-2] = Object::Null;
@@ -892,7 +915,11 @@ fn index_assignment(sp: usize, stack: &mut Vec<Object>) -> FnResult {
     Object::Map(m) => {
       let key = replace(&mut stack[sp-1],Object::Null);
       let value = replace(&mut stack[sp-3],Object::Null);
-      match m.borrow_mut().m.insert(key,value) {
+      let mut m = m.borrow_mut();
+      if m.frozen {
+        return type_error("Index error in m[key]=value: m is frozen.");
+      }
+      match m.m.insert(key,value) {
         Some(_) => {},
         None => {}
       }
