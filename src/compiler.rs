@@ -599,7 +599,7 @@ struct ASTNode{
   a: Option<Box<[Rc<ASTNode>]>>
 }
 
-#[derive(Clone,Copy)]
+#[derive(Clone,Copy,PartialEq)]
 enum VarType{
   Local, Argument, Context, Global, FnId
 }
@@ -624,6 +624,32 @@ impl VarTab{
     VarTab{v: Vec::new(),
       count_local: 0, count_arg: 0, count_context: 0, count_global: 0,
       context: None, fn_id: id
+    }
+  }
+  fn index_type(&mut self, id: &str) -> Option<(usize,VarType)> {
+    if let Some(ref s) = self.fn_id {
+      if id==s {return Some((0,VarType::FnId));}
+    }
+    { 
+      let a = &self.v[..];
+      for i in 0..a.len() {
+        if a[i].s==id {
+          return Some((a[i].index, a[i].var_type));
+        }
+      }
+    }
+    if let Some(ref mut context) = self.context {
+      if let Some(_) = context.index_type(id) {
+        self.v.push(VarInfo{index: self.count_context,
+          s: id.to_string(), var_type: VarType::Context
+        });
+        self.count_context+=1;
+        return Some((self.count_context-1,VarType::Context));
+      }else{
+        return None;
+      }
+    }else{
+      return None;
     }
   }
 }
@@ -1668,6 +1694,7 @@ fn compile_fn(&mut self, bv: &mut Vec<u8>, t: &Rc<ASTNode>)
 
   // Every function has its own table of variables.
   let vtab = replace(&mut self.vtab,VarTab::new(t.s.clone()));
+  self.vtab.context = Some(Box::new(vtab));
   self.arguments(&a[0]);
 
   // Compile the function body.
@@ -1676,9 +1703,6 @@ fn compile_fn(&mut self, bv: &mut Vec<u8>, t: &Rc<ASTNode>)
   self.function_nesting-=1;
   
   let var_count = self.vtab.count_local;
-
-  // Restore.
-  self.vtab = vtab;
 
   // Shift the start adresses of nested functions
   // by the now known offset and turn them into
@@ -1693,6 +1717,20 @@ fn compile_fn(&mut self, bv: &mut Vec<u8>, t: &Rc<ASTNode>)
   // Add an additional return statement that will be reached
   // in case the control flow reaches the end of the function.
   push_bc(&mut bv2, bc::RET, t.line, t.col);
+  
+  // print_var_tab(&self.vtab,2);
+
+  // Closure bindings.
+  if self.vtab.count_context>0 {
+    self.closure(bv);
+  }else{
+    push_bc(bv, bc::NULL, t.line, t.col);
+  }
+
+  // Restore.
+  if let Some(context) = self.vtab.context.take() {
+    self.vtab = *context;
+  }
 
   // The name of the function or null in case
   // the function is anonymous.
@@ -1757,6 +1795,14 @@ fn string_literal(&mut self, s: &str) -> Result<String,Error> {
 
 fn arguments(&mut self, t: &ASTNode){
   let a = ast_argv(t);
+
+  self.vtab.v.push(VarInfo{
+    s: "self".to_string(),
+    index: self.vtab.count_arg,
+    var_type: VarType::Argument
+  });
+  self.vtab.count_arg+=1;
+
   for i in 0..a.len() {
     if let Some(ref s) = a[i].s {
       self.vtab.v.push(VarInfo{
@@ -1769,32 +1815,23 @@ fn arguments(&mut self, t: &ASTNode){
   }
 }
 
-fn index_type(&mut self, id: &str) -> Option<(usize,VarType)> {
-  if let Some(ref s) = self.vtab.fn_id {
-    if id==s {return Some((0,VarType::FnId));}
-  }
-  let a = &self.vtab.v[..];
-  for i in 0..a.len() {
-    if a[i].s==id {
-      return Some((a[i].index, a[i].var_type));
-    }
-  }
-  return None;
-}
-
 fn compile_variable(&mut self, bv: &mut Vec<u8>, t: &ASTNode)
   -> Result<(),Error>
 {
   let key = match t.s {Some(ref x)=>x, None=>panic!()};
-  match self.index_type(key) {
+  match self.vtab.index_type(key) {
     Some((index,var_type)) => {
       match var_type {
         VarType::Argument => {
           push_bc(bv,bc::LOAD_ARG,t.line,t.col);
-          push_u32(bv,index as u32+1);
+          push_u32(bv,index as u32);
         },
         VarType::Local => {
           push_bc(bv,bc::LOAD_LOCAL,t.line,t.col);
+          push_u32(bv,index as u32);
+        },
+        VarType::Context => {
+          push_bc(bv,bc::LOAD_CONTEXT,t.line,t.col);
           push_u32(bv,index as u32);
         },
         VarType::FnId => {
@@ -1818,11 +1855,19 @@ fn compile_assignment(&mut self, bv: &mut Vec<u8>, t: &ASTNode,
 ){
   let key = match t.s {Some(ref x)=>x, None=>panic!()};
   if self.function_nesting>0 {
-    match self.index_type(key) {
+    match self.vtab.index_type(key) {
       Some((index,var_type)) => {
         match var_type {
           VarType::Local => {
             push_bc(bv,bc::STORE_LOCAL,line,col);
+            push_u32(bv,index as u32);
+          },
+          VarType::Argument => {
+            push_bc(bv,bc::STORE_ARG,line,col);
+            push_u32(bv,index as u32);
+          },
+          VarType::Context => {
+            push_bc(bv,bc::STORE_CONTEXT,line,col);
             push_u32(bv,index as u32);
           },
           _ => panic!()
@@ -1870,6 +1915,41 @@ fn compile_compound_assignment(
     unimplemented!();
   }
   return Ok(());
+}
+
+fn closure(&mut self, bv: &mut Vec<u8>){
+  let n = self.vtab.v.len();
+  let a = &self.vtab.v[..];
+  let ref mut context = match self.vtab.context {
+    Some(ref mut context) => context,
+    None => panic!()
+  };
+  for i in 0..n {
+    if a[i].var_type == VarType::Context {
+      if let Some((index,var_type)) = context.index_type(&a[i].s) {
+        match var_type {
+          VarType::Local => {
+            push_bc(bv,bc::LOAD_LOCAL,0,0);
+            push_u32(bv,index as u32);
+          },
+          VarType::Argument => {
+            push_bc(bv,bc::LOAD_ARG,0,0);
+            push_u32(bv,index as u32);
+          },
+          VarType::Context => {
+            push_bc(bv,bc::LOAD_CONTEXT,0,0);
+            push_u32(bv,index as u32);
+          },
+          _ => panic!()
+        }
+      }else{
+        println!("Error in closure: id '{}' not in context.",&a[i].s);
+        panic!();
+      }
+    }
+  }
+  push_bc(bv,bc::LIST,0,0);
+  push_u32(bv,self.vtab.count_context as u32);
 }
 
 fn compile_ast(&mut self, bv: &mut Vec<u8>, t: &Rc<ASTNode>)
@@ -2258,6 +2338,48 @@ fn print_data(a: &[Object]){
   }
 }
 
+fn print_var_tab(vtab: &VarTab, indent: usize){
+  let n = vtab.v.len();
+  let a = &vtab.v[..];
+  let mut sequent = false;
+  
+  print!("{:1$}","",indent);
+  print!("context: ");
+  for i in 0..n {
+    if a[i].var_type == VarType::Context {
+      if sequent {print!(", ")} else {sequent = true;}
+      print!("{}",&a[i].s);
+    }
+  }
+  println!();
+
+  sequent = false;
+  print!("{:1$}","",indent);
+  print!("local: ");
+  for i in 0..n {
+    if a[i].var_type == VarType::Local {
+      if sequent {print!(", ")} else {sequent = true;}
+      print!("{}",&a[i].s);
+    }
+  }
+  println!();
+
+  sequent = false;
+  print!("{:1$}","",indent);
+  print!("argument: ");
+  for i in 0..n {
+    if a[i].var_type == VarType::Argument {
+      if sequent {print!(", ")} else {sequent = true;}
+      print!("{}",&a[i].s);
+    }
+  }
+  println!();
+
+  if let Some(ref context) = vtab.context {
+    print_var_tab(context,indent+2);
+  }
+}
+
 pub fn compile(v: Vec<Token>, mode_cmd: bool,
   history: &mut system::History, id: &str
 ) -> Result<Rc<Module>,Error>
@@ -2272,7 +2394,7 @@ pub fn compile(v: Vec<Token>, mode_cmd: bool,
   };
   let mut i = TokenIterator{index: 0, a: Rc::new(v.into_boxed_slice())};
   let y = try!(compilation.ast(&mut i));
-  print_ast(&y,2);
+  // print_ast(&y,2);
 
   let mut bv: Vec<u8> = Vec::new();
   try!(compilation.compile_ast(&mut bv, &y));
@@ -2282,8 +2404,8 @@ pub fn compile(v: Vec<Token>, mode_cmd: bool,
 
   bv.append(&mut compilation.bv_blocks);
 
-  print_asm_listing(&bv);
-  print_data(&compilation.data);
+  // print_asm_listing(&bv);
+  // print_data(&compilation.data);
   // let m = Rc::new(Module{program: bv, data: compilation.data});
   let m = Rc::new(Module{program: Rc::new(bv), data: compilation.data});
   return Ok(m);

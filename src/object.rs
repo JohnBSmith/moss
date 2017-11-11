@@ -54,6 +54,9 @@ impl List{
   pub fn new_object(v: Vec<Object>) -> Object{
     return Object::List(Rc::new(RefCell::new(List{v: v, frozen: false})));
   }
+  pub fn new() -> Self {
+    return List{v: Vec::new(), frozen: false};
+  }
 }
 
 pub struct Map{
@@ -121,7 +124,8 @@ pub struct StandardFn{
   pub address: usize,
   pub module: Rc<Module>,
   pub gtab: Rc<RefCell<Map>>,
-  pub var_count: u32
+  pub var_count: u32,
+  pub context: Rc<RefCell<List>>
 }
 
 pub enum EnumFunction{

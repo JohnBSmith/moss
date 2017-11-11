@@ -182,10 +182,7 @@ impl PartialEq for Object{
       &Object::List(ref x) => {
         match b {
           &Object::List(ref y) => {
-            match x.try_borrow_mut() {
-              Some(x) => x.v == y.borrow().v,
-              None => y.try_borrow_mut() == None
-            }
+            x.borrow().v == y.borrow().v
           },
           _ => false
         }
@@ -932,6 +929,15 @@ fn index_assignment(sp: usize, stack: &mut Vec<Object>) -> FnResult {
   }
 }
 
+#[inline(never)]
+fn global_variable_not_found(module: &Module, index: u32, gtab: &RefCell<Map>) -> FnResult {
+  let mut s =  String::new();
+  s.push_str(&format!("Error: variable '{}' not found.",object_to_string(&module.data[index as usize])));
+  // println!("gtab: {}",object_to_repr(&Object::Map(gtab.clone())));
+  // panic!()
+  return index_error(&s);
+}
+
 #[inline(always)]
 fn compose_i32(a: &[u8], ip: usize) -> i32{
   (a[ip+3] as i32)<<24 | (a[ip+2] as i32)<<16 | (a[ip+1] as i32)<<8 | (a[ip] as i32)
@@ -1230,7 +1236,10 @@ fn vm_loop(state: &mut State, module: Rc<Module>, gtab: Rc<RefCell<Map>>)
               }
             }
           },
-          _ => panic!()
+          _ => {
+            state.sp = sp;
+            return type_error("Type error in f(...): f is not callable.");
+          }
         }
       },
       bc::RET => {
@@ -1267,9 +1276,7 @@ fn vm_loop(state: &mut State, module: Rc<Module>, gtab: Rc<RefCell<Map>>)
             sp+=1;
           },
           None => {
-            println!("not found: {}",object_to_repr(&module.data[index as usize]));
-            println!("gtab: {}",object_to_repr(&Object::Map(gtab.clone())));
-            panic!()
+            return global_variable_not_found(&module,index,&gtab);
           }
         }
         ip+=BCSIZEP4;
@@ -1291,7 +1298,15 @@ fn vm_loop(state: &mut State, module: Rc<Module>, gtab: Rc<RefCell<Map>>)
         panic!()
       },
       bc::LOAD_CONTEXT => {
-        panic!()
+        let index = compose_u32(&a,ip+BCSIZE) as usize;
+        match fnself.f {
+          EnumFunction::Std(ref sf) => {
+            stack[sp] = sf.context.borrow().v[index].clone();
+          },
+          _ => panic!()
+        }
+        sp+=1;
+        ip+=BCSIZEP4;
       },
       bc::FN => {
         ip+=BCSIZE+16;
@@ -1300,11 +1315,18 @@ fn vm_loop(state: &mut State, module: Rc<Module>, gtab: Rc<RefCell<Map>>)
         let argc_min = compose_u32(&a,ip-12);
         let argc_max = compose_u32(&a,ip-8);
         let var_count = compose_u32(&a,ip-4);
+        let context = match replace(&mut stack[sp-2],Object::Null) {
+          Object::List(a) => a,
+          Object::Null => Rc::new(RefCell::new(List::new())),
+          _ => panic!()
+        };
+        sp-=1;
         stack[sp-1] = Function::new(StandardFn{
           address: address,
           module: module.clone(),
           gtab: gtab.clone(),
-          var_count: var_count
+          var_count: var_count,
+          context: context
         },argc_min,argc_max);
       },
       bc::GET_INDEX => {
