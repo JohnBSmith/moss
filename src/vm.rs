@@ -210,7 +210,8 @@ impl PartialEq for Object{
           },
           _ => false
         }
-      }
+      },
+      _ => panic!()
     }
   }
 }
@@ -258,8 +259,18 @@ fn list_to_string(a: &[Object]) -> String{
   return s;
 }
 
-fn map_to_string(a: &HashMap<Object,Object>) -> String{
-  let mut s = String::from("{");
+fn tuple_to_string(a: &[Object]) -> String{
+  let mut s = String::from("(");
+  for i in 0..a.len() {
+    if i!=0 {s.push_str(", ");}
+    s.push_str(&object_to_repr(&a[i]));
+  }
+  s.push_str(")");
+  return s;
+}
+
+fn map_to_string(a: &HashMap<Object,Object>, left: &str, right: &str) -> String{
+  let mut s = String::from(left);
   let mut first=true;
   for (key,value) in a {
     if first {first=false;} else{s.push_str(", ");}
@@ -272,7 +283,7 @@ fn map_to_string(a: &HashMap<Object,Object>) -> String{
       }
     }
   }
-  s.push_str("}");
+  s.push_str(right);
   return s;
 }
 
@@ -291,8 +302,8 @@ pub fn object_to_string(x: &Object) -> String{
     },
     Object::Map(ref a) => {
       match a.try_borrow_mut() {
-        Ok(a) => map_to_string(&a.m),
-        Err(_) => String::from("[...]")        
+        Ok(a) => map_to_string(&a.m,"{","}"),
+        Err(_) => String::from("{...}")        
       }
     },
     Object::String(ref a) => {
@@ -304,6 +315,15 @@ pub fn object_to_string(x: &Object) -> String{
     },
     Object::Range(ref r) => {
       format!("{}..{}",object_to_string(&r.a),object_to_string(&r.b))
+    },
+    Object::Tuple(ref t) => {
+      tuple_to_string(&t)
+    },
+    Object::Table(ref t) => {
+      match t.map.try_borrow_mut() {
+        Ok(m) => map_to_string(&m.m,"table ", " end"),
+        Err(_) => String::from("table ... end")
+      }
     }
   }
 }
@@ -929,6 +949,22 @@ fn index_assignment(sp: usize, stack: &mut Vec<Object>) -> FnResult {
   }
 }
 
+fn operator_dot(sp: usize, stack: &mut Vec<Object>) -> FnResult {
+  match stack[sp-2].clone() {
+    Object::Table(t) => {
+      match t.map.borrow().m.get(&stack[sp-1]) {
+        Some(x) => {
+          stack[sp-2] = x.clone();
+          stack[sp-1] = Object::Null;
+          Ok(())
+        },
+        None => index_error("Index error x.m: x has not property m.")
+      }
+    },
+    _ => type_error("Type error in x.m: x is not a table.")
+  }
+}
+
 #[inline(never)]
 fn global_variable_not_found(module: &Module, index: u32, gtab: &RefCell<Map>) -> FnResult {
   let mut s =  String::new();
@@ -1337,6 +1373,11 @@ fn vm_loop(state: &mut State, module: Rc<Module>, gtab: Rc<RefCell<Map>>)
       bc::SET_INDEX => {
         try!(index_assignment(sp,&mut stack));
         sp-=3;
+        ip+=BCSIZE;
+      },
+      bc::DOT => {
+        try!(operator_dot(sp,&mut stack));
+        sp-=1;
         ip+=BCSIZE;
       },
       bc::POP => {

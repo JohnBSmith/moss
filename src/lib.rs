@@ -14,6 +14,12 @@ mod global;
 #[path = "modules/complex.rs"]
 mod complex;
 
+#[path = "modules/math.rs"]
+mod math;
+
+#[path = "modules/cmath.rs"]
+mod cmath;
+
 use std::fs::File;
 use std::io::Read;
 use object::{Object, Map, Function, Exception, VARIADIC};
@@ -27,6 +33,7 @@ fn init_gtab(gtab: &mut Map){
   gtab.insert("abs",Function::plain(::global::abs,1,1));
   gtab.insert("eval",Function::plain(::global::eval,1,1));
   gtab.insert("size",Function::plain(::global::size,1,1));
+  gtab.insert("load",Function::plain(::global::fload,1,1));
 }
 
 pub fn command_line_session(){

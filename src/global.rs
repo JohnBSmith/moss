@@ -1,6 +1,8 @@
 
 use vm::{object_to_string, object_to_repr};
-use object::{Object, FnResult, U32String, type_error, argc_error};
+use object::{Object, FnResult, U32String,
+  type_error, argc_error, index_error
+};
 
 pub fn print(ret: &mut Object, pself: &Object, argv: &[Object]) -> FnResult{
   for i in 0..argv.len() {
@@ -96,7 +98,29 @@ pub fn size(ret: &mut Object, pself: &Object, argv: &[Object]) -> FnResult{
     Object::String(ref s) => {
       *ret = Object::Int(s.v.len() as i32);
       Ok(())
-    }
+    },
     _ => type_error("Type error in size(a): cannot determine the size of a.")
+  }
+}
+
+fn load(ret: &mut Object, s: &U32String) -> FnResult{
+  let s: String = s.v.iter().collect();
+  if s=="math" {
+    *ret = ::math::load_math();
+  }else if s=="cmath" {
+    *ret = ::cmath::load_cmath();
+  }else{
+    return index_error(&format!("Could not load module '{}'.",s));
+  }
+  return Ok(());
+}
+
+pub fn fload(ret: &mut Object, pself: &Object, argv: &[Object]) -> FnResult{
+  if argv.len() != 1 {
+    return argc_error(argv.len(),1,1,"load");
+  }
+  match argv[0] {
+    Object::String(ref s) => load(ret,s),
+    _ => type_error("Type error in load(id): id is not a string.")
   }
 }

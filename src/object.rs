@@ -9,7 +9,7 @@ pub enum Object{
   Null, Bool(bool), Int(i32), Float(f64), Complex(Complex64),
   List(Rc<RefCell<List>>), String(Rc<U32String>),
   Map(Rc<RefCell<Map>>), Function(Rc<Function>),
-  Range(Rc<Range>)
+  Range(Rc<Range>), Table(Rc<Table>), Tuple(Rc<Vec<Object>>)
 }
 
 impl Object{
@@ -24,7 +24,9 @@ impl Object{
       Object::List(ref x) => {Object::List(x.clone())},
       Object::Map(ref x) => {Object::Map(x.clone())},
       Object::Function(ref x) => {Object::Function(x.clone())},
-      Object::Range(ref x) => {Object::Range(x.clone())}
+      Object::Range(ref x) => {Object::Range(x.clone())},
+      Object::Tuple(ref x) => {Object::Tuple(x.clone())},
+      Object::Table(ref x) => {Object::Table(x.clone())}
     }
   }
   pub fn str(&self) -> String {
@@ -159,3 +161,11 @@ impl Function{
   }
 }
 
+pub struct Table{
+  pub prototype: Object,
+  pub map: Rc<RefCell<Map>>
+}
+
+pub fn new_module(id: &str) -> Table{
+  Table{prototype: Object::Null, map: Map::new()}
+}
