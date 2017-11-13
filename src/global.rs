@@ -108,7 +108,7 @@ fn load(ret: &mut Object, s: &U32String) -> FnResult{
   if s=="math" {
     *ret = ::math::load_math();
   }else if s=="cmath" {
-    *ret = ::cmath::load_cmath();
+    *ret = ::math::load_cmath();
   }else{
     return index_error(&format!("Could not load module '{}'.",s));
   }

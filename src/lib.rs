@@ -17,9 +17,6 @@ mod complex;
 #[path = "modules/math.rs"]
 mod math;
 
-#[path = "modules/cmath.rs"]
-mod cmath;
-
 use std::fs::File;
 use std::io::Read;
 use object::{Object, Map, Function, Exception, VARIADIC};
