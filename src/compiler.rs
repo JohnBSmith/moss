@@ -8,7 +8,7 @@ use std::rc::Rc;
 use std::collections::HashMap;
 use std::mem::{transmute,replace};
 use system;
-use vm::{bc, BCSIZE, Module};
+use vm::{bc, BCSIZE, Module, Env};
 use object::{Object, U32String};
 
 #[derive(Copy,Clone,PartialEq)]
@@ -1677,10 +1677,6 @@ fn compile_app(&mut self, v: &mut Vec<u8>, t: &Rc<AST>)
   -> Result<(),Error>
 {
   let a = ast_argv(t);
-
-  // callee
-  try!(self.compile_ast(v,&a[0]));
-
   let self_argument = match t.info {
     Info::None => false,
     Info::SelfArg => true,
@@ -1688,8 +1684,19 @@ fn compile_app(&mut self, v: &mut Vec<u8>, t: &Rc<AST>)
   };
   let argc = if self_argument {a.len()-2} else {a.len()-1};
 
-  if !self_argument {
-    // self argument, if not explicitly given
+  if self_argument {
+    // callee
+    try!(self.compile_ast(v,&a[0]));
+  }else if a[0].value == Symbol::Dot{
+    let b = ast_argv(&a[0]);
+    try!(self.compile_ast(v,&b[0]));
+    try!(self.compile_ast(v,&b[1]));
+    push_bc(v, bc::DUP_DOT_SWAP, t.line, t.col);
+  }else{
+    // callee
+    try!(self.compile_ast(v,&a[0]));
+
+    // self argument
     push_bc(v, bc::NULL, t.line, t.col);
   }
 
@@ -1998,6 +2005,11 @@ fn compile_ast(&mut self, bv: &mut Vec<u8>, t: &Rc<AST>)
         try!(self.compile_ast(bv,&b[0]));
         try!(self.compile_ast(bv,&b[1]));
         push_bc(bv,bc::SET_INDEX,t.line,t.col);
+      }else if a[0].value == Symbol::Dot {
+        let b = ast_argv(&a[0]);
+        try!(self.compile_ast(bv,&b[0]));
+        try!(self.compile_ast(bv,&b[1]));
+        push_bc(bv,bc::DOT_SET,t.line,t.col);
       }else{
         return Err(self.syntax_error(t.line,t.col,
           String::from("expected identifier before '='.")));
@@ -2342,6 +2354,7 @@ fn asm_listing(a: &[u8]) -> String {
       bc::DOT_SET => {s.push_str("dot set\n"); i+=BCSIZE;},
       bc::SWAP => {s.push_str("swap\n"); i+=BCSIZE;},
       bc::DUP => {s.push_str("dup\n"); i+=BCSIZE;},
+      bc::DUP_DOT_SWAP => {s.push_str("dup dot swap\n"); i+=BCSIZE;},
       bc::POP => {s.push_str("pop\n"); i+=BCSIZE;},
       bc::HALT => {s.push_str("halt\n"); i+=BCSIZE;},
       _ => {unimplemented!();}
@@ -2410,7 +2423,8 @@ fn print_var_tab(vtab: &VarTab, indent: usize){
 }
 
 pub fn compile(v: Vec<Token>, mode_cmd: bool,
-  history: &mut system::History, id: &str
+  history: &mut system::History, id: &str,
+  env: Rc<Env>
 ) -> Result<Rc<Module>,Error>
 {
   let mut compilation = Compilation{
@@ -2436,6 +2450,10 @@ pub fn compile(v: Vec<Token>, mode_cmd: bool,
   print_asm_listing(&bv);
   // print_data(&compilation.data);
   // let m = Rc::new(Module{program: bv, data: compilation.data});
-  let m = Rc::new(Module{program: Rc::new(bv), data: compilation.data});
+  let m = Rc::new(Module{
+    program: Rc::new(bv),
+    data: compilation.data,
+    env: env
+  });
   return Ok(m);
 }

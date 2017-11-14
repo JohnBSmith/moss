@@ -4,6 +4,7 @@ use std::cell::RefCell;
 use complex::Complex64;
 use std::collections::HashMap;
 use vm::Module;
+use std::fmt;
 
 pub enum Object{
   Null, Bool(bool), Int(i32), Float(f64), Complex(Complex64),
@@ -29,8 +30,17 @@ impl Object{
       Object::Table(ref x) => {Object::Table(x.clone())}
     }
   }
-  pub fn str(&self) -> String {
+  pub fn to_string(&self) -> String {
     ::vm::object_to_string(self)
+  }
+  pub fn repr(&self) -> String {
+    ::vm::object_to_repr(self)
+  }
+}
+
+impl fmt::Display for Object {
+  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    write!(f, "{}", ::vm::object_to_string(self))
   }
 }
 
@@ -164,6 +174,11 @@ impl Function{
 pub struct Table{
   pub prototype: Object,
   pub map: Rc<RefCell<Map>>
+}
+impl Table{
+  pub fn new(prototype: Object) -> Rc<Table> {
+    Rc::new(Table{prototype: prototype, map: Map::new()})
+  }
 }
 
 pub fn new_module(id: &str) -> Table{

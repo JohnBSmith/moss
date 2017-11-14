@@ -8,7 +8,8 @@ use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use object::{
   Object, Map, List, Function, EnumFunction, StandardFn,
-  FnResult, Exception, type_error, argc_error, index_error
+  FnResult, Exception, type_error, argc_error, index_error,
+  Table
 };
 use complex::Complex64;
 
@@ -67,6 +68,7 @@ pub mod bc{
   pub const DOT_SET: u8 = 47;
   pub const SWAP: u8 = 48;
   pub const DUP: u8 = 49;
+  pub const DUP_DOT_SWAP: u8 = 50;
 
   pub fn op_to_str(x: u8) -> &'static str {
     match x {
@@ -120,6 +122,7 @@ pub mod bc{
       DOT_SET => "DOT_SET",
       SWAP => "SWAP",
       DUP => "DUP",
+      DUP_DOT_SWAP => "DUP_DOT_SWAP",
       _ => "unknown"
     }
   }
@@ -492,7 +495,7 @@ fn operator_mpy(sp: usize, stack: &mut Vec<Object>) -> FnResult {
           Ok(())
         },
         _ => type_error(&format!("Type error in a*b: a={}, b={}.",
-          stack[sp-2].str(), stack[sp-1].str()
+          stack[sp-2].to_string(), stack[sp-1].to_string()
         ))
       }
     },
@@ -511,7 +514,7 @@ fn operator_mpy(sp: usize, stack: &mut Vec<Object>) -> FnResult {
           Ok(())
         },
         _ => type_error(&format!("Type error in a*b: a={}, b={}.",
-          stack[sp-2].str(), stack[sp-1].str()
+          stack[sp-2].to_string(), stack[sp-1].to_string()
         ))
       }
     },
@@ -530,12 +533,12 @@ fn operator_mpy(sp: usize, stack: &mut Vec<Object>) -> FnResult {
           Ok(())
         },
         _ => type_error(&format!("Type error in a*b: a={}, b={}.",
-          stack[sp-2].str(), stack[sp-1].str()
+          stack[sp-2].to_string(), stack[sp-1].to_string()
         ))
       }
     },
     _ => type_error(&format!("Type error in a*b: a={}, b={}.",
-      stack[sp-2].str(), stack[sp-1].str()
+      stack[sp-2].to_string(), stack[sp-1].to_string()
     ))
   }
 }
@@ -949,7 +952,7 @@ fn index_assignment(sp: usize, stack: &mut Vec<Object>) -> FnResult {
   }
 }
 
-fn operator_dot(sp: usize, stack: &mut Vec<Object>) -> FnResult {
+fn operator_dot(sp: usize, stack: &mut Vec<Object>, module: &Module) -> FnResult {
   match stack[sp-2].clone() {
     Object::Table(t) => {
       match t.map.borrow().m.get(&stack[sp-1]) {
@@ -958,10 +961,39 @@ fn operator_dot(sp: usize, stack: &mut Vec<Object>) -> FnResult {
           stack[sp-1] = Object::Null;
           Ok(())
         },
-        None => index_error("Index error x.m: x has not property m.")
+        None => index_error("Index error x.m: m not in property chain.")
+      }
+    },
+    Object::List(a) => {
+      match module.env.list.map.borrow().m.get(&stack[sp-1]) {
+        Some(x) => {
+          stack[sp-2] = x.clone();
+          stack[sp-1] = Object::Null;
+          Ok(())
+        },
+        None => index_error("Index error in a.m: m not in property chain.")
       }
     },
     _ => type_error("Type error in x.m: x is not a table.")
+  }
+}
+
+fn operator_dot_set(sp: usize, stack: &mut Vec<Object>) -> FnResult {
+  match stack[sp-2].clone() {
+    Object::Table(t) => {
+      let key = replace(&mut stack[sp-1],Object::Null);
+      let value = replace(&mut stack[sp-3],Object::Null);
+      let mut m = t.map.borrow_mut();
+      if m.frozen {
+        return type_error("Index error in a.x=value: a is frozen.");
+      }
+      match m.m.insert(key,value) {
+        Some(_) => {},
+        None => {}
+      }
+      Ok(())
+    },
+    _ => type_error("Type error in a.x: a is not a table.")
   }
 }
 
@@ -993,6 +1025,16 @@ fn compose_u64(a: &[u8], ip: usize) -> u64{
   // unsafe{*((a.as_ptr().offset(ip as isize)) as *const u64)}
 }
 
+// Runtime environment: globally accessible information.
+pub struct Env{
+  pub list: Rc<Table>
+}
+impl Env{
+  pub fn new() -> Rc<Env>{
+    Rc::new(Env{list: Table::new(Object::Null)})
+  }
+}
+
 pub struct Module{
   pub program: Rc<Vec<u8>>,
   // pub program: Vec<u8>,
@@ -1000,7 +1042,8 @@ pub struct Module{
   // pub program: Rc<[u8]>,
   // Rc<[T]> is available in Rust version 1.21 onwards.
 
-  pub data: Vec<Object>
+  pub data: Vec<Object>,
+  pub env: Rc<Env>
 }
 
 struct Frame{
@@ -1376,8 +1419,19 @@ fn vm_loop(state: &mut State, module: Rc<Module>, gtab: Rc<RefCell<Map>>)
         ip+=BCSIZE;
       },
       bc::DOT => {
-        try!(operator_dot(sp,&mut stack));
+        try!(operator_dot(sp,&mut stack,&module));
         sp-=1;
+        ip+=BCSIZE;
+      },
+      bc::DOT_SET => {
+        try!(operator_dot_set(sp,&mut stack));
+        sp-=3;
+        ip+=BCSIZE;
+      },
+      bc::DUP_DOT_SWAP => {
+        let x = stack[sp-2].clone();
+        try!(operator_dot(sp,&mut stack,&module));
+        stack[sp-1] = x;
         ip+=BCSIZE;
       },
       bc::POP => {
