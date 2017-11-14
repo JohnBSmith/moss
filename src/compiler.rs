@@ -587,7 +587,7 @@ enum ComplexInfoA{
 }
 
 enum Info{
-  None, Some(u8), A(Box<ComplexInfoA>)
+  None, Some(u8), SelfArg, A(Box<ComplexInfoA>)
 }
 
 struct AST{
@@ -973,6 +973,7 @@ fn application(&mut self, i: &mut TokenIterator, f: Rc<AST>, terminal: Symbol)
   -> Result<Rc<AST>,Error>
 {
   let mut v: Vec<Rc<AST>> = Vec::new();
+  let mut self_argument = Info::None;
   let line = f.line;
   let col = f.col;
   v.push(f);
@@ -988,6 +989,9 @@ fn application(&mut self, i: &mut TokenIterator, f: Rc<AST>, terminal: Symbol)
       let t = &p[i.index];
       if t.value == Symbol::Comma {
         i.index+=1;
+      }else if t.value == Symbol::Semicolon {
+        i.index+=1;
+        self_argument = Info::SelfArg;
       }else if t.value == terminal {
         i.index+=1;
         break;
@@ -1002,7 +1006,7 @@ fn application(&mut self, i: &mut TokenIterator, f: Rc<AST>, terminal: Symbol)
     Symbol::Index
   };
   return Ok(Rc::new(AST{line: line, col: col, symbol_type: SymbolType::Operator,
-    value: value, info: Info::None, s: None, a: Some(v.into_boxed_slice())}));
+    value: value, info: self_argument, s: None, a: Some(v.into_boxed_slice())}));
 }
 
 fn atom(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error> {
@@ -1677,8 +1681,17 @@ fn compile_app(&mut self, v: &mut Vec<u8>, t: &Rc<AST>)
   // callee
   try!(self.compile_ast(v,&a[0]));
 
-  // self argument
-  push_bc(v, bc::NULL, t.line, t.col);
+  let self_argument = match t.info {
+    Info::None => false,
+    Info::SelfArg => true,
+    _ => panic!()
+  };
+  let argc = if self_argument {a.len()-2} else {a.len()-1};
+
+  if !self_argument {
+    // self argument, if not explicitly given
+    push_bc(v, bc::NULL, t.line, t.col);
+  }
 
   // arguments
   for i in 1..a.len() {
@@ -1690,7 +1703,7 @@ fn compile_app(&mut self, v: &mut Vec<u8>, t: &Rc<AST>)
   // argument count,
   // not counting the self argument,
   // not counting the callee
-  push_u32(v, (a.len()-1) as u32);
+  push_u32(v, argc as u32);
 
   return Ok(());
 }

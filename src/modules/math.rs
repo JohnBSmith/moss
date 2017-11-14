@@ -580,6 +580,153 @@ fn csqrt(ret: &mut Object, pself: &Object, argv: &[Object]) -> FnResult{
   }
 }
 
+fn cln(ret: &mut Object, pself: &Object, argv: &[Object]) -> FnResult{
+  if argv.len() != 1 {
+    return argc_error(argv.len(),1,1,"ln");
+  }
+  match argv[0] {
+    Object::Int(x) => {
+      *ret = Object::Complex(Complex64{re: x as f64, im: 0.0}.ln());
+      Ok(())
+    },
+    Object::Float(x) => {
+      *ret = Object::Complex(Complex64{re: x, im: 0.0}.ln());
+      Ok(())
+    },
+    Object::Complex(z) => {
+      *ret = Object::Complex(z.ln());
+      Ok(())
+    },
+    _ => type_error("Type error in ln(z): z is not a number.")
+  }
+}
+
+fn casin(ret: &mut Object, pself: &Object, argv: &[Object]) -> FnResult{
+  if argv.len() != 1 {
+    return argc_error(argv.len(),1,1,"asin");
+  }
+  match argv[0] {
+    Object::Int(x) => {
+      *ret = Object::Complex(Complex64{re: x as f64, im: 0.0}.asin());
+      Ok(())
+    },
+    Object::Float(x) => {
+      *ret = Object::Complex(Complex64{re: x, im: 0.0}.asin());
+      Ok(())
+    },
+    Object::Complex(z) => {
+      *ret = Object::Complex(z.asin());
+      Ok(())
+    },
+    _ => type_error("Type error in asin(z): z is not a number.")
+  }
+}
+
+fn cacos(ret: &mut Object, pself: &Object, argv: &[Object]) -> FnResult{
+  if argv.len() != 1 {
+    return argc_error(argv.len(),1,1,"acos");
+  }
+  match argv[0] {
+    Object::Int(x) => {
+      *ret = Object::Complex(Complex64{re: x as f64, im: 0.0}.acos());
+      Ok(())
+    },
+    Object::Float(x) => {
+      *ret = Object::Complex(Complex64{re: x, im: 0.0}.acos());
+      Ok(())
+    },
+    Object::Complex(z) => {
+      *ret = Object::Complex(z.acos());
+      Ok(())
+    },
+    _ => type_error("Type error in acos(z): z is not a number.")
+  }
+}
+
+fn catan(ret: &mut Object, pself: &Object, argv: &[Object]) -> FnResult{
+  if argv.len() != 1 {
+    return argc_error(argv.len(),1,1,"atan");
+  }
+  match argv[0] {
+    Object::Int(x) => {
+      *ret = Object::Complex(Complex64{re: x as f64, im: 0.0}.atan());
+      Ok(())
+    },
+    Object::Float(x) => {
+      *ret = Object::Complex(Complex64{re: x, im: 0.0}.atan());
+      Ok(())
+    },
+    Object::Complex(z) => {
+      *ret = Object::Complex(z.atan());
+      Ok(())
+    },
+    _ => type_error("Type error in atan(z): z is not a number.")
+  }
+}
+
+fn casinh(ret: &mut Object, pself: &Object, argv: &[Object]) -> FnResult{
+  if argv.len() != 1 {
+    return argc_error(argv.len(),1,1,"asinh");
+  }
+  match argv[0] {
+    Object::Int(x) => {
+      *ret = Object::Complex(Complex64{re: x as f64, im: 0.0}.asinh());
+      Ok(())
+    },
+    Object::Float(x) => {
+      *ret = Object::Complex(Complex64{re: x, im: 0.0}.asinh());
+      Ok(())
+    },
+    Object::Complex(z) => {
+      *ret = Object::Complex(z.asinh());
+      Ok(())
+    },
+    _ => type_error("Type error in asinh(z): z is not a number.")
+  }
+}
+
+fn cacosh(ret: &mut Object, pself: &Object, argv: &[Object]) -> FnResult{
+  if argv.len() != 1 {
+    return argc_error(argv.len(),1,1,"acosh");
+  }
+  match argv[0] {
+    Object::Int(x) => {
+      *ret = Object::Complex(Complex64{re: x as f64, im: 0.0}.acosh());
+      Ok(())
+    },
+    Object::Float(x) => {
+      *ret = Object::Complex(Complex64{re: x, im: 0.0}.acosh());
+      Ok(())
+    },
+    Object::Complex(z) => {
+      *ret = Object::Complex(z.acosh());
+      Ok(())
+    },
+    _ => type_error("Type error in acosh(z): z is not a number.")
+  }
+}
+
+fn catanh(ret: &mut Object, pself: &Object, argv: &[Object]) -> FnResult{
+  if argv.len() != 1 {
+    return argc_error(argv.len(),1,1,"atanh");
+  }
+  match argv[0] {
+    Object::Int(x) => {
+      *ret = Object::Complex(Complex64{re: x as f64, im: 0.0}.atanh());
+      Ok(())
+    },
+    Object::Float(x) => {
+      *ret = Object::Complex(Complex64{re: x, im: 0.0}.atanh());
+      Ok(())
+    },
+    Object::Complex(z) => {
+      *ret = Object::Complex(z.atanh());
+      Ok(())
+    },
+    _ => type_error("Type error in atanh(z): z is not a number.")
+  }
+}
+
 pub fn load_math() -> Object {
   let math = new_module("math");
   {
@@ -588,24 +735,28 @@ pub fn load_math() -> Object {
     m.insert("e",    Object::Float(E));
     m.insert("nan",  Object::Float(::std::f64::NAN));
     m.insert("inf",  Object::Float(::std::f64::INFINITY));
+
     m.insert("floor",Function::plain(floor,1,1));
     m.insert("ceil", Function::plain(ceil,1,1));
     m.insert("sqrt", Function::plain(sqrt,1,1));
     m.insert("exp",  Function::plain(exp,1,1));
     m.insert("ln",   Function::plain(ln,1,1));
     m.insert("lg",   Function::plain(lg,1,1));
+
     m.insert("sin",  Function::plain(sin,1,1));
     m.insert("cos",  Function::plain(cos,1,1));
     m.insert("tan",  Function::plain(tan,1,1));
     m.insert("sinh", Function::plain(sinh,1,1));
     m.insert("cosh", Function::plain(cosh,1,1));
     m.insert("tanh", Function::plain(tanh,1,1));
+
     m.insert("asin", Function::plain(asin,1,1));
     m.insert("acos", Function::plain(acos,1,1));
     m.insert("atan", Function::plain(atan,1,1));
     m.insert("asinh",Function::plain(asinh,1,1));
     m.insert("acosh",Function::plain(acosh,1,1));
     m.insert("atanh",Function::plain(atanh,1,1));
+
     m.insert("gamma",Function::plain(fgamma,1,1));
     m.insert("hypot",Function::plain(hypot,2,2));
     m.insert("atan2",Function::plain(atan2,2,2));
@@ -625,9 +776,17 @@ pub fn load_cmath() -> Object {
     m.insert("cosh", Function::plain(cosh,1,1));
     m.insert("tanh", Function::plain(tanh,1,1));
 
+    m.insert("asin",  Function::plain(casin,1,1));
+    m.insert("acos",  Function::plain(cacos,1,1));
+    m.insert("atan",  Function::plain(catan,1,1));
+    m.insert("asinh", Function::plain(casinh,1,1));
+    m.insert("acosh", Function::plain(cacosh,1,1));
+    m.insert("atanh", Function::plain(catanh,1,1));
+
     m.insert("re",   Function::plain(re,1,1));
     m.insert("im",   Function::plain(im,1,1));
     m.insert("conj", Function::plain(conj,1,1));
+    m.insert("ln",   Function::plain(cln,1,1));
     m.insert("sqrt", Function::plain(csqrt,1,1));
   }
   return Object::Table(Rc::new(cmath));

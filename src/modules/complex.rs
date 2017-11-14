@@ -172,6 +172,7 @@ impl Complex64{
       im: self.re.cosh() * self.im.sin()
     }
   }
+
   // cosh(a+bi) = cosh(a)cos(b) + i*sinh(a)sin(b)
   pub fn cosh(self) -> Complex64{
     Complex64{
@@ -179,6 +180,7 @@ impl Complex64{
       im: self.re.sinh() * self.im.sin()
     }
   }
+
   // tanh(a+bi) = (sinh(2a) + i*sin(2b))/(cosh(2a) + cos(2b))
   pub fn tanh(self) -> Complex64{
     let x = 2.0*self.re;
@@ -190,7 +192,40 @@ impl Complex64{
   pub fn coth(self) -> Complex64{
     1.0/self.tanh()
   }
-  
+
+  // asin(z) = -i*ln(sqrt(1-z^2) + i*z)
+  pub fn asin(self) -> Complex64{
+    let i = Complex64{re: 0.0, im: 1.0};
+    -i*((1.0-self*self).sqrt()+i*self).ln()
+  }
+
+  // acos(z) = -i*ln(i*sqrt(1-z^2) + z)  
+  pub fn acos(self) -> Complex64{
+    let i = Complex64{re: 0.0, im: 1.0};
+    -i*(i*(1.0-self*self).sqrt()+self).ln()
+  }
+
+  // atan(z) = (ln(1+iz) - ln(1-iz))/(2i)
+  pub fn atan(self) -> Complex64{
+    let i = Complex64{re: 0.0, im: 1.0};
+    ((1.0+i*self).ln()-(1.0-i*self).ln())/(2.0*i)
+  }
+
+  // asinh(z) = ln(z + sqrt(1+z^2))
+  pub fn asinh(self) -> Complex64{
+    (self+(1.0+self*self).sqrt()).ln()
+  }
+
+  // acosh(z) = 2 ln(sqrt((z+1)/2) + sqrt((z-1)/2))
+  pub fn acosh(self) -> Complex64{
+    2.0*((0.5*(self+1.0)).sqrt() + (0.5*(self-1.0)).sqrt()).ln()
+  }
+
+  // atanh(z) = (ln(1+z) - ln(1-z))/2
+  pub fn atanh(self) -> Complex64{
+    0.5*((1.0+self).ln() - (1.0-self).ln())
+  }
+
   pub fn is_nan(self) -> bool {
     self.re.is_nan() || self.im.is_nan()
   }
