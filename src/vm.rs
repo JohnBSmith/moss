@@ -69,6 +69,9 @@ pub mod bc{
   pub const SWAP: u8 = 48;
   pub const DUP: u8 = 49;
   pub const DUP_DOT_SWAP: u8 = 50;
+  pub const AND: u8 = 51;
+  pub const OR: u8 = 52;
+  pub const NOT: u8 = 53;
 
   pub fn op_to_str(x: u8) -> &'static str {
     match x {
@@ -123,6 +126,9 @@ pub mod bc{
       SWAP => "SWAP",
       DUP => "DUP",
       DUP_DOT_SWAP => "DUP_DOT_SWAP",
+      AND => "AND",
+      OR => "OR",
+      NOT => "NOT",
       _ => "unknown"
     }
   }
@@ -1228,6 +1234,47 @@ fn vm_loop(state: &mut State, module: Rc<Module>, gtab: Rc<RefCell<Map>>)
         try!(operator_is(sp,&mut stack));
         sp-=1;
         ip+=BCSIZE;      
+      },
+      bc::NOT => {
+        let x = match stack[sp-1] {
+          Object::Bool(x)=>x,
+          _ => {
+            state.sp=sp;
+            return type_error("Type error in not a: a is not a boolean.");
+          }
+        };
+        stack[sp-1] = Object::Bool(!x);
+        ip+=BCSIZE;
+      },
+      bc::AND => {
+        let condition = match stack[sp-1] {
+          Object::Bool(x)=>x,
+          _ => {
+            state.sp=sp;
+            return type_error("Type error in a and b: a is not a boolean.");
+          }
+        };
+        if condition {
+          sp-=1;
+          ip+=BCSIZEP4;
+        }else{
+          ip = (ip as i32+compose_i32(&a,ip+BCSIZE)) as usize;
+        }
+      },
+      bc::OR => {
+        let condition = match stack[sp-1] {
+          Object::Bool(x)=>x,
+          _ => {
+            state.sp=sp;
+            return type_error("Type error in a or b: a is not a boolean.");
+          }
+        };
+        if condition {
+          ip = (ip as i32+compose_i32(&a,ip+BCSIZE)) as usize;
+        }else{
+          sp-=1;
+          ip+=BCSIZEP4;
+        }      
       },
       bc::LIST => {
         let size = compose_u32(&a,ip+BCSIZE) as usize;

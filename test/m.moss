@@ -7,9 +7,10 @@ List.map = sub|f|
     a.push(f(self[i]))
     i+=1
   end
-  a
+  return a
 end
 
 a = [1,2,3,4]
 print(a.map(|x| 2*x))
+
 
