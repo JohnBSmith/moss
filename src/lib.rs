@@ -56,7 +56,7 @@ pub fn command_line_session(){
       Err(error) => {println!("Error: {}", error);},
     };
     if input=="quit" {break}
-    match compiler::scan(&input,1,"command line") {
+    match compiler::scan(&input,1,"command line",false) {
       Ok(v) => {
         // compiler::print_vtoken(&v);
         match compiler::compile(v,true,&mut history,"command line",env.clone()) {
@@ -80,7 +80,7 @@ pub fn command_line_session(){
 
 pub fn eval_string(s: &str, id: &str) -> Result<Object,Box<Exception>> {
   let mut history = system::History::new();
-  match compiler::scan(s,1,id) {
+  match compiler::scan(s,1,id,false) {
     Ok(v) => {
       let env = Env::new();
       let gtab = Map::new();

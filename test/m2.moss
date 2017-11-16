@@ -1,0 +1,13 @@
+
+
+i=1
+while true
+  print(i)
+  i+=1
+  if i==4
+    print("finish")
+    break
+  end
+end
+
+

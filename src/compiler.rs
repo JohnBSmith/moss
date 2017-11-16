@@ -56,7 +56,7 @@ static KEYWORDS: &'static [KeywordsElement] = &[
    KeywordsElement{s: "assert",  t: &SymbolType::Keyword, v: &Symbol::Assert},
    KeywordsElement{s: "and",     t: &SymbolType::Operator,v: &Symbol::And},
    KeywordsElement{s: "begin",   t: &SymbolType::Keyword, v: &Symbol::Begin},
-   KeywordsElement{s: "break",   t: &SymbolType::Keyword, v: &Symbol::Begin},
+   KeywordsElement{s: "break",   t: &SymbolType::Keyword, v: &Symbol::Break},
    KeywordsElement{s: "catch",   t: &SymbolType::Keyword, v: &Symbol::Catch},
    KeywordsElement{s: "continue",t: &SymbolType::Keyword, v: &Symbol::Continue},
    KeywordsElement{s: "do",      t: &SymbolType::Keyword, v: &Symbol::Do},
@@ -122,8 +122,15 @@ fn is_keyword(id: &String) -> Option<&'static KeywordsElement> {
   return None;
 }
 
-pub fn scan(s: &str, line_start: usize, file: &str) -> Result<Vec<Token>,Error>{
+pub fn scan(s: &str, line_start: usize, file: &str, new_line_start: bool)
+  -> Result<Vec<Token>,Error>
+{
   let mut v: Vec<Token> = Vec::new();
+  if new_line_start {
+    v.push(Token{token_type: SymbolType::Separator, value: Symbol::Newline,
+      line: line_start, col: 1, s: None});
+  }
+
   let mut line=line_start;
   let mut col=1;
   let mut hcol: usize;
@@ -142,6 +149,7 @@ pub fn scan(s: &str, line_start: usize, file: &str) -> Result<Vec<Token>,Error>{
         if a[i].is_digit(10) {
           i+=1; col+=1;
         }else if a[i]=='.' && token_type != SymbolType::Float{
+          if i+1<n && a[i+1]=='.' {break;}
           i+=1; col+=1;
           token_type = SymbolType::Float;
         }else if a[i]=='i' {
@@ -194,6 +202,14 @@ pub fn scan(s: &str, line_start: usize, file: &str) -> Result<Vec<Token>,Error>{
           i+=1; col+=1;
         },
         '\n' => {
+          if encountered_sub {
+            encountered_sub = false;
+            v[sub_index].value = Symbol::SubStatement;
+            v.push(Token{token_type: SymbolType::Bracket,
+              value: Symbol::PLeft, line: line, col: col, s: None});
+            v.push(Token{token_type: SymbolType::Bracket,
+              value: Symbol::PRight, line: line, col: col, s: None});
+          }
           v.push(Token{token_type: SymbolType::Separator,
             value: Symbol::Newline, line: line, col: col, s: None});
           i+=1; col=1; line+=1;
@@ -462,6 +478,13 @@ pub fn scan(s: &str, line_start: usize, file: &str) -> Result<Vec<Token>,Error>{
       }
     }
   }
+  if encountered_sub {
+    v[sub_index].value = Symbol::SubStatement;
+    v.push(Token{token_type: SymbolType::Bracket,
+      value: Symbol::PLeft, line: line, col: col, s: None});
+    v.push(Token{token_type: SymbolType::Bracket,
+      value: Symbol::PRight, line: line, col: col, s: None});
+  }
   v.push(Token{token_type: SymbolType::Separator,
     value: Symbol::Terminal, line: line, col: col, s: None});
   return Ok(v);
@@ -469,6 +492,7 @@ pub fn scan(s: &str, line_start: usize, file: &str) -> Result<Vec<Token>,Error>{
 
 fn symbol_to_string(value: Symbol) -> &'static str {
   return match value {
+    Symbol::None => "none",
     Symbol::Plus => "+",  Symbol::Minus => "-",
     Symbol::Ast  => "*",  Symbol::Div => "/",
     Symbol::Mod  => "%",  Symbol::Pow => "^",
@@ -510,6 +534,7 @@ fn symbol_to_string(value: Symbol) -> &'static str {
     Symbol::Break => "break",
     Symbol::Catch => "catch",
     Symbol::Continue => "continue",
+    Symbol::Do => "do",
     Symbol::Elif => "elif",
     Symbol::Else => "else",
     Symbol::End => "end",
@@ -518,6 +543,7 @@ fn symbol_to_string(value: Symbol) -> &'static str {
     Symbol::Global => "global",
     Symbol::Goto => "goto",
     Symbol::If => "if",
+    Symbol::Label => "label",
     Symbol::Null => "null",
     Symbol::Of => "of",
     Symbol::Raise => "raise",
@@ -530,8 +556,7 @@ fn symbol_to_string(value: Symbol) -> &'static str {
     Symbol::Use => "use",
     Symbol::While => "while",
     Symbol::Yield => "yield",
-    Symbol::Terminal => "terminal",
-    _ => "unknown token value"
+    Symbol::Terminal => "terminal"
   };
 }
 
@@ -594,13 +619,13 @@ fn print_ast(t: &AST, indent: usize){
   };
 }
 
-fn scan_line(line_start: usize, h: &mut system::History) -> Result<Vec<Token>,Error>{
+fn scan_line(line_start: usize, h: &mut system::History, new_line_start: bool) -> Result<Vec<Token>,Error>{
   let input = match system::getline_history("| ",h) {
     Ok(x) => x,
     Err(x) => panic!()
   };
   h.append(&input);
-  return scan(&input,line_start,"command line");
+  return scan(&input,line_start,"command line",new_line_start);
 }
 
 enum ComplexInfoA{
@@ -674,10 +699,16 @@ impl VarTab{
   }
 }
 
+pub struct JmpInfo{
+  start: usize,
+  breaks: Vec<usize>
+}
+
 pub struct Compilation<'a>{
   mode_cmd: bool,
   index: usize,
-  parens: bool,
+  syntax_nesting: usize,
+  parens: usize,
   statement: bool,
   history: &'a mut system::History,
   file: &'a str,
@@ -687,7 +718,8 @@ pub struct Compilation<'a>{
   bv_blocks: Vec<u8>,
   fn_indices: Vec<usize>,
   vtab: VarTab,
-  function_nesting: usize
+  function_nesting: usize,
+  jmp_stack: Vec<JmpInfo>
 }
 
 struct TokenIterator{
@@ -696,45 +728,89 @@ struct TokenIterator{
 }
 
 impl TokenIterator{
-  fn next_token(&mut self, c: &mut Compilation) -> Result<Rc<Box<[Token]>>,Error>{
-    if c.mode_cmd {
-      let value = self.a[self.index].value;
-      if value==Symbol::Terminal {
-        let line = self.a[self.index].line;
-        let v = try!(scan_line(line+1,c.history));
-        self.a = Rc::new(v.into_boxed_slice());
-        self.index=0;
-        return self.next_token(c);
+  fn next_any_token(&mut self, c: &mut Compilation) -> Result<Rc<Box<[Token]>>,Error>{
+    loop{
+      if c.syntax_nesting>0 && c.mode_cmd {
+        let value = self.a[self.index].value;
+        if value == Symbol::Terminal {
+          let line = self.a[self.index].line;
+          let v = try!(scan_line(line+1,c.history,true));
+          self.a = Rc::new(v.into_boxed_slice());
+          self.index=0;
+        }else{
+          return Ok(self.a.clone());
+        }
+      }else{
+        return Ok(self.a.clone());
       }
     }
-    return Ok(self.a.clone());
   }
-  fn next_any_token(&mut self, c: &mut Compilation) -> Result<Rc<Box<[Token]>>,Error>{
-    if c.parens {
-      return self.next_token(c);
-    }else{
-      return Ok(self.a.clone());
+  fn next_token(&mut self, c: &mut Compilation) -> Result<Rc<Box<[Token]>>,Error>{
+    loop{
+      let value = self.a[self.index].value;
+      if c.mode_cmd && value == Symbol::Terminal {
+        let line = self.a[self.index].line;
+        let v = try!(scan_line(line+1,c.history,false));
+        self.a = Rc::new(v.into_boxed_slice());
+        self.index=0;
+      }else if value == Symbol::Newline {
+        self.index+=1;
+      }else{
+        return Ok(self.a.clone());
+      }
     }
   }
+  fn next_token_optional(&mut self, c: &mut Compilation) -> Result<Rc<Box<[Token]>>,Error>{
+    loop{
+      let value = self.a[self.index].value;
+      if c.syntax_nesting>0 && c.mode_cmd && value == Symbol::Terminal {
+        let line = self.a[self.index].line;
+        let v = try!(scan_line(line+1,c.history,true));
+        self.a = Rc::new(v.into_boxed_slice());
+        self.index=0;
+      }else if c.parens>0 && value == Symbol::Newline {
+        self.index+=1;
+      }else{
+        return Ok(self.a.clone());
+      }
+    }
+  }
+}
+
+fn operator(line: usize, col: usize,
+  value: Symbol, a: Box<[Rc<AST>]>
+) -> Rc<AST> {
+  Rc::new(AST{line: line, col: col, symbol_type: SymbolType::Operator,
+    value: value, info: Info::None, s: None, a: Some(a)})
 }
 
 fn unary_operator(line: usize, col: usize,
   value: Symbol, x: Rc<AST>) -> Rc<AST>
 {
-  return Rc::new(AST{line: line, col: col, symbol_type: SymbolType::Operator,
-    value: value, info: Info::None, s: None, a: Some(Box::new([x]))}); 
+  Rc::new(AST{line: line, col: col, symbol_type: SymbolType::Operator,
+    value: value, info: Info::None, s: None, a: Some(Box::new([x]))})
 }
 
 fn binary_operator(line: usize, col: usize, value: Symbol,
   x: Rc<AST>, y: Rc<AST>) -> Rc<AST>
 {
-  return Rc::new(AST{line: line, col: col, symbol_type: SymbolType::Operator,
-    value: value, info: Info::None, s: None, a: Some(Box::new([x,y]))}); 
+  Rc::new(AST{line: line, col: col, symbol_type: SymbolType::Operator,
+    value: value, info: Info::None, s: None, a: Some(Box::new([x,y]))})
 }
 
 fn atomic_literal(line: usize, col: usize, value: Symbol) -> Rc<AST>{
-  return Rc::new(AST{line: line, col: col, symbol_type: SymbolType::Keyword,
-    value: value, info: Info::None, s: None, a: None});
+  Rc::new(AST{line: line, col: col, symbol_type: SymbolType::Keyword,
+    value: value, info: Info::None, s: None, a: None})
+}
+
+fn identifier(id: &str, line: usize, col: usize) -> Rc<AST>{
+  Rc::new(AST{line: line, col: col, symbol_type: SymbolType::Identifier,
+    value: Symbol::None, info: Info::None, s: Some(id.to_string()), a: None})
+}
+
+fn apply(line: usize, col: usize, a: Box<[Rc<AST>]>) -> Rc<AST> {
+  Rc::new(AST{line: line, col: col, symbol_type: SymbolType::Operator,
+    value: Symbol::Application, info: Info::None, s: None, a: Some(a)})
 }
 
 impl<'a> Compilation<'a>{
@@ -964,31 +1040,45 @@ fn function_literal(&mut self, i: &mut TokenIterator,
   let p = try!(i.next_token(self));
   let t = &p[i.index];
   let terminator = if statement {
-    if t.value != Symbol::PLeft {
-      return Err(self.syntax_error(t.line, t.col, String::from("expected '|'.")));
+    if t.value == Symbol::PLeft {
+      Symbol::PRight
+    }else{
+      return Err(self.syntax_error(t.line, t.col, String::from("expected ')'.")));
     }
-    Symbol::PRight
   }else{
-    if t.value != Symbol::Vline {
+    if t.value == Symbol::Vline {
+      Symbol::Vline
+    }else{
       return Err(self.syntax_error(t.line, t.col, String::from("expected '|'.")));
     }
-    Symbol::Vline
   };
   i.index+=1;
-  let args = try!(self.arguments_list(i,t0,terminator));
+  let args = if terminator == Symbol::Newline {
+    Rc::new(AST{line: t0.line, col: t0.col,
+      symbol_type: SymbolType::Operator, value: Symbol::List,
+      info: Info::None, s: None, a: Some(Box::new([]))
+    })
+  }else{
+    try!(self.arguments_list(i,t0,terminator))
+  };
 
   let statement = self.statement;
   self.statement = true;
   self.function_nesting+=1;
+  self.syntax_nesting+=1;
+  let parens = self.parens;
+  self.parens = 0;
   let x = try!(self.statements(i,VALUE_STRICT));
   self.function_nesting-=1;
   self.statement = statement;
 
-  let p = try!(i.next_any_token(self));
+  let p = try!(i.next_token_optional(self));
   let t = &p[i.index];
   if t.value != Symbol::End {
     return Err(self.syntax_error(t.line, t.col, String::from("expected 'end'.")));
   }
+  self.parens = parens;
+  self.syntax_nesting-=1;
   i.index+=1;
   try!(self.end_of(i,Symbol::Sub));
   return Ok(Rc::new(AST{line: t0.line, col: t0.col,
@@ -1038,11 +1128,6 @@ fn application(&mut self, i: &mut TokenIterator, f: Rc<AST>, terminal: Symbol)
     value: value, info: self_argument, s: None, a: Some(v.into_boxed_slice())}));
 }
 
-fn new_identifier(&mut self, id: &str, line: usize, col: usize) -> Rc<AST>{
-  Rc::new(AST{line: line, col: col, symbol_type: SymbolType::Identifier,
-    value: Symbol::None, info: Info::None, s: Some(id.to_string()), a: None})
-}
-
 fn atom(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error> {
   let p = try!(i.next_token(self));
   let t = &p[i.index];
@@ -1056,11 +1141,13 @@ fn atom(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error> {
       value: t.value, info: Info::None, s: t.s.clone(), a: None});
   }else if t.value==Symbol::PLeft {
     i.index+=1;
-    self.parens = true;
+    self.parens+=1;
+    self.syntax_nesting+=1;
     y = try!(self.expression(i));
     let p = try!(i.next_token(self));
     let t = &p[i.index];
-    self.parens = false;
+    self.syntax_nesting-=1;
+    self.parens-=1;
     if t.value != Symbol::PRight {
       return Err(self.syntax_error(t.line, t.col, String::from("expected ')'.")));
     }
@@ -1104,7 +1191,7 @@ fn application_term(&mut self, i: &mut TokenIterator)
 {
   let mut x = try!(self.atom(i));
   loop{
-    let p = try!(i.next_any_token(self));
+    let p = try!(i.next_token_optional(self));
     let t = &p[i.index];
     if t.value == Symbol::PLeft {
       i.index+=1;
@@ -1129,7 +1216,7 @@ fn application_term(&mut self, i: &mut TokenIterator)
 
 fn power(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
   let x = try!(self.application_term(i));
-  let p = try!(i.next_any_token(self));
+  let p = try!(i.next_token_optional(self));
   let t = &p[i.index];
   if t.value==Symbol::Pow {
     i.index+=1;
@@ -1159,7 +1246,7 @@ fn signed_expression(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
 
 fn factor(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
   let mut y = try!(self.signed_expression(i));
-  let p = try!(i.next_any_token(self));
+  let p = try!(i.next_token_optional(self));
   let t = &p[i.index];
   let value=t.value;
   if value==Symbol::Ast || value==Symbol::Div ||
@@ -1169,7 +1256,7 @@ fn factor(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
     let x = try!(self.signed_expression(i));
     y = binary_operator(t.line,t.col,value,y,x);
     loop{
-      let p = try!(i.next_any_token(self));
+      let p = try!(i.next_token_optional(self));
       let t = &p[i.index];
       let value = t.value;
       if value != Symbol::Ast && value != Symbol::Div &&
@@ -1188,7 +1275,7 @@ fn factor(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
 
 fn addition(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
   let mut y = try!(self.factor(i));
-  let p = try!(i.next_any_token(self));
+  let p = try!(i.next_token_optional(self));
   let t = &p[i.index];
   let value=t.value;
   if value==Symbol::Plus || value==Symbol::Minus {
@@ -1196,10 +1283,10 @@ fn addition(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
     let x = try!(self.factor(i));
     y = binary_operator(t.line,t.col,value,y,x);
     loop{
-      let p = try!(i.next_any_token(self));
+      let p = try!(i.next_token_optional(self));
       let t = &p[i.index];
       let value=t.value;
-      if value!=Symbol::Plus && value!=Symbol::Minus {
+      if value != Symbol::Plus && value != Symbol::Minus {
         return Ok(y);
       }
       i.index+=1;
@@ -1213,7 +1300,7 @@ fn addition(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
 
 fn shift(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
   let x = try!(self.addition(i));
-  let p = try!(i.next_any_token(self));
+  let p = try!(i.next_token_optional(self));
   let t = &p[i.index];
   if t.value==Symbol::Lshift || t.value==Symbol::Rshift {
     i.index+=1;
@@ -1226,7 +1313,7 @@ fn shift(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
 
 fn intersection(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
   let mut y = try!(self.shift(i));
-  let p = try!(i.next_any_token(self));
+  let p = try!(i.next_token_optional(self));
   let t = &p[i.index];
   let value=t.value;
   if value==Symbol::Amp {
@@ -1234,7 +1321,7 @@ fn intersection(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
     let x = try!(self.shift(i));
     y = binary_operator(t.line,t.col,value,y,x);
     loop{
-      let p = try!(i.next_any_token(self));
+      let p = try!(i.next_token_optional(self));
       let t = &p[i.index];
       let value=t.value;
       if value!=Symbol::Amp {
@@ -1251,7 +1338,7 @@ fn intersection(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
 
 fn union(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
   let mut y = try!(self.intersection(i));
-  let p = try!(i.next_any_token(self));
+  let p = try!(i.next_token_optional(self));
   let t = &p[i.index];
   let value=t.value;
   if value==Symbol::Vline || value==Symbol::Svert {
@@ -1259,7 +1346,7 @@ fn union(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
     let x = try!(self.intersection(i));
     y = binary_operator(t.line,t.col,value,y,x);
     loop{
-      let p = try!(i.next_any_token(self));
+      let p = try!(i.next_token_optional(self));
       let t = &p[i.index];
       let value=t.value;
       if value != Symbol::Vline && value != Symbol::Svert {
@@ -1276,23 +1363,20 @@ fn union(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
 
 fn range(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
   let x = try!(self.union(i));
-  let p = try!(i.next_any_token(self));
+  let p = try!(i.next_token_optional(self));
   let t = &p[i.index];
   if t.value==Symbol::Range {
     i.index+=1;
     let y = try!(self.union(i));
-    let p2 = try!(i.next_any_token(self));
+    let p2 = try!(i.next_token_optional(self));
     let t2 = &p2[i.index];
     if t2.value==Symbol::Colon {
       i.index+=1;
       let d = try!(self.union(i));
-      return Ok(Rc::new(AST{
-        symbol_type: SymbolType::Operator, value: Symbol::Range,
-        line: t2.line, col: t2.col, info: Info::None,
-        s: None, a: Some(Box::new([x,y,d]))
-      }));
+      return Ok(operator(t.line,t.col,Symbol::Range,Box::new([x,y,d])));
     }else{
-      return Ok(binary_operator(t.line,t.col,t.value,x,y));
+      let d = atomic_literal(t.line,t.col,Symbol::Null);
+      return Ok(operator(t.line,t.col,Symbol::Range,Box::new([x,y,d])));
     }
   }else{
     return Ok(x);
@@ -1301,7 +1385,7 @@ fn range(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
 
 fn comparison(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
   let x = try!(self.range(i));
-  let p = try!(i.next_any_token(self));
+  let p = try!(i.next_token_optional(self));
   let t = &p[i.index];
   let value=t.value;
   if value==Symbol::Lt || value==Symbol::Gt ||
@@ -1317,7 +1401,7 @@ fn comparison(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
 
 fn eq_expression(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
   let x = try!(self.comparison(i));
-  let p = try!(i.next_any_token(self));
+  let p = try!(i.next_token_optional(self));
   let t = &p[i.index];
   let value=t.value;
   if value==Symbol::Eq || value==Symbol::Ne ||
@@ -1346,14 +1430,14 @@ fn negation(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
 
 fn conjunction(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
   let mut x = try!(self.negation(i));
-  let p = try!(i.next_any_token(self));
+  let p = try!(i.next_token_optional(self));
   let t = &p[i.index];
   if t.value==Symbol::And {
     i.index+=1;
     let y = try!(self.negation(i));
     x = binary_operator(t.line,t.col,Symbol::And,x,y);
     loop{
-      let p = try!(i.next_any_token(self));
+      let p = try!(i.next_token_optional(self));
       let t = &p[i.index];
       if t.value != Symbol::And {
         return Ok(x);
@@ -1369,14 +1453,14 @@ fn conjunction(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
 
 fn disjunction(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
   let mut x = try!(self.conjunction(i));
-  let p = try!(i.next_any_token(self));
+  let p = try!(i.next_token_optional(self));
   let t = &p[i.index];
   if t.value==Symbol::Or {
     i.index+=1;
     let y = try!(self.conjunction(i));
     x = binary_operator(t.line,t.col,Symbol::Or,x,y);
     loop{
-      let p = try!(i.next_any_token(self));
+      let p = try!(i.next_token_optional(self));
       let t = &p[i.index];
       if t.value != Symbol::Or {
         return Ok(x);
@@ -1392,12 +1476,12 @@ fn disjunction(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
 
 fn if_expression(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
   let x = try!(self.disjunction(i));
-  let p = try!(i.next_any_token(self));
+  let p = try!(i.next_token_optional(self));
   let t = &p[i.index];
   if t.value==Symbol::If {
     i.index+=1;
     let condition = try!(self.expression(i));
-    let p2 = try!(i.next_any_token(self));
+    let p2 = try!(i.next_token_optional(self));
     let t2 = &p[i.index];
     if t2.value==Symbol::Else {
       i.index+=1;
@@ -1421,7 +1505,7 @@ fn expression(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
 
 fn assignment(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
   let x = try!(self.expression(i));
-  let p = try!(i.next_any_token(self));
+  let p = try!(i.next_token_optional(self));
   let t = &p[i.index];
   if t.value==Symbol::Assignment {
     i.index+=1;
@@ -1456,7 +1540,7 @@ fn while_statement(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
 
 fn for_statement(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
   let variable = try!(self.atom(i));
-  let p = try!(i.next_any_token(self));
+  let p = try!(i.next_token(self));
   let t = &p[i.index];
   if t.value != Symbol::In {
     return Err(self.syntax_error(t.line, t.col, String::from("expected 'in'.")));
@@ -1480,16 +1564,18 @@ fn if_statement(&mut self, i: &mut TokenIterator, t0: &Token) -> Result<Rc<AST>,
   let condition = try!(self.expression(i));
   let p = try!(i.next_any_token(self));
   let t = &p[i.index];
-  if t.value == Symbol::Then || t.value == Symbol::Newline {
+  if t.value == Symbol::Then || t.value == Symbol::Newline{
     i.index+=1;
   }else{
-    return Err(self.syntax_error(t.line, t.col, String::from("expected 'then' or a line break.")));
+    return Err(self.syntax_error(t.line, t.col,
+      format!("expected 'then' or a line break.")
+    ));
   }
   let body = try!(self.statements(i,VALUE_NONE));
   v.push(condition);
   v.push(body);
   loop{
-    let p = try!(i.next_any_token(self));
+    let p = try!(i.next_token(self));
     let t = &p[i.index];
     if t.value == Symbol::Elif {
       i.index+=1;
@@ -1510,6 +1596,8 @@ fn if_statement(&mut self, i: &mut TokenIterator, t0: &Token) -> Result<Rc<AST>,
       v.push(body);
     }else if t.value == Symbol::End {
       break;
+    }else{
+      panic!();
     }
   }
   return Ok(Rc::new(AST{line: t0.line, col: t0.col, symbol_type: SymbolType::Keyword,
@@ -1517,11 +1605,11 @@ fn if_statement(&mut self, i: &mut TokenIterator, t0: &Token) -> Result<Rc<AST>,
 }
 
 fn end_of(&mut self, i: &mut TokenIterator, symbol: Symbol) -> Result<(),Error>{
-  let p = try!(i.next_any_token(self));
+  let p = try!(i.next_token_optional(self));
   let t = &p[i.index];
   if t.value == Symbol::Of {
     i.index+=1;
-    let p = try!(i.next_any_token(self));
+    let p = try!(i.next_token_optional(self));
     let t = &p[i.index];
     if t.value != symbol {
       return Err(self.syntax_error(t.line, t.col,
@@ -1553,7 +1641,7 @@ fn sub_statement(&mut self, i: &mut TokenIterator, t: &Token)
   -> Result<Rc<AST>,Error>
 {
   let x = try!(self.function_literal(i,t,true));
-  let id = self.new_identifier(match x.s {Some(ref s) => s, None => panic!()},t.line,t.col);
+  let id = identifier(match x.s {Some(ref s) => s, None => panic!()},t.line,t.col);
   return Ok(binary_operator(t.line,t.col,Symbol::Assignment,id,x));
 }
 
@@ -1561,7 +1649,7 @@ fn statements(&mut self, i: &mut TokenIterator, last_value: u8)
   -> Result<Rc<AST>,Error>
 {
   let mut v: Vec<Rc<AST>> = Vec::new();
-  let p0 = try!(i.next_any_token(self));
+  let p0 = try!(i.next_token_optional(self));
   let t0 = &p0[i.index];
   loop{
     let p = try!(i.next_any_token(self));
@@ -1572,59 +1660,74 @@ fn statements(&mut self, i: &mut TokenIterator, last_value: u8)
     }else if t.value == Symbol::Terminal {
       break;
     }
-    if t.value == Symbol::While {
+    let value = t.value;
+    if value == Symbol::While {
       i.index+=1;
       let statement = self.statement;
       self.statement = true;
+      self.syntax_nesting+=1;
       let x = try!(self.while_statement(i));
+      self.syntax_nesting-=1;
       self.statement = statement;
       v.push(x);
-      let p = try!(i.next_any_token(self));
+      let p = try!(i.next_token_optional(self));
       let t = &p[i.index];
       if t.value != Symbol::End {    
         return Err(self.syntax_error(t.line, t.col, String::from("expected 'end'.")));
       }
       i.index+=1;
       try!(self.end_of(i,Symbol::While));
-    }else if t.value == Symbol::For {
+    }else if value == Symbol::For {
       i.index+=1;
       let statement = self.statement;
       self.statement = true;
+      self.syntax_nesting+=1;
       let x = try!(self.for_statement(i));
+      self.syntax_nesting-=1;
       self.statement = statement;
       v.push(x);
-      let p = try!(i.next_any_token(self));
+      let p = try!(i.next_token_optional(self));
       let t = &p[i.index];
       if t.value != Symbol::End {
         return Err(self.syntax_error(t.line, t.col, String::from("expected 'end'.")));    
       }
       i.index+=1;
       try!(self.end_of(i,Symbol::For));
-    }else if t.value == Symbol::If {
+    }else if value == Symbol::If {
       i.index+=1;
       let statement = self.statement;
       self.statement = true;
+      self.syntax_nesting+=1;
       let x = try!(self.if_statement(i,t));
+      self.syntax_nesting-=1;
       self.statement = statement;
       v.push(x);
-      let p = try!(i.next_any_token(self));
+      let p = try!(i.next_token_optional(self));
       let t = &p[i.index];
       if t.value != Symbol::End {
         return Err(self.syntax_error(t.line, t.col, String::from("expected 'end'.")));
       }
       i.index+=1;
       try!(self.end_of(i,Symbol::If));
-    }else if t.value == Symbol::End || t.value == Symbol::Elif ||
-      t.value == Symbol::Else
+    }else if value == Symbol::End || value == Symbol::Elif ||
+      value == Symbol::Else
     {
       break;
-    }else if t.value == Symbol::Return {
+    }else if value == Symbol::Return {
       i.index+=1;
       let x = try!(self.return_statement(i,t));
       v.push(x);
-    }else if t.value == Symbol::SubStatement {
+    }else if value == Symbol::SubStatement {
       i.index+=1;
       let x = try!(self.sub_statement(i,t));
+      v.push(x);
+    }else if value == Symbol::Break {
+      i.index+=1;
+      let x = atomic_literal(t.line,t.col,Symbol::Break);
+      v.push(x);
+    }else if value == Symbol::Continue {
+      i.index+=1;
+      let x = atomic_literal(t.line,t.col,Symbol::Continue);
       v.push(x);
     }else{
       let x = try!(self.assignment(i));
@@ -1687,25 +1790,6 @@ fn get_index(&mut self, key: &str) -> usize{
   return self.stab_index-1;
 }
 
-// while c do b end
-// (1) c JPZ[2] b JMP[1] (2)
-fn compile_while(&mut self, v: &mut Vec<u8>, t: &Rc<AST>)
-  -> Result<(),Error>
-{
-  let index1 = v.len();
-  let a = ast_argv(t);
-  try!(self.compile_ast(v,&a[0]));
-  push_bc(v,bc::JZ,t.line,t.col);
-  let index2 = v.len();
-  push_u32(v,0xcafe);
-  try!(self.compile_ast(v,&a[1]));
-  push_bc(v,bc::JMP,t.line,t.col);
-  let len = v.len();
-  push_i32(v,(BCSIZE+index1) as i32-len as i32);
-  let len = v.len();
-  write_i32(&mut v[index2..index2+4],(BCSIZE+len) as i32-index2 as i32);
-  return Ok(());
-}
 
 // if   c1 then a1
 // elif c2 then a2
@@ -1754,6 +1838,100 @@ fn compile_if(&mut self, v: &mut Vec<u8>, t: &Rc<AST>, is_op: bool)
     let index = jumps[i];
     write_i32(&mut v[index..index+4],(BCSIZE+len) as i32-index as i32);
   }
+  return Ok(());
+}
+
+
+// while c do b end
+// (1) c JPZ[2] b JMP[1] (2)
+
+fn compile_while(&mut self, v: &mut Vec<u8>, t: &Rc<AST>)
+  -> Result<(),Error>
+{
+  let index1 = v.len();
+  let mut index2 = 0;
+  self.jmp_stack.push(JmpInfo{start: index1, breaks: Vec::new()});
+  let a = ast_argv(t);
+  let condition = a[0].value != Symbol::True;
+  
+  if condition {
+    try!(self.compile_ast(v,&a[0]));
+    push_bc(v,bc::JZ,t.line,t.col);
+    index2 = v.len();
+    push_u32(v,0xcafe);
+  }
+
+  try!(self.compile_ast(v,&a[1]));
+  push_bc(v,bc::JMP,t.line,t.col);
+  let len = v.len();
+  push_i32(v,(BCSIZE+index1) as i32-len as i32);
+
+  if condition {
+    let len = v.len();
+    write_i32(&mut v[index2..index2+4],(BCSIZE+len) as i32-index2 as i32);
+  }
+
+  let info = match self.jmp_stack.pop() {
+    Some(info)=>info, None=>panic!()
+  };
+  let len = v.len();
+  for index in info.breaks {
+    write_i32(&mut v[index..index+4],(BCSIZE+len) as i32-index as i32);
+  }
+  return Ok(());
+}
+
+
+// for x in a
+//   print(x)
+// end
+//
+// is translated into:
+//
+// _it_ = iter(a)
+// while true
+//   x = NEXT(_it_).BREAK_IF_EMPTY()
+//   print(x)
+// end
+//
+// These pseudo-functions NEXT and BREAK_IF_EMPTY are bundled
+// into one byte code instruction called NEXT.
+
+fn compile_for(&mut self, bv: &mut Vec<u8>, t: &Rc<AST>)
+  -> Result<(),Error>
+{
+  let a = ast_argv(t);
+  let iter = apply(t.line,t.col,Box::new([
+    identifier("iter",t.line,t.col),
+    a[1].clone()
+  ]));
+  let it = identifier("_it_",t.line,t.col);
+  let assignment = binary_operator(t.line,t.col,Symbol::Assignment,it.clone(),iter);
+  try!(self.compile_ast(bv,&assignment));
+
+  let start = bv.len();
+  self.jmp_stack.push(JmpInfo{start: start, breaks: Vec::new()});
+
+  try!(self.compile_ast(bv,&it));
+  push_bc(bv,bc::NEXT,it.line,it.col);
+  let n = self.jmp_stack.len();
+  self.jmp_stack[n-1].breaks.push(bv.len());
+  push_i32(bv,0xcafe);
+  self.compile_assignment(bv,&a[0],t.line,t.col);
+
+  try!(self.compile_ast(bv,&a[2]));
+  push_bc(bv,bc::JMP,t.line,t.col);
+  let len = bv.len();
+  push_i32(bv,(BCSIZE+start) as i32-len as i32);
+
+  let info = match self.jmp_stack.pop() {
+    Some(info)=>info, None=>panic!()
+  };
+  let len = bv.len();
+  for index in info.breaks {
+    write_i32(&mut bv[index..index+4],(BCSIZE+len) as i32-index as i32);
+  }
+
   return Ok(());
 }
 
@@ -2132,6 +2310,8 @@ fn compile_ast(&mut self, bv: &mut Vec<u8>, t: &Rc<AST>)
       try!(self.compile_operator(bv,t,bc::GET_INDEX));
     }else if value == Symbol::Not {
       try!(self.compile_operator(bv,t,bc::NOT));
+    }else if value == Symbol::Range {
+      try!(self.compile_operator(bv,t,bc::RANGE));
     }else if value == Symbol::List {
       try!(self.compile_operator(bv,t,bc::LIST));
       let size = match t.a {Some(ref a) => a.len() as u32, None => panic!()};
@@ -2166,7 +2346,6 @@ fn compile_ast(&mut self, bv: &mut Vec<u8>, t: &Rc<AST>)
       let index = bv.len();
       push_i32(bv,0xcafe);
       try!(self.compile_ast(bv,&a[1]));
-      // *(uint32_t*)(bv->a+index)=BC+bv->size-index;
       let len = bv.len();
       write_i32(&mut bv[index..index+4], (BCSIZE+len) as i32-index as i32);
     }else{
@@ -2193,22 +2372,25 @@ fn compile_ast(&mut self, bv: &mut Vec<u8>, t: &Rc<AST>)
   }else if t.value == Symbol::False {
     push_bc(bv,bc::FALSE,t.line,t.col);
   }else if t.symbol_type == SymbolType::Keyword {
-    if t.value == Symbol::If {
+    let value = t.value;
+    if value == Symbol::If {
       try!(self.compile_if(bv,t,false));
-    }else if t.value == Symbol::While {
+    }else if value == Symbol::While {
       try!(self.compile_while(bv,t));
-    }else if t.value == Symbol::Block {
+    }else if value == Symbol::For {
+      try!(self.compile_for(bv,t));
+    }else if value == Symbol::Block {
       let a = ast_argv(t);
       for i in 0..a.len() {
         try!(self.compile_ast(bv,&a[i]));
       }
-    }else if t.value == Symbol::Sub {
+    }else if value == Symbol::Sub {
       try!(self.compile_fn(bv,t));
-    }else if t.value == Symbol::Statement {
+    }else if value == Symbol::Statement {
       let a = ast_argv(t);
       try!(self.compile_ast(bv,&a[0]));
       push_bc(bv,bc::POP,t.line,t.col);
-    }else if t.value == Symbol::Return {
+    }else if value == Symbol::Return {
       let a = ast_argv(t);
       if a.len()==0 {
         push_bc(bv,bc::NULL,t.line,t.col);
@@ -2216,6 +2398,26 @@ fn compile_ast(&mut self, bv: &mut Vec<u8>, t: &Rc<AST>)
         try!(self.compile_ast(bv,&a[0]));
       }
       push_bc(bv,bc::RET,t.line,t.col);
+    }else if value == Symbol::Break {
+      push_bc(bv,bc::JMP,t.line,t.col);
+      // let index2 = v.len();
+      let n = self.jmp_stack.len();
+      if n==0 {
+        return Err(self.syntax_error(t.line,t.col,
+          "Statement 'break' is expected to be inside of a loop.".to_string()));
+      }
+      let breaks = &mut self.jmp_stack[n-1].breaks;
+      breaks.push(bv.len());
+      push_u32(bv,0xcafe);
+    }else if value == Symbol::Continue {
+      push_bc(bv,bc::JMP,t.line,t.col);
+      let start = match self.jmp_stack.last() {
+        Some(info) => info.start,
+        None => {return Err(self.syntax_error(t.line,t.col,
+          "Statement 'continue' is expected to be inside of a loop.".to_string()))}
+      };
+      let len = bv.len();
+      push_i32(bv,(BCSIZE+start) as i32-len as i32);
     }else{
       panic!();
     }
@@ -2359,6 +2561,7 @@ fn asm_listing(a: &[u8]) -> String {
       bc::IN => {s.push_str("in\n"); i+=BCSIZE;},
       bc::NOTIN => {s.push_str("not in\n"); i+=BCSIZE;},
       bc::NOT => {s.push_str("not\n"); i+=BCSIZE;},
+      bc::RANGE => {s.push_str("range\n"); i+=BCSIZE;},
       bc::LIST => {
         let x = compose_u32(&a[BCSIZE+i..BCSIZE+i+4]);
         let u = format!("list, size={}\n",x);
@@ -2458,6 +2661,12 @@ fn asm_listing(a: &[u8]) -> String {
         s.push_str(&u);
         i+=BCSIZE+4;
       },
+      bc::NEXT => {
+        let x = compose_i32(&a[BCSIZE+i..BCSIZE+i+4]);
+        let u = format!("next {}\n",i as i32+x);
+        s.push_str(&u);
+        i+=BCSIZE+4;
+      },
       bc::CALL => {
         let argc = compose_u32(&a[BCSIZE+i..BCSIZE+i+4]);
         let u = format!("call, argc={}\n",argc);
@@ -2504,7 +2713,7 @@ fn print_data(a: &[Object]){
     println!("[{}]: {}",i,::vm::object_to_repr(&a[i]));
   }
   if a.len()==0 {
-    println!("empty");
+    println!("empty\n");
   }else{
     println!();
   }
@@ -2559,11 +2768,11 @@ pub fn compile(v: Vec<Token>, mode_cmd: bool,
 {
   let mut compilation = Compilation{
     mode_cmd: mode_cmd, index: 0,
-    parens: false, statement: !mode_cmd,
+    syntax_nesting: 0, parens: 0, statement: !mode_cmd,
     history: history, file: id, stab: HashMap::new(),
     stab_index: 0, data: Vec::new(), bv_blocks: Vec::new(),
     fn_indices: Vec::new(), vtab: VarTab::new(None),
-    function_nesting: 0
+    function_nesting: 0, jmp_stack: Vec::new()
   };
   let mut i = TokenIterator{index: 0, a: Rc::new(v.into_boxed_slice())};
   let y = try!(compilation.ast(&mut i));
@@ -2578,8 +2787,8 @@ pub fn compile(v: Vec<Token>, mode_cmd: bool,
   bv.append(&mut compilation.bv_blocks);
 
   print_asm_listing(&bv);
-  // print_data(&compilation.data);
-  // let m = Rc::new(Module{program: bv, data: compilation.data});
+  print_data(&compilation.data);
+  // let m = Rc::new(Module{program: bv, data: compilation.data, env});
   let m = Rc::new(Module{
     program: Rc::new(bv),
     data: compilation.data,

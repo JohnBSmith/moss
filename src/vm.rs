@@ -9,7 +9,7 @@ use std::hash::{Hash, Hasher};
 use object::{
   Object, Map, List, Function, EnumFunction, StandardFn,
   FnResult, Exception, type_error, argc_error, index_error,
-  Table
+  Table, Range
 };
 use complex::Complex64;
 
@@ -64,14 +64,16 @@ pub mod bc{
   pub const FNSELF: u8 = 43;
   pub const GET_INDEX: u8 = 44;
   pub const SET_INDEX: u8 = 45;
-  pub const DOT: u8 = 46;
+  pub const DOT:  u8 = 46;
   pub const DOT_SET: u8 = 47;
   pub const SWAP: u8 = 48;
-  pub const DUP: u8 = 49;
+  pub const DUP:  u8 = 49;
   pub const DUP_DOT_SWAP: u8 = 50;
-  pub const AND: u8 = 51;
-  pub const OR: u8 = 52;
-  pub const NOT: u8 = 53;
+  pub const AND:  u8 = 51;
+  pub const OR:   u8 = 52;
+  pub const NOT:  u8 = 53;
+  pub const NEXT: u8 = 54;
+  pub const RANGE: u8 = 55;
 
   pub fn op_to_str(x: u8) -> &'static str {
     match x {
@@ -129,6 +131,7 @@ pub mod bc{
       AND => "AND",
       OR => "OR",
       NOT => "NOT",
+      NEXT => "NEXT",
       _ => "unknown"
     }
   }
@@ -848,6 +851,16 @@ fn operator_is(sp: usize, stack: &mut Vec<Object>) -> FnResult {
   }
 }
 
+fn operator_range(sp: usize, stack: &mut Vec<Object>) -> FnResult {
+  let r = Object::Range(Rc::new(Range{
+    a: replace(&mut stack[sp-3],Object::Null),
+    b: replace(&mut stack[sp-2],Object::Null),
+    step: replace(&mut stack[sp-1],Object::Null)
+  }));
+  stack[sp-3] = r;
+  Ok(())
+}
+
 fn operator_list(sp: usize, stack: &mut Vec<Object>, size: usize) -> usize{
   let mut sp = sp;
   let mut v: Vec<Object> = Vec::new();
@@ -1286,6 +1299,11 @@ fn vm_loop(state: &mut State, module: Rc<Module>, gtab: Rc<RefCell<Map>>)
         sp = operator_map(sp,&mut stack,size);
         ip+=BCSIZEP4;
       },
+      bc::RANGE => {
+        try!(operator_range(sp,&mut stack));
+        sp-=2;
+        ip+=BCSIZE;          
+      },
       bc::JMP => {
         ip = (ip as i32+compose_i32(&a,ip+BCSIZE)) as usize;
       },
@@ -1484,6 +1502,9 @@ fn vm_loop(state: &mut State, module: Rc<Module>, gtab: Rc<RefCell<Map>>)
       bc::POP => {
         sp-=1;
         stack[sp] = Object::Null;
+        ip+=BCSIZE;
+      },
+      bc::NEXT => {
         ip+=BCSIZE;
       },
       bc::HALT => {
