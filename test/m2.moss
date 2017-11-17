@@ -1,13 +1,13 @@
 
-
-i=1
-while true
-  print(i)
-  i+=1
-  if i==4
-    print("finish")
-    break
+List.map = sub|f|
+  a = []
+  for x in self
+    a.push(f(x))
   end
+  return a
 end
+
+a = [1,2,3,4]
+print(a.map(|x| 2*x))
 
 

@@ -10,7 +10,8 @@ pub enum Object{
   Null, Bool(bool), Int(i32), Float(f64), Complex(Complex64),
   List(Rc<RefCell<List>>), String(Rc<U32String>),
   Map(Rc<RefCell<Map>>), Function(Rc<Function>),
-  Range(Rc<Range>), Table(Rc<Table>), Tuple(Rc<Vec<Object>>)
+  Range(Rc<Range>), Table(Rc<Table>), Tuple(Rc<Vec<Object>>),
+  Empty
 }
 
 impl Object{
@@ -27,7 +28,8 @@ impl Object{
       Object::Function(ref x) => {Object::Function(x.clone())},
       Object::Range(ref x) => {Object::Range(x.clone())},
       Object::Tuple(ref x) => {Object::Tuple(x.clone())},
-      Object::Table(ref x) => {Object::Table(x.clone())}
+      Object::Table(ref x) => {Object::Table(x.clone())},
+      Object::Empty => {Object::Empty}
     }
   }
   pub fn to_string(&self) -> String {
@@ -132,6 +134,8 @@ pub fn argc_error(argc: usize, min: u32, max: u32, id: &str) -> FnResult{
 
 pub type FnResult = Result<(),Box<Exception>>;
 pub type PlainFn = fn(ret: &mut Object, pself: &Object, argv: &[Object]) -> FnResult;
+pub type MutableFn = Box<FnMut(&mut Object, &Object, &[Object])->FnResult>;
+
 pub struct StandardFn{
   pub address: usize,
   pub module: Rc<Module>,
@@ -141,8 +145,9 @@ pub struct StandardFn{
 }
 
 pub enum EnumFunction{
+  Std(StandardFn),
   Plain(PlainFn),
-  Std(StandardFn)
+  Mut(RefCell<MutableFn>)
 }
 
 pub struct Function{

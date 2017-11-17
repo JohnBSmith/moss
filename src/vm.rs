@@ -223,6 +223,12 @@ impl PartialEq for Object{
           _ => false
         }
       },
+      &Object::Empty => {
+        match b {
+          &Object::Empty => true,
+          _ => false
+        }
+      },
       _ => panic!()
     }
   }
@@ -336,6 +342,9 @@ pub fn object_to_string(x: &Object) -> String{
         Ok(m) => map_to_string(&m.m,"table ", " end"),
         Err(_) => String::from("table ... end")
       }
+    },
+    Object::Empty => {
+      String::from("empty")
     }
   }
 }
@@ -1336,18 +1345,6 @@ fn vm_loop(state: &mut State, module: Rc<Module>, gtab: Rc<RefCell<Map>>)
         match f {
           Object::Function(ref f) => {
             match f.f {
-              EnumFunction::Plain(fp) => {
-                let mut y = Object::Null;
-                match fp(&mut y, &stack[sp-argc-1], &stack[sp-argc..sp]) {
-                  Ok(()) => {},
-                  Err(e) => {
-                    return Err(e);
-                  }
-                }
-                sp-=argc+1;
-                stack[sp-1]=y;
-                continue;
-              },
               EnumFunction::Std(ref sf) => {
                 if argc != f.argc as usize {
                   state.sp = sp;
@@ -1376,6 +1373,31 @@ fn vm_loop(state: &mut State, module: Rc<Module>, gtab: Rc<RefCell<Map>>)
                   sp+=1;
                 }
 
+                continue;
+              },
+              EnumFunction::Plain(fp) => {
+                let mut y = Object::Null;
+                match fp(&mut y, &stack[sp-argc-1], &stack[sp-argc..sp]) {
+                  Ok(()) => {},
+                  Err(e) => {
+                    return Err(e);
+                  }
+                }
+                sp-=argc+1;
+                stack[sp-1]=y;
+                continue;
+              },
+              EnumFunction::Mut(ref fp) => {
+                let mut y = Object::Null;
+                let pf = &mut *fp.borrow_mut();
+                match pf(&mut y, &stack[sp-argc-1], &stack[sp-argc..sp]) {
+                  Ok(()) => {},
+                  Err(e) => {
+                    return Err(e);
+                  }
+                }
+                sp-=argc+1;
+                stack[sp-1]=y;
                 continue;
               }
             }
@@ -1505,7 +1527,15 @@ fn vm_loop(state: &mut State, module: Rc<Module>, gtab: Rc<RefCell<Map>>)
         ip+=BCSIZE;
       },
       bc::NEXT => {
-        ip+=BCSIZE;
+        let mut y = Object::Null;
+        try!(iter_next(&mut y,&stack[sp-1]));
+        if y==Object::Empty {
+          sp-=1;
+          ip = (ip as i32+compose_i32(&a,ip+BCSIZE)) as usize;
+        }else{
+          stack[sp-1] = y;
+          ip+=BCSIZEP4;
+        }
       },
       bc::HALT => {
         state.sp=sp;
@@ -1558,4 +1588,26 @@ pub fn eval(module: Rc<Module>, gtab: Rc<RefCell<Map>>, command_line: bool)
       return Ok(list_from_slice(&stack[0..sp]));
     }
   }
+}
+
+fn call(fobj: &Object, ret: &mut Object, pself: &Object, argv: &[Object]) -> FnResult {
+  match *fobj {
+    Object::Function(ref f) => {
+      match f.f {
+        EnumFunction::Plain(fp) => {
+          return fp(ret,pself,argv);
+        },
+        EnumFunction::Mut(ref fp) => {
+          let pf = &mut *fp.borrow_mut();
+          return pf(ret,pself,argv);
+        },
+        _ => panic!()
+      }
+    },
+    _ => type_error("Type error in iteration: iterator is not a function.")
+  }
+}
+
+fn iter_next(ret: &mut Object, f: &Object) -> FnResult {
+  call(f,ret,&Object::Null,&[])
 }

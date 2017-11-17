@@ -1,6 +1,8 @@
 
+use std::rc::Rc;
+use std::cell::RefCell;
 use vm::{object_to_string, object_to_repr};
-use object::{Object, FnResult, U32String,
+use object::{Object, FnResult, U32String, Function, EnumFunction,
   type_error, argc_error, index_error
 };
 
@@ -124,3 +126,57 @@ pub fn fload(ret: &mut Object, pself: &Object, argv: &[Object]) -> FnResult{
     _ => type_error("Type error in load(id): id is not a string.")
   }
 }
+
+pub fn iter(ret: &mut Object, pself: &Object, argv: &[Object]) -> FnResult{
+  if argv.len() != 1 {
+    return argc_error(argv.len(),1,1,"iter");
+  }
+  match argv[0] {
+    Object::Range(ref r) => {
+      let mut a = match r.a {
+        Object::Int(a)=>a,
+        _ => {return type_error("Type error in iter(a..b): a is not an integer.");}
+      };
+      let b = match r.b {
+        Object::Int(b)=>b,
+        _ => {return type_error("Type error in iter(a..b): b is not an integer.");}
+      };
+      let f: Box<FnMut(&mut Object, &Object, &[Object])->FnResult>
+        = Box::new(move |ret: &mut Object, pself: &Object, argv: &[Object]| -> FnResult{
+        if a<=b {
+          a+=1;
+          *ret = Object::Int(a-1);
+        }else{
+          *ret = Object::Empty;
+        }
+        Ok(())
+      });
+      *ret = Object::Function(Rc::new(Function{
+        f: EnumFunction::Mut(RefCell::new(f)),
+        argc: 0, argc_min: 0, argc_max: 0
+      }));
+      Ok(())
+    },
+    Object::List(ref a) => {
+      let mut index: usize = 0;
+      let a = a.clone();
+      let f = Box::new(move |ret: &mut Object, pself: &Object, argv: &[Object]| -> FnResult{
+        let a = a.borrow();
+        if index == a.v.len() {
+          *ret = Object::Empty;
+        }else{
+          *ret = a.v[index].clone();
+          index+=1;
+        }
+        Ok(())
+      });
+      *ret = Object::Function(Rc::new(Function{
+        f: EnumFunction::Mut(RefCell::new(f)),
+        argc: 0, argc_min: 0, argc_max: 0
+      }));
+      Ok(())
+    },
+    _ => type_error("Type error in iter(x): x is not iterable.")
+  }
+}
+

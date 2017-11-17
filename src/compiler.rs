@@ -1989,6 +1989,7 @@ fn compile_fn(&mut self, bv: &mut Vec<u8>, t: &Rc<AST>)
 
   // Move self.fn_indices beside to allow nested functions.
   let fn_indices = replace(&mut self.fn_indices,Vec::new());
+  let jmp_stack = replace(&mut self.jmp_stack,Vec::new());
 
   // Every function has its own table of variables.
   let vtab = replace(&mut self.vtab,VarTab::new(t.s.clone()));
@@ -2011,6 +2012,7 @@ fn compile_fn(&mut self, bv: &mut Vec<u8>, t: &Rc<AST>)
 
   // Restore self.fn_indices.
   replace(&mut self.fn_indices,fn_indices);
+  self.jmp_stack = jmp_stack;
 
   // Add an additional return statement that will be reached
   // in case the control flow reaches the end of the function.
