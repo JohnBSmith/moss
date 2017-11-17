@@ -3,7 +3,7 @@
 
 extern crate moss;
 
-pub fn main(){
+fn main(){
     let i = moss::Interpreter::new();
     let a = i.eval("
         List.map = sub|f|

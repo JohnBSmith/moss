@@ -13,7 +13,7 @@ Example of calling Moss code from Rust:
 extern crate moss;
 use moss::object::Object;
 
-pub fn main(){
+fn main(){
     let i = moss::Interpreter::new();
     let x = i.eval("
         f = |n| 1 if n==0 else n*f(n-1)
