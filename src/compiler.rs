@@ -2778,7 +2778,7 @@ pub fn compile(v: Vec<Token>, mode_cmd: bool,
   };
   let mut i = TokenIterator{index: 0, a: Rc::new(v.into_boxed_slice())};
   let y = try!(compilation.ast(&mut i));
-  print_ast(&y,2);
+  // print_ast(&y,2);
 
   let mut bv: Vec<u8> = Vec::new();
   try!(compilation.compile_ast(&mut bv, &y));
@@ -2788,8 +2788,8 @@ pub fn compile(v: Vec<Token>, mode_cmd: bool,
 
   bv.append(&mut compilation.bv_blocks);
 
-  print_asm_listing(&bv);
-  print_data(&compilation.data);
+  // print_asm_listing(&bv);
+  // print_data(&compilation.data);
   // let m = Rc::new(Module{program: bv, data: compilation.data, env});
   let m = Rc::new(Module{
     program: Rc::new(bv),
