@@ -2,7 +2,8 @@
 use std::rc::Rc;
 use std::cell::RefCell;
 use vm::{object_to_string, object_to_repr};
-use object::{Object, FnResult, U32String, Function, EnumFunction,
+use object::{Object, Map,
+  FnResult, U32String, Function, EnumFunction,
   type_error, argc_error, index_error
 };
 
@@ -73,7 +74,12 @@ pub fn eval(ret: &mut Object, pself: &Object, argv: &[Object]) -> FnResult{
   match argv[0] {
     Object::String(ref s) => {
       let a: String = s.v.iter().collect();
-      return match ::eval_string(&a,"") {
+
+      let i = ::Interpreter::new();
+      let gtab = Map::new();
+      ::init_gtab(&mut gtab.borrow_mut(),&i.env);
+
+      return match i.eval_string(&a,"",gtab) {
         Ok(x) => {*ret=x; Ok(())},
         Err(e) => Err(e)
       }

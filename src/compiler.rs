@@ -8,7 +8,7 @@ use std::rc::Rc;
 use std::collections::HashMap;
 use std::mem::{transmute,replace};
 use system;
-use vm::{bc, BCSIZE, Module, Env};
+use vm::{bc, BCSIZE, Module};
 use object::{Object, U32String};
 
 const VALUE_NONE: u8 = 0;
@@ -38,12 +38,27 @@ enum Symbol{
   SubStatement,
 }
 
+enum Item{
+  None,
+  String(String),
+  Int(i32),
+  Float(f64)
+}
+impl Item{
+  fn assert_string(&self) -> &String {
+    match *self {Item::String(ref s) => s, _ => panic!()}
+  }
+  fn assert_int(&self) -> i32 {
+    match *self {Item::Int(x) => x, _ => panic!()}
+  }
+}
+
 pub struct Token {
   token_type: SymbolType,
   value: Symbol,
   line: usize,
   col: usize,
-  s: Option<String>
+  item: Item
 }
 
 struct KeywordsElement {
@@ -128,7 +143,7 @@ pub fn scan(s: &str, line_start: usize, file: &str, new_line_start: bool)
   let mut v: Vec<Token> = Vec::new();
   if new_line_start {
     v.push(Token{token_type: SymbolType::Separator, value: Symbol::Newline,
-      line: line_start, col: 1, s: None});
+      line: line_start, col: 1, item: Item::None});
   }
 
   let mut line=line_start;
@@ -154,17 +169,21 @@ pub fn scan(s: &str, line_start: usize, file: &str, new_line_start: bool)
           token_type = SymbolType::Float;
         }else if a[i]=='i' {
           token_type = SymbolType::Imag;
+          i+=1; col+=1;
           break;
         }else{
           break;
         }
       }
       let number: &String = &a[j..i].iter().cloned().collect();
-      if token_type == SymbolType::Imag {
-        i+=1; col+=1;
+      if token_type == SymbolType::Int {
+        let x: i32 = number.parse().unwrap();
+        v.push(Token{token_type: token_type, value: Symbol::None,
+          line: line, col: hcol, item: Item::Int(x)});
+      }else{
+        v.push(Token{token_type: token_type, value: Symbol::None,
+          line: line, col: hcol, item: Item::String(number.clone())});
       }
-      v.push(Token{token_type: token_type,
-        value: Symbol::None, line: line, col: hcol, s: Some(number.clone())});
     }else if (c.is_alphabetic() && c.is_ascii()) || a[i]=='_' {
       let j=i; hcol=col;
       while i<n && (a[i].is_alphabetic() || a[i].is_digit(10) || a[i]=='_') {
@@ -189,11 +208,12 @@ pub fn scan(s: &str, line_start: usize, file: &str, new_line_start: bool)
             sub_index = v.len();
           }
           v.push(Token{token_type: *x.t, value: *x.v,
-            line: line, col: hcol, s: None});
+            line: line, col: hcol, item: Item::None});
         },
         None => {
           v.push(Token{token_type: SymbolType::Identifier,
-            value: Symbol::None, line: line, col: hcol, s: Some(id.clone())});
+            value: Symbol::None, line: line, col: hcol,
+            item: Item::String(id.clone())});
         }
       }
     }else{
@@ -206,27 +226,33 @@ pub fn scan(s: &str, line_start: usize, file: &str, new_line_start: bool)
             encountered_sub = false;
             v[sub_index].value = Symbol::SubStatement;
             v.push(Token{token_type: SymbolType::Bracket,
-              value: Symbol::PLeft, line: line, col: col, s: None});
+              value: Symbol::PLeft, line: line, col: col,
+              item: Item::None});
             v.push(Token{token_type: SymbolType::Bracket,
-              value: Symbol::PRight, line: line, col: col, s: None});
+              value: Symbol::PRight, line: line, col: col,
+              item: Item::None});
           }
           v.push(Token{token_type: SymbolType::Separator,
-            value: Symbol::Newline, line: line, col: col, s: None});
+            value: Symbol::Newline, line: line, col: col,
+            item: Item::None});
           i+=1; col=1; line+=1;
         },
         ',' => {
           v.push(Token{token_type: SymbolType::Separator,
-            value: Symbol::Comma, line: line, col: col, s: None});
+            value: Symbol::Comma, line: line, col: col,
+            item: Item::None});
           i+=1; col+=1;
         },
         ':' => {
           v.push(Token{token_type: SymbolType::Separator,
-            value: Symbol::Colon, line: line, col: col, s: None});
+            value: Symbol::Colon, line: line, col: col,
+            item: Item::None});
           i+=1; col+=1;
         },
         ';' => {
           v.push(Token{token_type: SymbolType::Separator,
-            value: Symbol::Semicolon, line: line, col: col, s: None});
+            value: Symbol::Semicolon, line: line, col: col,
+            item: Item::None});
           i+=1; col+=1;
         },
         '(' => {
@@ -235,75 +261,89 @@ pub fn scan(s: &str, line_start: usize, file: &str, new_line_start: bool)
             v[sub_index].value = Symbol::SubStatement;
           }
           v.push(Token{token_type: SymbolType::Bracket,
-            value: Symbol::PLeft, line: line, col: col, s: None});
+            value: Symbol::PLeft, line: line, col: col,
+            item: Item::None});
           i+=1; col+=1;
         },
         ')' => {
           v.push(Token{token_type: SymbolType::Bracket,
-            value: Symbol::PRight, line: line, col: col, s: None});
+            value: Symbol::PRight, line: line, col: col,
+            item: Item::None});
           i+=1; col+=1;
         },
         '[' => {
           v.push(Token{token_type: SymbolType::Bracket,
-            value: Symbol::BLeft, line: line, col: col, s: None});
+            value: Symbol::BLeft, line: line, col: col,
+            item: Item::None});
           i+=1; col+=1;
         },
         ']' => {
           v.push(Token{token_type: SymbolType::Bracket,
-            value: Symbol::BRight, line: line, col: col, s: None});
+            value: Symbol::BRight, line: line, col: col,
+            item: Item::None});
           i+=1; col+=1;
         },
         '{' => {
           v.push(Token{token_type: SymbolType::Bracket,
-            value: Symbol::CLeft, line: line, col: col, s: None});
+            value: Symbol::CLeft, line: line, col: col,
+            item: Item::None});
           i+=1; col+=1;
         },
         '}' => {
           v.push(Token{token_type: SymbolType::Bracket,
-            value: Symbol::CRight, line: line, col: col, s: None});
+            value: Symbol::CRight, line: line, col: col,
+            item: Item::None});
           i+=1; col+=1;
         },
         '=' => {
           if i+1<n && a[i+1]=='=' {
             v.push(Token{token_type: SymbolType::Operator,
-              value: Symbol::Eq, line: line, col: col, s: None});
+              value: Symbol::Eq, line: line, col: col,
+              item: Item::None});
             i+=2; col+=2;
           }else{
             v.push(Token{token_type: SymbolType::Operator,
-              value: Symbol::Assignment, line: line, col: col, s: None});
+              value: Symbol::Assignment, line: line, col: col,
+              item: Item::None});
             i+=1; col+=1;
           }
         },
         '+' => {
           if i+1<n && a[i+1]=='=' {
             v.push(Token{token_type: SymbolType::Assignment,
-              value: Symbol::APlus, line: line, col: col, s: None});
+              value: Symbol::APlus, line: line, col: col,
+              item: Item::None});
             i+=2; col+=2;
           }else{
             v.push(Token{token_type: SymbolType::Operator,
-              value: Symbol::Plus, line: line, col: col, s: None});
+              value: Symbol::Plus, line: line, col: col,
+              item: Item::None});
             i+=1; col+=1;
           }
         },
         '-' => {
           if i+1<n && a[i+1]=='=' {
             v.push(Token{token_type: SymbolType::Assignment,
-              value: Symbol::AMinus, line: line, col: col, s: None});
+              value: Symbol::AMinus, line: line, col: col,
+              item: Item::None});
             i+=2; col+=2;
           }else{
             v.push(Token{token_type: SymbolType::Operator,
-              value: Symbol::Minus, line: line, col: col, s: None});
+              value: Symbol::Minus, line: line, col: col,
+              item: Item::None});
             i+=1; col+=1;
           }
         },
         '*' => {
           if i+1<n && a[i+1]=='=' {
             v.push(Token{token_type: SymbolType::Assignment,
-              value: Symbol::AAst, line: line, col: col, s: None});
+              value: Symbol::AAst, line: line, col: col,
+              item: Item::None});
             i+=2; col+=2;
           }else{
             v.push(Token{token_type: SymbolType::Operator,
-              value: Symbol::Ast, line: line, col: col, s: None});
+              value: Symbol::Ast, line: line, col: col,
+              item: Item::None});
             i+=1; col+=1;
           }
         },
@@ -318,119 +358,141 @@ pub fn scan(s: &str, line_start: usize, file: &str, new_line_start: bool)
           }else if i+1<n && a[i+1]=='/' {
             if i+2<n && a[i+2]=='=' {
               v.push(Token{token_type: SymbolType::Assignment,
-                value: Symbol::AIdiv, line: line, col: col, s: None});
+                value: Symbol::AIdiv, line: line, col: col,
+                item: Item::None});
               i+=3; col+=3;
             }else{
               v.push(Token{token_type: SymbolType::Operator,
-                value: Symbol::Idiv, line: line, col: col, s: None});
+                value: Symbol::Idiv, line: line, col: col,
+                item: Item::None});
               i+=2; col+=2;
             }
           }else if i+1<n && a[i+1]=='=' {
             v.push(Token{token_type: SymbolType::Assignment,
-              value: Symbol::ADiv, line: line, col: col, s: None});
+              value: Symbol::ADiv, line: line, col: col,
+              item: Item::None});
             i+=2; col+=2;
           }else{
             v.push(Token{token_type: SymbolType::Operator,
-              value: Symbol::Div, line: line, col: col, s: None});
+              value: Symbol::Div, line: line, col: col,
+              item: Item::None});
             i+=1; col+=1;
           }
         },
         '%' => {
           if i+1<n && a[i+1]=='=' {
             v.push(Token{token_type: SymbolType::Assignment,
-              value: Symbol::AMod, line: line, col: col, s: None});
+              value: Symbol::AMod, line: line, col: col,
+              item: Item::None});
             i+=2; col+=2;
           }else{
             v.push(Token{token_type: SymbolType::Operator,
-              value: Symbol::Mod, line: line, col: col, s: None});
+              value: Symbol::Mod, line: line, col: col,
+              item: Item::None});
             i+=1; col+=1;
           }
         },
         '^' => {
           v.push(Token{token_type: SymbolType::Operator,
-            value: Symbol::Pow, line: line, col: col, s: None});
+            value: Symbol::Pow, line: line, col: col,
+            item: Item::None});
           i+=1; col+=1;
         },
         '.' => {
           if i+1<n && a[i+1]=='.' {
             v.push(Token{token_type: SymbolType::Operator,
-              value: Symbol::Range, line: line, col: col, s: None});
+              value: Symbol::Range, line: line, col: col,
+              item: Item::None});
             i+=2; col+=2;
           }else{
             v.push(Token{token_type: SymbolType::Operator,
-              value: Symbol::Dot, line: line, col: col, s: None});
+              value: Symbol::Dot, line: line, col: col,
+              item: Item::None});
             i+=1; col+=1;
           }
         },
         '<' => {
           if i+1<n && a[i+1]=='=' {
             v.push(Token{token_type: SymbolType::Operator,
-              value: Symbol::Le, line: line, col: col, s: None});
+              value: Symbol::Le, line: line, col: col,
+              item: Item::None});
             i+=2; col+=2;
           }else if i+1<n && a[i+1]=='<' {
             v.push(Token{token_type: SymbolType::Operator,
-              value: Symbol::Lshift, line: line, col: col, s: None});
+              value: Symbol::Lshift, line: line, col: col,
+              item: Item::None});
             i+=2; col+=2;
           }else{
             v.push(Token{token_type: SymbolType::Operator,
-              value: Symbol::Lt, line: line, col: col, s: None});
+              value: Symbol::Lt, line: line, col: col,
+              item: Item::None});
             i+=1; col+=1;
           }
         },
         '>' => {
           if i+1<n && a[i+1]=='=' {
             v.push(Token{token_type: SymbolType::Operator,
-              value: Symbol::Ge, line: line, col: col, s: None});
+              value: Symbol::Ge, line: line, col: col,
+              item: Item::None});
             i+=2; col+=2;
           }else if i+1<n && a[i+1]=='>' {
             v.push(Token{token_type: SymbolType::Operator,
-              value: Symbol::Rshift, line: line, col: col, s: None});
+              value: Symbol::Rshift, line: line, col: col,
+              item: Item::None});
             i+=2; col+=2;            
           }else{
             v.push(Token{token_type: SymbolType::Operator,
-              value: Symbol::Gt, line: line, col: col, s: None});
+              value: Symbol::Gt, line: line, col: col,
+              item: Item::None});
             i+=1; col+=1;
           }
         },
         '|' => {
           if i+1<n && a[i+1]=='=' {
             v.push(Token{token_type: SymbolType::Assignment,
-              value: Symbol::AVline, line: line, col: col, s: None});
-            i+=2; col+=2;   
+              value: Symbol::AVline, line: line, col: col,
+              item: Item::None});
+            i+=2; col+=2;
           }else{
             if encountered_sub {
               encountered_sub = false;
             }
             v.push(Token{token_type: SymbolType::Operator,
-              value: Symbol::Vline, line: line, col: col, s: None});
+              value: Symbol::Vline, line: line, col: col,
+              item: Item::None});
             i+=1; col+=1;
           }
         },
         '&' => {
           if i+1<n && a[i+1]=='=' {
             v.push(Token{token_type: SymbolType::Assignment,
-              value: Symbol::AAmp, line: line, col: col, s: None});
+              value: Symbol::AAmp, line: line, col: col,
+              item: Item::None});
             i+=2; col+=2;
           }else{
             v.push(Token{token_type: SymbolType::Operator,
-              value: Symbol::Amp, line: line, col: col, s: None});
+              value: Symbol::Amp, line: line, col: col,
+              item: Item::None});
             i+=1; col+=1;
           }
         },
         '$' => {
           if i+1<n && a[i+1]=='=' {
             v.push(Token{token_type: SymbolType::Assignment,
-              value: Symbol::ASvert, line: line, col: col, s: None});
+              value: Symbol::ASvert, line: line, col: col,
+              item: Item::None});
             i+=2; col+=2;
           }else{
             v.push(Token{token_type: SymbolType::Operator,
-              value: Symbol::Svert, line: line, col: col, s: None});
+              value: Symbol::Svert, line: line, col: col,
+              item: Item::None});
             i+=1; col+=1;
           }
         },
         '~' => {
           v.push(Token{token_type: SymbolType::Operator,
-            value: Symbol::Tilde, line: line, col: col, s: None});
+            value: Symbol::Tilde, line: line, col: col,
+            item: Item::None});
           i+=1; col+=1;
         },
         '"' => {
@@ -440,7 +502,8 @@ pub fn scan(s: &str, line_start: usize, file: &str, new_line_start: bool)
           while i<n && a[i]!='"' {i+=1; col+=1;}
           let s: &String = &a[j..i].iter().cloned().collect();
           v.push(Token{token_type: SymbolType::String,
-            value: Symbol::None, line: line, col: hcol, s: Some(s.clone())
+            value: Symbol::None, line: line, col: hcol,
+            item: Item::String(s.clone())
           });
           i+=1; col+=1;
         },
@@ -451,14 +514,16 @@ pub fn scan(s: &str, line_start: usize, file: &str, new_line_start: bool)
           while i<n && a[i]!='\'' {i+=1; col+=1;}
           let s: &String = &a[j..i].iter().cloned().collect();
           v.push(Token{token_type: SymbolType::String,
-            value: Symbol::None, line: line, col: hcol, s: Some(s.clone())
+            value: Symbol::None, line: line, col: hcol,
+            item: Item::String(s.clone())
           });
           i+=1; col+=1;
         },
         '!' => {
           if i+1<n && a[i+1]=='=' {
             v.push(Token{token_type: SymbolType::Operator,
-              value: Symbol::Ne, line: line, col: col, s: None});
+              value: Symbol::Ne, line: line, col: col,
+              item: Item::None});
             i+=2; col+=2;
           }else{
             return Err(Box::new(EnumError::Syntax(SyntaxError{line: line, col: col, file: String::from(file),
@@ -468,7 +533,8 @@ pub fn scan(s: &str, line_start: usize, file: &str, new_line_start: bool)
         '#' => {
           while i<n && a[i]!='\n' {i+=1; col+=1;}
           v.push(Token{token_type: SymbolType::Separator,
-            value: Symbol::Newline, line: line, col: col, s: None});
+            value: Symbol::Newline, line: line, col: col,
+            item: Item::None});
           i+=1; col=1; line+=1;
         },
         _ => {
@@ -481,12 +547,12 @@ pub fn scan(s: &str, line_start: usize, file: &str, new_line_start: bool)
   if encountered_sub {
     v[sub_index].value = Symbol::SubStatement;
     v.push(Token{token_type: SymbolType::Bracket,
-      value: Symbol::PLeft, line: line, col: col, s: None});
+      value: Symbol::PLeft, line: line, col: col, item: Item::None});
     v.push(Token{token_type: SymbolType::Bracket,
-      value: Symbol::PRight, line: line, col: col, s: None});
+      value: Symbol::PRight, line: line, col: col, item: Item::None});
   }
   v.push(Token{token_type: SymbolType::Separator,
-    value: Symbol::Terminal, line: line, col: col, s: None});
+    value: Symbol::Terminal, line: line, col: col, item: Item::None});
   return Ok(v);
 }
 
@@ -563,13 +629,21 @@ fn symbol_to_string(value: Symbol) -> &'static str {
 fn print_token(x: &Token){
   match x.token_type {
     SymbolType::Identifier | SymbolType::Int | SymbolType::Float => {
-      print!("[{}]",match x.s {Some(ref s) => s, None => compiler_error()});
+      match x.item {
+        Item::String(ref s) => {
+          print!("[{}]",s);
+        },
+        Item::Int(i) => {
+          print!("[{}]",i);
+        },
+        _ => compiler_error()
+      }
     },
     SymbolType::Imag => {
-      print!("[{}i]",match x.s {Some(ref s) => s, None => compiler_error()});    
+      print!("[{}i]",match x.item {Item::String(ref s) => s, _ => compiler_error()});    
     },
     SymbolType::String => {
-      print!("[\"{}\"]",match x.s {Some(ref s) => s, None => compiler_error()});    
+      print!("[\"{}\"]",match x.item {Item::String(ref s) => s, _ => compiler_error()});    
     },
     SymbolType::Operator | SymbolType::Separator |
     SymbolType::Bracket  | SymbolType::Keyword | SymbolType::Bool |
@@ -587,7 +661,10 @@ pub fn print_vtoken(v: &Vec<Token>){
 fn print_ast(t: &AST, indent: usize){
   print!("{:1$}","",indent);
   match t.symbol_type {
-    SymbolType::Identifier | SymbolType::Int | SymbolType::Float => {
+    SymbolType::Int => {
+      println!("{}",match t.info {Info::Int(x)=>x, _ => compiler_error()});
+    },
+    SymbolType::Identifier | SymbolType::Float => {
       println!("{}",match t.s {Some(ref s) => s, None => compiler_error()});
     },
     SymbolType::Imag => {
@@ -632,7 +709,8 @@ enum ComplexInfoA{
 }
 
 enum Info{
-  None, Some(u8), SelfArg, A(Box<ComplexInfoA>)
+  None, Some(u8), SelfArg, A(Box<ComplexInfoA>),
+  Int(i32)
 }
 
 struct AST{
@@ -1033,7 +1111,7 @@ fn function_literal(&mut self, i: &mut TokenIterator,
   let t = &p[i.index];
   let id = if t.token_type == SymbolType::Identifier {
     i.index+=1;
-    t.s.clone()
+    Some(t.item.assert_string().clone())
   }else{
     None
   };
@@ -1132,13 +1210,20 @@ fn atom(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error> {
   let p = try!(i.next_token(self));
   let t = &p[i.index];
   let y;
-  if t.token_type==SymbolType::Identifier || t.token_type==SymbolType::Int ||
+  if t.token_type==SymbolType::Int {
+    i.index+=1;
+    y = Rc::new(AST{line: t.line, col: t.col, symbol_type: t.token_type,
+      value: t.value, info: Info::Int(t.item.assert_int()),
+      s: None, a: None});
+  }else if t.token_type==SymbolType::Identifier ||
      t.token_type==SymbolType::String || t.token_type==SymbolType::Float ||
      t.token_type==SymbolType::Imag
   {
     i.index+=1;
     y = Rc::new(AST{line: t.line, col: t.col, symbol_type: t.token_type,
-      value: t.value, info: Info::None, s: t.s.clone(), a: None});
+      value: t.value, info: Info::None,
+      s: Some(t.item.assert_string().clone()),
+      a: None});
   }else if t.value==Symbol::PLeft {
     i.index+=1;
     self.parens+=1;
@@ -2288,6 +2373,8 @@ fn compile_ast(&mut self, bv: &mut Vec<u8>, t: &Rc<AST>)
       try!(self.compile_operator(bv,t,bc::DIV));
     }else if value == Symbol::Idiv {
       try!(self.compile_operator(bv,t,bc::IDIV));
+    }else if value == Symbol::Mod {
+      try!(self.compile_operator(bv,t,bc::MOD));
     }else if value == Symbol::Neg {
       try!(self.compile_operator(bv,t,bc::NEG));
     }else if value == Symbol::Pow {
@@ -2357,8 +2444,10 @@ fn compile_ast(&mut self, bv: &mut Vec<u8>, t: &Rc<AST>)
     }
   }else if t.symbol_type == SymbolType::Int {
     push_bc(bv, bc::INT, t.line, t.col);
-    let x: i32 = match t.s {Some(ref x)=>x.parse().unwrap(), None=>panic!()};
-    push_i32(bv,x);
+    match t.info {
+      Info::Int(x) => push_i32(bv,x),
+      _ => panic!()
+    };
   }else if t.symbol_type == SymbolType::Float {
     push_bc(bv, bc::FLOAT, t.line, t.col);
     let x: f64 = match t.s {Some(ref x)=>x.parse().unwrap(), None=>panic!()};
@@ -2550,6 +2639,7 @@ fn asm_listing(a: &[u8]) -> String {
       bc::MPY => {s.push_str("mpy\n"); i+=BCSIZE;},
       bc::DIV => {s.push_str("div\n"); i+=BCSIZE;},
       bc::IDIV => {s.push_str("idiv\n"); i+=BCSIZE;},
+      bc::MOD => {s.push_str("mod\n"); i+=BCSIZE;},
       bc::POW => {s.push_str("pow\n"); i+=BCSIZE;},
       bc::NEG => {s.push_str("neg\n"); i+=BCSIZE;},
       bc::EQ => {s.push_str("eq\n"); i+=BCSIZE;},
@@ -2765,7 +2855,7 @@ fn print_var_tab(vtab: &VarTab, indent: usize){
 
 pub fn compile(v: Vec<Token>, mode_cmd: bool,
   history: &mut system::History, id: &str,
-  env: Rc<Env>
+  interpreter: &::Interpreter
 ) -> Result<Rc<Module>,Error>
 {
   let mut compilation = Compilation{
@@ -2790,11 +2880,12 @@ pub fn compile(v: Vec<Token>, mode_cmd: bool,
 
   // print_asm_listing(&bv);
   // print_data(&compilation.data);
-  // let m = Rc::new(Module{program: bv, data: compilation.data, env});
   let m = Rc::new(Module{
+    // program: bv,
     program: Rc::new(bv),
     data: compilation.data,
-    env: env
+    env: interpreter.env.clone(),
+    gtab: interpreter.gtab.clone()
   });
   return Ok(m);
 }

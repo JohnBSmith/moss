@@ -1,11 +1,8 @@
 
 List.map = sub|f|
   a = []
-  i = 0
-  n = size(self)
-  while i<n
-    a.push(f(self[i]))
-    i+=1
+  for x in self
+    a.push(f(x))
   end
   return a
 end

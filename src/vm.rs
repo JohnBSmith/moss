@@ -73,7 +73,8 @@ pub mod bc{
   pub const OR:   u8 = 52;
   pub const NOT:  u8 = 53;
   pub const NEXT: u8 = 54;
-  pub const RANGE: u8 = 55;
+  pub const RANGE:u8 = 55;
+  pub const MOD:  u8 = 56;
 
   pub fn op_to_str(x: u8) -> &'static str {
     match x {
@@ -90,6 +91,7 @@ pub mod bc{
       MPY => "MPY",
       DIV => "DIV",
       IDIV => "IDIV",
+      MOD => "MOD",
       POW => "POW",
       EQ => "EQ",
       NE => "NE",
@@ -633,6 +635,21 @@ fn operator_idiv(sp: usize, stack: &mut Vec<Object>) -> FnResult {
   }
 }
 
+fn operator_mod(sp: usize, stack: &mut Vec<Object>) -> FnResult {
+  match stack[sp-2] {
+    Object::Int(x) => {
+      match stack[sp-1] {
+        Object::Int(y) => {
+          stack[sp-2] = Object::Int(x%y);
+          Ok(())
+        },
+        _ => type_error("Type error in a%b.")
+      }
+    },
+    _ => type_error("Type error in a%b.")
+  }
+}
+
 fn operator_pow(sp: usize, stack: &mut Vec<Object>) -> FnResult {
   match stack[sp-2] {
     Object::Int(x) => {
@@ -1071,7 +1088,8 @@ pub struct Module{
   // Rc<[T]> is available in Rust version 1.21 onwards.
 
   pub data: Vec<Object>,
-  pub env: Rc<Env>
+  pub env: Rc<Env>,
+  pub gtab: Rc<RefCell<Map>>
 }
 
 struct Frame{
@@ -1210,6 +1228,11 @@ fn vm_loop(state: &mut State, module: Rc<Module>, gtab: Rc<RefCell<Map>>)
       },
       bc::IDIV => {
         try!(operator_idiv(sp, &mut stack));
+        sp-=1;
+        ip+=BCSIZE;
+      },
+      bc::MOD => {
+        try!(operator_mod(sp, &mut stack));
         sp-=1;
         ip+=BCSIZE;
       },
@@ -1436,13 +1459,22 @@ fn vm_loop(state: &mut State, module: Rc<Module>, gtab: Rc<RefCell<Map>>)
       },
       bc::LOAD => {
         let index = compose_u32(&a,ip+BCSIZE);
-        match gtab.borrow().m.get(&module.data[index as usize]) {
+        let key = &module.data[index as usize];
+        match gtab.borrow().m.get(key) {
           Some(x) => {
             stack[sp] = x.clone();
             sp+=1;
           },
           None => {
-            return global_variable_not_found(&module,index,&gtab);
+            match module.gtab.borrow().m.get(key) {
+              Some(x) => {
+                stack[sp] = x.clone();
+                sp+=1;
+              },
+              None => {
+                return global_variable_not_found(&module,index,&gtab);              
+              }
+            }
           }
         }
         ip+=BCSIZEP4;
