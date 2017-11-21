@@ -2,7 +2,7 @@
 use std::rc::Rc;
 use std::cell::RefCell;
 use vm::{object_to_string, object_to_repr};
-use object::{Object, Map,
+use object::{Object, Map, Table,
   FnResult, U32String, Function, EnumFunction,
   type_error, argc_error, index_error
 };
@@ -183,6 +183,45 @@ pub fn iter(ret: &mut Object, pself: &Object, argv: &[Object]) -> FnResult{
       Ok(())
     },
     _ => type_error("Type error in iter(x): x is not iterable.")
+  }
+}
+
+pub fn record(ret: &mut Object, pself: &Object, argv: &[Object]) -> FnResult{
+  if argv.len()!=1 {
+    return argc_error(argv.len(),1,1,"record");    
+  }
+  match argv[0] {
+    Object::Table(ref t) => {
+      *ret = Object::Map(t.map.clone());
+      Ok(())
+    },
+    _ => type_error("Type error in record(x): x is not a table.")
+  }
+}
+
+pub fn fobject(ret: &mut Object, pself: &Object, argv: &[Object]) -> FnResult{
+  match argv.len() {
+    0 => {
+      *ret = Object::Table(Table::new(Object::Null));
+      Ok(())
+    },
+    1 => {
+      *ret = Object::Table(Table::new(argv[0].clone()));
+      Ok(())    
+    },
+    2 => {
+      match argv[1] {
+        Object::Map(ref m) => {
+          *ret = Object::Table(Rc::new(Table{
+            prototype: argv[0].clone(),
+            map: m.clone()
+          }));
+          Ok(())
+        },
+        _ => type_error("Type error in object(p,m): m is not a map.")
+      }
+    },
+    n => argc_error(n,0,0,"object")
   }
 }
 

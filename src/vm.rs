@@ -75,6 +75,7 @@ pub mod bc{
   pub const NEXT: u8 = 54;
   pub const RANGE:u8 = 55;
   pub const MOD:  u8 = 56;
+  pub const ELSE: u8 = 57;
 
   pub fn op_to_str(x: u8) -> &'static str {
     match x {
@@ -134,6 +135,7 @@ pub mod bc{
       OR => "OR",
       NOT => "NOT",
       NEXT => "NEXT",
+      ELSE => "ELSE",
       _ => "unknown"
     }
   }
@@ -1043,6 +1045,27 @@ fn operator_dot_set(sp: usize, stack: &mut Vec<Object>) -> FnResult {
 }
 
 #[inline(never)]
+fn object_call(f: &Object, argv: &mut [Object]) -> FnResult {
+  match *f {
+    Object::Map(ref m) => {
+      if argv.len()!=3 {
+        return argc_error(argv.len()-2,1,1,"sloppy index");
+      }
+      if argv[1]!=Object::Null {
+        argv[1] = Object::Null;
+      }
+      let key = replace(&mut argv[2],Object::Null);
+      argv[0] = match m.borrow().m.get(&key) {
+        Some(x) => x.clone(),
+        None => Object::Null
+      };
+      Ok(())
+    },
+    _ => type_error("Type error in f(...): f is not callable.")
+  }
+}
+
+#[inline(never)]
 fn global_variable_not_found(module: &Module, index: u32, gtab: &RefCell<Map>) -> FnResult {
   let mut s =  String::new();
   s.push_str(&format!("Error: variable '{}' not found.",object_to_string(&module.data[index as usize])));
@@ -1426,8 +1449,15 @@ fn vm_loop(state: &mut State, module: Rc<Module>, gtab: Rc<RefCell<Map>>)
             }
           },
           _ => {
-            state.sp = sp;
-            return type_error("Type error in f(...): f is not callable.");
+            match object_call(&f, &mut stack[sp-argc-2..sp]) {
+              Ok(()) => {},
+              Err(e) => {
+                state.sp = sp;
+                return Err(e);
+              }
+            }
+            sp-=argc+1;
+            continue;
           }
         }
       },
@@ -1568,6 +1598,14 @@ fn vm_loop(state: &mut State, module: Rc<Module>, gtab: Rc<RefCell<Map>>)
           stack[sp-1] = y;
           ip+=BCSIZEP4;
         }
+      },
+      bc::ELSE => {
+        if stack[sp-1]==Object::Null {
+          sp-=1;
+          ip+=BCSIZEP4;
+        }else{
+          ip = (ip as i32+compose_i32(&a,ip+BCSIZE)) as usize;
+        }      
       },
       bc::HALT => {
         state.sp=sp;

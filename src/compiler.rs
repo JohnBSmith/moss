@@ -1286,12 +1286,18 @@ fn application_term(&mut self, i: &mut TokenIterator)
       x = try!(self.application(i,x,Symbol::BRight));
     }else if t.value == Symbol::Dot {
       i.index+=1;
-      let mut y = try!(self.atom(i));
-      if y.symbol_type == SymbolType::Identifier {
-        let s = Rc::new(AST{line: y.line, col: y.col, symbol_type: SymbolType::String,
-          value: Symbol::None, info: Info::None, s: y.s.clone(), a: None});
-        y=s;
-      }
+      let p2 = try!(i.next_token(self));
+      let t2 = &p[i.index];
+      let y = if t2.token_type == SymbolType::Identifier {
+        i.index+=1;
+        Rc::new(AST{line: t2.line, col: t2.col,
+          symbol_type: SymbolType::String,
+          value: Symbol::None, info: Info::None,
+          s: Some(t2.item.assert_string().clone()), a: None
+        })
+      }else{
+        try!(self.atom(i))
+      };
       x = binary_operator(t.line,t.col,Symbol::Dot,x,y);
     }else{
       return Ok(x);
@@ -1579,6 +1585,10 @@ fn if_expression(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
     }else{
       return Ok(binary_operator(t.line,t.col,Symbol::If,condition,x));
     }
+  }else if t.value==Symbol::Else {
+    i.index+=1;
+    let y = try!(self.disjunction(i));
+    return Ok(binary_operator(t.line,t.col,Symbol::Else,x,y));
   }else{
     return Ok(x);
   }
@@ -2437,6 +2447,16 @@ fn compile_ast(&mut self, bv: &mut Vec<u8>, t: &Rc<AST>)
       try!(self.compile_ast(bv,&a[1]));
       let len = bv.len();
       write_i32(&mut bv[index..index+4], (BCSIZE+len) as i32-index as i32);
+    }else if value == Symbol::Else {
+      // a ELSE[1] b (1)
+      let a = ast_argv(t);
+      try!(self.compile_ast(bv,&a[0]));
+      push_bc(bv,bc::ELSE,t.line,t.col);
+      let index = bv.len();
+      push_i32(bv,0xcafe);
+      try!(self.compile_ast(bv,&a[1]));
+      let len = bv.len();
+      write_i32(&mut bv[index..index+4], (BCSIZE+len) as i32-index as i32);      
     }else{
       return Err(self.syntax_error(t.line,t.col,
         format!("cannot compile Operator '{}'.",symbol_to_string(t.value))
@@ -2729,6 +2749,12 @@ fn asm_listing(a: &[u8]) -> String {
       bc::OR => {
         let x = compose_i32(&a[BCSIZE+i..BCSIZE+i+4]);
         let u = format!("or {}\n",i as i32+x);
+        s.push_str(&u);
+        i+=BCSIZE+4;
+      },
+      bc::ELSE => {
+        let x = compose_i32(&a[BCSIZE+i..BCSIZE+i+4]);
+        let u = format!("else {}\n",i as i32+x);
         s.push_str(&u);
         i+=BCSIZE+4;
       },

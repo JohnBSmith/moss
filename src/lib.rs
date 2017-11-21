@@ -37,6 +37,8 @@ fn init_gtab(gtab: &mut Map, env: &Env){
   gtab.insert("size", Function::plain(::global::size,1,1));
   gtab.insert("load", Function::plain(::global::fload,1,1));
   gtab.insert("iter", Function::plain(::global::iter,1,1));
+  gtab.insert("record", Function::plain(::global::record,1,1));
+  gtab.insert("object", Function::plain(::global::fobject,0,2));
 
   let list_type = env.list.clone();
   ::list::init(&list_type);
