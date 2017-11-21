@@ -96,17 +96,26 @@ pub struct Range{
   pub step: Object
 }
 
+pub struct Spot{
+  pub line: usize,
+  pub col: usize
+}
+
 pub struct Exception{
   pub value: Object,
-  pub traceback: Option<List>
+  pub traceback: Option<List>,
+  pub spot: Option<Spot>
 }
 
 impl Exception{
   pub fn new(s: &str) -> FnResult {
     Err(Box::new(Exception{
       value: U32String::new_object_str(s),
-      traceback: None
+      traceback: None, spot: None
     }))
+  }
+  pub fn set_spot(&mut self, line: usize, col: usize) {
+    self.spot = Some(Spot{line,col});
   }
 }
 

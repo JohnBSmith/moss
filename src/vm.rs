@@ -1074,6 +1074,17 @@ fn global_variable_not_found(module: &Module, index: u32, gtab: &RefCell<Map>) -
   return index_error(&s);
 }
 
+#[inline(never)]
+fn non_boolean_condition() -> FnResult {
+  type_error("Type error: condition is not of type bool.")
+}
+
+fn get_line_col(a: &[u8], ip: usize) -> (usize,usize) {
+  let line = (a[ip+2] as usize)<<8 | (a[ip+1] as usize);
+  let col = a[ip+3] as usize;
+  return (line,col);
+}
+
 #[inline(always)]
 fn compose_i32(a: &[u8], ip: usize) -> i32{
   (a[ip+3] as i32)<<24 | (a[ip+2] as i32)<<16 | (a[ip+1] as i32)<<8 | (a[ip] as i32)
@@ -1154,10 +1165,12 @@ fn vm_loop(state: &mut State, module: Rc<Module>, gtab: Rc<RefCell<Map>>)
       argc: 0, argc_min: 0, argc_max: 0
   });
 
+  let mut exception;
   let mut ret = true;
   let mut catch = false;
 
-  loop{
+  loop{ // loop
+  loop{ // try
     // print_stack(&stack[0..10]);
     // print_op(a[ip]);
     // match unsafe{*a.get_unchecked(ip)} {
@@ -1226,41 +1239,57 @@ fn vm_loop(state: &mut State, module: Rc<Module>, gtab: Rc<RefCell<Map>>)
         sp+=1;
       },
       bc::NEG => {
-        try!(operator_neg(sp, &mut stack));
+        match operator_neg(sp, &mut stack) {
+          Ok(())=>{}, Err(e)=>{exception=Err(e); break;}
+        }
         ip+=BCSIZE;
       },
       bc::ADD => {
-        try!(operator_plus(sp, &mut stack));
+        match operator_plus(sp, &mut stack) {
+          Ok(())=>{}, Err(e)=>{exception=Err(e); break;}
+        }
         sp-=1;
         ip+=BCSIZE;
       },
       bc::SUB => {
-        try!(operator_minus(sp, &mut stack));
+        match operator_minus(sp, &mut stack) {
+          Ok(())=>{}, Err(e)=>{exception=Err(e); break;}
+        }
         sp-=1;
         ip+=BCSIZE;
       },
       bc::MPY => {
-        try!(operator_mpy(sp, &mut stack));
+        match operator_mpy(sp, &mut stack) {
+          Ok(())=>{}, Err(e)=>{exception=Err(e); break;}
+        }
         sp-=1;
         ip+=BCSIZE;
       },
       bc::DIV => {
-        try!(operator_div(sp, &mut stack));
+        match operator_div(sp, &mut stack) {
+          Ok(())=>{}, Err(e)=>{exception=Err(e); break;}
+        }
         sp-=1;
         ip+=BCSIZE;
       },
       bc::IDIV => {
-        try!(operator_idiv(sp, &mut stack));
+        match operator_idiv(sp, &mut stack) {
+          Ok(())=>{}, Err(e)=>{exception=Err(e); break;}
+        }
         sp-=1;
         ip+=BCSIZE;
       },
       bc::MOD => {
-        try!(operator_mod(sp, &mut stack));
+        match operator_mod(sp, &mut stack) {
+          Ok(())=>{}, Err(e)=>{exception=Err(e); break;}
+        }
         sp-=1;
         ip+=BCSIZE;
       },
       bc::POW => {
-        try!(operator_pow(sp, &mut stack));
+        match operator_pow(sp, &mut stack) {
+          Ok(())=>{}, Err(e)=>{exception=Err(e); break;}
+        }
         sp-=1;
         ip+=BCSIZE;
       },
@@ -1279,27 +1308,37 @@ fn vm_loop(state: &mut State, module: Rc<Module>, gtab: Rc<RefCell<Map>>)
         ip+=BCSIZE;
       },
       bc::LT => {
-        try!(operator_lt(sp,&mut stack));
+        match operator_lt(sp, &mut stack) {
+          Ok(())=>{}, Err(e)=>{exception=Err(e); break;}
+        }
         sp-=1;
         ip+=BCSIZE;
       },
       bc::GT => {
-        try!(operator_gt(sp,&mut stack));
+        match operator_gt(sp, &mut stack) {
+          Ok(())=>{}, Err(e)=>{exception=Err(e); break;}
+        }
         sp-=1;
         ip+=BCSIZE;
       },
       bc::LE => {
-        try!(operator_le(sp,&mut stack));
+        match operator_le(sp, &mut stack) {
+          Ok(())=>{}, Err(e)=>{exception=Err(e); break;}
+        }
         sp-=1;
         ip+=BCSIZE;
       },
       bc::GE => {
-        try!(operator_ge(sp,&mut stack));
+        match operator_ge(sp, &mut stack) {
+          Ok(())=>{}, Err(e)=>{exception=Err(e); break;}
+        }
         sp-=1;
         ip+=BCSIZE;
       },
       bc::IS => {
-        try!(operator_is(sp,&mut stack));
+        match operator_is(sp, &mut stack) {
+          Ok(())=>{}, Err(e)=>{exception=Err(e); break;}
+        }
         sp-=1;
         ip+=BCSIZE;      
       },
@@ -1307,8 +1346,8 @@ fn vm_loop(state: &mut State, module: Rc<Module>, gtab: Rc<RefCell<Map>>)
         let x = match stack[sp-1] {
           Object::Bool(x)=>x,
           _ => {
-            state.sp=sp;
-            return type_error("Type error in not a: a is not a boolean.");
+            exception = type_error("Type error in not a: a is not a boolean.");
+            break;
           }
         };
         stack[sp-1] = Object::Bool(!x);
@@ -1318,8 +1357,8 @@ fn vm_loop(state: &mut State, module: Rc<Module>, gtab: Rc<RefCell<Map>>)
         let condition = match stack[sp-1] {
           Object::Bool(x)=>x,
           _ => {
-            state.sp=sp;
-            return type_error("Type error in a and b: a is not a boolean.");
+            exception = type_error("Type error in a and b: a is not a boolean.");
+            break;
           }
         };
         if condition {
@@ -1333,8 +1372,8 @@ fn vm_loop(state: &mut State, module: Rc<Module>, gtab: Rc<RefCell<Map>>)
         let condition = match stack[sp-1] {
           Object::Bool(x)=>x,
           _ => {
-            state.sp=sp;
-            return type_error("Type error in a or b: a is not a boolean.");
+            exception = type_error("Type error in a or b: a is not a boolean.");
+            break;
           }
         };
         if condition {
@@ -1355,7 +1394,9 @@ fn vm_loop(state: &mut State, module: Rc<Module>, gtab: Rc<RefCell<Map>>)
         ip+=BCSIZEP4;
       },
       bc::RANGE => {
-        try!(operator_range(sp,&mut stack));
+        match operator_range(sp, &mut stack) {
+          Ok(())=>{}, Err(e)=>{exception=Err(e); break;}
+        }
         sp-=2;
         ip+=BCSIZE;          
       },
@@ -1365,7 +1406,7 @@ fn vm_loop(state: &mut State, module: Rc<Module>, gtab: Rc<RefCell<Map>>)
       bc::JZ => {
         let condition = match stack[sp-1] {
           Object::Bool(x)=>{sp-=1; x},
-          _ => panic!()
+          _ => {exception = non_boolean_condition(); break;}
         };
         if condition {
           ip+=BCSIZEP4;
@@ -1376,7 +1417,7 @@ fn vm_loop(state: &mut State, module: Rc<Module>, gtab: Rc<RefCell<Map>>)
       bc::JNZ => {
         let condition = match stack[sp-1] {
           Object::Bool(x)=>{sp-=1; x},
-          _ => panic!()
+          _ => {exception = non_boolean_condition(); break;}
         };
         if condition {
           ip = (ip as i32+compose_i32(&a,ip+BCSIZE)) as usize;
@@ -1558,28 +1599,38 @@ fn vm_loop(state: &mut State, module: Rc<Module>, gtab: Rc<RefCell<Map>>)
         },argc_min,argc_max);
       },
       bc::GET_INDEX => {
-        try!(operator_index(sp,&mut stack));
+        match operator_index(sp, &mut stack) {
+          Ok(())=>{}, Err(e)=>{exception=Err(e); break;}
+        }
         sp-=1;
         ip+=BCSIZE;
       },
       bc::SET_INDEX => {
-        try!(index_assignment(sp,&mut stack));
+        match index_assignment(sp, &mut stack) {
+          Ok(())=>{}, Err(e)=>{exception=Err(e); break;}
+        }
         sp-=3;
         ip+=BCSIZE;
       },
       bc::DOT => {
-        try!(operator_dot(sp,&mut stack,&module));
+        match operator_dot(sp, &mut stack, &module) {
+          Ok(())=>{}, Err(e)=>{exception=Err(e); break;}
+        }
         sp-=1;
         ip+=BCSIZE;
       },
       bc::DOT_SET => {
-        try!(operator_dot_set(sp,&mut stack));
+        match operator_dot_set(sp, &mut stack) {
+          Ok(())=>{}, Err(e)=>{exception=Err(e); break;}
+        }
         sp-=3;
         ip+=BCSIZE;
       },
       bc::DUP_DOT_SWAP => {
         let x = stack[sp-2].clone();
-        try!(operator_dot(sp,&mut stack,&module));
+        match operator_dot(sp, &mut stack, &module) {
+          Ok(())=>{}, Err(e)=>{exception=Err(e); break;}
+        }
         stack[sp-1] = x;
         ip+=BCSIZE;
       },
@@ -1590,7 +1641,9 @@ fn vm_loop(state: &mut State, module: Rc<Module>, gtab: Rc<RefCell<Map>>)
       },
       bc::NEXT => {
         let mut y = Object::Null;
-        try!(iter_next(&mut y,&stack[sp-1]));
+        match iter_next(&mut y,&stack[sp-1]) {
+          Ok(())=>{}, Err(e)=>{exception=Err(e); break;}
+        }
         if y==Object::Empty {
           sp-=1;
           ip = (ip as i32+compose_i32(&a,ip+BCSIZE)) as usize;
@@ -1614,6 +1667,20 @@ fn vm_loop(state: &mut State, module: Rc<Module>, gtab: Rc<RefCell<Map>>)
       _ => {panic!()}
     }
   }
+
+  // catch:
+  if catch {
+    unimplemented!();
+  }else{
+    state.sp = sp;
+    if let Err(ref mut e) = exception {
+      let (line,col) = get_line_col(&a,ip);
+      e.set_spot(line,col);
+    }
+    return exception;
+  }
+
+  }//goto loop
 }
 
 fn list_from_slice(a: &[Object]) -> Object {

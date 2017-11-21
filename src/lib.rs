@@ -45,6 +45,13 @@ fn init_gtab(gtab: &mut Map, env: &Env){
   gtab.insert("List", Object::Table(list_type));
 }
 
+fn print_exception(e: &Exception) {
+  if let Some(ref spot) = e.spot {
+    println!("Line {}, col {}:",spot.line,spot.col);
+  }
+  println!("{}",::vm::object_to_string(&e.value));
+}
+
 pub struct Interpreter{
   pub env: Rc<Env>,
   pub gtab: Rc<RefCell<Map>>
@@ -110,10 +117,7 @@ impl Interpreter{
           match compiler::compile(v,true,&mut history,"command line",self) {
             Ok(module) => {
               match eval(module.clone(),gtab.clone(),true) {
-                Ok(x) => {},
-                Err(e) => {
-                  println!("{}",::vm::object_to_string(&e.value));
-                }
+                Ok(x) => {}, Err(e) => {print_exception(&e);}
               }
             },
             Err(e) => {compiler::print_error(&e);}
@@ -145,10 +149,7 @@ impl Interpreter{
     f.read_to_string(&mut s).expect("something went wrong reading the file");
 
     match self.eval_string(&s,id,gtab) {
-      Ok(x) => {},
-      Err(e) => {
-        println!("{}",::vm::object_to_string(&e.value));
-      }
+      Ok(x) => {}, Err(e) => {print_exception(&e);}
     }
   }
 }
