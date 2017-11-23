@@ -1571,7 +1571,7 @@ fn if_expression(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
   let t = &p[i.index];
   if t.value==Symbol::If {
     i.index+=1;
-    let condition = try!(self.expression(i));
+    let condition = try!(self.disjunction(i));
     let p2 = try!(i.next_token_optional(self));
     let t2 = &p[i.index];
     if t2.value==Symbol::Else {

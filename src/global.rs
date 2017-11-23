@@ -1,10 +1,11 @@
 
 use std::rc::Rc;
 use std::cell::RefCell;
-use vm::{object_to_string, object_to_repr};
-use object::{Object, Map, Table,
+use vm::{object_to_string, object_to_repr, RTE};
+use object::{Object, Map, Table, List,
   FnResult, U32String, Function, EnumFunction,
-  type_error, argc_error, index_error
+  type_error, argc_error, index_error, value_error,
+  VARIADIC
 };
 
 pub fn print(ret: &mut Object, pself: &Object, argv: &[Object]) -> FnResult{
@@ -77,7 +78,7 @@ pub fn eval(ret: &mut Object, pself: &Object, argv: &[Object]) -> FnResult{
 
       let i = ::Interpreter::new();
       let gtab = Map::new();
-      ::init_gtab(&mut gtab.borrow_mut(),&i.env);
+      init_gtab(&mut gtab.borrow_mut(),&i.env);
 
       return match i.eval_string(&a,"",gtab) {
         Ok(x) => {*ret=x; Ok(())},
@@ -223,5 +224,66 @@ pub fn fobject(ret: &mut Object, pself: &Object, argv: &[Object]) -> FnResult{
     },
     n => argc_error(n,0,0,"object")
   }
+}
+
+pub fn flist(ret: &mut Object, pself: &Object, argv: &[Object]) -> FnResult{
+  if argv.len()!=1 {
+    return argc_error(argv.len(),1,1,"list");    
+  }
+  match argv[0] {
+    Object::Int(n) => {
+      if n<0 {
+        return value_error("Value error in list(n): n<0.");
+      }
+      let mut v: Vec<Object> = Vec::with_capacity(n as usize);
+      for i in 0..n {
+        v.push(Object::Int(i));
+      }
+      *ret = List::new_object(v);
+      Ok(())
+    },
+    Object::Range(ref r) => {
+      let a = match r.a {
+        Object::Int(x)=>x,
+        _ => return type_error("Type error in list(a..b): a is not an integer.")
+      };
+      let b = match r.b {
+        Object::Int(x)=>x,
+        _ => return type_error("Type error in list(a..b): b is not an integer.")
+      };
+      let mut n = b-a+1;
+      if n<0 {n=0;}
+      let mut v: Vec<Object> = Vec::with_capacity(n as usize);
+      for i in a..b+1 {
+        v.push(Object::Int(i));
+      }
+      *ret = List::new_object(v);
+      Ok(())
+    },
+    Object::List(ref a) => {
+      *ret = Object::List(a.clone());
+      Ok(())
+    },
+    _ => type_error("Type error in list(r): r is not a range.")
+  }
+}
+
+pub fn init_gtab(gtab: &mut Map, env: &RTE){
+  gtab.insert("print", Function::plain(print,0,VARIADIC));
+  gtab.insert("put",   Function::plain(put,0,VARIADIC));
+  gtab.insert("str",   Function::plain(fstr,1,1));
+  gtab.insert("repr",  Function::plain(repr,1,1));
+  gtab.insert("abs",   Function::plain(abs,1,1));
+  gtab.insert("eval",  Function::plain(eval,1,1));
+  gtab.insert("size",  Function::plain(size,1,1));
+  gtab.insert("load",  Function::plain(fload,1,1));
+  gtab.insert("iter",  Function::plain(iter,1,1));
+  gtab.insert("record",Function::plain(record,1,1));
+  gtab.insert("object",Function::plain(fobject,0,2));
+  gtab.insert("list",  Function::plain(flist,1,1));
+
+  let list_type = env.list.clone();
+  ::list::init(&list_type);
+  gtab.insert("List", Object::Table(list_type));
 }
 

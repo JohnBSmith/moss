@@ -3,7 +3,7 @@ use std::rc::Rc;
 use std::cell::RefCell;
 use complex::Complex64;
 use std::collections::HashMap;
-use vm::Module;
+use vm::{Module,Env};
 use std::fmt;
 
 pub enum Object{
@@ -123,6 +123,10 @@ pub fn type_error(s: &str) -> FnResult{
   Exception::new(s)
 }
 
+pub fn value_error(s: &str) -> FnResult{
+  Exception::new(s)
+}
+
 pub fn index_error(s: &str) -> FnResult{
   Exception::new(s)
 }
@@ -144,6 +148,8 @@ pub fn argc_error(argc: usize, min: u32, max: u32, id: &str) -> FnResult{
 pub type FnResult = Result<(),Box<Exception>>;
 pub type PlainFn = fn(ret: &mut Object, pself: &Object, argv: &[Object]) -> FnResult;
 pub type MutableFn = Box<FnMut(&mut Object, &Object, &[Object])->FnResult>;
+pub type EnvFn = Box<FnMut(&mut Env, &mut Object, &Object, &[Object]) -> FnResult>;
+type PlainEnvFn = fn(&mut Env, ret: &mut Object, pself: &Object, argv: &[Object]) -> FnResult;
 
 pub struct StandardFn{
   pub address: usize,
@@ -156,7 +162,8 @@ pub struct StandardFn{
 pub enum EnumFunction{
   Std(StandardFn),
   Plain(PlainFn),
-  Mut(RefCell<MutableFn>)
+  Mut(RefCell<MutableFn>),
+  Env(RefCell<EnvFn>)
 }
 
 pub struct Function{
@@ -179,6 +186,13 @@ impl Function{
   pub fn new(f: StandardFn, argc_min: u32, argc_max: u32) -> Object {
     Object::Function(Rc::new(Function{
       f: EnumFunction::Std(f),
+      argc: if argc_min==argc_max {argc_min} else {VARIADIC},
+      argc_min: argc_min, argc_max: argc_max
+    }))
+  }
+  pub fn env(fp: PlainEnvFn, argc_min: u32, argc_max: u32) -> Object {
+    Object::Function(Rc::new(Function{
+      f: EnumFunction::Env(RefCell::new(Box::new(fp))),
       argc: if argc_min==argc_max {argc_min} else {VARIADIC},
       argc_min: argc_min, argc_max: argc_max
     }))

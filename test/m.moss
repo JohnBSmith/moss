@@ -1,5 +1,6 @@
 
-List.map = sub|f|
+
+List.mapf = sub|f|
   a = []
   for x in self
     a.push(f(x))
@@ -7,7 +8,9 @@ List.map = sub|f|
   return a
 end
 
-a = [1,2,3,4]
-print(a.map(|x| 2*x))
+# a = [1,2,3,4]
+# print(a.mapf(|x| 2*x))
 
+# a = list(1000000).map(|x| 2*x)
+# print(a)
 

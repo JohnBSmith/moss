@@ -24,26 +24,8 @@ use std::rc::Rc;
 use std::cell::RefCell;
 use std::fs::File;
 use std::io::Read;
-use object::{Object, Map, Function, Exception, VARIADIC};
-use vm::{eval,Env};
-
-fn init_gtab(gtab: &mut Map, env: &Env){
-  gtab.insert("print",Function::plain(::global::print,0,VARIADIC));
-  gtab.insert("put",  Function::plain(::global::put,0,VARIADIC));
-  gtab.insert("str",  Function::plain(::global::fstr,1,1));
-  gtab.insert("repr", Function::plain(::global::repr,1,1));
-  gtab.insert("abs",  Function::plain(::global::abs,1,1));
-  gtab.insert("eval", Function::plain(::global::eval,1,1));
-  gtab.insert("size", Function::plain(::global::size,1,1));
-  gtab.insert("load", Function::plain(::global::fload,1,1));
-  gtab.insert("iter", Function::plain(::global::iter,1,1));
-  gtab.insert("record", Function::plain(::global::record,1,1));
-  gtab.insert("object", Function::plain(::global::fobject,0,2));
-
-  let list_type = env.list.clone();
-  ::list::init(&list_type);
-  gtab.insert("List", Object::Table(list_type));
-}
+use object::{Object, Map, Exception};
+use vm::{eval,RTE,State,Frame,STACK_SIZE,FRAME_STACK_SIZE};
 
 fn print_exception(e: &Exception) {
   if let Some(ref spot) = e.spot {
@@ -53,16 +35,25 @@ fn print_exception(e: &Exception) {
 }
 
 pub struct Interpreter{
-  pub env: Rc<Env>,
-  pub gtab: Rc<RefCell<Map>>
+  pub env: Rc<RTE>,
+  pub gtab: Rc<RefCell<Map>>,
+  pub state: RefCell<State>
 }
 
 impl Interpreter{
   pub fn new() -> Self {
-    let env = Env::new();
+    let env = RTE::new();
     let gtab = Map::new();
-    init_gtab(&mut gtab.borrow_mut(),&env);
-    return Self{env, gtab};
+    ::global::init_gtab(&mut gtab.borrow_mut(),&env);
+
+    let mut stack: Vec<Object> = Vec::with_capacity(STACK_SIZE);
+    for _ in 0..STACK_SIZE {
+      stack.push(Object::Null);
+    }
+    let mut frame_stack: Vec<Frame> = Vec::with_capacity(FRAME_STACK_SIZE);
+    let mut state = RefCell::new(State{stack, frame_stack, sp: 0});
+
+    return Self{env, gtab, state};
   }
   pub fn eval(&self, s: &str) -> Object {
     let gtab = Map::new();
@@ -86,7 +77,7 @@ impl Interpreter{
       Ok(v) => {
         match compiler::compile(v,false,&mut history,id,self) {
           Ok(module) => {
-            return eval(module.clone(),gtab.clone(),false);
+            return eval(self,module.clone(),gtab.clone(),false);
           },
           Err(e) => {compiler::print_error(&e);}
         };
@@ -116,7 +107,7 @@ impl Interpreter{
           // compiler::print_vtoken(&v);
           match compiler::compile(v,true,&mut history,"command line",self) {
             Ok(module) => {
-              match eval(module.clone(),gtab.clone(),true) {
+              match eval(self,module.clone(),gtab.clone(),true) {
                 Ok(x) => {}, Err(e) => {print_exception(&e);}
               }
             },

@@ -12,6 +12,7 @@ use object::{
   Table, Range
 };
 use complex::Complex64;
+use ::Interpreter;
 
 pub const BCSIZE: usize = 4;
 pub const BCSIZEP4: usize = BCSIZE+4;
@@ -363,7 +364,7 @@ pub fn object_to_repr(x: &Object) -> String{
   }
 }
 
-fn operator_neg(sp: usize, stack: &mut Vec<Object>) -> FnResult {
+fn operator_neg(sp: usize, stack: &mut [Object]) -> FnResult {
   match stack[sp-1] {
     Object::Int(x) => {
       stack[sp-1] = Object::Int(-x);
@@ -377,7 +378,7 @@ fn operator_neg(sp: usize, stack: &mut Vec<Object>) -> FnResult {
   }
 }
 
-fn operator_plus(sp: usize, stack: &mut Vec<Object>) -> FnResult {
+fn operator_plus(sp: usize, stack: &mut [Object]) -> FnResult {
   match stack[sp-2] {
     Object::Int(x) => {
       match stack[sp-1] {
@@ -437,7 +438,7 @@ fn operator_plus(sp: usize, stack: &mut Vec<Object>) -> FnResult {
   }
 }
 
-fn operator_minus(sp: usize, stack: &mut Vec<Object>) -> FnResult {
+fn operator_minus(sp: usize, stack: &mut [Object]) -> FnResult {
   match stack[sp-2] {
     Object::Int(x) => {
       match stack[sp-1] {
@@ -497,7 +498,7 @@ fn operator_minus(sp: usize, stack: &mut Vec<Object>) -> FnResult {
   }
 }
 
-fn operator_mpy(sp: usize, stack: &mut Vec<Object>) -> FnResult {
+fn operator_mpy(sp: usize, stack: &mut [Object]) -> FnResult {
   match stack[sp-2] {
     Object::Int(x) => {
       match stack[sp-1] {
@@ -565,7 +566,7 @@ fn operator_mpy(sp: usize, stack: &mut Vec<Object>) -> FnResult {
   }
 }
 
-fn operator_div(sp: usize, stack: &mut Vec<Object>) -> FnResult {
+fn operator_div(sp: usize, stack: &mut [Object]) -> FnResult {
   match stack[sp-2] {
     Object::Int(x) => {
       match stack[sp-1] {
@@ -622,7 +623,7 @@ fn operator_div(sp: usize, stack: &mut Vec<Object>) -> FnResult {
   }
 }
 
-fn operator_idiv(sp: usize, stack: &mut Vec<Object>) -> FnResult {
+fn operator_idiv(sp: usize, stack: &mut [Object]) -> FnResult {
   match stack[sp-2] {
     Object::Int(x) => {
       match stack[sp-1] {
@@ -637,7 +638,7 @@ fn operator_idiv(sp: usize, stack: &mut Vec<Object>) -> FnResult {
   }
 }
 
-fn operator_mod(sp: usize, stack: &mut Vec<Object>) -> FnResult {
+fn operator_mod(sp: usize, stack: &mut [Object]) -> FnResult {
   match stack[sp-2] {
     Object::Int(x) => {
       match stack[sp-1] {
@@ -652,7 +653,7 @@ fn operator_mod(sp: usize, stack: &mut Vec<Object>) -> FnResult {
   }
 }
 
-fn operator_pow(sp: usize, stack: &mut Vec<Object>) -> FnResult {
+fn operator_pow(sp: usize, stack: &mut [Object]) -> FnResult {
   match stack[sp-2] {
     Object::Int(x) => {
       match stack[sp-1] {
@@ -709,7 +710,7 @@ fn operator_pow(sp: usize, stack: &mut Vec<Object>) -> FnResult {
   }
 }
 
-fn operator_lt(sp: usize, stack: &mut Vec<Object>) -> FnResult {
+fn operator_lt(sp: usize, stack: &mut [Object]) -> FnResult {
   match stack[sp-2] {
     Object::Int(x) => {
       match stack[sp-1] {
@@ -741,7 +742,7 @@ fn operator_lt(sp: usize, stack: &mut Vec<Object>) -> FnResult {
   }
 }
 
-fn operator_gt(sp: usize, stack: &mut Vec<Object>) -> FnResult {
+fn operator_gt(sp: usize, stack: &mut [Object]) -> FnResult {
   match stack[sp-2] {
     Object::Int(x) => {
       match stack[sp-1] {
@@ -773,7 +774,7 @@ fn operator_gt(sp: usize, stack: &mut Vec<Object>) -> FnResult {
   }
 }
 
-fn operator_le(sp: usize, stack: &mut Vec<Object>) -> FnResult {
+fn operator_le(sp: usize, stack: &mut [Object]) -> FnResult {
   match stack[sp-2] {
     Object::Int(x) => {
       match stack[sp-1] {
@@ -805,7 +806,7 @@ fn operator_le(sp: usize, stack: &mut Vec<Object>) -> FnResult {
   }
 }
 
-fn operator_ge(sp: usize, stack: &mut Vec<Object>) -> FnResult {
+fn operator_ge(sp: usize, stack: &mut [Object]) -> FnResult {
   match stack[sp-2] {
     Object::Int(x) => {
       match stack[sp-1] {
@@ -837,7 +838,7 @@ fn operator_ge(sp: usize, stack: &mut Vec<Object>) -> FnResult {
   }
 }
 
-fn operator_is(sp: usize, stack: &mut Vec<Object>) -> FnResult {
+fn operator_is(sp: usize, stack: &mut [Object]) -> FnResult {
   match stack[sp-2] {
     Object::Bool(x) => {
       match stack[sp-1] {
@@ -879,7 +880,7 @@ fn operator_is(sp: usize, stack: &mut Vec<Object>) -> FnResult {
   }
 }
 
-fn operator_range(sp: usize, stack: &mut Vec<Object>) -> FnResult {
+fn operator_range(sp: usize, stack: &mut [Object]) -> FnResult {
   let r = Object::Range(Rc::new(Range{
     a: replace(&mut stack[sp-3],Object::Null),
     b: replace(&mut stack[sp-2],Object::Null),
@@ -889,7 +890,7 @@ fn operator_range(sp: usize, stack: &mut Vec<Object>) -> FnResult {
   Ok(())
 }
 
-fn operator_list(sp: usize, stack: &mut Vec<Object>, size: usize) -> usize{
+fn operator_list(sp: usize, stack: &mut [Object], size: usize) -> usize{
   let mut sp = sp;
   let mut v: Vec<Object> = Vec::new();
   for i in 0..size {
@@ -901,7 +902,7 @@ fn operator_list(sp: usize, stack: &mut Vec<Object>, size: usize) -> usize{
   return sp;
 }
 
-fn operator_map(sp: usize, stack: &mut Vec<Object>, size: usize) -> usize{
+fn operator_map(sp: usize, stack: &mut [Object], size: usize) -> usize{
   let mut sp = sp;
   let mut m: HashMap<Object,Object> = HashMap::new();
   let mut i=0;
@@ -918,7 +919,7 @@ fn operator_map(sp: usize, stack: &mut Vec<Object>, size: usize) -> usize{
   return sp;
 }
 
-fn operator_index(sp: usize, stack: &mut Vec<Object>) -> FnResult {
+fn operator_index(sp: usize, stack: &mut [Object]) -> FnResult {
   match stack[sp-2].clone() {
     Object::List(a) => {
       match stack[sp-1] {
@@ -955,7 +956,7 @@ fn operator_index(sp: usize, stack: &mut Vec<Object>) -> FnResult {
   }
 }
 
-fn index_assignment(sp: usize, stack: &mut Vec<Object>) -> FnResult {
+fn index_assignment(sp: usize, stack: &mut [Object]) -> FnResult {
   match stack[sp-2].clone() {
     Object::List(a) => {
       match stack[sp-1] {
@@ -999,7 +1000,7 @@ fn index_assignment(sp: usize, stack: &mut Vec<Object>) -> FnResult {
   }
 }
 
-fn operator_dot(sp: usize, stack: &mut Vec<Object>, module: &Module) -> FnResult {
+fn operator_dot(sp: usize, stack: &mut [Object], module: &Module) -> FnResult {
   match stack[sp-2].clone() {
     Object::Table(t) => {
       match t.map.borrow().m.get(&stack[sp-1]) {
@@ -1025,7 +1026,7 @@ fn operator_dot(sp: usize, stack: &mut Vec<Object>, module: &Module) -> FnResult
   }
 }
 
-fn operator_dot_set(sp: usize, stack: &mut Vec<Object>) -> FnResult {
+fn operator_dot_set(sp: usize, stack: &mut [Object]) -> FnResult {
   match stack[sp-2].clone() {
     Object::Table(t) => {
       let key = replace(&mut stack[sp-1],Object::Null);
@@ -1041,27 +1042,6 @@ fn operator_dot_set(sp: usize, stack: &mut Vec<Object>) -> FnResult {
       Ok(())
     },
     _ => type_error("Type error in a.x: a is not a table.")
-  }
-}
-
-#[inline(never)]
-fn object_call(f: &Object, argv: &mut [Object]) -> FnResult {
-  match *f {
-    Object::Map(ref m) => {
-      if argv.len()!=3 {
-        return argc_error(argv.len()-2,1,1,"sloppy index");
-      }
-      if argv[1]!=Object::Null {
-        argv[1] = Object::Null;
-      }
-      let key = replace(&mut argv[2],Object::Null);
-      argv[0] = match m.borrow().m.get(&key) {
-        Some(x) => x.clone(),
-        None => Object::Null
-      };
-      Ok(())
-    },
-    _ => type_error("Type error in f(...): f is not callable.")
   }
 }
 
@@ -1105,12 +1085,12 @@ fn compose_u64(a: &[u8], ip: usize) -> u64{
 }
 
 // Runtime environment: globally accessible information.
-pub struct Env{
+pub struct RTE{
   pub list: Rc<Table>
 }
-impl Env{
-  pub fn new() -> Rc<Env>{
-    Rc::new(Env{list: Table::new(Object::Null)})
+impl RTE{
+  pub fn new() -> Rc<RTE>{
+    Rc::new(RTE{list: Table::new(Object::Null)})
   }
 }
 
@@ -1122,11 +1102,11 @@ pub struct Module{
   // Rc<[T]> is available in Rust version 1.21 onwards.
 
   pub data: Vec<Object>,
-  pub env: Rc<Env>,
+  pub env: Rc<RTE>,
   pub gtab: Rc<RefCell<Map>>
 }
 
-struct Frame{
+pub struct Frame{
   ip: usize,
   base_pointer: usize,
   f: Rc<Function>,
@@ -1139,35 +1119,35 @@ struct Frame{
   catch: bool
 }
 
-struct State{
-  stack: Vec<Object>,
-  sp: usize,
-  frame_stack: Vec<Frame>
+pub struct State{
+  pub stack: Vec<Object>,
+  pub sp: usize,
+  pub frame_stack: Vec<Frame>
 }
 
-const STACK_SIZE: usize = 2000;
-const FRAME_STACK_SIZE: usize = 200;
+pub const STACK_SIZE: usize = 2000;
+pub const FRAME_STACK_SIZE: usize = 200;
 
-fn vm_loop(state: &mut State, module: Rc<Module>, gtab: Rc<RefCell<Map>>)
-  -> FnResult
+fn vm_loop(
+  state: &mut Env,
+  mut ip: usize,
+  mut bp: usize,
+  mut module: Rc<Module>,
+  mut gtab: Rc<RefCell<Map>>,
+  mut fnself: Rc<Function>
+) -> FnResult
 {
-  let mut stack = &mut state.stack;
-  let mut module = module;
-  let mut gtab = gtab;
+  let mut stack: &mut [Object] = state.stack;
   // let mut a: &[u8] = unsafe{&*(&module.program as &[u8] as *const [u8])};
   let mut a = module.program.clone();
-  let mut ip=0;
   let mut sp=state.sp;
-  let mut bp=sp;
   let mut argv_ptr=0;
-  let mut fnself = Rc::new(Function{
-      f: EnumFunction::Plain(::global::fpanic),
-      argc: 0, argc_min: 0, argc_max: 0
-  });
 
   let mut exception;
   let mut ret = true;
   let mut catch = false;
+
+  // print_stack(&stack[0..10]);
 
   loop{ // loop
   loop{ // try
@@ -1486,6 +1466,23 @@ fn vm_loop(state: &mut State, module: Rc<Module>, gtab: Rc<RefCell<Map>>)
                 sp-=argc+1;
                 stack[sp-1]=y;
                 continue;
+              },
+              EnumFunction::Env(ref fp) => {
+                let mut y = Object::Null;
+                {
+                  let (s1,s2) = stack.split_at_mut(sp);
+                  let mut env = Env{sp: 0, stack: s2, frame_stack: &mut state.frame_stack};
+                  let pf = &mut *fp.borrow_mut();
+                  match pf(&mut env, &mut y, &s1[sp-argc-1], &s1[sp-argc..sp]) {
+                    Ok(()) => {},
+                    Err(e) => {
+                      return Err(e);
+                    }
+                  }
+                }
+                sp-=argc+1;
+                stack[sp-1]=y;
+                continue;              
               }
             }
           },
@@ -1641,8 +1638,12 @@ fn vm_loop(state: &mut State, module: Rc<Module>, gtab: Rc<RefCell<Map>>)
       },
       bc::NEXT => {
         let mut y = Object::Null;
-        match iter_next(&mut y,&stack[sp-1]) {
-          Ok(())=>{}, Err(e)=>{exception=Err(e); break;}
+        {
+          let x = stack[sp-1].clone();
+          let mut env = Env{sp: sp, stack: stack, frame_stack: state.frame_stack};
+          match env.iter_next(&mut y,&x) {
+            Ok(())=>{}, Err(e)=>{exception=Err(e); break;}
+          }
         }
         if y==Object::Empty {
           sp-=1;
@@ -1692,59 +1693,131 @@ fn list_from_slice(a: &[Object]) -> Object {
   return List::new_object(v);
 }
 
-pub fn eval(module: Rc<Module>, gtab: Rc<RefCell<Map>>, command_line: bool)
+pub fn eval(interpreter: &Interpreter,
+  module: Rc<Module>, gtab: Rc<RefCell<Map>>, command_line: bool)
   -> Result<Object,Box<Exception>>
 {
-  let mut stack: Vec<Object> = Vec::with_capacity(STACK_SIZE);
-  for _ in 0..STACK_SIZE {
-    stack.push(Object::Null);
+  let mut state = &mut *interpreter.state.borrow_mut();
+
+  let fnself = Rc::new(Function{
+    f: EnumFunction::Plain(::global::fpanic),
+    argc: 0, argc_min: 0, argc_max: 0
+  });
+
+  let bp = state.sp;
+  {
+    let mut env = Env{
+      sp: state.sp, stack: &mut state.stack,
+      frame_stack: &mut state.frame_stack
+    };
+    try!(vm_loop(&mut env, 0, bp, module, gtab, fnself));
+    state.sp = env.sp;
   }
-  let mut frame_stack: Vec<Frame> = Vec::with_capacity(FRAME_STACK_SIZE);
 
-  let mut state = State{stack, frame_stack, sp: 0};
-  try!(vm_loop(&mut state, module, gtab));
-
-  let stack = state.stack;
+  let ref mut stack = state.stack;
   let sp = state.sp;
-  if command_line {
-    for i in 0..sp {
+
+  let y = if command_line {
+    for i in bp..sp {
       match stack[i] {
         Object::Null => {},
-        _ => {
-          println!("{}",object_to_repr(&stack[i]));
+        ref x => {
+          println!("{}",object_to_repr(&x));
         }
       }
     }
-    return Ok(Object::Null);
+    Object::Null
   }else{
-    if sp==0 {
-      return Ok(Object::Null);
-    }else if sp==1 {
-      return Ok(stack[0].clone());
+    if sp==bp {
+      Object::Null
+    }else if sp==bp+1 {
+      stack[bp].clone()
     }else{
-      return Ok(list_from_slice(&stack[0..sp]));
+      list_from_slice(&stack[bp..sp])
+    }
+  };
+  for i in bp..sp {
+    stack[i] = Object::Null;
+  }
+  state.sp = bp;
+  return Ok(y);
+}
+
+#[inline(never)]
+fn object_call(f: &Object, argv: &mut [Object]) -> FnResult {
+  match *f {
+    Object::Map(ref m) => {
+      if argv.len()!=3 {
+        return argc_error(argv.len()-2,1,1,"sloppy index");
+      }
+      if argv[1]!=Object::Null {
+        argv[1] = Object::Null;
+      }
+      let key = replace(&mut argv[2],Object::Null);
+      argv[0] = match m.borrow().m.get(&key) {
+        Some(x) => x.clone(),
+        None => Object::Null
+      };
+      Ok(())
+    },
+    _ => type_error("Type error in f(...): f is not callable.")
+  }
+}
+
+// Calling environment of a function call
+pub struct Env<'a>{
+  sp: usize,
+  stack: &'a mut [Object],
+  frame_stack: &'a mut Vec<Frame>
+}
+
+impl<'a> Env<'a>{
+  pub fn call(&mut self, fobj: &Object, ret: &mut Object,
+    pself: &Object, argv: &[Object]
+  ) -> FnResult
+  {
+    match *fobj {
+      Object::Function(ref f) => {
+        match f.f {
+          EnumFunction::Std(ref fp) => {
+            let sp = self.sp;
+            self.stack[self.sp] = pself.clone();
+            self.sp+=1;
+            for x in argv {
+              self.stack[self.sp] = x.clone();
+              self.sp+=1;
+            }
+            let bp = self.sp;
+            for _ in 0..fp.var_count {
+              self.stack[self.sp] = Object::Null;
+              self.sp+=1;
+            }
+            try!(vm_loop(self,fp.address,bp,fp.module.clone(),fp.gtab.clone(),f.clone()));
+            *ret = replace(&mut self.stack[self.sp-1],Object::Null);
+            for x in &mut self.stack[sp..self.sp-1] {
+              *x = Object::Null;
+            }
+            self.sp = sp;
+            return Ok(());
+          },
+          EnumFunction::Plain(fp) => {
+            return fp(ret,pself,argv);
+          },
+          EnumFunction::Mut(ref fp) => {
+            let pf = &mut *fp.borrow_mut();
+            return pf(ret,pself,argv);
+          },
+          EnumFunction::Env(ref fp) => {
+            let pf = &mut *fp.borrow_mut();
+            return pf(self,ret,pself,argv);
+          }
+        }
+      },
+      _ => type_error("Type error in iteration: iterator is not a function.")
     }
   }
-}
-
-fn call(fobj: &Object, ret: &mut Object, pself: &Object, argv: &[Object]) -> FnResult {
-  match *fobj {
-    Object::Function(ref f) => {
-      match f.f {
-        EnumFunction::Plain(fp) => {
-          return fp(ret,pself,argv);
-        },
-        EnumFunction::Mut(ref fp) => {
-          let pf = &mut *fp.borrow_mut();
-          return pf(ret,pself,argv);
-        },
-        _ => panic!()
-      }
-    },
-    _ => type_error("Type error in iteration: iterator is not a function.")
+  fn iter_next(&mut self, ret: &mut Object, f: &Object) -> FnResult {
+    self.call(f,ret,&Object::Null,&[])
   }
 }
 
-fn iter_next(ret: &mut Object, f: &Object) -> FnResult {
-  call(f,ret,&Object::Null,&[])
-}
