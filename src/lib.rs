@@ -20,6 +20,9 @@ mod complex;
 #[path = "modules/math.rs"]
 mod math;
 
+#[path = "modules/rand.rs"]
+mod rand;
+
 use std::rc::Rc;
 use std::cell::RefCell;
 use std::fs::File;

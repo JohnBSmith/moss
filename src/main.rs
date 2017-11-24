@@ -3,6 +3,16 @@ extern crate moss;
 use std::env;
 use moss::object::{Object,Map};
 
+const HELP: &'static str = r#"
+Usage: moss [options] [file] [arguments]
+
+Options:
+-i file     Include and execute a file before normal execution.
+            Multiple files are possible: '-i file1 -i file2'.
+-m          Math mode: use moss as a calculator.
+-e "1+2"    Evaluate some Moss code inline.
+"#;
+
 fn is_option(s: &str) -> bool {
   s.len()>0 && &s[0..1]=="-"
 }
@@ -11,7 +21,8 @@ struct Info{
   program: Option<String>,
   file: Option<String>,
   ifile: Vec<String>,
-  cmd: Option<String>
+  cmd: Option<String>,
+  exit: bool,
 }
 impl Info{
   pub fn new() -> Box<Self> {
@@ -19,7 +30,8 @@ impl Info{
       program: None,
       file: None,
       ifile: Vec::new(),
-      cmd: None
+      cmd: None,
+      exit: false
     };
     let mut first = true;
     let mut ifile = false;
@@ -33,6 +45,10 @@ impl Info{
           ifile = true;
         }else if s=="-e" {
           cmd = true;
+        }else if s=="-h" || s=="-help" || s=="--help" {
+          println!("{}",HELP);
+          info.exit = true;
+          return Box::new(info);
         }else{
           println!("Error: unknown option: {}.",&s);
         }
@@ -53,6 +69,7 @@ fn main(){
   let i = moss::Interpreter::new();
   let gtab = Map::new();
   let info = Info::new();
+  if info.exit {return;}
   for file in &info.ifile {
     i.eval_file(file,gtab.clone());
   }

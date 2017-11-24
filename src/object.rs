@@ -197,6 +197,13 @@ impl Function{
       argc_min: argc_min, argc_max: argc_max
     }))
   }
+  pub fn mutable(fp: MutableFn, argc_min: u32, argc_max: u32) -> Object {
+    Object::Function(Rc::new(Function{
+      f: EnumFunction::Mut(RefCell::new(fp)),
+      argc: if argc_min==argc_max {argc_min} else {VARIADIC},
+      argc_min: argc_min, argc_max: argc_max
+    }))
+  }
 }
 
 pub struct Table{
