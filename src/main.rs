@@ -13,31 +13,73 @@ Options:
 -e "1+2"    Evaluate some Moss code inline.
 "#;
 
+const MATH: &'static str = r#"
+math = load("math")
+e = math.e
+pi = math.pi
+nan = math.nan
+inf = math.inf
+
+floor = math.floor
+ceil = math.ceil
+exp = math.exp
+sqrt = math.sqrt
+ln = math.ln
+lg = math.lg
+
+sin = math.sin
+cos = math.cos
+tan = math.tan
+sinh = math.sinh
+cosh = math.cosh
+tanh = math.tanh
+asin = math.asin
+acos = math.acos
+atan = math.atan
+asinh = math.asinh
+acosh = math.acosh
+atanh = math.atanh
+
+gamma = math.gamma
+hypot = math.hypot
+atan2 = math.atan2
+"#;
+
 fn is_option(s: &str) -> bool {
   s.len()>0 && &s[0..1]=="-"
 }
 
+struct IFile{
+  s: String,
+  e: bool
+}
+
 struct Info{
   program: Option<String>,
-  file: Option<String>,
-  ifile: Vec<String>,
+  ifile: Vec<IFile>,
+  argv: Vec<String>,
   cmd: Option<String>,
   exit: bool,
+  math: bool
 }
 impl Info{
   pub fn new() -> Box<Self> {
     let mut info = Info{
       program: None,
-      file: None,
       ifile: Vec::new(),
+      argv: Vec::new(),
       cmd: None,
-      exit: false
+      exit: false,
+      math: false
     };
     let mut first = true;
     let mut ifile = false;
     let mut cmd = false;
+    let mut args = false;
     for s in env::args() {
-      if first {
+      if args {
+        info.argv.push(s);
+      }else if first {
         info.program = Some(s);
         first = false;
       }else if is_option(&s) {
@@ -45,6 +87,11 @@ impl Info{
           ifile = true;
         }else if s=="-e" {
           cmd = true;
+        }else if s=="-ei" {
+          ifile = true;
+          cmd = true;
+        }else if s=="-m" {
+          info.math = true;
         }else if s=="-h" || s=="-help" || s=="--help" {
           println!("{}",HELP);
           info.exit = true;
@@ -53,12 +100,14 @@ impl Info{
           println!("Error: unknown option: {}.",&s);
         }
       }else if ifile {
-        info.ifile.push(s);
+        info.ifile.push(IFile{s: s, e: cmd});
         ifile = false;
+        cmd = false;
       }else if cmd {
         info.cmd = Some(s);
       }else{
-        info.file = Some(s);
+        info.argv.push(s);
+        args = true;
       }
     }
     return Box::new(info);
@@ -70,10 +119,21 @@ fn main(){
   let gtab = Map::new();
   let info = Info::new();
   if info.exit {return;}
-  for file in &info.ifile {
-    i.eval_file(file,gtab.clone());
+  {
+    let mut argv = i.rte.argv.borrow_mut();
+    *argv = Some(moss::new_list_str(&info.argv));
   }
-  if let Some(ref id) = info.file {
+  if info.math {
+    i.eval_env(MATH,gtab.clone());
+  }
+  for file in &info.ifile {
+    if file.e {
+      i.eval_env(&file.s,gtab.clone());
+    }else{
+      i.eval_file(&file.s,gtab.clone());
+    }
+  }
+  if let Some(ref id) = info.argv.first() {
     i.eval_file(id,gtab);
   }else if let Some(ref cmd) = info.cmd {
     let x = i.eval_env(cmd,gtab);

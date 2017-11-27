@@ -1,4 +1,6 @@
 
+#![allow(unused_imports)]
+
 use std::rc::Rc;
 use std::cell::RefCell;
 use complex::Complex64;
@@ -15,7 +17,16 @@ pub enum Object{
 }
 
 impl Object{
-  pub fn clone(&self) -> Object{
+  pub fn to_string(&self) -> String {
+    ::vm::object_to_string(self)
+  }
+  pub fn repr(&self) -> String {
+    ::vm::object_to_repr(self)
+  }
+}
+
+impl Clone for Object{
+  fn clone(&self) -> Object{
     match *self {
       Object::Null => {Object::Null},
       Object::Bool(x) => {Object::Bool(x)},
@@ -31,12 +42,6 @@ impl Object{
       Object::Table(ref x) => {Object::Table(x.clone())},
       Object::Empty => {Object::Empty}
     }
-  }
-  pub fn to_string(&self) -> String {
-    ::vm::object_to_string(self)
-  }
-  pub fn repr(&self) -> String {
-    ::vm::object_to_repr(self)
   }
 }
 
@@ -108,48 +113,67 @@ pub struct Exception{
 }
 
 impl Exception{
-  pub fn new(s: &str) -> FnResult {
-    Err(Box::new(Exception{
+  pub fn new(s: &str) -> Box<Exception> {
+    Box::new(Exception{
       value: U32String::new_object_str(s),
       traceback: None, spot: None
-    }))
+    })
   }
   pub fn set_spot(&mut self, line: usize, col: usize) {
     self.spot = Some(Spot{line,col});
   }
 }
 
-pub fn type_error(s: &str) -> FnResult{
+pub fn type_error_plain(s: &str) -> Box<Exception> {
+  Exception::new(s)
+}
+pub fn value_error_plain(s: &str) -> Box<Exception> {
+  Exception::new(s)
+}
+pub fn index_error_plain(s: &str) -> Box<Exception> {
   Exception::new(s)
 }
 
-pub fn value_error(s: &str) -> FnResult{
-  Exception::new(s)
+pub fn std_exception(s: &str) -> FnResult {
+  Err(Exception::new(s))
 }
 
-pub fn index_error(s: &str) -> FnResult{
-  Exception::new(s)
+pub fn type_error(s: &str) -> FnResult {
+  Err(Exception::new(s))
 }
 
-pub fn argc_error(argc: usize, min: u32, max: u32, id: &str) -> FnResult{
+pub fn value_error(s: &str) -> FnResult {
+  Err(Exception::new(s))
+}
+
+pub fn index_error(s: &str) -> FnResult {
+  Err(Exception::new(s))
+}
+
+pub fn argc_error_plain(argc: usize, min: u32, max: u32, id: &str) -> Box<Exception> {
   if min==max {
     if min==0 {
       Exception::new(&format!("Error in {}: expected no argument, but got {}.",id,argc))
     }else if min==1 {
-      Exception::new(&format!("Error in {}: expected 1 argument, but got {}.",id,argc))    
+      Exception::new(&format!("Error in {}: expected 1 argument, but got {}.",id,argc))
     }else{
-      Exception::new(&format!("Error in {}: expected {} arguments, but got {}.",id,min,argc))    
+      Exception::new(&format!("Error in {}: expected {} arguments, but got {}.",id,min,argc))
     }
   }else{
     Exception::new(&format!("Error in {}: expected {}..{} arguments, but got {}.",id,min,max,argc))
   }
 }
 
-pub type FnResult = Result<(),Box<Exception>>;
-pub type PlainFn = fn(ret: &mut Object, pself: &Object, argv: &[Object]) -> FnResult;
-pub type MutableFn = Box<FnMut(&mut Object, &Object, &[Object])->FnResult>;
-pub type EnvFn = Box<FnMut(&mut Env, &mut Object, &Object, &[Object]) -> FnResult>;
-type PlainEnvFn = fn(&mut Env, ret: &mut Object, pself: &Object, argv: &[Object]) -> FnResult;
+pub fn argc_error(argc: usize, min: u32, max: u32, id: &str) -> FnResult {
+  Err(argc_error_plain(argc,min,max,id))
+}
+
+pub type OperatorResult = Result<(),Box<Exception>>;
+pub type FnResult = Result<Object,Box<Exception>>;
+pub type PlainFn = fn(pself: &Object, argv: &[Object]) -> FnResult;
+pub type MutableFn = Box<FnMut(&Object, &[Object])->FnResult>;
+pub type EnvFn = Box<FnMut(&mut Env, &Object, &[Object]) -> FnResult>;
+type PlainEnvFn = fn(&mut Env, pself: &Object, argv: &[Object]) -> FnResult;
 
 pub struct StandardFn{
   pub address: usize,

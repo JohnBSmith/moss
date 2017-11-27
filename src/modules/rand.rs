@@ -41,5 +41,10 @@ impl Rand{
       i-=1;
     }
   }
+  
+  pub fn rand_range(&mut self, a: i32, b: i32) -> i32 {
+    let m = (b-a+1) as u32;
+    return a+(self.rand()%m) as i32;
+  }
 }
 

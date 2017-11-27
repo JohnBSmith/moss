@@ -169,7 +169,6 @@ pub fn scan(s: &str, line_start: usize, file: &str, new_line_start: bool)
           token_type = SymbolType::Float;
         }else if a[i]=='i' {
           token_type = SymbolType::Imag;
-          i+=1; col+=1;
           break;
         }else{
           break;
@@ -181,6 +180,9 @@ pub fn scan(s: &str, line_start: usize, file: &str, new_line_start: bool)
         v.push(Token{token_type: token_type, value: Symbol::None,
           line: line, col: hcol, item: Item::Int(x)});
       }else{
+        if token_type == SymbolType::Imag {
+          i+=1; col+=1;
+        }
         v.push(Token{token_type: token_type, value: Symbol::None,
           line: line, col: hcol, item: Item::String(number.clone())});
       }
@@ -400,6 +402,11 @@ pub fn scan(s: &str, line_start: usize, file: &str, new_line_start: bool)
         },
         '.' => {
           if i+1<n && a[i+1]=='.' {
+            if v.len()>0 && v[v.len()-1].value==Symbol::BLeft {
+              v.push(Token{token_type: SymbolType::Keyword,
+                value: Symbol::Null, line: line, col: col,
+                item: Item::None});
+            }
             v.push(Token{token_type: SymbolType::Operator,
               value: Symbol::Range, line: line, col: col,
               item: Item::None});
@@ -1458,7 +1465,13 @@ fn range(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
   let t = &p[i.index];
   if t.value==Symbol::Range {
     i.index+=1;
-    let y = try!(self.union(i));
+    let pb = try!(i.next_token_optional(self));
+    let tb = &pb[i.index];
+    let y = if tb.value==Symbol::PRight || tb.value==Symbol::BRight || tb.value==Symbol::Colon {
+      atomic_literal(t.line,t.col,Symbol::Null)
+    }else{
+      try!(self.union(i))
+    };
     let p2 = try!(i.next_token_optional(self));
     let t2 = &p2[i.index];
     if t2.value==Symbol::Colon {
@@ -2471,11 +2484,11 @@ fn compile_ast(&mut self, bv: &mut Vec<u8>, t: &Rc<AST>)
   }else if t.symbol_type == SymbolType::Float {
     push_bc(bv, bc::FLOAT, t.line, t.col);
     let x: f64 = match t.s {Some(ref x)=>x.parse().unwrap(), None=>panic!()};
-    push_u64(bv,unsafe{transmute::<f64,u64>(x)});
+    push_u64(bv,transmute_f64_to_u64(x));
   }else if t.symbol_type == SymbolType::Imag {
     push_bc(bv, bc::IMAG, t.line, t.col);
     let x: f64 = match t.s {Some(ref x)=>x.parse().unwrap(), None=>panic!()};
-    push_u64(bv,unsafe{transmute::<f64,u64>(x)});
+    push_u64(bv,transmute_f64_to_u64(x));
   }else if t.value == Symbol::Null {
     push_bc(bv,bc::NULL,t.line,t.col);
   }else if t.value == Symbol::True {
@@ -2552,6 +2565,14 @@ fn ast_argv(t: &AST) -> &Box<[Rc<AST>]>{
   match t.a {Some(ref x)=> x, None=>panic!()}
 }
 
+fn transmute_f64_to_u64(x: f64) -> u64 {
+  unsafe{transmute::<f64,u64>(x)}
+}
+
+fn transmute_u64_to_f64(x: u64) -> f64 {
+  unsafe{transmute::<u64,f64>(x)}
+}
+
 fn push_u16(v: &mut Vec<u8>, x: u16){
   v.push(x as u8);
   v.push((x>>8) as u8);
@@ -2565,7 +2586,7 @@ fn push_u32(v: &mut Vec<u8>, x: u32){
 }
 
 fn push_i32(v: &mut Vec<u8>, x: i32){
-  let x = unsafe{transmute::<i32,u32>(x)};
+  let x = x as u32;
   v.push(x as u8);
   v.push((x>>8) as u8);
   v.push((x>>16) as u8);
@@ -2573,7 +2594,7 @@ fn push_i32(v: &mut Vec<u8>, x: i32){
 }
 
 fn write_i32(a: &mut [u8], x: i32){
-  let x = unsafe{transmute::<i32,u32>(x)};
+  let x = x as u32;
   a[0] = x as u8;
   a[1] = (x>>8) as u8;
   a[2] = (x>>16) as u8;
@@ -2635,17 +2656,17 @@ fn asm_listing(a: &[u8]) -> String {
         i+=BCSIZE+4;
       },
       bc::FLOAT => {
-        let x = unsafe{transmute::<u64,f64>(
+        let x = transmute_u64_to_f64(
           compose_u64(&a[BCSIZE+i..BCSIZE+i+8])
-        )};
+        );
         let u = format!("push float {}\n",x);
         s.push_str(&u);
         i+=BCSIZE+8;
       },
       bc::IMAG => {
-        let x = unsafe{transmute::<u64,f64>(
+        let x = transmute_u64_to_f64(
           compose_u64(&a[BCSIZE+i..BCSIZE+i+8])
-        )};
+        );
         let u = format!("push imag {}\n",x);
         s.push_str(&u);
         i+=BCSIZE+8;
@@ -2910,7 +2931,7 @@ pub fn compile(v: Vec<Token>, mode_cmd: bool,
     // program: bv,
     program: Rc::new(bv),
     data: compilation.data,
-    env: interpreter.env.clone(),
+    rte: interpreter.rte.clone(),
     gtab: interpreter.gtab.clone()
   });
   return Ok(m);

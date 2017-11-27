@@ -1,16 +1,44 @@
 
 
-List.mapf = sub|f|
-  a = []
-  for x in self
-    a.push(f(x))
-  end
-  return a
-end
+#List.mapf = sub|f|
+#  a = []
+#  for x in self
+#    a.push(f(x))
+#  end
+#  return a
+#end
 
 # a = [1,2,3,4]
 # print(a.mapf(|x| 2*x))
 
 # a = list(1000000).map(|x| 2*x)
 # print(a)
+
+# sin = load("math").sin
+# list(10000000).map(sin)
+
+sub counter(a,b)
+  i=a
+  return sub||
+    if i>b
+      return empty
+    else
+      i=i+1
+      return i-1
+    end
+  end
+end
+
+sub counter(a,b)
+  return sub*||
+    for x in a..b
+      yield x
+    end
+  end
+end
+
+c = counter(1,4)
+print(c.list())
+
+
 

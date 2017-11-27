@@ -14,6 +14,12 @@ mod global;
 #[path = "objects/list.rs"]
 mod list;
 
+#[path = "objects/function.rs"]
+mod function;
+
+#[path = "objects/iterable.rs"]
+mod iterable;
+
 #[path = "modules/complex.rs"]
 mod complex;
 
@@ -23,12 +29,15 @@ mod math;
 #[path = "modules/rand.rs"]
 mod rand;
 
+#[path = "modules/sys.rs"]
+mod sys;
+
 use std::rc::Rc;
 use std::cell::RefCell;
 use std::fs::File;
 use std::io::Read;
-use object::{Object, Map, Exception};
-use vm::{eval,RTE,State,Frame,STACK_SIZE,FRAME_STACK_SIZE};
+use object::{Object, List, Map, Exception, U32String};
+use vm::{eval,RTE,State,EnvPart,Frame,STACK_SIZE,FRAME_STACK_SIZE};
 
 fn print_exception(e: &Exception) {
   if let Some(ref spot) = e.spot {
@@ -38,25 +47,28 @@ fn print_exception(e: &Exception) {
 }
 
 pub struct Interpreter{
-  pub env: Rc<RTE>,
+  pub rte: Rc<RTE>,
   pub gtab: Rc<RefCell<Map>>,
   pub state: RefCell<State>
 }
 
 impl Interpreter{
   pub fn new() -> Self {
-    let env = RTE::new();
+    let rte = RTE::new();
     let gtab = Map::new();
-    ::global::init_gtab(&mut gtab.borrow_mut(),&env);
+    ::global::init_gtab(&mut gtab.borrow_mut(),&rte);
 
     let mut stack: Vec<Object> = Vec::with_capacity(STACK_SIZE);
     for _ in 0..STACK_SIZE {
       stack.push(Object::Null);
     }
     let mut frame_stack: Vec<Frame> = Vec::with_capacity(FRAME_STACK_SIZE);
-    let mut state = RefCell::new(State{stack, frame_stack, sp: 0});
+    let mut state = RefCell::new(State{
+      stack: stack, sp: 0,
+      env: EnvPart::new(frame_stack, rte.clone())
+    });
 
-    return Self{env, gtab, state};
+    return Self{rte, gtab, state};
   }
   pub fn eval(&self, s: &str) -> Object {
     let gtab = Map::new();
@@ -146,4 +158,12 @@ impl Interpreter{
       Ok(x) => {}, Err(e) => {print_exception(&e);}
     }
   }
+}
+
+pub fn new_list_str(a: &[String]) -> Rc<RefCell<List>> {
+  let mut v: Vec<Object> = Vec::with_capacity(a.len());
+  for i in 0..a.len() {
+    v.push(U32String::new_object_str(&a[i]));
+  }
+  return Rc::new(RefCell::new(List{v: v, frozen: false}));
 }
