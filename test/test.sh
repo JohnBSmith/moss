@@ -1,0 +1,3 @@
+
+../target/debug/moss test
+

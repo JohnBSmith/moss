@@ -1,4 +1,7 @@
 
+// TODO:
+// * multiple for loop
+
 #![allow(dead_code)]
 #![allow(unused_variables)]
 #![allow(unused_mut)]
@@ -13,7 +16,8 @@ use object::{Object, U32String};
 
 const VALUE_NONE: u8 = 0;
 const VALUE_OPTIONAL: u8 = 1;
-const VALUE_STRICT: u8 = 2;
+const VALUE_NULL: u8 = 2;
+const VALUE_EMPTY: u8 = 3;
 
 #[derive(Copy,Clone,PartialEq)]
 enum SymbolType{
@@ -35,7 +39,7 @@ enum Symbol{
   Use, Yield, True, False, Null, Dot, Comma, Colon, Semicolon,
   List, Map, Application, Index, Block, Statement, Terminal,
   APlus, AMinus, AAst, ADiv, AIdiv, AMod, AAmp, AVline, ASvert,
-  SubStatement,
+  SubStatement, Empty
 }
 
 enum Item{
@@ -599,6 +603,7 @@ fn symbol_to_string(value: Symbol) -> &'static str {
     Symbol::Block => "block",
     Symbol::Statement => "statement",
     Symbol::SubStatement => "sub statement",
+    Symbol::Empty => "empty",
     Symbol::Range => "..",
     Symbol::Assignment => "=",
     Symbol::Newline => "\\n",
@@ -716,7 +721,7 @@ enum ComplexInfoA{
 }
 
 enum Info{
-  None, Some(u8), SelfArg, A(Box<ComplexInfoA>),
+  None, Some(u8), SelfArg, Coroutine, A(Box<ComplexInfoA>),
   Int(i32)
 }
 
@@ -804,7 +809,8 @@ pub struct Compilation<'a>{
   fn_indices: Vec<usize>,
   vtab: VarTab,
   function_nesting: usize,
-  jmp_stack: Vec<JmpInfo>
+  jmp_stack: Vec<JmpInfo>,
+  coroutine: bool
 }
 
 struct TokenIterator{
@@ -1116,6 +1122,14 @@ fn function_literal(&mut self, i: &mut TokenIterator,
 {
   let p = try!(i.next_token(self));
   let t = &p[i.index];
+  let (info,coroutine) = if t.value == Symbol::Ast {
+    i.index+=1;
+    (Info::Coroutine,true)
+  }else{
+    (Info::None,false)
+  };
+  let p = try!(i.next_token(self));
+  let t = &p[i.index];
   let id = if t.token_type == SymbolType::Identifier {
     i.index+=1;
     Some(t.item.assert_string().clone())
@@ -1153,7 +1167,7 @@ fn function_literal(&mut self, i: &mut TokenIterator,
   self.syntax_nesting+=1;
   let parens = self.parens;
   self.parens = 0;
-  let x = try!(self.statements(i,VALUE_STRICT));
+  let x = try!(self.statements(i,if coroutine {VALUE_EMPTY} else {VALUE_NULL}));
   self.function_nesting-=1;
   self.statement = statement;
 
@@ -1168,7 +1182,7 @@ fn function_literal(&mut self, i: &mut TokenIterator,
   try!(self.end_of(i,Symbol::Sub));
   return Ok(Rc::new(AST{line: t0.line, col: t0.col,
     symbol_type: SymbolType::Keyword, value: Symbol::Sub,
-    info: Info::None, s: id, a: Some(Box::new([args,x]))
+    info: info, s: id, a: Some(Box::new([args,x]))
   }));
 }
 
@@ -1745,6 +1759,12 @@ fn return_statement(&mut self, i: &mut TokenIterator, t0: &Token) -> Result<Rc<A
   }
 }
 
+fn yield_statement(&mut self, i: &mut TokenIterator, t0: &Token) -> Result<Rc<AST>,Error>{
+  let x = try!(self.expression(i));
+  return Ok(Rc::new(AST{line: t0.line, col: t0.col, symbol_type: SymbolType::Keyword,
+    value: Symbol::Yield, info: Info::None, s: None, a: Some(Box::new([x]))}));
+}
+
 fn sub_statement(&mut self, i: &mut TokenIterator, t: &Token)
   -> Result<Rc<AST>,Error>
 {
@@ -1837,6 +1857,10 @@ fn statements(&mut self, i: &mut TokenIterator, last_value: u8)
       i.index+=1;
       let x = atomic_literal(t.line,t.col,Symbol::Continue);
       v.push(x);
+    }else if value == Symbol::Yield {
+      i.index+=1;
+      let x = try!(self.yield_statement(i,t));
+      v.push(x);
     }else{
       let x = try!(self.assignment(i));
       v.push(x);
@@ -1862,8 +1886,10 @@ fn statements(&mut self, i: &mut TokenIterator, last_value: u8)
     if n>0 && v[n-1].value == Symbol::Statement {
       let x = ast_argv(&v[n-1])[0].clone();
       v[n-1] = x;
-    }else if last_value==VALUE_STRICT {
+    }else if last_value==VALUE_NULL {
       v.push(atomic_literal(t0.line,t0.col,Symbol::Null));
+    }else if last_value==VALUE_EMPTY {
+      v.push(atomic_literal(t0.line,t0.col,Symbol::Empty));
     }
   }
   if v.len()==1 {
@@ -2104,6 +2130,12 @@ fn compile_fn(&mut self, bv: &mut Vec<u8>, t: &Rc<AST>)
   self.vtab.context = Some(Box::new(vtab));
   self.arguments(&a[0]);
 
+  let coroutine = self.coroutine;
+  self.coroutine = match t.info {
+    Info::Coroutine => true,
+    _ => false
+  };
+
   // Compile the function body.
   self.function_nesting+=1;
   try!(self.compile_ast(&mut bv2,&a[1]));
@@ -2139,6 +2171,7 @@ fn compile_fn(&mut self, bv: &mut Vec<u8>, t: &Rc<AST>)
   if let Some(context) = self.vtab.context.take() {
     self.vtab = *context;
   }
+  self.coroutine = coroutine;
 
   // The name of the function or null in case
   // the function is anonymous.
@@ -2282,14 +2315,25 @@ fn compile_assignment(&mut self, bv: &mut Vec<u8>, t: &AST,
         }
       },
       None => {
-        push_bc(bv,bc::STORE_LOCAL,line,col);
-        push_u32(bv,self.vtab.count_local as u32);
-        self.vtab.v.push(VarInfo{
-          s: key.clone(),
-          index: self.vtab.count_local,
-          var_type: VarType::Local
-        });
-        self.vtab.count_local+=1;
+        if self.coroutine {
+          push_bc(bv,bc::STORE_CONTEXT,line,col);        
+          push_u32(bv,self.vtab.count_context as u32);
+          self.vtab.v.push(VarInfo{
+            s: key.clone(),
+            index: self.vtab.count_context,
+            var_type: VarType::Context
+          });
+          self.vtab.count_context+=1;
+        }else{
+          push_bc(bv,bc::STORE_LOCAL,line,col);
+          push_u32(bv,self.vtab.count_local as u32);
+          self.vtab.v.push(VarInfo{
+            s: key.clone(),
+            index: self.vtab.count_local,
+            var_type: VarType::Local
+          });
+          self.vtab.count_local+=1;
+        }
       }
     }
   }else{
@@ -2351,8 +2395,12 @@ fn closure(&mut self, bv: &mut Vec<u8>){
           _ => panic!()
         }
       }else{
-        println!("Error in closure: id '{}' not in context.",&a[i].s);
-        panic!();
+        if self.coroutine {
+          push_bc(bv,bc::NULL,0,0);
+        }else{
+          println!("Error in closure: id '{}' not in context.",&a[i].s);
+          panic!();
+        }
       }
     }
   }
@@ -2489,12 +2537,6 @@ fn compile_ast(&mut self, bv: &mut Vec<u8>, t: &Rc<AST>)
     push_bc(bv, bc::IMAG, t.line, t.col);
     let x: f64 = match t.s {Some(ref x)=>x.parse().unwrap(), None=>panic!()};
     push_u64(bv,transmute_f64_to_u64(x));
-  }else if t.value == Symbol::Null {
-    push_bc(bv,bc::NULL,t.line,t.col);
-  }else if t.value == Symbol::True {
-    push_bc(bv,bc::TRUE,t.line,t.col);
-  }else if t.value == Symbol::False {
-    push_bc(bv,bc::FALSE,t.line,t.col);
   }else if t.symbol_type == SymbolType::Keyword {
     let value = t.value;
     if value == Symbol::If {
@@ -2521,7 +2563,7 @@ fn compile_ast(&mut self, bv: &mut Vec<u8>, t: &Rc<AST>)
       }else{
         try!(self.compile_ast(bv,&a[0]));
       }
-      push_bc(bv,bc::RET,t.line,t.col);
+      push_bc(bv,bc::RET,t.line,t.col);    
     }else if value == Symbol::Break {
       push_bc(bv,bc::JMP,t.line,t.col);
       // let index2 = v.len();
@@ -2542,6 +2584,22 @@ fn compile_ast(&mut self, bv: &mut Vec<u8>, t: &Rc<AST>)
       };
       let len = bv.len();
       push_i32(bv,(BCSIZE+start) as i32-len as i32);
+    }else if value == Symbol::Null {
+      push_bc(bv,bc::NULL,t.line,t.col);
+    }else if value == Symbol::True {
+      push_bc(bv,bc::TRUE,t.line,t.col);
+    }else if value == Symbol::False {
+      push_bc(bv,bc::FALSE,t.line,t.col);
+    }else if value == Symbol::Empty {
+      push_bc(bv,bc::EMPTY,t.line,t.col);
+    }else if value == Symbol::Yield {
+      let a = ast_argv(t);
+      if a.len()==0 {
+        push_bc(bv,bc::NULL,t.line,t.col);
+      }else{
+        try!(self.compile_ast(bv,&a[0]));
+      }
+      push_bc(bv,bc::YIELD,t.line,t.col);    
     }else{
       panic!();
     }
@@ -2813,6 +2871,7 @@ fn asm_listing(a: &[u8]) -> String {
         i+=BCSIZE+4;
       },
       bc::RET => {s.push_str("ret\n"); i+=BCSIZE;},
+      bc::YIELD => {s.push_str("yield\n"); i+=BCSIZE;},
       bc::FNSEP => {s.push_str("\nFunction\n"); i+=BCSIZE;},
       bc::FN => {
         let address = compose_i32(&a[BCSIZE+i..BCSIZE+i+4]);
@@ -2834,6 +2893,7 @@ fn asm_listing(a: &[u8]) -> String {
       bc::DUP => {s.push_str("dup\n"); i+=BCSIZE;},
       bc::DUP_DOT_SWAP => {s.push_str("dup dot swap\n"); i+=BCSIZE;},
       bc::POP => {s.push_str("pop\n"); i+=BCSIZE;},
+      bc::EMPTY => {s.push_str("empty\n"); i+=BCSIZE;},
       bc::HALT => {s.push_str("halt\n"); i+=BCSIZE;},
       _ => {unimplemented!();}
     }
@@ -2911,7 +2971,8 @@ pub fn compile(v: Vec<Token>, mode_cmd: bool,
     history: history, file: id, stab: HashMap::new(),
     stab_index: 0, data: Vec::new(), bv_blocks: Vec::new(),
     fn_indices: Vec::new(), vtab: VarTab::new(None),
-    function_nesting: 0, jmp_stack: Vec::new()
+    function_nesting: 0, jmp_stack: Vec::new(),
+    coroutine: false
   };
   let mut i = TokenIterator{index: 0, a: Rc::new(v.into_boxed_slice())};
   let y = try!(compilation.ast(&mut i));

@@ -1,6 +1,6 @@
 
 use std::rc::Rc;
-use std::cell::RefCell;
+use std::cell::{Cell,RefCell};
 use std::mem::replace;
 use std::mem::transmute;
 use std::collections::HashMap;
@@ -78,6 +78,8 @@ pub mod bc{
   pub const RANGE:u8 = 55;
   pub const MOD:  u8 = 56;
   pub const ELSE: u8 = 57;
+  pub const YIELD:u8 = 58;
+  pub const EMPTY:u8 = 59;
 
   pub fn op_to_str(x: u8) -> &'static str {
     match x {
@@ -138,6 +140,8 @@ pub mod bc{
       NOT => "NOT",
       NEXT => "NEXT",
       ELSE => "ELSE",
+      YIELD => "YIELD",
+      EMPTY => "EMPTY",
       _ => "unknown"
     }
   }
@@ -1220,6 +1224,7 @@ pub const FRAME_STACK_SIZE: usize = 200;
 fn vm_loop(
   state: &mut Env,
   mut ip: usize,
+  mut argv_ptr: usize,
   mut bp: usize,
   mut module: Rc<Module>,
   mut gtab: Rc<RefCell<Map>>,
@@ -1230,7 +1235,6 @@ fn vm_loop(
   // let mut a: &[u8] = unsafe{&*(&module.program as &[u8] as *const [u8])};
   let mut a = module.program.clone();
   let mut sp=state.sp;
-  let mut argv_ptr=0;
 
   let mut exception: OperatorResult;
   let mut ret = true;
@@ -1518,7 +1522,7 @@ fn vm_loop(
                 });
                 // a = unsafe{&*(&module.program as &[u8] as *const [u8])};
                 a = module.program.clone();
-                ip = sf.address;
+                ip = sf.address.get();
                 argv_ptr = sp-argc-1;
                 ret = false;
                 catch = false;
@@ -1682,7 +1686,7 @@ fn vm_loop(
         };
         sp-=1;
         stack[sp-1] = Function::new(StandardFn{
-          address: address,
+          address: Cell::new(address),
           module: module.clone(),
           gtab: gtab.clone(),
           var_count: var_count,
@@ -1746,6 +1750,37 @@ fn vm_loop(
           ip+=BCSIZEP4;
         }
       },
+      bc::YIELD => {
+        match fnself.f {
+          EnumFunction::Std(ref sf) => {
+            sf.address.set(ip+BCSIZE);
+          },
+          _ => panic!()
+        }
+        if ret {
+          state.sp = sp;
+          return Ok(());
+        }
+        let frame = state.env.frame_stack.pop().unwrap();
+        module = frame.module;
+        ip = frame.ip;
+        argv_ptr = frame.argv_ptr;
+        bp = frame.base_pointer;
+        a = module.program.clone();
+        gtab = frame.gtab;
+        fnself = frame.f;
+        ret = frame.ret;
+        catch = frame.catch;
+
+        let y = replace(&mut stack[sp-1],Object::Null);
+        let n = frame.argc+2+frame.var_count;
+        sp-=n;
+        for x in stack[sp..sp+n].iter_mut() {
+          *x = Object::Null;
+        }
+
+        stack[sp-1] = y;
+      },
       bc::ELSE => {
         if stack[sp-1]==Object::Null {
           sp-=1;
@@ -1753,6 +1788,11 @@ fn vm_loop(
         }else{
           ip = (ip as i32+compose_i32(&a,ip+BCSIZE)) as usize;
         }      
+      },
+      bc::EMPTY => {
+        stack[sp] = Object::Empty;
+        sp+=1;
+        ip+=BCSIZE;        
       },
       bc::HALT => {
         state.sp=sp;
@@ -1803,7 +1843,7 @@ pub fn eval(interpreter: &Interpreter,
       sp: state.sp, stack: &mut state.stack,
       env: &mut state.env,
     };
-    try!(vm_loop(&mut env, 0, bp, module, gtab, fnself));
+    try!(vm_loop(&mut env, 0, bp, bp, module, gtab, fnself));
     state.sp = env.sp;
   }
 
@@ -1869,7 +1909,7 @@ impl EnvPart{
 
 // Calling environment of a function call
 pub struct Env<'a>{
-  sp: usize,
+  pub sp: usize,
   stack: &'a mut [Object],
   env: &'a mut EnvPart
 }
@@ -1898,7 +1938,7 @@ impl<'a> Env<'a>{
               self.stack[self.sp] = Object::Null;
               self.sp+=1;
             }
-            try!(vm_loop(self,fp.address,bp,fp.module.clone(),fp.gtab.clone(),f.clone()));
+            try!(vm_loop(self,fp.address.get(),sp,bp,fp.module.clone(),fp.gtab.clone(),f.clone()));
             let y = replace(&mut self.stack[self.sp-1],Object::Null);
             for x in &mut self.stack[sp..self.sp-1] {
               *x = Object::Null;

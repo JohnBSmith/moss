@@ -1,0 +1,199 @@
+
+sys = load("sys")
+
+sub error(s)
+  print("Error: test ", s, " failed.")
+  # sys.exit(1)
+end
+
+
+f = |x,y| x*y
+if f(2,4)!=8
+  error("#1.1")
+end
+
+f = || null
+if f()!=null
+  error("#1.2")
+end
+
+if [2,4] != [1,2].map(|x| 2*x)
+  error("#2.1")
+end
+
+if [4,8] != [1,2].map(|x| 2*x).map(|x| 2*x)
+  error("#2.2")
+end
+
+if [2,4] != [1,2].map(sub|x| u=2*x; u end)
+  error("#2.3")
+end
+
+sub f1
+  if [2,4] != [1,2].map(|x| 2*x)
+    error("#2.4")
+  end
+
+  if [4,8] != [1,2].map(|x| 2*x).map(|x| 2*x)
+    error("#2.5")
+  end
+
+  if [2,4] != [1,2].map(sub|x| u=2*x; u end)
+    error("#2.6")
+  end
+end
+f1()
+
+sub f2
+  a = []
+  for t in [1,2].map(|x| [x])
+    a.push(t)
+  end
+  if a!=[[1],[2]]
+    error("#3.1")
+  end
+
+  a = []
+  for t in (1..2).map(|x| [x])
+    a.push(t)
+  end
+  if a!=[[1],[2]]
+    error("#3.2")
+  end
+end
+f2()
+
+map = sub|f,a|
+  y = []
+  for x in a
+    y.push(f(x))
+  end
+  return y
+end
+
+if [2,4]!=map(|x| 2*x,[1,2])
+  error("#4.1")
+end
+
+fac = |n| 1 if n==0 else n*fac(n-1)
+if fac(4)!=24
+  error("#5.1")
+end
+
+fac = sub fac|n| 1 if n==0 else n*fac(n-1) end
+if fac(4)!=24
+  error("#5.2")
+end
+
+fib = |n| 1 if n==1 or n==2 else fib(n-1)+fib(n-2)
+if fib(10)!=55
+  error("#5.3")
+end
+
+fib = sub fib|n| 1 if n==1 or n==2 else fib(n-1)+fib(n-2) end
+if fib(10)!=55
+  error("#5.4")
+end
+
+fix = |F| sub g|n| F(g,n) end
+fac = fix(|f,n| 1 if n==0 else n*f(n-1))
+if fac(4)!=24
+  error("#5.5")
+end
+
+fix = |F| (|x| x(x))(|x| F(|n| x(x)(n)))
+fac = fix(|f| |n| 1 if n==0 else n*f(n-1))
+if fac(4)!=24
+  error("#5.6")
+end
+
+isprime = |n| list(1..n).count(|k| n%k==0)==2
+if (1..).filter(isprime).list(10)!=[2,3,5,7,11,13,17,19,23,29]
+  error("#5.7")
+end
+
+#qsort = |a| ([] if size(a)==0 else
+#  qsort(a[1..].filter(|x| x<a[0]))+[a[0]]+
+#  qsort(a[1..].filter(|x| x>=a[0])))
+
+#if list(1..10)!=qsort(list(1..10).shuffle())
+#  error("#6.1")
+#end
+
+sub counter(a,b)
+  a = a-1
+  return sub||
+    if a==b
+      return empty
+    else
+      a = a+1
+      return a
+    end
+  end
+end
+
+if [1,2,3,4]!=counter(1,4).list()
+  error("#7.1")
+end
+
+if [2,4,6,8]!=counter(1,4).map(|x| 2*x).list()
+  error("#7.2")
+end
+
+if [2,4,6,8]!=counter(1,4).map(sub|x| u=2*x; u end).list()
+  error("#7.3")
+end
+
+if [2,4]!=List.map.apply([1,2],[|x| 2*x])
+  error("#8.1")
+end
+
+if [2,4]!=List.map.apply([1,2],[sub|x| u=2*x; u end])
+  error("#8.2")
+end
+
+a = [1,2]
+if [2,4]!=a.map.apply(a,[|x| 2*x])
+  error("#8.3")
+end
+
+if [2,4]!=a.map.apply(a,[sub|x| u=2*x; u end])
+  error("#8.4")
+end
+
+a = [1,2,3,4]
+if a!=(|x,y,z,w| [x,y,z,w])(1,2,3,4)
+  error("#9.1")
+end
+
+if a!=(|x| |y| |z| |w| [x,y,z,w])(1)(2)(3)(4)
+  error("#9.2")
+end
+
+if a!=(|x,y| |z| |w| [x,y,z,w])(1,2)(3)(4)
+  error("#9.3")
+end
+
+if a!=(|x| |y,z| |w| [x,y,z,w])(1)(2,3)(4)
+  error("#9.4")
+end
+
+if a!=(|x| |y| |z,w| [x,y,z,w])(1)(2)(3,4)
+  error("#9.5")
+end
+
+if a!=(|x,y| |z,w| [x,y,z,w])(1,2)(3,4)
+  error("#9.6")
+end
+
+if a!=(|x,y,z| |w| [x,y,z,w])(1,2,3)(4)
+  error("#9.7")
+end
+
+if a!=(|x| |y,z,w| [x,y,z,w])(1)(2,3,4)
+  error("#9.8")
+end
+
+
+
+

@@ -2,7 +2,7 @@
 #![allow(unused_imports)]
 
 use std::rc::Rc;
-use std::cell::RefCell;
+use std::cell::{Cell,RefCell};
 use complex::Complex64;
 use std::collections::HashMap;
 use vm::{Module,Env};
@@ -176,7 +176,7 @@ pub type EnvFn = Box<FnMut(&mut Env, &Object, &[Object]) -> FnResult>;
 type PlainEnvFn = fn(&mut Env, pself: &Object, argv: &[Object]) -> FnResult;
 
 pub struct StandardFn{
-  pub address: usize,
+  pub address: Cell<usize>,
   pub module: Rc<Module>,
   pub gtab: Rc<RefCell<Map>>,
   pub var_count: u32,

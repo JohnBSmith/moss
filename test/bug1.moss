@@ -1,0 +1,17 @@
+
+# fixed
+
+i = (1..2).map(|x| [x])
+
+for t in i
+  print(t)
+end
+
+# Bug:
+# [null]
+# [null]
+# instead of
+# [1]
+# [2]
+
+

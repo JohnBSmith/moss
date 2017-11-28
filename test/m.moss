@@ -1,5 +1,4 @@
 
-
 #List.mapf = sub|f|
 #  a = []
 #  for x in self
@@ -17,28 +16,43 @@
 # sin = load("math").sin
 # list(10000000).map(sin)
 
-sub counter(a,b)
-  i=a
-  return sub||
-    if i>b
-      return empty
-    else
-      i=i+1
-      return i-1
-    end
+map = |a,f| sub*||
+  for x in a
+    yield f(x)
   end
 end
 
-sub counter(a,b)
+zip = sub|a,b|
+  i = iter(a)
+  j = iter(b)
   return sub*||
-    for x in a..b
-      yield x
+    while true
+      x = i()
+      y = j()
+      if x==empty or y==empty
+        return empty
+      else
+        yield [x,y]
+      end
     end
   end
 end
 
-c = counter(1,4)
-print(c.list())
+chain = |a,b| sub*||
+  for x in a
+    yield x
+  end
+  for x in b
+    yield x
+  end
+end
 
+Iterable.each = |f| self.list().each(f)
+
+# for t in map(zip(1..4,1..4),|t| [t[0],t[1]^2])
+#   print(t)
+# end
+
+chain(1..4,1..4).each(print)
 
 
