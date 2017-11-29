@@ -889,6 +889,10 @@ fn binary_operator(line: usize, col: usize, value: Symbol,
     value: value, info: Info::None, s: None, a: Some(Box::new([x,y]))})
 }
 
+fn assignment(line: usize, col: usize, x: Rc<AST>, y: Rc<AST>) -> Rc<AST> {
+  binary_operator(line,col,Symbol::Assignment,x,y)
+}
+
 fn atomic_literal(line: usize, col: usize, value: Symbol) -> Rc<AST>{
   Rc::new(AST{line: line, col: col, symbol_type: SymbolType::Keyword,
     value: value, info: Info::None, s: None, a: None})
@@ -896,6 +900,11 @@ fn atomic_literal(line: usize, col: usize, value: Symbol) -> Rc<AST>{
 
 fn identifier(id: &str, line: usize, col: usize) -> Rc<AST>{
   Rc::new(AST{line: line, col: col, symbol_type: SymbolType::Identifier,
+    value: Symbol::None, info: Info::None, s: Some(id.to_string()), a: None})
+}
+
+fn string(id: &str, line: usize, col: usize) -> Rc<AST>{
+  Rc::new(AST{line: line, col: col, symbol_type: SymbolType::String,
     value: Symbol::None, info: Info::None, s: Some(id.to_string()), a: None})
 }
 
@@ -1773,6 +1782,124 @@ fn sub_statement(&mut self, i: &mut TokenIterator, t: &Token)
   return Ok(binary_operator(t.line,t.col,Symbol::Assignment,id,x));
 }
 
+fn qualification_assignment(&mut self, id: &str, module: Rc<AST>, property: &str, line: usize, col: usize) -> Rc<AST> {
+  let id = identifier(id,line,col);
+  let property = string(property,line,col);
+  let dot = binary_operator(line,col,Symbol::Dot,module,property);
+  return assignment(line,col,id,dot);
+}
+
+fn qualification(&mut self, v: &mut Vec<Rc<AST>>, id: Rc<AST>,
+  i: &mut TokenIterator, t0: &Token
+) -> Result<(),Error>
+{
+  loop{
+    let p = try!(i.next_token(self));
+    let t = &p[i.index];
+    let s = if t.token_type == SymbolType::Identifier {
+      match t.item {Item::String(ref s) => s, _ => panic!()}
+    }else{
+      return Err(self.syntax_error(t.line, t.col, String::from("unexpected token.")));
+    };
+    i.index+=1;
+    let p2 = try!(i.next_token_optional(self));
+    let t2 = &p2[i.index];
+
+    if t2.value == Symbol::Assignment {
+      i.index+=1;
+      let p2 = try!(i.next_token(self));
+      let t2 = &p2[i.index];
+      if t2.token_type == SymbolType::Identifier {
+        let s2 = match t2.item {Item::String(ref s) => s, _ => panic!()};
+        let y = self.qualification_assignment(s,id.clone(),s2,t.line,t.col);
+        v.push(y);
+        i.index+=1;
+        let p2 = try!(i.next_token_optional(self));
+        let t2 = &p2[i.index];
+        if t2.value == Symbol::Comma {
+          i.index+=1;
+          continue;
+        }else if t2.value == Symbol::Newline || t2.value == Symbol::Terminal ||
+          t2.value == Symbol::PRight
+        {
+          break;
+        }else{
+          return Err(self.syntax_error(t.line, t.col, String::from("unexpected token.")));
+        }
+      }else{
+        return Err(self.syntax_error(t.line, t.col, String::from("unexpected token.")));
+      }
+    }else{
+      let y = self.qualification_assignment(s,id.clone(),s,t.line,t.col);
+      v.push(y);
+    }
+    if t2.value ==  Symbol::Comma {
+      i.index+=1;
+    }else if t2.value == Symbol::Newline || t2.value == Symbol::Terminal ||
+      t2.value == Symbol::PRight
+    {
+      break;
+    }else{
+      return Err(self.syntax_error(t.line, t.col, String::from("unexpected token.")));
+    }
+  }
+  return Ok(());
+}
+
+fn use_statement(&mut self, i: &mut TokenIterator, t0: &Token)
+  -> Result<Rc<AST>,Error>
+{
+  let mut v: Vec<Rc<AST>> = Vec::new();
+  loop{
+    let p = try!(i.next_token(self));
+    let t = &p[i.index];
+    if t.token_type == SymbolType::Identifier {
+      let s = match t.item {Item::String(ref s) => s, _ => panic!()};
+      let id = identifier(s,t.line,t.col);
+      let ids = string(s,t.line,t.col);
+      let load = identifier("load",t.line,t.col);
+      let app = apply(t.line,t.col,Box::new([load,ids]));
+      let y = assignment(t.line,t.col,id.clone(),app);
+      v.push(y);
+      i.index+=1;
+      let p = try!(i.next_token_optional(self));
+      let t = &p[i.index];
+      if t.value == Symbol::Comma {
+        i.index+=1;
+      }else if t.value == Symbol::Colon {
+        i.index+=1;
+        try!(self.qualification(&mut v,id,i,t0));
+        break;
+      }else if t.value == Symbol::PLeft {
+        i.index+=1;
+        self.parens+=1;
+        self.syntax_nesting+=1;
+        try!(self.qualification(&mut v,id,i,t0));
+        self.parens-=1;
+        self.syntax_nesting-=1;
+        let p = try!(i.next_token(self));
+        let t = &p[i.index];
+        if t.value == Symbol::PRight {
+          i.index+=1;
+        }else{
+          return Err(self.syntax_error(t.line, t.col, String::from("expected ')'.")));         
+        }
+        break;
+      }else if t.value == Symbol::Newline || t.value == Symbol::Terminal {
+        break;
+      }else{
+        return Err(self.syntax_error(t.line, t.col, String::from("unexpected token.")));
+      }
+    }
+  }
+  if v.len()==1 {
+    return Ok(match v.pop() {Some(x) => x, None => compiler_error()});
+  }else{
+    return Ok(Rc::new(AST{line: t0.line, col: t0.col, symbol_type: SymbolType::Keyword,
+      value: Symbol::Block, info: Info::None, s: None, a: Some(v.into_boxed_slice())}));
+  }
+}
+
 fn statements(&mut self, i: &mut TokenIterator, last_value: u8)
   -> Result<Rc<AST>,Error>
 {
@@ -1860,6 +1987,10 @@ fn statements(&mut self, i: &mut TokenIterator, last_value: u8)
     }else if value == Symbol::Yield {
       i.index+=1;
       let x = try!(self.yield_statement(i,t));
+      v.push(x);
+    }else if value == Symbol::Use {
+      i.index+=1;
+      let x = try!(self.use_statement(i,t));
       v.push(x);
     }else{
       let x = try!(self.assignment(i));

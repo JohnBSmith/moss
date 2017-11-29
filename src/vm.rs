@@ -8,7 +8,7 @@ use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use object::{
   Object, Map, List, Function, EnumFunction, StandardFn,
-  FnResult, OperatorResult, Exception, Table, Range,
+  FnResult, OperatorResult, Exception, Table, Range, U32String,
   type_error_plain, index_error_plain, argc_error_plain,
   type_error, argc_error,
 };
@@ -383,6 +383,28 @@ fn operator_neg(sp: usize, stack: &mut [Object]) -> OperatorResult {
   }
 }
 
+fn list_add(a: &List, b: &List) -> Object {
+  let mut v: Vec<Object> = Vec::with_capacity(a.v.len()+b.v.len());
+  for x in &a.v {
+    v.push(x.clone());
+  }
+  for x in &b.v {
+    v.push(x.clone());
+  }
+  return List::new_object(v);
+}
+
+fn string_add(a: &U32String, b: &U32String) -> Object {
+  let mut v: Vec<char> = Vec::with_capacity(a.v.len()+b.v.len());
+  for c in &a.v {
+    v.push(*c);
+  }
+  for c in &b.v {
+    v.push(*c);
+  }
+  return U32String::new_object(v);
+}
+
 fn operator_plus(sp: usize, stack: &mut [Object]) -> OperatorResult {
   match stack[sp-2] {
     Object::Int(x) => {
@@ -392,48 +414,69 @@ fn operator_plus(sp: usize, stack: &mut [Object]) -> OperatorResult {
             Some(z) => Object::Int(z),
             None => panic!()
           };
-          Ok(())
+          return Ok(());
         },
         Object::Float(y) => {
           stack[sp-2] = Object::Float(x as f64+y);
-          Ok(())
+          return Ok(());
         },
         Object::Complex(y) => {
           stack[sp-2] = Object::Complex(x as f64+y);
-          Ok(())
+          return Ok(());
         },
-        _ => Err(type_error_plain("Type error in a+b."))
+        _ => return Err(type_error_plain("Type error in a+b."))
       }
     },
     Object::Float(x) => {
       match stack[sp-1] {
         Object::Int(y) => {
           stack[sp-2] = Object::Float(x+(y as f64));
-          Ok(())
+          return Ok(());
         },
         Object::Float(y) => {
           stack[sp-2] = Object::Float(x+y);
-          Ok(())
+          return Ok(());
         },
         Object::Complex(y) => {
           stack[sp-2] = Object::Complex(x+y);
-          Ok(())
+          return Ok(());
         },
-        _ => Err(type_error_plain("Type error in a+b."))
+        _ => return Err(type_error_plain("Type error in a+b."))
       }
     },
     Object::Complex(x) => {
       match stack[sp-1] {
         Object::Int(y) => {
           stack[sp-2] = Object::Complex(x+y as f64);
-          Ok(())
+          return Ok(());
         },
         Object::Float(y) => {
           stack[sp-2] = Object::Complex(x+y);
-          Ok(())
+          return Ok(());
         },
         Object::Complex(y) => {
           stack[sp-2] = Object::Complex(x+y);
+          return Ok(());
+        },
+        _ => return Err(type_error_plain("Type error in a+b."))
+      }
+    },
+    _ => {}
+  }
+  match replace(&mut stack[sp-2],Object::Null) {
+    Object::String(ref a) => {
+      match replace(&mut stack[sp-1],Object::Null) {
+        Object::String(ref b) => {
+          stack[sp-2] = string_add(a,b);
+          Ok(())
+        },
+        _ => Err(type_error_plain("Type error in a+b."))
+      }
+    },
+    Object::List(ref a) => {
+      match replace(&mut stack[sp-1],Object::Null) {
+        Object::List(ref b) => {
+          stack[sp-2] = list_add(&*a.borrow(),&*b.borrow());
           Ok(())
         },
         _ => Err(type_error_plain("Type error in a+b."))
@@ -816,7 +859,7 @@ fn operator_ge(sp: usize, stack: &mut [Object]) -> OperatorResult {
     Object::Int(x) => {
       match stack[sp-1] {
         Object::Int(y) => {
-          stack[sp-2] = Object::Bool(x<y);
+          stack[sp-2] = Object::Bool(x>=y);
           Ok(())
         },
         Object::Float(y) => {
@@ -1072,6 +1115,25 @@ fn operator_dot(sp: usize, stack: &mut [Object], module: &Module) -> OperatorRes
         }
       }
     },
+    Object::Map(a) => {
+      match module.rte.map.map.borrow().m.get(&stack[sp-1]) {
+        Some(x) => {
+          stack[sp-2] = x.clone();
+          stack[sp-1] = Object::Null;
+          return Ok(());
+        },
+        None => {
+          match module.rte.iterable.map.borrow().m.get(&stack[sp-1]) {
+            Some(x) => {
+              stack[sp-2] = x.clone();
+              stack[sp-1] = Object::Null;
+              return Ok(());
+            },
+            None => {}
+          }
+        }
+      }
+    },
     Object::Function(a) => {
       match module.rte.function.map.borrow().m.get(&stack[sp-1]) {
         Some(x) => {
@@ -1172,6 +1234,7 @@ fn transmute_u64_to_f64(x: u64) -> f64 {
 // Runtime environment: globally accessible information.
 pub struct RTE{
   pub list: Rc<Table>,
+  pub map: Rc<Table>,
   pub function: Rc<Table>,
   pub iterable: Rc<Table>,
   pub argv: RefCell<Option<Rc<RefCell<List>>>>
@@ -1180,6 +1243,7 @@ impl RTE{
   pub fn new() -> Rc<RTE>{
     Rc::new(RTE{
       list: Table::new(Object::Null),
+      map:  Table::new(Object::Null),
       function: Table::new(Object::Null),
       iterable: Table::new(Object::Null),
       argv: RefCell::new(None)

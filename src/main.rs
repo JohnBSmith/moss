@@ -14,35 +14,13 @@ Options:
 "#;
 
 const MATH: &'static str = r#"
-math = load("math")
-e = math.e
-pi = math.pi
-nan = math.nan
-inf = math.inf
-
-floor = math.floor
-ceil = math.ceil
-exp = math.exp
-sqrt = math.sqrt
-ln = math.ln
-lg = math.lg
-
-sin = math.sin
-cos = math.cos
-tan = math.tan
-sinh = math.sinh
-cosh = math.cosh
-tanh = math.tanh
-asin = math.asin
-acos = math.acos
-atan = math.atan
-asinh = math.asinh
-acosh = math.acosh
-atanh = math.atanh
-
-gamma = math.gamma
-hypot = math.hypot
-atan2 = math.atan2
+use math(
+  e, pi, nan, inf,
+  floor, ceil, exp, sqrt, ln, lg,
+  sin, cos, tan, sinh, cosh, tanh,
+  asin, acos, atan, asinh, acosh, atanh,
+  gamma, hypot, atan2
+)
 "#;
 
 fn is_option(s: &str) -> bool {

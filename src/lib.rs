@@ -14,6 +14,9 @@ mod global;
 #[path = "objects/list.rs"]
 mod list;
 
+#[path = "objects/map.rs"]
+mod map;
+
 #[path = "objects/function.rs"]
 mod function;
 
@@ -21,13 +24,13 @@ mod function;
 mod iterable;
 
 #[path = "modules/complex.rs"]
-mod complex;
+pub mod complex;
 
 #[path = "modules/math.rs"]
 mod math;
 
 #[path = "modules/rand.rs"]
-mod rand;
+pub mod rand;
 
 #[path = "modules/sys.rs"]
 mod sys;

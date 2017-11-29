@@ -1,58 +1,8 @@
 
-#List.mapf = sub|f|
-#  a = []
-#  for x in self
-#    a.push(f(x))
-#  end
-#  return a
-#end
+use math(
+  sin
+  , cos
+)
 
-# a = [1,2,3,4]
-# print(a.mapf(|x| 2*x))
-
-# a = list(1000000).map(|x| 2*x)
-# print(a)
-
-# sin = load("math").sin
-# list(10000000).map(sin)
-
-map = |a,f| sub*||
-  for x in a
-    yield f(x)
-  end
-end
-
-zip = sub|a,b|
-  i = iter(a)
-  j = iter(b)
-  return sub*||
-    while true
-      x = i()
-      y = j()
-      if x==empty or y==empty
-        return empty
-      else
-        yield [x,y]
-      end
-    end
-  end
-end
-
-chain = |a,b| sub*||
-  for x in a
-    yield x
-  end
-  for x in b
-    yield x
-  end
-end
-
-Iterable.each = |f| self.list().each(f)
-
-# for t in map(zip(1..4,1..4),|t| [t[0],t[1]^2])
-#   print(t)
-# end
-
-chain(1..4,1..4).each(print)
-
+list(1..4).map(sin).each(print)
 

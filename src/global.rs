@@ -253,7 +253,7 @@ fn frand(pself: &Object, argv: &[Object]) -> FnResult {
   }
 }
 
-pub fn init_gtab(gtab: &mut Map, env: &RTE){
+pub fn init_gtab(gtab: &mut Map, rte: &RTE){
   gtab.insert("print", Function::plain(print,0,VARIADIC));
   gtab.insert("put",   Function::plain(put,0,VARIADIC));
   gtab.insert("str",   Function::plain(fstr,1,1));
@@ -270,15 +270,19 @@ pub fn init_gtab(gtab: &mut Map, env: &RTE){
   gtab.insert("rand",  Function::plain(frand,1,1));
   gtab.insert("empty", Object::Empty);
 
-  let type_list = env.list.clone();
+  let type_list = rte.list.clone();
   ::list::init(&type_list);
   gtab.insert("List", Object::Table(type_list));
+  
+  let type_map = rte.map.clone();
+  ::map::init(&type_map);
+  gtab.insert("Map", Object::Table(type_map));
 
-  let type_function = env.function.clone();
+  let type_function = rte.function.clone();
   ::function::init(&type_function);
   gtab.insert("Function", Object::Table(type_function));
   
-  let type_iterable = env.iterable.clone();
+  let type_iterable = rte.iterable.clone();
   ::iterable::init(&type_iterable);
   gtab.insert("Iterable", Object::Table(type_iterable));
 }

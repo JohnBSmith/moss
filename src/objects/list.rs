@@ -117,6 +117,48 @@ fn count(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
   return Ok(Object::Int(k));
 }
 
+fn any(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+  if argv.len() != 1 {
+    return argc_error(argv.len(),1,1,"any");
+  }
+  let mut a = match *pself {
+    Object::List(ref a) => a.borrow_mut(),
+    _ => {return type_error("Type error in a.any(p): a is not a list.");}
+  };
+  for x in &a.v {
+    let y = try!(env.call(&argv[0],&Object::Null,&[x.clone()]));
+    let condition = match y {
+      Object::Bool(u)=>u,
+      _ => return type_error("Type error in a.any(p): return value of p is not of boolean type.")
+    };
+    if condition {
+      return Ok(Object::Bool(true));
+    }
+  }
+  return Ok(Object::Bool(false));
+}
+
+fn all(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+  if argv.len() != 1 {
+    return argc_error(argv.len(),1,1,"all");
+  }
+  let mut a = match *pself {
+    Object::List(ref a) => a.borrow_mut(),
+    _ => {return type_error("Type error in a.all(p): a is not a list.");}
+  };
+  for x in &a.v {
+    let y = try!(env.call(&argv[0],&Object::Null,&[x.clone()]));
+    let condition = match y {
+      Object::Bool(u)=>u,
+      _ => return type_error("Type error in a.all(p): return value of p is not of boolean type.")
+    };
+    if !condition {
+      return Ok(Object::Bool(false));
+    }
+  }
+  return Ok(Object::Bool(true));
+}
+
 fn each(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
   if argv.len() != 1 {
     return argc_error(argv.len(),1,1,"each");
@@ -156,6 +198,8 @@ pub fn init(t: &Table){
   m.insert("map",    Function::env(map,1,1));
   m.insert("filter", Function::env(filter,1,1));
   m.insert("count",  Function::env(count,1,1));
+  m.insert("any",    Function::env(any,1,1));
+  m.insert("all",    Function::env(all,1,1));
   m.insert("each",   Function::env(each,1,1));
   m.insert("shuffle",Function::mutable(new_shuffle(),0,0));
 }
