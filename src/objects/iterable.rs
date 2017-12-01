@@ -38,7 +38,8 @@ pub fn iter(x: &Object) -> FnResult{
       };
       return Ok(Object::Function(Rc::new(Function{
         f: EnumFunction::Mut(RefCell::new(f)),
-        argc: 0, argc_min: 0, argc_max: 0
+        argc: 0, argc_min: 0, argc_max: 0,
+        id: Object::Null
       })));
     },
     Object::List(ref a) => {
@@ -56,7 +57,8 @@ pub fn iter(x: &Object) -> FnResult{
       });
       Ok(Object::Function(Rc::new(Function{
         f: EnumFunction::Mut(RefCell::new(f)),
-        argc: 0, argc_min: 0, argc_max: 0
+        argc: 0, argc_min: 0, argc_max: 0,
+        id: Object::Null
       })))
     },
     _ => type_error("Type error in iter(x): x is not iterable.")
@@ -114,7 +116,8 @@ fn map(pself: &Object, argv: &[Object]) -> FnResult {
   });
   Ok(Object::Function(Rc::new(Function{
     f: EnumFunction::Env(RefCell::new(g)),
-    argc: 0, argc_min: 0, argc_max: 0
+    argc: 0, argc_min: 0, argc_max: 0,
+    id: Object::Null
   })))
 }
 
@@ -142,14 +145,15 @@ fn filter(pself: &Object, argv: &[Object]) -> FnResult {
   });
   Ok(Object::Function(Rc::new(Function{
     f: EnumFunction::Env(RefCell::new(g)),
-    argc: 0, argc_min: 0, argc_max: 0
+    argc: 0, argc_min: 0, argc_max: 0,
+    id: Object::Null
   })))
 }
 
 pub fn init(t: &Table){
   let mut m = t.map.borrow_mut();
-  m.insert("list",  Function::env(list,0,1));
-  m.insert("map",   Function::plain(map,1,1));
-  m.insert("filter",Function::plain(filter,1,1));
+  m.insert_fn_env  ("list",list,0,1);
+  m.insert_fn_plain("map",map,1,1);
+  m.insert_fn_plain("filter",filter,1,1);
 }
 

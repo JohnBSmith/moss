@@ -80,6 +80,7 @@ pub mod bc{
   pub const ELSE: u8 = 57;
   pub const YIELD:u8 = 58;
   pub const EMPTY:u8 = 59;
+  pub const TABLE:u8 = 60;
 
   pub fn op_to_str(x: u8) -> &'static str {
     match x {
@@ -142,6 +143,7 @@ pub mod bc{
       ELSE => "ELSE",
       YIELD => "YIELD",
       EMPTY => "EMPTY",
+      TABLE => "TABLE",
       _ => "unknown"
     }
   }
@@ -239,7 +241,7 @@ impl PartialEq for Object{
           _ => false
         }
       },
-      _ => panic!()
+      _ => false
     }
   }
 }
@@ -338,8 +340,12 @@ pub fn object_to_string(x: &Object) -> String{
       let s: String = a.v.iter().cloned().collect();
       format!("{}",s)
     },
-    Object::Function(ref a) => {
-      format!("function")
+    Object::Function(ref f) => {
+      if f.id == Object::Null {
+        format!("function")
+      }else{
+        format!("function {}",f.id)
+      }
     },
     Object::Range(ref r) => {
       format!("{}..{}",object_to_string(&r.a),object_to_string(&r.b))
@@ -348,9 +354,14 @@ pub fn object_to_string(x: &Object) -> String{
       tuple_to_string(&t)
     },
     Object::Table(ref t) => {
+      let left = if t.prototype == Object::Null {
+        "table{"
+      }else{
+        "table(...){"
+      };
       match t.map.try_borrow_mut() {
-        Ok(m) => map_to_string(&m.m,"table ", " end"),
-        Err(_) => String::from("table ... end")
+        Ok(m) => map_to_string(&m.m,left,"}"),
+        Err(_) => format!("{}{}",left,"...}")
       }
     },
     Object::Empty => {
@@ -892,11 +903,11 @@ fn operator_is(sp: usize, stack: &mut [Object]) -> OperatorResult {
       match stack[sp-1] {
         Object::Bool(y) => {
           stack[sp-2] = Object::Bool(x==y);
-          Ok(())
+          return Ok(());
         },
         _ => {
           stack[sp-2] = Object::Bool(false);
-          Ok(())
+          return Ok(());
         }
       }
     },
@@ -904,11 +915,11 @@ fn operator_is(sp: usize, stack: &mut [Object]) -> OperatorResult {
       match stack[sp-1] {
         Object::Int(y) => {
           stack[sp-2] = Object::Bool(x==y);
-          Ok(())
+          return Ok(());
         },
         _ => {
           stack[sp-2] = Object::Bool(false);
-          Ok(())
+          return Ok(());
         }
       }
     },
@@ -916,15 +927,34 @@ fn operator_is(sp: usize, stack: &mut [Object]) -> OperatorResult {
       match stack[sp-1] {
         Object::Float(y) => {
           stack[sp-2] = Object::Bool(x==y);
+          return Ok(());
+        },
+        _ => {
+          stack[sp-2] = Object::Bool(false);
+          return Ok(());
+        }
+      }
+    },
+    _ => {}
+  }
+  match replace(&mut stack[sp-2],Object::Null) {
+    Object::Table(ref a) => {
+      match replace(&mut stack[sp-1],Object::Null) {
+        Object::Table(ref b) => {
+          stack[sp-2] = Object::Bool(Rc::ptr_eq(a,b));
           Ok(())
         },
         _ => {
           stack[sp-2] = Object::Bool(false);
-          Ok(())       
+          Ok(())          
         }
       }
     },
-    _ => Err(type_error_plain("Type error in a is b."))
+    _ => {
+      stack[sp-1] = Object::Null;
+      stack[sp-2] = Object::Bool(false);
+      Ok(())       
+    }
   }
 }
 
@@ -1097,14 +1127,14 @@ fn operator_dot(sp: usize, stack: &mut [Object], module: &Module) -> OperatorRes
       }
     },
     Object::List(a) => {
-      match module.rte.list.map.borrow().m.get(&stack[sp-1]) {
+      match module.rte.type_list.map.borrow().m.get(&stack[sp-1]) {
         Some(x) => {
           stack[sp-2] = x.clone();
           stack[sp-1] = Object::Null;
           return Ok(());
         },
         None => {
-          match module.rte.iterable.map.borrow().m.get(&stack[sp-1]) {
+          match module.rte.type_iterable.map.borrow().m.get(&stack[sp-1]) {
             Some(x) => {
               stack[sp-2] = x.clone();
               stack[sp-1] = Object::Null;
@@ -1116,14 +1146,14 @@ fn operator_dot(sp: usize, stack: &mut [Object], module: &Module) -> OperatorRes
       }
     },
     Object::Map(a) => {
-      match module.rte.map.map.borrow().m.get(&stack[sp-1]) {
+      match module.rte.type_map.map.borrow().m.get(&stack[sp-1]) {
         Some(x) => {
           stack[sp-2] = x.clone();
           stack[sp-1] = Object::Null;
           return Ok(());
         },
         None => {
-          match module.rte.iterable.map.borrow().m.get(&stack[sp-1]) {
+          match module.rte.type_iterable.map.borrow().m.get(&stack[sp-1]) {
             Some(x) => {
               stack[sp-2] = x.clone();
               stack[sp-1] = Object::Null;
@@ -1135,14 +1165,14 @@ fn operator_dot(sp: usize, stack: &mut [Object], module: &Module) -> OperatorRes
       }
     },
     Object::Function(a) => {
-      match module.rte.function.map.borrow().m.get(&stack[sp-1]) {
+      match module.rte.type_function.map.borrow().m.get(&stack[sp-1]) {
         Some(x) => {
           stack[sp-2] = x.clone();
           stack[sp-1] = Object::Null;
           return Ok(());
         },
         None => {
-          match module.rte.iterable.map.borrow().m.get(&stack[sp-1]) {
+          match module.rte.type_iterable.map.borrow().m.get(&stack[sp-1]) {
             Some(x) => {
               stack[sp-2] = x.clone();
               stack[sp-1] = Object::Null;
@@ -1154,7 +1184,7 @@ fn operator_dot(sp: usize, stack: &mut [Object], module: &Module) -> OperatorRes
       }
     },
     Object::Range(_) => {
-      match module.rte.iterable.map.borrow().m.get(&stack[sp-1]) {
+      match module.rte.type_iterable.map.borrow().m.get(&stack[sp-1]) {
         Some(x) => {
           stack[sp-2] = x.clone();
           stack[sp-1] = Object::Null;
@@ -1231,21 +1261,40 @@ fn transmute_u64_to_f64(x: u64) -> f64 {
   unsafe{transmute::<u64,f64>(x)}
 }
 
+fn new_table(prototype: Object, map: Object) -> Object {
+  match map {
+    Object::Map(map) => {
+      Object::Table(Rc::new(Table{prototype, map}))
+    },
+    _ => panic!()
+  }
+}
+
 // Runtime environment: globally accessible information.
 pub struct RTE{
-  pub list: Rc<Table>,
-  pub map: Rc<Table>,
-  pub function: Rc<Table>,
-  pub iterable: Rc<Table>,
+  pub type_bool: Rc<Table>,
+  pub type_int: Rc<Table>,
+  pub type_float: Rc<Table>,
+  pub type_complex: Rc<Table>,
+  pub type_string: Rc<Table>,
+  pub type_list: Rc<Table>,
+  pub type_map: Rc<Table>,
+  pub type_function: Rc<Table>,
+  pub type_iterable: Rc<Table>,
   pub argv: RefCell<Option<Rc<RefCell<List>>>>
 }
 impl RTE{
   pub fn new() -> Rc<RTE>{
     Rc::new(RTE{
-      list: Table::new(Object::Null),
-      map:  Table::new(Object::Null),
-      function: Table::new(Object::Null),
-      iterable: Table::new(Object::Null),
+      type_bool: Table::new(Object::Null),
+      type_int: Table::new(Object::Null),
+      type_float: Table::new(Object::Null),
+      type_complex: Table::new(Object::Null),
+      type_string: Table::new(Object::Null),
+      type_list: Table::new(Object::Null),
+      type_map:  Table::new(Object::Null),
+      type_function: Table::new(Object::Null),
+      type_iterable: Table::new(Object::Null),
       argv: RefCell::new(None)
     })
   }
@@ -1858,6 +1907,14 @@ fn vm_loop(
         sp+=1;
         ip+=BCSIZE;        
       },
+      bc::TABLE => {
+        sp-=1;
+        stack[sp-1] = new_table(
+          replace(&mut stack[sp],Object::Null),
+          replace(&mut stack[sp-1],Object::Null)
+        );
+        ip+=BCSIZE;
+      },
       bc::HALT => {
         state.sp=sp;
         return Ok(());
@@ -1898,7 +1955,8 @@ pub fn eval(interpreter: &Interpreter,
 
   let fnself = Rc::new(Function{
     f: EnumFunction::Plain(::global::fpanic),
-    argc: 0, argc_min: 0, argc_max: 0
+    argc: 0, argc_min: 0, argc_max: 0,
+    id: Object::Null
   });
 
   let bp = state.sp;

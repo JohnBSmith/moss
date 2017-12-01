@@ -958,124 +958,92 @@ fn list_literal(&mut self, i: &mut TokenIterator) -> Result<Box<[Rc<AST>]>,Error
   return Ok(v.into_boxed_slice());
 }
 
-fn map_literal(&mut self, i: &mut TokenIterator) -> Result<Box<[Rc<AST>]>,Error> {
+fn map_literal(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error> {
   let mut v: Vec<Rc<AST>> = Vec::new();
   let p = try!(i.next_token(self));
   let t = &p[i.index];
   if t.value == Symbol::CRight {
     i.index+=1;
-    return Ok(v.into_boxed_slice());
-  }
-  loop{
-    let key = try!(self.expression(i));
-    let p = try!(i.next_token(self));
-    let t = &p[i.index];
-    if t.value == Symbol::Comma {
-      let value = atomic_literal(t.line, t.col, Symbol::Null);
-      v.push(key);
-      v.push(value);
-      i.index+=1;
-    }else if t.value == Symbol::CRight {
-      let value = atomic_literal(t.line, t.col, Symbol::Null);
-      v.push(key);
-      v.push(value);
-      i.index+=1;
-      break;
-    }else if t.value == Symbol::Colon {
-      i.index+=1;
-      let value = try!(self.expression(i));
-      let p2 = try!(i.next_token(self));
-      let t2 = &p2[i.index];
-      v.push(key);
-      v.push(value);
-      if t2.value == Symbol::CRight {
+  }else{
+    loop{
+      let key = try!(self.expression(i));
+      let p = try!(i.next_token(self));
+      let t = &p[i.index];
+      if t.value == Symbol::Comma {
+        let value = atomic_literal(t.line, t.col, Symbol::Null);
+        v.push(key);
+        v.push(value);
+        i.index+=1;
+      }else if t.value == Symbol::CRight {
+        let value = atomic_literal(t.line, t.col, Symbol::Null);
+        v.push(key);
+        v.push(value);
         i.index+=1;
         break;
-      }else if t2.value != Symbol::Comma {
-        return Err(self.syntax_error(t2.line, t2.col, String::from("expected ',' or '}'.")));
-      }
-      i.index+=1;
-    }else if t.value== Symbol::Assignment {
-      i.index+=1;
-      if key.symbol_type != SymbolType::Identifier {
-        return Err(self.syntax_error(t.line, t.col, String::from("expected an identifier before '='.")));
-      }
-      let value = try!(self.expression(i));
-      let skey = Rc::new(AST{
-        line: key.line, col: key.col,
-        symbol_type: SymbolType::String, value: Symbol::None,
-        info: Info::None, s: key.s.clone(), a: None
-      });
-      v.push(skey);
-      v.push(value);
-      let p2 = try!(i.next_token(self));
-      let t2 = &p2[i.index];
-      if t2.value == Symbol::CRight {
+      }else if t.value == Symbol::Colon {
         i.index+=1;
-        break;
-      }else if t2.value != Symbol::Comma {
-        return Err(self.syntax_error(t2.line, t2.col, String::from("expected ',' or '}'.")));
+        let value = try!(self.expression(i));
+        let p2 = try!(i.next_token(self));
+        let t2 = &p2[i.index];
+        v.push(key);
+        v.push(value);
+        if t2.value == Symbol::CRight {
+          i.index+=1;
+          break;
+        }else if t2.value != Symbol::Comma {
+          return Err(self.syntax_error(t2.line, t2.col, String::from("expected ',' or '}'.")));
+        }
+        i.index+=1;
+      }else if t.value== Symbol::Assignment {
+        i.index+=1;
+        if key.symbol_type != SymbolType::Identifier {
+          return Err(self.syntax_error(t.line, t.col, String::from("expected an identifier before '='.")));
+        }
+        let value = try!(self.expression(i));
+        let skey = Rc::new(AST{
+          line: key.line, col: key.col,
+          symbol_type: SymbolType::String, value: Symbol::None,
+          info: Info::None, s: key.s.clone(), a: None
+        });
+        v.push(skey);
+        v.push(value);
+        let p2 = try!(i.next_token(self));
+        let t2 = &p2[i.index];
+        if t2.value == Symbol::CRight {
+          i.index+=1;
+          break;
+        }else if t2.value != Symbol::Comma {
+          return Err(self.syntax_error(t2.line, t2.col, String::from("expected ',' or '}'.")));
+        }
+        i.index+=1;
+      }else{
+        return Err(self.syntax_error(t.line, t.col, String::from("expected ',' or '=' or ':' or '}'.")));
       }
-      i.index+=1;
-    }else{
-      return Err(self.syntax_error(t.line, t.col, String::from("expected ',' or '=' or ':' or '}'.")));
     }
   }
-  return Ok(v.into_boxed_slice());
+  return Ok(Rc::new(AST{line: t.line, col: t.col,
+    symbol_type: SymbolType::Operator, value: Symbol::Map,
+    info: Info::None, s: None, a: Some(v.into_boxed_slice())
+  }));
 }
 
 fn table_literal(&mut self, i: &mut TokenIterator, t0: &Token) -> Result<Rc<AST>,Error> {
-  let mut v: Vec<Rc<AST>> = Vec::new();
   let p = try!(i.next_token(self));
   let t = &p[i.index];
-  if t.value==Symbol::BLeft {
-    i.index+=1;
-    let prototype = try!(self.expression(i));
-    v.push(prototype);
-    let p2 = try!(i.next_token(self));
-    let t2 = &p2[i.index];
-    if t2.value != Symbol::BRight {
-      return Err(self.syntax_error(t2.line, t2.col, String::from("expected ',' or ']'.")));
-    }
-    i.index+=1;
+  let prototype = if t.value==Symbol::CLeft {
+    atomic_literal(t0.line, t0.col, Symbol::Null)
   }else{
-    v.push(atomic_literal(t0.line, t0.col, Symbol::Null));
+    try!(self.atom(i))
+  };
+  let p = try!(i.next_token(self));
+  let t = &p[i.index];
+  if t.value != Symbol::CLeft {
+    return Err(self.syntax_error(t.line, t.col, String::from("expected '{'.")));
   }
-  loop{
-    let key = try!(self.expression(i));
-    let p = try!(i.next_token(self));
-    let t = &p[i.index];
-    if t.value == Symbol::Colon {
-      i.index+=1;
-      let value = try!(self.expression(i));
-      v.push(key);
-      v.push(value);
-    }else if t.value == Symbol::Assignment {
-      i.index+=1;
-      let value = try!(self.expression(i));
-      let skey = Rc::new(AST{
-        line: key.line, col: key.col,
-        symbol_type: SymbolType::String, value: Symbol::None,
-        info: Info::None, s: key.s.clone(), a: None
-      });
-      v.push(skey);
-      v.push(value);
-    }else{ 
-      return Err(self.syntax_error(t.line, t.col, String::from("expected ':' or '='.")));
-    }
-    let p = try!(i.next_token(self));
-    let t = &p[i.index];
-    if t.value == Symbol::End {
-      i.index+=1;
-      break;
-    }else if t.value == Symbol::Comma {
-      i.index+=1;
-    }else{
-      return Err(self.syntax_error(t.line, t.col, String::from("expected ',' or 'end'.")));
-    }
-  }
+  i.index+=1;
+  let map = try!(self.map_literal(i));
   return Ok(Rc::new(AST{line: t0.line, col: t0.col, symbol_type: SymbolType::Keyword,
-    value: Symbol::Table, info: Info::None, s: None, a: Some(v.into_boxed_slice())}));
+    value: Symbol::Table, info: Info::None, s: None, a: Some(Box::new([prototype,map]))}));
 }
 
 fn arguments_list(&mut self, i: &mut TokenIterator, t0: &Token, terminator: Symbol)
@@ -1276,11 +1244,7 @@ fn atom(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error> {
     });
   }else if t.value==Symbol::CLeft {
     i.index+=1;
-    let x = try!(self.map_literal(i));
-    y = Rc::new(AST{line: t.line, col: t.col,
-      symbol_type: SymbolType::Operator, value: Symbol::Map,
-      info: Info::None, s: None, a: Some(x)
-    });
+    y = try!(self.map_literal(i));
   }else if t.value==Symbol::Null ||
     t.value==Symbol::False || t.value==Symbol::True
   {
@@ -1782,6 +1746,17 @@ fn sub_statement(&mut self, i: &mut TokenIterator, t: &Token)
   return Ok(binary_operator(t.line,t.col,Symbol::Assignment,id,x));
 }
 
+fn identifier(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error> {
+  let p = try!(i.next_token(self));
+  let t = &p[i.index];
+  let s = if t.token_type == SymbolType::Identifier {
+    match t.item {Item::String(ref s) => s, _ => panic!()}
+  }else{
+    return Err(self.syntax_error(t.line, t.col, String::from("expected an identifer.")));
+  };
+  return Ok(identifier(s,t.line,t.col));
+}
+
 fn qualification_assignment(&mut self, id: &str, module: Rc<AST>, property: &str, line: usize, col: usize) -> Rc<AST> {
   let id = identifier(id,line,col);
   let property = string(property,line,col);
@@ -1853,43 +1828,78 @@ fn use_statement(&mut self, i: &mut TokenIterator, t0: &Token)
   loop{
     let p = try!(i.next_token(self));
     let t = &p[i.index];
-    if t.token_type == SymbolType::Identifier {
+    let module_id = if t.token_type == SymbolType::Identifier {
       let s = match t.item {Item::String(ref s) => s, _ => panic!()};
       let id = identifier(s,t.line,t.col);
-      let ids = string(s,t.line,t.col);
       let load = identifier("load",t.line,t.col);
-      let app = apply(t.line,t.col,Box::new([load,ids]));
-      let y = assignment(t.line,t.col,id.clone(),app);
-      v.push(y);
       i.index+=1;
-      let p = try!(i.next_token_optional(self));
-      let t = &p[i.index];
-      if t.value == Symbol::Comma {
+      let p2 = try!(i.next_token_optional(self));
+      let t2 = &p2[i.index];
+      if t2.value == Symbol::Assignment {
         i.index+=1;
-      }else if t.value == Symbol::Colon {
-        i.index+=1;
-        try!(self.qualification(&mut v,id,i,t0));
-        break;
-      }else if t.value == Symbol::PLeft {
-        i.index+=1;
-        self.parens+=1;
-        self.syntax_nesting+=1;
-        try!(self.qualification(&mut v,id,i,t0));
-        self.parens-=1;
-        self.syntax_nesting-=1;
-        let p = try!(i.next_token(self));
-        let t = &p[i.index];
-        if t.value == Symbol::PRight {
+        let p3 = try!(i.next_token(self));
+        let t3 = &p[i.index];
+        let ids = if t3.token_type == SymbolType::Identifier {
           i.index+=1;
+          let s2 = match t3.item {Item::String(ref s) => s, _ => panic!()};
+          string(s2,t.line,t.col)
+        }else if t3.value == Symbol::PLeft {
+          try!(self.atom(i))
         }else{
-          return Err(self.syntax_error(t.line, t.col, String::from("expected ')'.")));         
-        }
-        break;
-      }else if t.value == Symbol::Newline || t.value == Symbol::Terminal {
-        break;
+          return Err(self.syntax_error(t.line, t.col, String::from("expected identifier.")));
+        };
+        let app = apply(t.line,t.col,Box::new([load,ids]));
+        let y = assignment(t.line,t.col,id.clone(),app);
+        v.push(y);
       }else{
-        return Err(self.syntax_error(t.line, t.col, String::from("unexpected token.")));
+        let ids = string(s,t.line,t.col);
+        let app = apply(t.line,t.col,Box::new([load,ids]));
+        let y = assignment(t.line,t.col,id.clone(),app);
+        v.push(y);
       }
+      id
+    }else if t.value == Symbol::PLeft {
+      i.index+=1;
+      let id = try!(self.identifier(i));
+      i.index+=1;
+      let p = try!(i.next_token(self));
+      let t = &p[i.index];
+      if t.value == Symbol::PRight {
+        i.index+=1;
+      }else{
+        return Err(self.syntax_error(t.line, t.col, String::from("unexpected ')'.")));
+      }
+      id
+    }else{
+      return Err(self.syntax_error(t.line, t.col, String::from("unexpected identifier.")));
+    };
+    let p = try!(i.next_token_optional(self));
+    let t = &p[i.index];
+    if t.value == Symbol::Comma {
+      i.index+=1;
+    }else if t.value == Symbol::Colon {
+      i.index+=1;
+      try!(self.qualification(&mut v,module_id,i,t0));
+      break;
+    }else if t.value == Symbol::PLeft {
+      i.index+=1;
+      self.parens+=1;
+      self.syntax_nesting+=1;
+      try!(self.qualification(&mut v,module_id,i,t0));
+      self.parens-=1;
+      self.syntax_nesting-=1;
+      let p = try!(i.next_token(self));
+      let t = &p[i.index];
+      if t.value == Symbol::PRight {
+        i.index+=1;
+      }else{
+        return Err(self.syntax_error(t.line, t.col, String::from("expected ')'.")));         
+      }
+      break;
+    }else if t.value == Symbol::Newline || t.value == Symbol::Terminal {
+      break;
+    }else{
+      return Err(self.syntax_error(t.line, t.col, String::from("unexpected token.")));
     }
   }
   if v.len()==1 {
@@ -2730,7 +2740,12 @@ fn compile_ast(&mut self, bv: &mut Vec<u8>, t: &Rc<AST>)
       }else{
         try!(self.compile_ast(bv,&a[0]));
       }
-      push_bc(bv,bc::YIELD,t.line,t.col);    
+      push_bc(bv,bc::YIELD,t.line,t.col);
+    }else if value == Symbol::Table {
+      let a = ast_argv(t);
+      try!(self.compile_ast(bv,&a[1]));
+      try!(self.compile_ast(bv,&a[0]));
+      push_bc(bv,bc::TABLE,t.line,t.col);
     }else{
       panic!();
     }
@@ -2884,6 +2899,7 @@ fn asm_listing(a: &[u8]) -> String {
       bc::NOTIN => {s.push_str("not in\n"); i+=BCSIZE;},
       bc::NOT => {s.push_str("not\n"); i+=BCSIZE;},
       bc::RANGE => {s.push_str("range\n"); i+=BCSIZE;},
+      bc::TABLE => {s.push_str("table\n"); i+=BCSIZE;},
       bc::LIST => {
         let x = compose_u32(&a[BCSIZE+i..BCSIZE+i+4]);
         let u = format!("list, size={}\n",x);
@@ -3053,7 +3069,7 @@ fn print_var_tab(vtab: &VarTab, indent: usize){
   let n = vtab.v.len();
   let a = &vtab.v[..];
   let mut sequent = false;
-  
+
   print!("{:1$}","",indent);
   print!("context: ");
   for i in 0..n {

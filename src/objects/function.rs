@@ -44,12 +44,13 @@ fn orbit(pself: &Object, argv: &[Object]) -> FnResult {
   );
   return Ok(Object::Function(Rc::new(Function{
     f: EnumFunction::Env(RefCell::new(i)),
-    argc: 0, argc_min: 0, argc_max: 0
+    argc: 0, argc_min: 0, argc_max: 0,
+    id: Object::Null
   })));
 }
 
 pub fn init(t: &Table){
   let mut m = t.map.borrow_mut();
-  m.insert("apply", Function::env(apply,1,1));
-  m.insert("orbit", Function::plain(orbit,1,1));
+  m.insert_fn_env  ("apply",apply,1,1);
+  m.insert_fn_plain("orbit",orbit,1,1);
 }

@@ -192,14 +192,14 @@ fn new_shuffle() -> MutableFn {
 
 pub fn init(t: &Table){
   let mut m = t.map.borrow_mut();
-  m.insert("push",   Function::plain(push,0,VARIADIC));
-  m.insert("append", Function::plain(append,0,VARIADIC));
-  m.insert("size",   Function::plain(size,0,0));
-  m.insert("map",    Function::env(map,1,1));
-  m.insert("filter", Function::env(filter,1,1));
-  m.insert("count",  Function::env(count,1,1));
-  m.insert("any",    Function::env(any,1,1));
-  m.insert("all",    Function::env(all,1,1));
-  m.insert("each",   Function::env(each,1,1));
+  m.insert_fn_plain("push", push,0,VARIADIC);
+  m.insert_fn_plain("append", append,0,VARIADIC);
+  m.insert_fn_plain("size", size,0,0);
+  m.insert_fn_env  ("map", map,1,1);
+  m.insert_fn_env  ("filter", filter,1,1);
+  m.insert_fn_env  ("count", count,1,1);
+  m.insert_fn_env  ("any", any,1,1);
+  m.insert_fn_env  ("all", all,1,1);
+  m.insert_fn_env  ("each", each,1,1);
   m.insert("shuffle",Function::mutable(new_shuffle(),0,0));
 }

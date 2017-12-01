@@ -645,35 +645,35 @@ pub fn load_math() -> Object {
   let math = new_module("math");
   {
     let mut m = math.map.borrow_mut();
-    m.insert("pi",   Object::Float(PI));
-    m.insert("e",    Object::Float(E));
-    m.insert("nan",  Object::Float(::std::f64::NAN));
-    m.insert("inf",  Object::Float(::std::f64::INFINITY));
+    m.insert("pi",  Object::Float(PI));
+    m.insert("e",   Object::Float(E));
+    m.insert("nan", Object::Float(::std::f64::NAN));
+    m.insert("inf", Object::Float(::std::f64::INFINITY));
 
-    m.insert("floor",Function::plain(floor,1,1));
-    m.insert("ceil", Function::plain(ceil,1,1));
-    m.insert("sqrt", Function::plain(sqrt,1,1));
-    m.insert("exp",  Function::plain(exp,1,1));
-    m.insert("ln",   Function::plain(ln,1,1));
-    m.insert("lg",   Function::plain(lg,1,1));
+    m.insert_fn_plain("floor",floor,1,1);
+    m.insert_fn_plain("ceil",ceil,1,1);
+    m.insert_fn_plain("sqrt",sqrt,1,1);
+    m.insert_fn_plain("exp",exp,1,1);
+    m.insert_fn_plain("ln",ln,1,1);
+    m.insert_fn_plain("lg",lg,1,1);
 
-    m.insert("sin",  Function::plain(sin,1,1));
-    m.insert("cos",  Function::plain(cos,1,1));
-    m.insert("tan",  Function::plain(tan,1,1));
-    m.insert("sinh", Function::plain(sinh,1,1));
-    m.insert("cosh", Function::plain(cosh,1,1));
-    m.insert("tanh", Function::plain(tanh,1,1));
+    m.insert_fn_plain("sin",sin,1,1);
+    m.insert_fn_plain("cos",cos,1,1);
+    m.insert_fn_plain("tan",tan,1,1);
+    m.insert_fn_plain("sinh",sinh,1,1);
+    m.insert_fn_plain("cosh",cosh,1,1);
+    m.insert_fn_plain("tanh",tanh,1,1);
 
-    m.insert("asin", Function::plain(asin,1,1));
-    m.insert("acos", Function::plain(acos,1,1));
-    m.insert("atan", Function::plain(atan,1,1));
-    m.insert("asinh",Function::plain(asinh,1,1));
-    m.insert("acosh",Function::plain(acosh,1,1));
-    m.insert("atanh",Function::plain(atanh,1,1));
+    m.insert_fn_plain("asin",asin,1,1);
+    m.insert_fn_plain("acos",acos,1,1);
+    m.insert_fn_plain("atan",atan,1,1);
+    m.insert_fn_plain("asinh",asinh,1,1);
+    m.insert_fn_plain("acosh",acosh,1,1);
+    m.insert_fn_plain("atanh",atanh,1,1);
 
-    m.insert("gamma",Function::plain(fgamma,1,1));
-    m.insert("hypot",Function::plain(hypot,2,2));
-    m.insert("atan2",Function::plain(atan2,2,2));
+    m.insert_fn_plain("gamma",fgamma,1,1);
+    m.insert_fn_plain("hypot",hypot,2,2);
+    m.insert_fn_plain("atan2",atan2,2,2);
   }
   return Object::Table(Rc::new(math));
 }
@@ -682,26 +682,26 @@ pub fn load_cmath() -> Object {
   let cmath = new_module("cmath");
   {
     let mut m = cmath.map.borrow_mut();
-    m.insert("exp",  Function::plain(exp,1,1));
-    m.insert("sin",  Function::plain(sin,1,1));
-    m.insert("cos",  Function::plain(cos,1,1));
-    m.insert("tan",  Function::plain(tan,1,1));
-    m.insert("sinh", Function::plain(sinh,1,1));
-    m.insert("cosh", Function::plain(cosh,1,1));
-    m.insert("tanh", Function::plain(tanh,1,1));
+    m.insert_fn_plain("exp",exp,1,1);
+    m.insert_fn_plain("sin",sin,1,1);
+    m.insert_fn_plain("cos",cos,1,1);
+    m.insert_fn_plain("tan",tan,1,1);
+    m.insert_fn_plain("sinh",sinh,1,1);
+    m.insert_fn_plain("cosh",cosh,1,1);
+    m.insert_fn_plain("tanh",tanh,1,1);
 
-    m.insert("asin",  Function::plain(casin,1,1));
-    m.insert("acos",  Function::plain(cacos,1,1));
-    m.insert("atan",  Function::plain(catan,1,1));
-    m.insert("asinh", Function::plain(casinh,1,1));
-    m.insert("acosh", Function::plain(cacosh,1,1));
-    m.insert("atanh", Function::plain(catanh,1,1));
+    m.insert_fn_plain("asin",casin,1,1);
+    m.insert_fn_plain("acos",cacos,1,1);
+    m.insert_fn_plain("atan",catan,1,1);
+    m.insert_fn_plain("asinh",casinh,1,1);
+    m.insert_fn_plain("acosh",cacosh,1,1);
+    m.insert_fn_plain("atanh",catanh,1,1);
 
-    m.insert("re",   Function::plain(re,1,1));
-    m.insert("im",   Function::plain(im,1,1));
-    m.insert("conj", Function::plain(conj,1,1));
-    m.insert("ln",   Function::plain(cln,1,1));
-    m.insert("sqrt", Function::plain(csqrt,1,1));
+    m.insert_fn_plain("re",re,1,1);
+    m.insert_fn_plain("im",im,1,1);
+    m.insert_fn_plain("conj",conj,1,1);
+    m.insert_fn_plain("ln",cln,1,1);
+    m.insert_fn_plain("sqrt",csqrt,1,1);
   }
   return Object::Table(Rc::new(cmath));
 }

@@ -172,6 +172,26 @@ fn fobject(pself: &Object, argv: &[Object]) -> FnResult{
   }
 }
 
+fn ftype(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
+  if argv.len()!=1 {
+    return argc_error(argv.len(),1,1,"type");
+  }
+  match argv[0] {
+    Object::Null => Ok(Object::Null),
+    Object::Bool(x) => Ok(Object::Table(env.rte().type_bool.clone())),
+    Object::Int(x) => Ok(Object::Table(env.rte().type_int.clone())),
+    Object::Float(x) => Ok(Object::Table(env.rte().type_float.clone())),
+    Object::Complex(x) => Ok(Object::Table(env.rte().type_complex.clone())),
+    Object::String(ref s) => Ok(Object::Table(env.rte().type_string.clone())),
+    Object::List(ref a) => Ok(Object::Table(env.rte().type_list.clone())),
+    Object::Map(ref m) => Ok(Object::Table(env.rte().type_map.clone())),
+    Object::Table(ref t) => {
+      Ok(t.prototype.clone())
+    },
+    _ => Ok(Object::Null)
+  }
+}
+
 pub fn flist(pself: &Object, argv: &[Object]) -> FnResult{
   if argv.len()!=1 {
     return argc_error(argv.len(),1,1,"list");
@@ -254,35 +274,51 @@ fn frand(pself: &Object, argv: &[Object]) -> FnResult {
 }
 
 pub fn init_gtab(gtab: &mut Map, rte: &RTE){
-  gtab.insert("print", Function::plain(print,0,VARIADIC));
-  gtab.insert("put",   Function::plain(put,0,VARIADIC));
-  gtab.insert("str",   Function::plain(fstr,1,1));
-  gtab.insert("repr",  Function::plain(repr,1,1));
-  gtab.insert("abs",   Function::plain(abs,1,1));
-  gtab.insert("eval",  Function::plain(eval,1,1));
-  gtab.insert("size",  Function::plain(size,1,1));
-  gtab.insert("load",  Function::env(fload,1,1));
-  gtab.insert("iter",  Function::plain(iter,1,1));
-  gtab.insert("record",Function::plain(record,1,1));
-  gtab.insert("object",Function::plain(fobject,0,2));
-  gtab.insert("list",  Function::plain(flist,1,1));
-  gtab.insert("copy",  Function::plain(copy,1,1));
-  gtab.insert("rand",  Function::plain(frand,1,1));
+  gtab.insert_fn_plain("print",print,0,VARIADIC);
+  gtab.insert_fn_plain("put",put,0,VARIADIC);
+  gtab.insert_fn_plain("str",fstr,1,1);
+  gtab.insert_fn_plain("repr",repr,1,1);
+  gtab.insert_fn_plain("abs",abs,1,1);
+  gtab.insert_fn_plain("eval",eval,1,1);
+  gtab.insert_fn_plain("size",size,1,1);
+  gtab.insert_fn_env  ("load",fload,1,1);
+  gtab.insert_fn_plain("iter",iter,1,1);
+  gtab.insert_fn_plain("record",record,1,1);
+  gtab.insert_fn_plain("object",fobject,0,2);
+  gtab.insert_fn_env  ("type",ftype,1,1);
+  gtab.insert_fn_plain("list",flist,1,1);
+  gtab.insert_fn_plain("copy",copy,1,1);
+  gtab.insert_fn_plain("rand",frand,1,1);
   gtab.insert("empty", Object::Empty);
 
-  let type_list = rte.list.clone();
+  let type_bool = rte.type_bool.clone();
+  gtab.insert("Bool", Object::Table(type_bool));
+  
+  let type_int = rte.type_int.clone();
+  gtab.insert("Int", Object::Table(type_int));
+  
+  let type_float = rte.type_float.clone();
+  gtab.insert("Float", Object::Table(type_float));
+  
+  let type_complex = rte.type_complex.clone();
+  gtab.insert("Complex", Object::Table(type_complex));
+
+  let type_string = rte.type_string.clone();
+  gtab.insert("String", Object::Table(type_string));
+
+  let type_list = rte.type_list.clone();
   ::list::init(&type_list);
   gtab.insert("List", Object::Table(type_list));
-  
-  let type_map = rte.map.clone();
+
+  let type_map = rte.type_map.clone();
   ::map::init(&type_map);
   gtab.insert("Map", Object::Table(type_map));
 
-  let type_function = rte.function.clone();
+  let type_function = rte.type_function.clone();
   ::function::init(&type_function);
   gtab.insert("Function", Object::Table(type_function));
-  
-  let type_iterable = rte.iterable.clone();
+
+  let type_iterable = rte.type_iterable.clone();
   ::iterable::init(&type_iterable);
   gtab.insert("Iterable", Object::Table(type_iterable));
 }

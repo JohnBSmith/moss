@@ -93,6 +93,30 @@ impl Map{
   pub fn insert(&mut self, key: &str, value: Object){
     self.m.insert(U32String::new_object_str(key),value);
   }
+  pub fn insert_fn_plain(&mut self, key: &str, fp: PlainFn, argc_min: u32, argc_max: u32){
+    let key = U32String::new_object_str(key);
+
+    let f = Object::Function(Rc::new(Function{
+      f: EnumFunction::Plain(fp),
+      argc: if argc_min==argc_max {argc_min} else {VARIADIC},
+      argc_min: argc_min, argc_max: argc_max,
+      id: key.clone()
+    }));
+    
+    self.m.insert(key,f);
+  }
+  pub fn insert_fn_env(&mut self, key: &str, fp: PlainEnvFn, argc_min: u32, argc_max: u32){
+    let key = U32String::new_object_str(key);
+
+    let f = Object::Function(Rc::new(Function{
+      f: EnumFunction::Env(RefCell::new(Box::new(fp))),
+      argc: if argc_min==argc_max {argc_min} else {VARIADIC},
+      argc_min: argc_min, argc_max: argc_max,
+      id: key.clone()
+    }));
+    
+    self.m.insert(key,f);
+  }
 }
 
 pub struct Range{
@@ -194,7 +218,8 @@ pub struct Function{
   pub f: EnumFunction,
   pub argc: u32,
   pub argc_min: u32,
-  pub argc_max: u32
+  pub argc_max: u32,
+  pub id: Object
 }
 
 pub const VARIADIC: u32 = 0xffffffff;
@@ -204,28 +229,32 @@ impl Function{
     Object::Function(Rc::new(Function{
       f: EnumFunction::Plain(fp),
       argc: if argc_min==argc_max {argc_min} else {VARIADIC},
-      argc_min: argc_min, argc_max: argc_max
+      argc_min: argc_min, argc_max: argc_max,
+      id: Object::Null
     }))
   }
   pub fn new(f: StandardFn, argc_min: u32, argc_max: u32) -> Object {
     Object::Function(Rc::new(Function{
       f: EnumFunction::Std(f),
       argc: if argc_min==argc_max {argc_min} else {VARIADIC},
-      argc_min: argc_min, argc_max: argc_max
+      argc_min: argc_min, argc_max: argc_max,
+      id: Object::Null
     }))
   }
   pub fn env(fp: PlainEnvFn, argc_min: u32, argc_max: u32) -> Object {
     Object::Function(Rc::new(Function{
       f: EnumFunction::Env(RefCell::new(Box::new(fp))),
       argc: if argc_min==argc_max {argc_min} else {VARIADIC},
-      argc_min: argc_min, argc_max: argc_max
+      argc_min: argc_min, argc_max: argc_max,
+      id: Object::Null
     }))
   }
   pub fn mutable(fp: MutableFn, argc_min: u32, argc_max: u32) -> Object {
     Object::Function(Rc::new(Function{
       f: EnumFunction::Mut(RefCell::new(fp)),
       argc: if argc_min==argc_max {argc_min} else {VARIADIC},
-      argc_min: argc_min, argc_max: argc_max
+      argc_min: argc_min, argc_max: argc_max,
+      id: Object::Null
     }))
   }
 }

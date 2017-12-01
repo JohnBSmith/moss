@@ -32,5 +32,5 @@ fn fupdate(pself: &Object, argv: &[Object]) -> FnResult {
 
 pub fn init(t: &Table){
   let mut m = t.map.borrow_mut();
-  m.insert("update", Function::plain(fupdate,1,1));
+  m.insert_fn_plain("update",fupdate,1,1);
 }
