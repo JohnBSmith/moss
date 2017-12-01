@@ -159,20 +159,6 @@ fn all(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
   return Ok(Object::Bool(true));
 }
 
-fn each(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
-  if argv.len() != 1 {
-    return argc_error(argv.len(),1,1,"each");
-  }
-  let mut a = match *pself {
-    Object::List(ref a) => a.borrow_mut(),
-    _ => {return type_error("Type error in a.each(f): a is not a list.");}
-  };
-  for x in &a.v {
-    try!(env.call(&argv[0],&Object::Null,&[x.clone()]));
-  }
-  return Ok(Object::Null);
-}
-
 fn new_shuffle() -> MutableFn {
   let mut rng = Rand::new(0);
   return Box::new(move |pself: &Object, argv: &[Object]| -> FnResult{
@@ -190,16 +176,60 @@ fn new_shuffle() -> MutableFn {
   });
 }
 
+fn join(a: &[Object], sep: Option<&Object>,
+  left: Option<&Object>, right: Option<&Object>
+) -> String {
+  let mut s: String = String::new();
+  if let Some(left) = left {
+    s.push_str(&left.to_string());
+  }
+  if let Some(sep) = sep {
+    let sep = &sep.to_string();
+    let mut first = true;
+    for x in a {
+      if first {
+        first = false;
+      }else{
+        s.push_str(sep);
+      }
+      s.push_str(&x.to_string());
+    }
+  }else{
+    for x in a {
+      s.push_str(&x.to_string());
+    }
+  }
+  if let Some(right) = right {
+    s.push_str(&right.to_string());
+  }
+  return s;
+}
+
+fn list_join(pself: &Object, argv: &[Object]) -> FnResult{
+  let a = match *pself {
+    Object::List(ref x)=>x,
+    _ => return type_error("Type error in a.join(): a is not a list.")
+  };
+  let y = match argv.len() {
+    0 => join(&a.borrow().v,None,None,None),
+    1 => join(&a.borrow().v,Some(&argv[0]),None,None),
+    2 => join(&a.borrow().v,Some(&argv[0]),Some(&argv[1]),None),
+    3 => join(&a.borrow().v,Some(&argv[0]),Some(&argv[1]),Some(&argv[2])),
+    n => return argc_error(n,0,3,"join")
+  };
+  Ok(U32String::new_object_str(&y))
+}
+
 pub fn init(t: &Table){
   let mut m = t.map.borrow_mut();
-  m.insert_fn_plain("push", push,0,VARIADIC);
-  m.insert_fn_plain("append", append,0,VARIADIC);
-  m.insert_fn_plain("size", size,0,0);
-  m.insert_fn_env  ("map", map,1,1);
-  m.insert_fn_env  ("filter", filter,1,1);
-  m.insert_fn_env  ("count", count,1,1);
-  m.insert_fn_env  ("any", any,1,1);
-  m.insert_fn_env  ("all", all,1,1);
-  m.insert_fn_env  ("each", each,1,1);
+  m.insert_fn_plain("push",push,0,VARIADIC);
+  m.insert_fn_plain("append",append,0,VARIADIC);
+  m.insert_fn_plain("size",size,0,0);
+  m.insert_fn_env  ("map",map,1,1);
+  m.insert_fn_env  ("filter",filter,1,1);
+  m.insert_fn_env  ("count",count,1,1);
+  m.insert_fn_env  ("any",any,1,1);
+  m.insert_fn_env  ("all",all,1,1);
+  m.insert_fn_plain("join",list_join,0,1);
   m.insert("shuffle",Function::mutable(new_shuffle(),0,0));
 }

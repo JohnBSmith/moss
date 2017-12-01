@@ -150,9 +150,97 @@ fn filter(pself: &Object, argv: &[Object]) -> FnResult {
   })))
 }
 
+fn each(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+  let i = &try!(iter(pself));
+  if argv.len() == 1 {
+    loop{
+      let y = try!(env.call(i,&Object::Null,&[]));
+      if y == Object::Empty {
+        break;
+      }else{
+        try!(env.call(&argv[0],&Object::Null,&[y]));
+      }
+    }
+    return Ok(Object::Null);
+  }else{
+    return argc_error(argv.len(),1,1,"each");
+  }
+}
+
+fn any(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+  if argv.len()!=1 {
+    return argc_error(argv.len(),1,1,"any");  
+  }
+  let i = &try!(iter(pself));
+  let p = &argv[0];
+  loop{
+    let x = try!(env.call(i,&Object::Null,&[]));
+    if x == Object::Empty {
+      break;
+    }else{
+      let y = try!(env.call(p,&Object::Null,&[x]));
+      if let Object::Bool(yb) = y {
+        if yb {return Ok(Object::Bool(true));}
+      }else{
+        return type_error("Type error in i.any(p): return value of p is not of boolean type.");
+      }
+    }
+  }
+  return Ok(Object::Bool(false));
+}
+
+fn all(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+  if argv.len()!=1 {
+    return argc_error(argv.len(),1,1,"all");  
+  }
+  let i = &try!(iter(pself));
+  let p = &argv[0];
+  loop{
+    let x = try!(env.call(i,&Object::Null,&[]));
+    if x == Object::Empty {
+      break;
+    }else{
+      let y = try!(env.call(p,&Object::Null,&[x]));
+      if let Object::Bool(yb) = y {
+        if !yb {return Ok(Object::Bool(false));}
+      }else{
+        return type_error("Type error in i.all(p): return value of p is not of boolean type.");
+      }
+    }
+  }
+  return Ok(Object::Bool(true));
+}
+
+fn count(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+  if argv.len()!=1 {
+    return argc_error(argv.len(),1,1,"count");  
+  }
+  let i = &try!(iter(pself));
+  let p = &argv[0];
+  let mut k: i32 = 0;
+  loop{
+    let x = try!(env.call(i,&Object::Null,&[]));
+    if x == Object::Empty {
+      break;
+    }else{
+      let y = try!(env.call(p,&Object::Null,&[x]));
+      if let Object::Bool(yb) = y {
+        if yb {k+=1;}
+      }else{
+        return type_error("Type error in i.count(p): return value of p is not of boolean type.");
+      }
+    }
+  }
+  return Ok(Object::Int(k));
+}
+
 pub fn init(t: &Table){
   let mut m = t.map.borrow_mut();
   m.insert_fn_env  ("list",list,0,1);
+  m.insert_fn_env  ("each",each,1,1);
+  m.insert_fn_env  ("any",any,1,1);
+  m.insert_fn_env  ("all",all,1,1);
+  m.insert_fn_env  ("count",count,1,1);
   m.insert_fn_plain("map",map,1,1);
   m.insert_fn_plain("filter",filter,1,1);
 }
