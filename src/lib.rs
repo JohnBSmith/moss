@@ -37,29 +37,22 @@ mod sys;
 
 use std::rc::Rc;
 use std::cell::RefCell;
-use std::fs::File;
-use std::io::Read;
-use object::{Object, List, Map, Exception, U32String};
-use vm::{eval,RTE,State,EnvPart,Frame,STACK_SIZE,FRAME_STACK_SIZE};
-
-fn print_exception(e: &Exception) {
-  if let Some(ref spot) = e.spot {
-    println!("Line {}, col {}:",spot.line,spot.col);
-  }
-  println!("{}",::vm::object_to_string(&e.value));
-}
+// use std::fs::File;
+// use std::io::Read;
+use object::{Object, List, Map, U32String};
+use vm::{RTE,State,EnvPart,Frame,STACK_SIZE,FRAME_STACK_SIZE,
+  get_env
+};
 
 pub struct Interpreter{
   pub rte: Rc<RTE>,
-  pub gtab: Rc<RefCell<Map>>,
   pub state: RefCell<State>
 }
 
 impl Interpreter{
   pub fn new() -> Self {
     let rte = RTE::new();
-    let gtab = Map::new();
-    ::global::init_gtab(&mut gtab.borrow_mut(),&rte);
+    ::global::init_rte(&rte);
 
     let mut stack: Vec<Object> = Vec::with_capacity(STACK_SIZE);
     for _ in 0..STACK_SIZE {
@@ -71,95 +64,25 @@ impl Interpreter{
       env: EnvPart::new(frame_stack, rte.clone())
     });
 
-    return Self{rte, gtab, state};
-  }
-  pub fn eval(&self, s: &str) -> Object {
-    let gtab = Map::new();
-    return match self.eval_string(s,"",gtab) {
-      Ok(x) => x,
-      Err(e) => e.value
-    };
-  }
-  pub fn eval_env(&self, s: &str, gtab: Rc<RefCell<Map>>) -> Object {
-    return match self.eval_string(s,"",gtab) {
-      Ok(x) => x,
-      Err(e) => e.value
-    };    
+    return Self{rte, state};
   }
 
-  pub fn eval_string(&self, s: &str, id: &str, gtab: Rc<RefCell<Map>>)
-    -> Result<Object,Box<Exception>>
-  {
-    let mut history = system::History::new();
-    match compiler::scan(s,1,id,false) {
-      Ok(v) => {
-        match compiler::compile(v,false,&mut history,id,self) {
-          Ok(module) => {
-            return eval(self,module.clone(),gtab.clone(),false);
-          },
-          Err(e) => {compiler::print_error(&e);}
-        };
-      },
-      Err(error) => {
-        compiler::print_error(&error);
-      }
-    }
-    return Ok(Object::Null);
+  pub fn eval_env(&self, s: &str, gtab: Rc<RefCell<Map>>) -> Object {
+    let mut state = &mut *self.state.borrow_mut();
+    let mut env = get_env(&mut state);
+    return env.eval_env(s,gtab);
+  }
+  
+  pub fn eval_file(&self, id: &str, gtab: Rc<RefCell<Map>>){
+    let mut state = &mut *self.state.borrow_mut();
+    let mut env = get_env(&mut state);
+    return env.eval_file(id,gtab);
   }
 
   pub fn command_line_session(&self, gtab: Rc<RefCell<Map>>){
-    let mut history = system::History::new();
-    loop{
-      let mut input = String::new();
-      match system::getline_history("> ",&history) {
-        Ok(s) => {
-          if s=="" {continue;}
-          history.append(&s);
-          input=s;
-        },
-        Err(error) => {println!("Error: {}", error);},
-      };
-      if input=="quit" {break}
-      match compiler::scan(&input,1,"command line",false) {
-        Ok(v) => {
-          // compiler::print_vtoken(&v);
-          match compiler::compile(v,true,&mut history,"command line",self) {
-            Ok(module) => {
-              match eval(self,module.clone(),gtab.clone(),true) {
-                Ok(x) => {}, Err(e) => {print_exception(&e);}
-              }
-            },
-            Err(e) => {compiler::print_error(&e);}
-          };
-        },
-        Err(error) => {
-          compiler::print_error(&error);
-        }
-      }
-    }
-  }
-
-  pub fn eval_file(&self, id: &str, gtab: Rc<RefCell<Map>>){
-    let mut path: String = String::from(id);
-    path += ".moss";
-    let mut f = match File::open(&path) {
-      Ok(f) => f,
-      Err(e) => {
-        match File::open(id) {
-          Ok(f) => f,
-          Err(e) => {
-            println!("File '{}' not found.",id);
-            return;
-          }
-        }
-      }
-    };
-    let mut s = String::new();
-    f.read_to_string(&mut s).expect("something went wrong reading the file");
-
-    match self.eval_string(&s,id,gtab) {
-      Ok(x) => {}, Err(e) => {print_exception(&e);}
-    }
+    let mut state = &mut *self.state.borrow_mut();
+    let mut env = get_env(&mut state);
+    env.command_line_session(gtab);
   }
 }
 

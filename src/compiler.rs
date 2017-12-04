@@ -11,7 +11,7 @@ use std::rc::Rc;
 use std::collections::HashMap;
 use std::mem::{transmute,replace};
 use system;
-use vm::{bc, BCSIZE, Module};
+use vm::{bc, BCSIZE, Module, RTE};
 use object::{Object, U32String};
 
 const VALUE_NONE: u8 = 0;
@@ -2192,7 +2192,7 @@ fn compile_for(&mut self, bv: &mut Vec<u8>, t: &Rc<AST>)
   let n = self.jmp_stack.len();
   self.jmp_stack[n-1].breaks.push(bv.len());
   push_i32(bv,0xcafe);
-  self.compile_assignment(bv,&a[0],t.line,t.col);
+  try!(self.compile_left_hand_side(bv,&a[0]));
 
   try!(self.compile_ast(bv,&a[2]));
   push_bc(bv,bc::JMP,t.line,t.col);
@@ -2269,7 +2269,9 @@ fn compile_fn(&mut self, bv: &mut Vec<u8>, t: &Rc<AST>)
   // Every function has its own table of variables.
   let vtab = replace(&mut self.vtab,VarTab::new(t.s.clone()));
   self.vtab.context = Some(Box::new(vtab));
-  self.arguments(&a[0]);
+
+  self.function_nesting+=1;
+  try!(self.arguments(&mut bv2,&a[0]));
 
   let coroutine = self.coroutine;
   self.coroutine = match t.info {
@@ -2278,7 +2280,6 @@ fn compile_fn(&mut self, bv: &mut Vec<u8>, t: &Rc<AST>)
   };
 
   // Compile the function body.
-  self.function_nesting+=1;
   try!(self.compile_ast(&mut bv2,&a[1]));
   self.function_nesting-=1;
   
@@ -2375,7 +2376,9 @@ fn string_literal(&mut self, s: &str) -> Result<String,Error> {
   return Ok(y);
 }
 
-fn arguments(&mut self, t: &AST){
+fn arguments(&mut self, bv: &mut Vec<u8>, t: &AST)
+  -> Result<(),Error>
+{
   let a = ast_argv(t);
 
   self.vtab.v.push(VarInfo{
@@ -2386,15 +2389,30 @@ fn arguments(&mut self, t: &AST){
   self.vtab.count_arg+=1;
 
   for i in 0..a.len() {
-    if let Some(ref s) = a[i].s {
+    if a[i].value == Symbol::List {
       self.vtab.v.push(VarInfo{
-        s: s.clone(),
+        s: "_t_".to_string(),
         index: self.vtab.count_arg,
         var_type: VarType::Argument
       });
       self.vtab.count_arg+=1;
+      let helper = identifier("_t_",a[i].line,a[i].col);
+      try!(self.compile_ast(bv,&helper));
+      try!(self.compile_unpack(bv,&a[i]));
+    }else{
+      if let Some(ref s) = a[i].s {
+        self.vtab.v.push(VarInfo{
+          s: s.clone(),
+          index: self.vtab.count_arg,
+          var_type: VarType::Argument
+        });
+        self.vtab.count_arg+=1;
+      }else{
+        panic!();
+      }
     }
   }
+  return Ok(());
 }
 
 fn compile_variable(&mut self, bv: &mut Vec<u8>, t: &AST)
@@ -2549,6 +2567,43 @@ fn closure(&mut self, bv: &mut Vec<u8>){
   push_u32(bv,self.vtab.count_context as u32);
 }
 
+fn compile_unpack(&mut self, bv: &mut Vec<u8>, t: &AST)
+  -> Result<(),Error>
+{
+  let a = ast_argv(t);
+  for i in 0..a.len() {
+    push_bc(bv, bc::GET, a[i].line, a[i].col);
+    push_u32(bv,i as u32);
+    try!(self.compile_left_hand_side(bv,&a[i]));
+  }
+  push_bc(bv, bc::POP, t.line, t.col);
+  return Ok(());
+}
+
+fn compile_left_hand_side(&mut self, bv: &mut Vec<u8>, t: &AST)
+  -> Result<(),Error>
+{
+  if t.symbol_type == SymbolType::Identifier {
+    self.compile_assignment(bv,&t,t.line,t.col);
+  }else if t.value == Symbol::Index {
+    let b = ast_argv(&t);
+    try!(self.compile_ast(bv,&b[0]));
+    try!(self.compile_ast(bv,&b[1]));
+    push_bc(bv,bc::SET_INDEX,t.line,t.col);
+  }else if t.value == Symbol::Dot {
+    let b = ast_argv(&t);
+    try!(self.compile_ast(bv,&b[0]));
+    try!(self.compile_ast(bv,&b[1]));
+    push_bc(bv,bc::DOT_SET,t.line,t.col);
+  }else if t.value == Symbol::List {
+    try!(self.compile_unpack(bv,t));
+  }else{
+    return Err(self.syntax_error(t.line,t.col,
+      String::from("expected identifier before '='.")));
+  }
+  return Ok(());
+}
+
 fn compile_ast(&mut self, bv: &mut Vec<u8>, t: &Rc<AST>)
   -> Result<(),Error>
 {
@@ -2559,22 +2614,7 @@ fn compile_ast(&mut self, bv: &mut Vec<u8>, t: &Rc<AST>)
     if value == Symbol::Assignment {
       let a = ast_argv(t);
       try!(self.compile_ast(bv,&a[1]));
-      if a[0].symbol_type == SymbolType::Identifier {
-        self.compile_assignment(bv,&a[0],t.line,t.col);
-      }else if a[0].value == Symbol::Index {
-        let b = ast_argv(&a[0]);
-        try!(self.compile_ast(bv,&b[0]));
-        try!(self.compile_ast(bv,&b[1]));
-        push_bc(bv,bc::SET_INDEX,t.line,t.col);
-      }else if a[0].value == Symbol::Dot {
-        let b = ast_argv(&a[0]);
-        try!(self.compile_ast(bv,&b[0]));
-        try!(self.compile_ast(bv,&b[1]));
-        push_bc(bv,bc::DOT_SET,t.line,t.col);
-      }else{
-        return Err(self.syntax_error(t.line,t.col,
-          String::from("expected identifier before '='.")));
-      }
+      try!(self.compile_left_hand_side(bv,&a[0]));
     }else if value == Symbol::Plus {
       try!(self.compile_operator(bv,t,bc::ADD));
     }else if value == Symbol::Minus {
@@ -3011,6 +3051,12 @@ fn asm_listing(a: &[u8]) -> String {
         s.push_str(&u);
         i+=BCSIZE+4;
       },
+      bc::GET => {
+        let x = compose_u32(&a[BCSIZE+i..BCSIZE+i+4]);
+        let u = format!("get {}\n",x);
+        s.push_str(&u);
+        i+=BCSIZE+4;
+      },
       bc::CALL => {
         let argc = compose_u32(&a[BCSIZE+i..BCSIZE+i+4]);
         let u = format!("call, argc={}\n",argc);
@@ -3109,7 +3155,7 @@ fn print_var_tab(vtab: &VarTab, indent: usize){
 
 pub fn compile(v: Vec<Token>, mode_cmd: bool,
   history: &mut system::History, id: &str,
-  interpreter: &::Interpreter
+  rte: &Rc<RTE>
 ) -> Result<Rc<Module>,Error>
 {
   let mut compilation = Compilation{
@@ -3139,8 +3185,8 @@ pub fn compile(v: Vec<Token>, mode_cmd: bool,
     // program: bv,
     program: Rc::new(bv),
     data: compilation.data,
-    rte: interpreter.rte.clone(),
-    gtab: interpreter.gtab.clone()
+    rte: rte.clone(),
+    gtab: rte.gtab.clone()
   });
   return Ok(m);
 }

@@ -52,7 +52,23 @@ pub fn iter(x: &Object) -> FnResult{
         }else{
           index+=1;
           return Ok(a.v[index-1].clone());
-
+        }
+      });
+      Ok(Object::Function(Rc::new(Function{
+        f: EnumFunction::Mut(RefCell::new(f)),
+        argc: 0, argc_min: 0, argc_max: 0,
+        id: Object::Null
+      })))
+    },
+    Object::Map(ref m) => {
+      let mut index: usize = 0;
+      let mut v: Vec<Object> = m.borrow().m.keys().cloned().collect();
+      let f = Box::new(move |pself: &Object, argv: &[Object]| -> FnResult {
+        if index == v.len() {
+          return Ok(Object::Empty);
+        }else{
+          index+=1;
+          return Ok(v[index-1].clone());
         }
       });
       Ok(Object::Function(Rc::new(Function{
@@ -65,37 +81,57 @@ pub fn iter(x: &Object) -> FnResult{
   }
 }
 
+fn list_comprehension(env: &mut Env, i: &Object, f: &Object) -> FnResult {
+  let mut v: Vec<Object> = Vec::new();
+  loop{
+    let x = try!(env.call(i,&Object::Null,&[]));
+    if x == Object::Empty {break;}
+    let y = try!(env.call(f,&Object::Null,&[x]));
+    if y != Object::Null {
+      v.push(y);
+    }
+  }
+  Ok(List::new_object(v))
+}
+
 fn list(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
   let i = &try!(iter(pself));
-  if argv.len() == 1 {
-    match argv[0] {
-      Object::Int(n) => {
-        let mut v: Vec<Object> = Vec::new();
-        for _ in 0..n {
-          let y = try!(env.call(i,&Object::Null,&[]));
-          if y == Object::Empty {
-            break;
-          }else{
-            v.push(y);
-          }
+  match argv.len() {
+    0 => {
+      let mut v: Vec<Object> = Vec::new();
+      loop{
+        let y = try!(env.call(i,&Object::Null,&[]));
+        if y == Object::Empty {
+          break;
+        }else{
+          v.push(y);
         }
-        return Ok(List::new_object(v));
-      },
-      _ => return type_error("Type error in i.list(n): n is not an integer.")
-    }
-  }else if argv.len() == 0 {
-    let mut v: Vec<Object> = Vec::new();
-    loop{
-      let y = try!(env.call(i,&Object::Null,&[]));
-      if y == Object::Empty {
-        break;
-      }else{
-        v.push(y);
       }
+      return Ok(List::new_object(v));
+    },
+    1 => {
+      match argv[0] {
+        Object::Int(n) => {
+          let mut v: Vec<Object> = Vec::new();
+          for _ in 0..n {
+            let y = try!(env.call(i,&Object::Null,&[]));
+            if y == Object::Empty {
+              break;
+            }else{
+              v.push(y);
+            }
+          }
+          return Ok(List::new_object(v));
+        },
+        Object::Function(ref f) => {
+          return list_comprehension(env,i,&argv[0]);
+        },
+        _ => return type_error("Type error in i.list(n): n is not an integer.")
+      }    
+    },
+    n => {
+      return argc_error(n,1,1,"list");
     }
-    return Ok(List::new_object(v));  
-  }else{
-    return argc_error(argv.len(),1,1,"list");
   }
 }
 

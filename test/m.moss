@@ -1,8 +1,5 @@
 
-use math(
-  sin
-  , cos
-)
 
-list(1..4).map(sin).each(print)
+(|[n,y]| [n+1,y*(n+1)]).orbit([0,1]).list(10).each(print)
+
 

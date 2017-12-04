@@ -66,19 +66,23 @@ fn abs(pself: &Object, argv: &[Object]) -> FnResult{
   }
 }
 
-fn eval(pself: &Object, argv: &[Object]) -> FnResult{
-  if argv.len() != 1 {
-    return argc_error(argv.len(),1,1,"eval");
-  }
+fn eval(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
+  let gtab = match argv.len() {
+    1 => Map::new(),
+    2 => {
+      match argv[1] {
+        Object::Map(ref m) => m.clone(),
+        _ => return type_error("Type error in eval(s,m): m is not a map.")
+      }
+    },
+    n => {
+      return argc_error(n,1,1,"eval")
+    }
+  };
   match argv[0] {
     Object::String(ref s) => {
       let a: String = s.v.iter().collect();
-
-      let i = ::Interpreter::new();
-      let gtab = Map::new();
-      init_gtab(&mut gtab.borrow_mut(),&i.rte);
-
-      return match i.eval_string(&a,"",gtab) {
+      return match env.eval_string(&a,"",gtab) {
         Ok(x) => {Ok(x)},
         Err(e) => Err(e)
       }
@@ -227,6 +231,10 @@ pub fn flist(pself: &Object, argv: &[Object]) -> FnResult{
     Object::List(ref a) => {
       Ok(Object::List(a.clone()))
     },
+    Object::Map(ref m) => {
+      let v: Vec<Object> = m.borrow().m.keys().cloned().collect();
+      Ok(List::new_object(v))
+    },
     _ => type_error("Type error in list(r): r is not a range.")
   }
 }
@@ -273,13 +281,31 @@ fn frand(pself: &Object, argv: &[Object]) -> FnResult {
   }
 }
 
-pub fn init_gtab(gtab: &mut Map, rte: &RTE){
+fn fgtab(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+  if argv.len()==1 {
+    match argv[0] {
+      Object::Function(ref f) => {
+        if let EnumFunction::Std(ref fp) = f.f {
+          Ok(Object::Map(fp.gtab.clone()))
+        }else{
+          type_error("Type error in gtab(f): f is not a function from Moss source code.")
+        }
+      },
+      _ => type_error("Type error in gtab(f): f is not a function.")
+    }
+  }else{
+    Ok(Object::Map(env.rte().pgtab.borrow().clone()))
+  }
+}
+
+pub fn init_rte(rte: &RTE){
+  let mut gtab = rte.gtab.borrow_mut();
   gtab.insert_fn_plain("print",print,0,VARIADIC);
   gtab.insert_fn_plain("put",put,0,VARIADIC);
   gtab.insert_fn_plain("str",fstr,1,1);
   gtab.insert_fn_plain("repr",repr,1,1);
   gtab.insert_fn_plain("abs",abs,1,1);
-  gtab.insert_fn_plain("eval",eval,1,1);
+  gtab.insert_fn_env  ("eval",eval,1,1);
   gtab.insert_fn_plain("size",size,1,1);
   gtab.insert_fn_env  ("load",fload,1,1);
   gtab.insert_fn_plain("iter",iter,1,1);
@@ -289,6 +315,7 @@ pub fn init_gtab(gtab: &mut Map, rte: &RTE){
   gtab.insert_fn_plain("list",flist,1,1);
   gtab.insert_fn_plain("copy",copy,1,1);
   gtab.insert_fn_plain("rand",frand,1,1);
+  gtab.insert_fn_env  ("gtab",fgtab,0,0);
   gtab.insert("empty", Object::Empty);
 
   let type_bool = rte.type_bool.clone();

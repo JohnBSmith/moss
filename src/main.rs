@@ -40,6 +40,7 @@ struct Info{
   exit: bool,
   math: bool
 }
+
 impl Info{
   pub fn new() -> Box<Self> {
     let mut info = Info{

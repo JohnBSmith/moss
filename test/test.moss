@@ -194,6 +194,15 @@ if a!=(|x| |y,z,w| [x,y,z,w])(1)(2,3,4)
   error("#9.8")
 end
 
+if [1,2]!=eval("[1,2]")
+  error("#10.1")
+end
+
+f = eval("|x,y| [x,y]")
+if [1,2]!=f(1,2)
+  error("#10.2")
+end
+
 
 
 

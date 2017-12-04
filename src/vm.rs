@@ -6,6 +6,9 @@ use std::mem::transmute;
 use std::collections::HashMap;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
+use std::fs::File;
+use std::io::Read;
+
 use object::{
   Object, Map, List, Function, EnumFunction, StandardFn,
   FnResult, OperatorResult, Exception, Table, Range, U32String,
@@ -13,7 +16,9 @@ use object::{
   type_error, argc_error,
 };
 use complex::Complex64;
-use ::Interpreter;
+// use ::Interpreter;
+use system;
+use compiler;
 
 pub const BCSIZE: usize = 4;
 pub const BCSIZEP4: usize = BCSIZE+4;
@@ -81,6 +86,7 @@ pub mod bc{
   pub const YIELD:u8 = 58;
   pub const EMPTY:u8 = 59;
   pub const TABLE:u8 = 60;
+  pub const GET:  u8 = 61;
 
   pub fn op_to_str(x: u8) -> &'static str {
     match x {
@@ -144,6 +150,7 @@ pub mod bc{
       YIELD => "YIELD",
       EMPTY => "EMPTY",
       TABLE => "TABLE",
+      GET => "GET",
       _ => "unknown"
     }
   }
@@ -1217,6 +1224,14 @@ fn operator_dot_set(sp: usize, stack: &mut [Object]) -> OperatorResult {
   }
 }
 
+fn operator_get(list: &Object, index: u32) -> FnResult {
+  if let Object::List(ref a) = *list {
+    Ok(a.borrow().v[index as usize].clone())
+  }else{
+    type_error("Type error in x,y = a: a is not a list.")
+  }
+}
+
 #[inline(never)]
 fn global_variable_not_found(module: &Module, index: u32, gtab: &RefCell<Map>) -> OperatorResult {
   let mut s =  String::new();
@@ -1281,8 +1296,11 @@ pub struct RTE{
   pub type_map: Rc<Table>,
   pub type_function: Rc<Table>,
   pub type_iterable: Rc<Table>,
-  pub argv: RefCell<Option<Rc<RefCell<List>>>>
+  pub argv: RefCell<Option<Rc<RefCell<List>>>>,
+  pub gtab: Rc<RefCell<Map>>,
+  pub pgtab: RefCell<Rc<RefCell<Map>>>
 }
+
 impl RTE{
   pub fn new() -> Rc<RTE>{
     Rc::new(RTE{
@@ -1295,7 +1313,9 @@ impl RTE{
       type_map:  Table::new(Object::Null),
       type_function: Table::new(Object::Null),
       type_iterable: Table::new(Object::Null),
-      argv: RefCell::new(None)
+      argv: RefCell::new(None),
+      gtab: Map::new(),
+      pgtab: RefCell::new(Map::new())
     })
   }
 }
@@ -1915,6 +1935,14 @@ fn vm_loop(
         );
         ip+=BCSIZE;
       },
+      bc::GET => {
+        let index = compose_u32(&a,ip+BCSIZE);
+        stack[sp] = match operator_get(&stack[sp-1],index) {
+          Ok(x)=>x, Err(e)=>{exception=Err(e); break;}
+        };
+        sp+=1;
+        ip+=BCSIZEP4;
+      },
       bc::HALT => {
         state.sp=sp;
         return Ok(());
@@ -1947,30 +1975,34 @@ fn list_from_slice(a: &[Object]) -> Object {
   return List::new_object(v);
 }
 
-pub fn eval(interpreter: &Interpreter,
+pub fn eval(env: &mut Env,
   module: Rc<Module>, gtab: Rc<RefCell<Map>>, command_line: bool)
   -> Result<Object,Box<Exception>>
 {
-  let mut state = &mut *interpreter.state.borrow_mut();
-
   let fnself = Rc::new(Function{
     f: EnumFunction::Plain(::global::fpanic),
     argc: 0, argc_min: 0, argc_max: 0,
     id: Object::Null
   });
-
-  let bp = state.sp;
   {
-    let mut env = Env{
-      sp: state.sp, stack: &mut state.stack,
-      env: &mut state.env,
-    };
-    try!(vm_loop(&mut env, 0, bp, bp, module, gtab, fnself));
-    state.sp = env.sp;
+    let mut pgtab = env.rte().pgtab.borrow_mut();
+    *pgtab = gtab.clone();
   }
 
-  let ref mut stack = state.stack;
-  let sp = state.sp;
+  let bp = env.sp;
+  match vm_loop(env, 0, bp, bp, module, gtab, fnself) {
+    Ok(())=>{},
+    Err(e)=>{
+      for i in bp..env.sp {
+        env.stack[i] = Object::Null;
+      }
+      env.sp = bp;
+      return Err(e);
+    }
+  }
+
+  let ref mut stack = env.stack;
+  let sp = env.sp;
 
   let y = if command_line {
     for i in bp..sp {
@@ -1994,7 +2026,7 @@ pub fn eval(interpreter: &Interpreter,
   for i in bp..sp {
     stack[i] = Object::Null;
   }
-  state.sp = bp;
+  env.sp = bp;
   return Ok(y);
 }
 
@@ -2017,6 +2049,20 @@ fn object_call(f: &Object, argv: &mut [Object]) -> OperatorResult {
     },
     _ => Err(type_error_plain("Type error in f(...): f is not callable."))
   }
+}
+
+fn print_exception(e: &Exception) {
+  if let Some(ref spot) = e.spot {
+    println!("Line {}, col {}:",spot.line,spot.col);
+  }
+  println!("{}",::vm::object_to_string(&e.value));
+}
+
+pub fn get_env(state: &mut State) -> Env {
+  return Env{
+    sp: state.sp, stack: &mut state.stack,
+    env: &mut state.env,
+  };
 }
 
 pub struct EnvPart{
@@ -2090,5 +2136,96 @@ impl<'a> Env<'a>{
   pub fn rte(&self) -> &Rc<RTE> {
     &self.env.rte
   }
+
+  pub fn eval_string(&mut self, s: &str, id: &str, gtab: Rc<RefCell<Map>>)
+    -> Result<Object,Box<Exception>>
+  {
+    let mut history = system::History::new();
+    match compiler::scan(s,1,id,false) {
+      Ok(v) => {
+        match compiler::compile(v,false,&mut history,id,self.rte()) {
+          Ok(module) => {
+            return eval(self,module.clone(),gtab.clone(),false);
+          },
+          Err(e) => {compiler::print_error(&e);}
+        };
+      },
+      Err(error) => {
+        compiler::print_error(&error);
+      }
+    }
+    return Ok(Object::Null);
+  }
+
+  pub fn command_line_session(&mut self, gtab: Rc<RefCell<Map>>){
+    let mut history = system::History::new();
+    loop{
+      let mut input = String::new();
+      match system::getline_history("> ",&history) {
+        Ok(s) => {
+          if s=="" {continue;}
+          history.append(&s);
+          input=s;
+        },
+        Err(error) => {println!("Error: {}", error);},
+      };
+      if input=="quit" {break}
+      match compiler::scan(&input,1,"command line",false) {
+        Ok(v) => {
+          // compiler::print_vtoken(&v);
+          match compiler::compile(v,true,&mut history,"command line",self.rte()) {
+            Ok(module) => {
+              match eval(self,module.clone(),gtab.clone(),true) {
+                Ok(x) => {}, Err(e) => {print_exception(&e);}
+              }
+            },
+            Err(e) => {compiler::print_error(&e);}
+          };
+        },
+        Err(error) => {
+          compiler::print_error(&error);
+        }
+      }
+    }
+  }
+
+  pub fn eval(&mut self, s: &str) -> Object {
+    let gtab = Map::new();
+    return match self.eval_string(s,"",gtab) {
+      Ok(x) => x,
+      Err(e) => e.value
+    };
+  }
+
+  pub fn eval_env(&mut self, s: &str, gtab: Rc<RefCell<Map>>) -> Object {
+    return match self.eval_string(s,"",gtab) {
+      Ok(x) => x,
+      Err(e) => e.value
+    };    
+  }
+
+  pub fn eval_file(&mut self, id: &str, gtab: Rc<RefCell<Map>>){
+    let mut path: String = String::from(id);
+    path += ".moss";
+    let mut f = match File::open(&path) {
+      Ok(f) => f,
+      Err(e) => {
+        match File::open(id) {
+          Ok(f) => f,
+          Err(e) => {
+            println!("File '{}' not found.",id);
+            return;
+          }
+        }
+      }
+    };
+    let mut s = String::new();
+    f.read_to_string(&mut s).expect("something went wrong reading the file");
+
+    match self.eval_string(&s,id,gtab) {
+      Ok(x) => {}, Err(e) => {print_exception(&e);}
+    }
+  }
+
 }
 
