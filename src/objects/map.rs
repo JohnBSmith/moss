@@ -89,9 +89,40 @@ fn items(pself: &Object, argv: &[Object]) -> FnResult {
   }
 }
 
+fn clear(pself: &Object, argv: &[Object]) -> FnResult {
+  if argv.len()!=0 {
+    return argc_error(argv.len(),0,0,"clear");
+  }
+  match *pself {
+    Object::Map(ref m) => {
+      m.borrow_mut().m.clear();
+      Ok(Object::Null)
+    },
+    _ => type_error("Type error in m.clear(): m is not a map.")
+  }
+}
+
+fn remove(pself: &Object, argv: &[Object]) -> FnResult {
+  if argv.len()!=1 {
+    return argc_error(argv.len(),1,1,"remove");
+  }
+  match *pself {
+    Object::Map(ref m) => {
+      let mut m = m.borrow_mut();
+      match m.m.remove(&argv[0]) {
+        Some(value) => Ok(value),
+        None => index_error("Index error in m.remove(key): key was not in m.")
+      }
+    },
+    _ => type_error("Type error in m.remove(key): m is not a map.")
+  }
+}
+
 pub fn init(t: &Table){
   let mut m = t.map.borrow_mut();
   m.insert_fn_plain("update",fupdate,1,1);
   m.insert_fn_plain("values",values,0,0);
   m.insert_fn_plain("items",items,0,0);
+  m.insert_fn_plain("clear",clear,0,0);
+  m.insert_fn_plain("remove",remove,0,0);
 }

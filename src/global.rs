@@ -68,7 +68,7 @@ fn abs(pself: &Object, argv: &[Object]) -> FnResult{
 
 fn eval(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
   let gtab = match argv.len() {
-    1 => Map::new(),
+    1 => env.rte().pgtab.borrow().clone(),
     2 => {
       match argv[1] {
         Object::Map(ref m) => m.clone(),

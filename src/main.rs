@@ -96,6 +96,8 @@ impl Info{
 fn main(){
   let i = moss::Interpreter::new();
   let gtab = Map::new();
+  i.rte.clear_at_exit(gtab.clone());
+
   let info = Info::new();
   if info.exit {return;}
   {

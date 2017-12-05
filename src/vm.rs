@@ -1298,7 +1298,8 @@ pub struct RTE{
   pub type_iterable: Rc<Table>,
   pub argv: RefCell<Option<Rc<RefCell<List>>>>,
   pub gtab: Rc<RefCell<Map>>,
-  pub pgtab: RefCell<Rc<RefCell<Map>>>
+  pub pgtab: RefCell<Rc<RefCell<Map>>>,
+  pub delay: RefCell<Vec<Rc<RefCell<Map>>>>
 }
 
 impl RTE{
@@ -1315,8 +1316,15 @@ impl RTE{
       type_iterable: Table::new(Object::Null),
       argv: RefCell::new(None),
       gtab: Map::new(),
-      pgtab: RefCell::new(Map::new())
+      pgtab: RefCell::new(Map::new()),
+      delay: RefCell::new(Vec::new())
     })
+  }
+  pub fn clear_at_exit(&self, gtab: Rc<RefCell<Map>>){
+    // Prevent a memory leak induced by a circular reference
+    // of a function to its gtab (the gtab may contain this
+    // function). The gtab may also contain itself.
+    self.delay.borrow_mut().push(gtab);
   }
 }
 
@@ -1990,7 +1998,7 @@ pub fn eval(env: &mut Env,
   }
 
   let bp = env.sp;
-  match vm_loop(env, 0, bp, bp, module, gtab, fnself) {
+  match vm_loop(env, 0, bp, bp, module, gtab.clone(), fnself) {
     Ok(())=>{},
     Err(e)=>{
       for i in bp..env.sp {
@@ -2226,6 +2234,5 @@ impl<'a> Env<'a>{
       Ok(x) => {}, Err(e) => {print_exception(&e);}
     }
   }
-
 }
 

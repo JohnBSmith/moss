@@ -93,3 +93,14 @@ pub fn new_list_str(a: &[String]) -> Rc<RefCell<List>> {
   }
   return Rc::new(RefCell::new(List{v: v, frozen: false}));
 }
+
+impl Drop for Interpreter {
+  fn drop(&mut self) {
+    let v = self.rte.delay.borrow_mut();
+    for gtab in &v[..] {
+      // println!("clear {}",Object::Map(gtab.clone()));
+      gtab.borrow_mut().m.clear();
+    }
+  }
+}
+
