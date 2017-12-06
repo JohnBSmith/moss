@@ -203,6 +203,54 @@ if [1,2]!=f(1,2)
   error("#10.2")
 end
 
+f = eval("|x,y| [x,y,a,b]",{a="a",b="b"})
+if [1,2,"a","b"]!=f(1,2)
+  error("#10.3")
+end
 
+(sub||
+  [x,y] = [10,11]
+  if x!=10 or y!=11
+    error("#11.1")
+  end
+end)()
+
+(sub||
+  [[x,y],[w,z]] = [[12,13],[14,15]]
+  if x!=12 or y!=13 or w!=14 or z!=15
+    error("#11.2")
+  end
+end)()
+
+(sub||
+  [x,y] = [16,17]
+  if x!=16 or y!=17
+    error("#11.3")
+  end
+  [[x,y],[w,z]] = [[18,19],[20,21]]
+  if x!=18 or y!=19 or w!=20 or z!=21
+    error("#11.4")
+  end
+end)()
+
+(sub||
+  [x,y] = [22,[1,2]]
+  if x!=22 or y!=[1,2]
+    error("#11.5")
+  end
+end)()
+
+(sub||
+  t = table{}
+  [t.x,t.y] = list(1..2)
+  if t.x!=1 or t.y!=2
+    error("#11.6")
+  end
+  a = [360,240]
+  [a[0],a[1]] = [a[1],a[0]]
+  if a!=[240,360]
+    error("#11.7")
+  end
+end)()
 
 

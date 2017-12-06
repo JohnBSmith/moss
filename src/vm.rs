@@ -20,9 +20,12 @@ use complex::Complex64;
 use system;
 use compiler;
 
-pub const BCSIZE: usize = 4;
-pub const BCSIZEP4: usize = BCSIZE+4;
-pub const BCSIZEP8: usize = BCSIZE+8;
+// byte code size
+// byte code+argument size
+// byte code+argument+argument size
+pub const BCSIZE: usize = 1;
+pub const BCASIZE: usize = 2;
+pub const BCAASIZE: usize = 3;
 
 pub mod bc{
   pub const NULL: u8 = 00;
@@ -156,8 +159,8 @@ pub mod bc{
   }
 }
 
-fn print_op(x: u8){
-  println!("{}",bc::op_to_str(x));
+fn print_op(x: u32){
+  println!("{}",bc::op_to_str(x as u8));
 }
 
 fn print_stack(a: &[Object]){
@@ -324,13 +327,53 @@ fn map_to_string(a: &HashMap<Object,Object>, left: &str, right: &str) -> String{
   return s;
 }
 
+fn float_to_string(x: f64) -> String {
+  if x==0.0 {
+    "0".to_string()
+  }else if x.abs()>1E14 {
+    format!("{:e}",x)
+  }else if x.abs()<0.0001 {
+    format!("{:e}",x)
+  }else{
+    format!("{}",x)
+  }
+}
+
+fn is_digit(c: char) -> bool {
+  ('0' as u32)<=(c as u32) && (c as u32)<=('9' as u32)
+}
+
+fn float_to_string_explicit(x: f64) -> String {
+  let mut s = if x==0.0 {
+    "0".to_string()
+  }else if x.abs()>1E14 {
+    format!("{:e}",x)
+  }else if x.abs()<0.0001 {
+    format!("{:e}",x)
+  }else{
+    format!("{}",x)
+  };
+  if s.chars().all(|c| c=='-' || is_digit(c)) {
+    s.push_str(".0");
+  }
+  return s;
+}
+
+fn complex_to_string(z: Complex64) -> String {
+  if z.im<0.0 {
+    format!("{}{}i",float_to_string(z.re),float_to_string(z.im))
+  }else{
+    format!("{}+{}i",float_to_string(z.re),float_to_string(z.im))
+  }
+}
+
 pub fn object_to_string(x: &Object) -> String{
   match *x {
     Object::Null => String::from("null"),
     Object::Bool(b) => String::from(if b {"true"} else {"false"}),
     Object::Int(i) => format!("{}",i),
-    Object::Float(x) => format!("{}",x),
-    Object::Complex(z) => format!("{}+{}i",z.re,z.im),
+    Object::Float(x) => float_to_string_explicit(x),
+    Object::Complex(z) => complex_to_string(z),
     Object::List(ref a) => {
       match a.try_borrow_mut() {
         Ok(a) => list_to_string(&a.v),
@@ -377,11 +420,29 @@ pub fn object_to_string(x: &Object) -> String{
   }
 }
 
+fn string_to_repr(s: &U32String) -> String{
+  let mut buffer = "\"".to_string();
+  for c in &s.v {
+    if *c=='\n' {
+      buffer.push_str("\\n");
+    }else if *c=='\t' {
+      buffer.push_str("\\t");
+    }else if *c=='\\' {
+      buffer.push_str("\\b");
+    }else if *c=='"' {
+      buffer.push_str("\\d");
+    }else{
+      buffer.push(*c);
+    }
+  }
+  buffer.push('"');
+  return buffer;
+}
+
 pub fn object_to_repr(x: &Object) -> String{
   match *x {
     Object::String(ref a) => {
-      let s: String = a.v.iter().cloned().collect();
-      format!("\"{}\"",s)
+      string_to_repr(a)
     },
     _ => object_to_string(x)
   }
@@ -965,6 +1026,31 @@ fn operator_is(sp: usize, stack: &mut [Object]) -> OperatorResult {
   }
 }
 
+fn operator_in(sp: usize, stack: &mut [Object]) -> OperatorResult {
+  let key = replace(&mut stack[sp-2],Object::Null);
+  match replace(&mut stack[sp-1],Object::Null) {
+    Object::List(ref a) => {
+      for x in &a.borrow().v {
+        if key==*x {
+          stack[sp-2]=Object::Bool(true);
+          return Ok(())
+        };
+      }
+      stack[sp-2] = Object::Bool(false);
+      return Ok(());
+    },
+    Object::Map(ref m) => {
+      if m.borrow().m.contains_key(&key) {
+        stack[sp-2] = Object::Bool(true);
+      }else{
+        stack[sp-2] = Object::Bool(false);
+      }
+      return Ok(());
+    },
+    _ => Err(type_error_plain("Type error in x in a: a is not a list and not a map."))
+  }
+}
+
 fn operator_range(sp: usize, stack: &mut [Object]) -> OperatorResult {
   let r = Object::Range(Rc::new(Range{
     a: replace(&mut stack[sp-3],Object::Null),
@@ -1246,29 +1332,30 @@ fn non_boolean_condition() -> OperatorResult {
   Err(type_error_plain("Type error: condition is not of type bool."))
 }
 
-fn get_line_col(a: &[u8], ip: usize) -> (usize,usize) {
-  let line = (a[ip+2] as usize)<<8 | (a[ip+1] as usize);
-  let col = a[ip+3] as usize;
+fn get_line_col(a: &[u32], ip: usize) -> (usize,usize) {
+  // let line = (a[ip+2] as usize)<<8 | (a[ip+1] as usize);
+  // let col = a[ip+3] as usize;
+  let line = ((a[ip]>>8) & 0xffff) as usize;
+  let col = (a[ip]>>24) as usize;
   return (line,col);
 }
 
 #[inline(always)]
-fn compose_i32(a: &[u8], ip: usize) -> i32{
-  (a[ip+3] as i32)<<24 | (a[ip+2] as i32)<<16 | (a[ip+1] as i32)<<8 | (a[ip] as i32)
-  // unsafe{*((a.as_ptr().offset(ip as isize)) as *const i32)}
+fn load_i32(a: &[u32], ip: usize) -> i32{
+  // unsafe{*a.get_unchecked(ip) as i32}
+  a[ip] as i32
 }
 
 #[inline(always)]
-fn compose_u32(a: &[u8], ip: usize) -> u32{
-  (a[ip+3] as u32)<<24 | (a[ip+2] as u32)<<16 | (a[ip+1] as u32)<<8 | (a[ip] as u32)
-  // unsafe{*((a.as_ptr().offset(ip as isize)) as *const u32)}
+fn load_u32(a: &[u32], ip: usize) -> u32{
+  // unsafe{*a.get_unchecked(ip)}
+  a[ip]
 }
 
 #[inline(always)]
-fn compose_u64(a: &[u8], ip: usize) -> u64{
-  (a[ip+7] as u64)<<56 | (a[ip+6] as u64)<<48 | (a[ip+5] as u64)<<40 | (a[ip+4] as u64)<<32 |
-  (a[ip+3] as u64)<<24 | (a[ip+2] as u64)<<16 | (a[ip+1] as u64)<< 8 | (a[ip] as u64)
+fn load_u64(a: &[u32], ip: usize) -> u64{
   // unsafe{*((a.as_ptr().offset(ip as isize)) as *const u64)}
+  (a[ip+1] as u64)<<32 | (a[ip] as u64)
 }
 
 #[inline(always)]
@@ -1329,7 +1416,7 @@ impl RTE{
 }
 
 pub struct Module{
-  pub program: Rc<Vec<u8>>,
+  pub program: Rc<Vec<u32>>,
   // pub program: Vec<u8>,
 
   // pub program: Rc<[u8]>,
@@ -1387,8 +1474,8 @@ fn vm_loop(
   loop{ // try
     // print_stack(&stack[0..10]);
     // print_op(a[ip]);
-    // match unsafe{*a.get_unchecked(ip)} {
-    match a[ip] {
+    // match unsafe{*a.get_unchecked(ip) as u8} {
+    match a[ip] as u8 {
       bc::NULL => {
         stack[sp] = Object::Null;
         sp+=1;
@@ -1405,47 +1492,47 @@ fn vm_loop(
         sp+=1;
       },
       bc::INT => {
-        stack[sp] = Object::Int(compose_i32(&a,ip+BCSIZE));
+        stack[sp] = Object::Int(load_i32(&a,ip+BCSIZE));
         sp+=1;
-        ip+=BCSIZEP4;
+        ip+=BCASIZE;
       },
       bc::FLOAT => {
         stack[sp] = Object::Float(transmute_u64_to_f64(
-          compose_u64(&a,ip+BCSIZE)
+          load_u64(&a,ip+BCSIZE)
         ));
         sp+=1;
-        ip+=BCSIZEP8;
+        ip+=BCAASIZE;
       },
       bc::IMAG => {
         stack[sp] = Object::Complex(Complex64{re: 0.0,
-          im: transmute_u64_to_f64(compose_u64(&a,ip+BCSIZE))
+          im: transmute_u64_to_f64(load_u64(&a,ip+BCSIZE))
         });
         sp+=1;
-        ip+=BCSIZEP8;
+        ip+=BCAASIZE;
       },
       bc::STR => {
-        let index = compose_u32(&a,ip+BCSIZE);
+        let index = load_u32(&a,ip+BCSIZE);
         stack[sp] = module.data[index as usize].clone();
         sp+=1;
-        ip+=BCSIZEP4;
+        ip+=BCASIZE;
       },
       bc::LOAD_ARG => {
-        let index = compose_u32(&a,ip+BCSIZE) as usize;
+        let index = load_u32(&a,ip+BCSIZE) as usize;
         stack[sp] = stack[argv_ptr+index].clone();
         sp+=1;
-        ip+=BCSIZEP4;
+        ip+=BCASIZE;
       },
       bc::LOAD_LOCAL => {
-        let index = compose_u32(&a,ip+BCSIZE) as usize;
+        let index = load_u32(&a,ip+BCSIZE) as usize;
         stack[sp] = stack[bp+index].clone();
         sp+=1;
-        ip+=BCSIZEP4;
+        ip+=BCASIZE;
       },
       bc::STORE_LOCAL => {
         sp-=1;
-        let index = compose_u32(&a,ip+BCSIZE) as usize;
+        let index = load_u32(&a,ip+BCSIZE) as usize;
         stack[bp+index] = replace(&mut stack[sp],Object::Null);
-        ip+=BCSIZEP4;
+        ip+=BCASIZE;
       },
       bc::FNSELF => {
         ip+=BCSIZE;
@@ -1556,6 +1643,13 @@ fn vm_loop(
         sp-=1;
         ip+=BCSIZE;      
       },
+      bc::IN => {
+        match operator_in(sp, &mut stack) {
+          Ok(())=>{}, Err(e)=>{exception=Err(e); break;}
+        }
+        sp-=1;
+        ip+=BCSIZE;
+      },
       bc::NOT => {
         let x = match stack[sp-1] {
           Object::Bool(x)=>x,
@@ -1577,9 +1671,9 @@ fn vm_loop(
         };
         if condition {
           sp-=1;
-          ip+=BCSIZEP4;
+          ip+=BCASIZE;
         }else{
-          ip = (ip as i32+compose_i32(&a,ip+BCSIZE)) as usize;
+          ip = (ip as i32+load_i32(&a,ip+BCSIZE)) as usize;
         }
       },
       bc::OR => {
@@ -1591,21 +1685,21 @@ fn vm_loop(
           }
         };
         if condition {
-          ip = (ip as i32+compose_i32(&a,ip+BCSIZE)) as usize;
+          ip = (ip as i32+load_i32(&a,ip+BCSIZE)) as usize;
         }else{
           sp-=1;
-          ip+=BCSIZEP4;
+          ip+=BCASIZE;
         }      
       },
       bc::LIST => {
-        let size = compose_u32(&a,ip+BCSIZE) as usize;
+        let size = load_u32(&a,ip+BCSIZE) as usize;
         sp = operator_list(sp,&mut stack,size);
-        ip+=BCSIZEP4;
+        ip+=BCASIZE;
       },
       bc::MAP => {
-        let size = compose_u32(&a,ip+BCSIZE) as usize;
+        let size = load_u32(&a,ip+BCSIZE) as usize;
         sp = operator_map(sp,&mut stack,size);
-        ip+=BCSIZEP4;
+        ip+=BCASIZE;
       },
       bc::RANGE => {
         match operator_range(sp, &mut stack) {
@@ -1615,7 +1709,7 @@ fn vm_loop(
         ip+=BCSIZE;          
       },
       bc::JMP => {
-        ip = (ip as i32+compose_i32(&a,ip+BCSIZE)) as usize;
+        ip = (ip as i32+load_i32(&a,ip+BCSIZE)) as usize;
       },
       bc::JZ => {
         let condition = match stack[sp-1] {
@@ -1623,9 +1717,9 @@ fn vm_loop(
           _ => {exception = non_boolean_condition(); break;}
         };
         if condition {
-          ip+=BCSIZEP4;
+          ip+=BCASIZE;
         }else{
-          ip = (ip as i32+compose_i32(&a,ip+BCSIZE)) as usize;
+          ip = (ip as i32+load_i32(&a,ip+BCSIZE)) as usize;
         }
       },
       bc::JNZ => {
@@ -1634,14 +1728,14 @@ fn vm_loop(
           _ => {exception = non_boolean_condition(); break;}
         };
         if condition {
-          ip = (ip as i32+compose_i32(&a,ip+BCSIZE)) as usize;
+          ip = (ip as i32+load_i32(&a,ip+BCSIZE)) as usize;
         }else{
-          ip+=BCSIZEP4;
+          ip+=BCASIZE;
         }
       },
       bc::CALL => {
-        ip+=BCSIZEP4;
-        let argc = compose_u32(&a,ip-4) as usize;
+        ip+=BCASIZE;
+        let argc = load_u32(&a,ip-1) as usize;
         let f = stack[sp-argc-2].clone();
         match f {
           Object::Function(ref f) => {
@@ -1757,7 +1851,7 @@ fn vm_loop(
         stack[sp-1] = y;
       },
       bc::LOAD => {
-        let index = compose_u32(&a,ip+BCSIZE);
+        let index = load_u32(&a,ip+BCSIZE);
         let key = &module.data[index as usize];
         match gtab.borrow().m.get(key) {
           Some(x) => {
@@ -1776,23 +1870,23 @@ fn vm_loop(
             }
           }
         }
-        ip+=BCSIZEP4;
+        ip+=BCASIZE;
       },
       bc::STORE => {
-        let index = compose_u32(&a,ip+BCSIZE);
+        let index = load_u32(&a,ip+BCSIZE);
         let key = module.data[index as usize].clone();
         gtab.borrow_mut().m.insert(key,replace(&mut stack[sp-1],Object::Null));
         sp-=1;
-        ip+=BCSIZEP4;
+        ip+=BCASIZE;
       },
       bc::STORE_ARG => {
         sp-=1;
-        let index = compose_u32(&a,ip+BCSIZE) as usize;
+        let index = load_u32(&a,ip+BCSIZE) as usize;
         stack[argv_ptr+index] = replace(&mut stack[sp],Object::Null);
-        ip+=BCSIZEP4;
+        ip+=BCASIZE;
       },
       bc::STORE_CONTEXT => {
-        let index = compose_u32(&a,ip+BCSIZE) as usize;
+        let index = load_u32(&a,ip+BCSIZE) as usize;
         match fnself.f {
           EnumFunction::Std(ref sf) => {
             sf.context.borrow_mut().v[index] = replace(&mut stack[sp-1],Object::Null);
@@ -1800,10 +1894,10 @@ fn vm_loop(
           _ => panic!()
         }
         sp-=1;
-        ip+=BCSIZEP4;
+        ip+=BCASIZE;
       },
       bc::LOAD_CONTEXT => {
-        let index = compose_u32(&a,ip+BCSIZE) as usize;
+        let index = load_u32(&a,ip+BCSIZE) as usize;
         match fnself.f {
           EnumFunction::Std(ref sf) => {
             stack[sp] = sf.context.borrow().v[index].clone();
@@ -1811,15 +1905,15 @@ fn vm_loop(
           _ => panic!()
         }
         sp+=1;
-        ip+=BCSIZEP4;
+        ip+=BCASIZE;
       },
       bc::FN => {
-        ip+=BCSIZE+16;
-        let address = (ip as i32-20+compose_i32(&a,ip-16)) as usize;
+        ip+=BCSIZE+4;
+        let address = (ip as i32-5+load_i32(&a,ip-4)) as usize;
         // println!("fn [ip = {}]",address);
-        let argc_min = compose_u32(&a,ip-12);
-        let argc_max = compose_u32(&a,ip-8);
-        let var_count = compose_u32(&a,ip-4);
+        let argc_min = load_u32(&a,ip-3);
+        let argc_max = load_u32(&a,ip-2);
+        let var_count = load_u32(&a,ip-1);
         let context = match replace(&mut stack[sp-2],Object::Null) {
           Object::List(a) => a,
           Object::Null => Rc::new(RefCell::new(List::new())),
@@ -1885,10 +1979,10 @@ fn vm_loop(
         };
         if y==Object::Empty {
           sp-=1;
-          ip = (ip as i32+compose_i32(&a,ip+BCSIZE)) as usize;
+          ip = (ip as i32+load_i32(&a,ip+BCSIZE)) as usize;
         }else{
           stack[sp-1] = y;
-          ip+=BCSIZEP4;
+          ip+=BCASIZE;
         }
       },
       bc::YIELD => {
@@ -1925,9 +2019,9 @@ fn vm_loop(
       bc::ELSE => {
         if stack[sp-1]==Object::Null {
           sp-=1;
-          ip+=BCSIZEP4;
+          ip+=BCASIZE;
         }else{
-          ip = (ip as i32+compose_i32(&a,ip+BCSIZE)) as usize;
+          ip = (ip as i32+load_i32(&a,ip+BCSIZE)) as usize;
         }      
       },
       bc::EMPTY => {
@@ -1944,12 +2038,12 @@ fn vm_loop(
         ip+=BCSIZE;
       },
       bc::GET => {
-        let index = compose_u32(&a,ip+BCSIZE);
+        let index = load_u32(&a,ip+BCSIZE);
         stack[sp] = match operator_get(&stack[sp-1],index) {
           Ok(x)=>x, Err(e)=>{exception=Err(e); break;}
         };
         sp+=1;
-        ip+=BCSIZEP4;
+        ip+=BCASIZE;
       },
       bc::HALT => {
         state.sp=sp;

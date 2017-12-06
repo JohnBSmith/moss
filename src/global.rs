@@ -6,8 +6,8 @@ use std::cell::RefCell;
 use vm::{object_to_string, object_to_repr, RTE, Env};
 use object::{Object, Map, Table, List,
   FnResult, U32String, Function, EnumFunction,
-  type_error, argc_error, index_error, value_error,
-  VARIADIC
+  type_error, argc_error, index_error, value_error, std_exception,
+  VARIADIC, new_module
 };
 use rand::Rand;
 
@@ -111,16 +111,32 @@ fn size(pself: &Object, argv: &[Object]) -> FnResult{
   }
 }
 
-fn load(s: &U32String, rte: &Rc<RTE>) -> FnResult{
+fn load_file(env: &mut Env, id: &str) -> FnResult {
+  let s = match ::system::read_file(id) {
+    Ok(s)=>s,
+    Err(()) => return std_exception(&format!("Error: Could not load file '{}.moss'.",id))
+  };
+  let module = new_module(id);
+  env.rte().clear_at_exit(module.map.clone());
+  match env.eval_string(&s,id,module.map.clone()) {
+    Ok(x) => {
+      Ok(Object::Table(Rc::new(module)))
+    },
+    Err(e) => Err(e)
+  }
+}
+
+fn load(env: &mut Env, s: &U32String) -> FnResult{
   let s: String = s.v.iter().collect();
   if s=="math" {
     return Ok(::math::load_math());
   }else if s=="cmath" {
     return Ok(::math::load_cmath());
   }else if s=="sys" {
-    return Ok(::sys::load_sys(rte));
+    return Ok(::sys::load_sys(env.rte()));
   }else{
-    return index_error(&format!("Could not load module '{}'.",s));
+    return load_file(env,&s);
+    // return index_error(&format!("Could not load module '{}'.",s));
   }
 }
 
@@ -129,7 +145,7 @@ fn fload(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
     return argc_error(argv.len(),1,1,"load");
   }
   match argv[0] {
-    Object::String(ref s) => load(s,env.rte()),
+    Object::String(ref s) => load(env,s),
     _ => type_error("Type error in load(id): id is not a string.")
   }
 }

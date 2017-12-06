@@ -2,6 +2,9 @@
 extern crate libc;
 extern crate termios;
 use std::str;
+use std::env::home_dir;
+use std::fs::File;
+use std::io::Read;
 use std::io;
 use std::io::Write;
 use std::os::unix::io::RawFd;
@@ -229,3 +232,26 @@ pub fn getline(prompt: &str) -> io::Result<String>{
   };
 }
 */
+
+pub fn read_file(id: &str) -> Result<String,()> {
+  let mut path = id.to_string();
+  path.push_str(".moss");
+  let mut f = match File::open(&path) {
+    Ok(f) => f,
+    Err(e) => {
+      let mut path = home_dir().expect("unable to get the home directory");
+      path.push(".moss");
+      path.push(id);
+      path.set_extension("moss");
+      // println!("path: '{}'",path.to_str().unwrap());
+      match File::open(&path) {
+        Ok(f) => f,
+        Err(e) => return Err(())
+      }
+    }
+  };
+  let mut s = String::new();
+  f.read_to_string(&mut s).expect("something went wrong reading the file");
+  return Ok(s);
+}
+

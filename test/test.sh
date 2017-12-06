@@ -1,3 +1,3 @@
 
-../target/debug/moss test
+valgrind ../target/debug/moss test
 

@@ -11,7 +11,7 @@ use std::rc::Rc;
 use std::collections::HashMap;
 use std::mem::{transmute,replace};
 use system;
-use vm::{bc, BCSIZE, Module, RTE};
+use vm::{bc, BCSIZE, BCASIZE, BCAASIZE, Module, RTE};
 use object::{Object, U32String};
 
 const VALUE_NONE: u8 = 0;
@@ -174,6 +174,12 @@ pub fn scan(s: &str, line_start: usize, file: &str, new_line_start: bool)
         }else if a[i]=='i' {
           token_type = SymbolType::Imag;
           break;
+        }else if a[i]=='e' || a[i]=='E' {
+          i+=1; col+=1;
+          token_type = SymbolType::Float;
+          if i<n && (a[i]=='+' || a[i]=='-') {
+            i+=1; col+=1;
+          }
         }else{
           break;
         }
@@ -509,14 +515,28 @@ pub fn scan(s: &str, line_start: usize, file: &str, new_line_start: bool)
         '"' => {
           hcol=col;
           i+=1; col+=1;
-          let j=i;
-          while i<n && a[i]!='"' {i+=1; col+=1;}
-          let s: &String = &a[j..i].iter().cloned().collect();
-          v.push(Token{token_type: SymbolType::String,
-            value: Symbol::None, line: line, col: hcol,
-            item: Item::String(s.clone())
-          });
-          i+=1; col+=1;
+          if i+1<n && a[i]=='"' && a[i+1]=='"' {
+            i+=2; col+=2;
+            let j=i;
+            while i+2<n && (a[i]!='"' || a[i+1]!='"' || a[i+2]!='"') {
+              i+=1; col+=1;
+            }
+            let s: &String = &a[j..i].iter().cloned().collect();
+            v.push(Token{token_type: SymbolType::String,
+              value: Symbol::None, line: line, col: hcol,
+              item: Item::String(s.clone())
+            });
+            i+=3; col+=3;
+          }else{
+            let j=i;
+            while i<n && a[i]!='"' {i+=1; col+=1;}
+            let s: &String = &a[j..i].iter().cloned().collect();
+            v.push(Token{token_type: SymbolType::String,
+              value: Symbol::None, line: line, col: hcol,
+              item: Item::String(s.clone())
+            });
+            i+=1; col+=1;
+          }
         },
         '\'' => {
           hcol=col;
@@ -805,7 +825,7 @@ pub struct Compilation<'a>{
   stab: HashMap<String,usize>,
   stab_index: usize,
   data: Vec<Object>,
-  bv_blocks: Vec<u8>,
+  bv_blocks: Vec<u32>,
   fn_indices: Vec<usize>,
   vtab: VarTab,
   function_nesting: usize,
@@ -1757,7 +1777,9 @@ fn identifier(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error> {
   return Ok(identifier(s,t.line,t.col));
 }
 
-fn qualification_assignment(&mut self, id: &str, module: Rc<AST>, property: &str, line: usize, col: usize) -> Rc<AST> {
+fn qualification_assignment(&mut self, id: &str, module: Rc<AST>,
+  property: &str, line: usize, col: usize
+) -> Rc<AST> {
   let id = identifier(id,line,col);
   let property = string(property,line,col);
   let dot = binary_operator(line,col,Symbol::Dot,module,property);
@@ -2045,13 +2067,14 @@ fn ast(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
   return self.statements(i,VALUE_OPTIONAL);
 }
 
-fn compile_operator(&mut self, v: &mut Vec<u8>, t: &Rc<AST>, byte_code: u8) -> Result<(),Error>{
+fn compile_operator(&mut self, bv: &mut Vec<u32>,
+  t: &Rc<AST>, byte_code: u8
+) -> Result<(),Error>{
   let a = ast_argv(t);
   for i in 0..a.len() {
-    try!(self.compile_ast(v,&a[i]));
+    try!(self.compile_ast(bv,&a[i]));
   }
-  v.push(byte_code);
-  push_line_col(v,t.line,t.col);
+  push_bc(bv,byte_code,t.line,t.col);
   return Ok(());
 }
 
@@ -2083,7 +2106,7 @@ fn get_index(&mut self, key: &str) -> usize{
 // c3 JPZ[3] a3 JMP[end] (3)
 // ae (end)
 
-fn compile_if(&mut self, v: &mut Vec<u8>, t: &Rc<AST>, is_op: bool)
+fn compile_if(&mut self, v: &mut Vec<u32>, t: &Rc<AST>, is_op: bool)
   -> Result<(),Error>
 {
   let a = ast_argv(t);
@@ -2099,7 +2122,7 @@ fn compile_if(&mut self, v: &mut Vec<u8>, t: &Rc<AST>, is_op: bool)
     jumps.push(v.len());
     push_u32(v,0xcafe);
     let len = v.len();
-    write_i32(&mut v[index..index+4],(BCSIZE+len) as i32-index as i32);
+    write_i32(&mut v[index..index+1],(BCSIZE+len) as i32-index as i32);
   }
   if a.len()%2==1 {
     try!(self.compile_ast(v,&a[a.len()-1]));
@@ -2111,7 +2134,7 @@ fn compile_if(&mut self, v: &mut Vec<u8>, t: &Rc<AST>, is_op: bool)
   let len = v.len();
   for i in 0..m {
     let index = jumps[i];
-    write_i32(&mut v[index..index+4],(BCSIZE+len) as i32-index as i32);
+    write_i32(&mut v[index..index+1],(BCSIZE+len) as i32-index as i32);
   }
   return Ok(());
 }
@@ -2120,7 +2143,7 @@ fn compile_if(&mut self, v: &mut Vec<u8>, t: &Rc<AST>, is_op: bool)
 // while c do b end
 // (1) c JPZ[2] b JMP[1] (2)
 
-fn compile_while(&mut self, v: &mut Vec<u8>, t: &Rc<AST>)
+fn compile_while(&mut self, v: &mut Vec<u32>, t: &Rc<AST>)
   -> Result<(),Error>
 {
   let index1 = v.len();
@@ -2143,7 +2166,7 @@ fn compile_while(&mut self, v: &mut Vec<u8>, t: &Rc<AST>)
 
   if condition {
     let len = v.len();
-    write_i32(&mut v[index2..index2+4],(BCSIZE+len) as i32-index2 as i32);
+    write_i32(&mut v[index2..index2+1],(BCSIZE+len) as i32-index2 as i32);
   }
 
   let info = match self.jmp_stack.pop() {
@@ -2151,7 +2174,7 @@ fn compile_while(&mut self, v: &mut Vec<u8>, t: &Rc<AST>)
   };
   let len = v.len();
   for index in info.breaks {
-    write_i32(&mut v[index..index+4],(BCSIZE+len) as i32-index as i32);
+    write_i32(&mut v[index..index+1],(BCSIZE+len) as i32-index as i32);
   }
   return Ok(());
 }
@@ -2172,7 +2195,7 @@ fn compile_while(&mut self, v: &mut Vec<u8>, t: &Rc<AST>)
 // These pseudo-functions NEXT and BREAK_IF_EMPTY are bundled
 // into one byte code instruction called NEXT.
 
-fn compile_for(&mut self, bv: &mut Vec<u8>, t: &Rc<AST>)
+fn compile_for(&mut self, bv: &mut Vec<u32>, t: &Rc<AST>)
   -> Result<(),Error>
 {
   let a = ast_argv(t);
@@ -2204,13 +2227,13 @@ fn compile_for(&mut self, bv: &mut Vec<u8>, t: &Rc<AST>)
   };
   let len = bv.len();
   for index in info.breaks {
-    write_i32(&mut bv[index..index+4],(BCSIZE+len) as i32-index as i32);
+    write_i32(&mut bv[index..index+1],(BCSIZE+len) as i32-index as i32);
   }
 
   return Ok(());
 }
 
-fn compile_app(&mut self, v: &mut Vec<u8>, t: &Rc<AST>)
+fn compile_app(&mut self, v: &mut Vec<u32>, t: &Rc<AST>)
   -> Result<(),Error>
 {
   let a = ast_argv(t);
@@ -2252,11 +2275,11 @@ fn compile_app(&mut self, v: &mut Vec<u8>, t: &Rc<AST>)
   return Ok(());
 }
 
-fn compile_fn(&mut self, bv: &mut Vec<u8>, t: &Rc<AST>)
+fn compile_fn(&mut self, bv: &mut Vec<u32>, t: &Rc<AST>)
   -> Result<(),Error>
 {
   let a = ast_argv(t);
-  let mut bv2: Vec<u8> = Vec::new();
+  let mut bv2: Vec<u32> = Vec::new();
 
   // A separator to identify a new code block. Just needed
   // to make the assembler listing human readable.
@@ -2304,7 +2327,7 @@ fn compile_fn(&mut self, bv: &mut Vec<u8>, t: &Rc<AST>)
 
   // Closure bindings.
   if self.vtab.count_context>0 {
-    self.closure(bv);
+    self.closure(bv,t);
   }else{
     push_bc(bv, bc::NULL, t.line, t.col);
   }
@@ -2323,12 +2346,12 @@ fn compile_fn(&mut self, bv: &mut Vec<u8>, t: &Rc<AST>)
   push_bc(bv, bc::FN, t.line, t.col);
 
   // Start address of the function body.
-  // Add four to point behind FNSEP.
+  // Add +1 to point behind FNSEP.
   // The size of bv will be added as the
   // compilation is finished.
   let index = bv.len();
   self.fn_indices.push(index);
-  push_u32(bv,self.bv_blocks.len() as u32+4);
+  push_u32(bv,self.bv_blocks.len() as u32+1);
 
   let argv = ast_argv(&a[0]);
   push_i32(bv,argv.len() as i32); // minimal argument count
@@ -2341,18 +2364,31 @@ fn compile_fn(&mut self, bv: &mut Vec<u8>, t: &Rc<AST>)
   return Ok(());
 }
 
-fn offsets(&self, bv: &mut Vec<u8>, offset: i32){
+fn offsets(&self, bv: &mut Vec<u32>, offset: i32){
   for &index in &self.fn_indices {
-    let x = compose_i32(&bv[index..index+4]);
-    write_i32(&mut bv[index..index+4], x+BCSIZE as i32+offset-index as i32);
+    let x = load_i32(&bv[index..index+1]);
+    write_i32(&mut bv[index..index+1], x+BCSIZE as i32+offset-index as i32);
   }
 }
 
 fn string_literal(&mut self, s: &str) -> Result<String,Error> {
   let mut y = String::new();
   let mut escape = false;
+  let mut skip = false;
   for c in s.chars() {
     if escape {
+      if skip {
+        if c==' ' || c=='\n' || c=='\t' {
+          continue;
+        }else{
+          skip=false;
+          if c != '\\' {
+            escape=false;
+            y.push(c);
+          }
+          continue;
+        }
+      }
       if c=='n' {y.push('\n');}
       else if c=='s' {y.push(' ');}
       else if c=='t' {y.push('t');}
@@ -2365,6 +2401,9 @@ fn string_literal(&mut self, s: &str) -> Result<String,Error> {
       else if c=='0' {y.push('\x00');}
       else if c=='v' {y.push('\x0b');}
       else if c=='a' {y.push('\x07');}
+      else if c==' ' || c=='\n' || c=='\t' {
+        skip=true; continue;
+      }
       else{y.push(c);}
       escape = false;
     }else if c == '\\' {
@@ -2376,7 +2415,7 @@ fn string_literal(&mut self, s: &str) -> Result<String,Error> {
   return Ok(y);
 }
 
-fn arguments(&mut self, bv: &mut Vec<u8>, t: &AST)
+fn arguments(&mut self, bv: &mut Vec<u32>, t: &AST)
   -> Result<(),Error>
 {
   let a = ast_argv(t);
@@ -2415,7 +2454,7 @@ fn arguments(&mut self, bv: &mut Vec<u8>, t: &AST)
   return Ok(());
 }
 
-fn compile_variable(&mut self, bv: &mut Vec<u8>, t: &AST)
+fn compile_variable(&mut self, bv: &mut Vec<u32>, t: &AST)
   -> Result<(),Error>
 {
   let key = match t.s {Some(ref x)=>x, None=>panic!()};
@@ -2450,7 +2489,7 @@ fn compile_variable(&mut self, bv: &mut Vec<u8>, t: &AST)
   };
 }
 
-fn compile_assignment(&mut self, bv: &mut Vec<u8>, t: &AST,
+fn compile_assignment(&mut self, bv: &mut Vec<u32>, t: &AST,
   line: usize, col: usize
 ){
   let key = match t.s {Some(ref x)=>x, None=>panic!()};
@@ -2503,7 +2542,7 @@ fn compile_assignment(&mut self, bv: &mut Vec<u8>, t: &AST,
 }
 
 fn compile_compound_assignment(
-  &mut self, bv: &mut Vec<u8>, t: &AST
+  &mut self, bv: &mut Vec<u32>, t: &AST
 ) -> Result<(),Error> {
   let a = ast_argv(t);
   if a[0].symbol_type == SymbolType::Identifier {
@@ -2528,7 +2567,7 @@ fn compile_compound_assignment(
   return Ok(());
 }
 
-fn closure(&mut self, bv: &mut Vec<u8>){
+fn closure(&mut self, bv: &mut Vec<u32>, t: &AST){
   let n = self.vtab.v.len();
   let a = &self.vtab.v[..];
   let ref mut context = match self.vtab.context {
@@ -2540,22 +2579,22 @@ fn closure(&mut self, bv: &mut Vec<u8>){
       if let Some((index,var_type)) = context.index_type(&a[i].s) {
         match var_type {
           VarType::Local => {
-            push_bc(bv,bc::LOAD_LOCAL,0,0);
+            push_bc(bv,bc::LOAD_LOCAL,t.line,t.col);
             push_u32(bv,index as u32);
           },
           VarType::Argument => {
-            push_bc(bv,bc::LOAD_ARG,0,0);
+            push_bc(bv,bc::LOAD_ARG,t.line,t.col);
             push_u32(bv,index as u32);
           },
           VarType::Context => {
-            push_bc(bv,bc::LOAD_CONTEXT,0,0);
+            push_bc(bv,bc::LOAD_CONTEXT,t.line,t.col);
             push_u32(bv,index as u32);
           },
           _ => panic!()
         }
       }else{
         if self.coroutine {
-          push_bc(bv,bc::NULL,0,0);
+          push_bc(bv,bc::NULL,t.line,t.col);
         }else{
           println!("Error in closure: id '{}' not in context.",&a[i].s);
           panic!();
@@ -2563,11 +2602,11 @@ fn closure(&mut self, bv: &mut Vec<u8>){
       }
     }
   }
-  push_bc(bv,bc::LIST,0,0);
+  push_bc(bv,bc::LIST,t.line,t.col);
   push_u32(bv,self.vtab.count_context as u32);
 }
 
-fn compile_unpack(&mut self, bv: &mut Vec<u8>, t: &AST)
+fn compile_unpack(&mut self, bv: &mut Vec<u32>, t: &AST)
   -> Result<(),Error>
 {
   let a = ast_argv(t);
@@ -2580,7 +2619,7 @@ fn compile_unpack(&mut self, bv: &mut Vec<u8>, t: &AST)
   return Ok(());
 }
 
-fn compile_left_hand_side(&mut self, bv: &mut Vec<u8>, t: &AST)
+fn compile_left_hand_side(&mut self, bv: &mut Vec<u32>, t: &AST)
   -> Result<(),Error>
 {
   if t.symbol_type == SymbolType::Identifier {
@@ -2604,7 +2643,7 @@ fn compile_left_hand_side(&mut self, bv: &mut Vec<u8>, t: &AST)
   return Ok(());
 }
 
-fn compile_ast(&mut self, bv: &mut Vec<u8>, t: &Rc<AST>)
+fn compile_ast(&mut self, bv: &mut Vec<u32>, t: &Rc<AST>)
   -> Result<(),Error>
 {
   if t.symbol_type == SymbolType::Identifier {
@@ -2646,7 +2685,15 @@ fn compile_ast(&mut self, bv: &mut Vec<u8>, t: &Rc<AST>)
     }else if value == Symbol::Is {
       try!(self.compile_operator(bv,t,bc::IS));
     }else if value == Symbol::Isnot {
-      try!(self.compile_operator(bv,t,bc::ISNOT));
+      // try!(self.compile_operator(bv,t,bc::ISNOT));
+      try!(self.compile_operator(bv,t,bc::IS));
+      push_bc(bv,bc::NOT,t.line,t.col);
+    }else if value == Symbol::In {
+      try!(self.compile_operator(bv,t,bc::IN));
+    }else if  value == Symbol::Notin {
+      // try!(self.compile_operator(bv,t,bc::NOTIN));
+      try!(self.compile_operator(bv,t,bc::IN));
+      push_bc(bv,bc::NOT,t.line,t.col);
     }else if value == Symbol::Index {
       try!(self.compile_operator(bv,t,bc::GET_INDEX));
     }else if value == Symbol::Not {
@@ -2677,7 +2724,7 @@ fn compile_ast(&mut self, bv: &mut Vec<u8>, t: &Rc<AST>)
       push_i32(bv,0xcafe);
       try!(self.compile_ast(bv,&a[1]));
       let len = bv.len();
-      write_i32(&mut bv[index..index+4], (BCSIZE+len) as i32-index as i32);
+      write_i32(&mut bv[index..index+1], (BCSIZE+len) as i32-index as i32);
     }else if value == Symbol::Or {
       // Use a OR[1] b (1) instead of
       // a JPZ[1] CONST_BOOL true JMP[2] (1) b (2).
@@ -2688,7 +2735,7 @@ fn compile_ast(&mut self, bv: &mut Vec<u8>, t: &Rc<AST>)
       push_i32(bv,0xcafe);
       try!(self.compile_ast(bv,&a[1]));
       let len = bv.len();
-      write_i32(&mut bv[index..index+4], (BCSIZE+len) as i32-index as i32);
+      write_i32(&mut bv[index..index+1], (BCSIZE+len) as i32-index as i32);
     }else if value == Symbol::Else {
       // a ELSE[1] b (1)
       let a = ast_argv(t);
@@ -2698,7 +2745,7 @@ fn compile_ast(&mut self, bv: &mut Vec<u8>, t: &Rc<AST>)
       push_i32(bv,0xcafe);
       try!(self.compile_ast(bv,&a[1]));
       let len = bv.len();
-      write_i32(&mut bv[index..index+4], (BCSIZE+len) as i32-index as i32);      
+      write_i32(&mut bv[index..index+1], (BCSIZE+len) as i32-index as i32);      
     }else{
       return Err(self.syntax_error(t.line,t.col,
         format!("cannot compile Operator '{}'.",symbol_to_string(t.value))
@@ -2817,103 +2864,78 @@ fn transmute_u64_to_f64(x: u64) -> f64 {
   unsafe{transmute::<u64,f64>(x)}
 }
 
-fn push_u16(v: &mut Vec<u8>, x: u16){
-  v.push(x as u8);
-  v.push((x>>8) as u8);
+fn push_u32(bv: &mut Vec<u32>, x: u32){
+  bv.push(x);
 }
 
-fn push_u32(v: &mut Vec<u8>, x: u32){
-  v.push(x as u8);
-  v.push((x>>8) as u8);
-  v.push((x>>16) as u8);
-  v.push((x>>24) as u8);
+fn push_i32(bv: &mut Vec<u32>, x: i32){
+  bv.push(x as u32);
 }
 
-fn push_i32(v: &mut Vec<u8>, x: i32){
-  let x = x as u32;
-  v.push(x as u8);
-  v.push((x>>8) as u8);
-  v.push((x>>16) as u8);
-  v.push((x>>24) as u8);
+fn write_i32(a: &mut [u32], x: i32){
+  a[0] = x as u32;
 }
 
-fn write_i32(a: &mut [u8], x: i32){
-  let x = x as u32;
-  a[0] = x as u8;
-  a[1] = (x>>8) as u8;
-  a[2] = (x>>16) as u8;
-  a[3] = (x>>24) as u8;
+fn push_u64(bv: &mut Vec<u32>, x: u64){
+  bv.push(x as u32);
+  bv.push((x>>32) as u32);
 }
 
-fn push_u64(v: &mut Vec<u8>, x: u64){
-  v.push(x as u8);
-  v.push((x>>8) as u8);
-  v.push((x>>16) as u8);
-  v.push((x>>24) as u8);
-  v.push((x>>32) as u8);
-  v.push((x>>40) as u8);
-  v.push((x>>48) as u8);
-  v.push((x>>56) as u8);
-}
 
-fn push_line_col(v: &mut Vec<u8>, line: usize, col: usize){
-  push_u16(v,line as u16);
-  v.push(col as u8);
-}
 
-fn push_bc(v: &mut Vec<u8>, byte: u8, line: usize, col: usize){
-  v.push(byte);
-  push_line_col(v,line,col);
+fn push_bc(bv: &mut Vec<u32>, byte: u8, line: usize, col: usize){
+  bv.push(((col as u32)&0xff)<<24 | ((line as u32)&0xffff)<<8 | (byte as u32))
 }
 
 fn compose_u16(b0: u8, b1: u8) -> u16 {
   (b1 as u16)<<8 | (b0 as u16)
 }
 
-fn compose_i32(a: &[u8]) -> i32 {
-  (a[3] as i32)<<24 | (a[2] as i32)<<16 | (a[1] as i32)<<8 | (a[0] as i32)
+fn load_i32(a: &[u32]) -> i32 {
+  a[0] as i32
 }
 
-fn compose_u32(a: &[u8]) -> u32 {
-  (a[3] as u32)<<24 | (a[2] as u32)<<16 | (a[1] as u32)<<8 | (a[0] as u32)
+fn load_u32(a: &[u32]) -> u32 {
+  a[0]
 }
 
-fn compose_u64(a: &[u8]) -> u64 {
-   (a[7] as u64)<<56 | (a[6] as u64)<<48 | (a[5] as u64)<<40 | (a[4] as u64)<<32
- | (a[3] as u64)<<24 | (a[2] as u64)<<16 | (a[1] as u64)<< 8 | (a[0] as u64)
+fn load_u64(a: &[u32]) -> u64 {
+ (a[1] as u64)<<32 | (a[0] as u64)
 }
 
-fn asm_listing(a: &[u8]) -> String {
+fn asm_listing(a: &[u32]) -> String {
   let mut s = String::from("Adr | Line:Col| Operation\n");
   let mut i=0;
   while i<a.len() {
-    let op = a[i];
+    let op = a[i] as u8;
+    let line = ((a[i]>>8) & 0xffff) as u16;
+    let col = (a[i]>>24) as u8;
     if op != bc::FNSEP {
-      let u = format!("{:04}| {:4}:{:02} | ",i,compose_u16(a[i+1],a[i+2]),a[i+3]);
+      let u = format!("{:04}| {:4}:{:02} | ",i,line,col);
       s.push_str(&u);
     }
     match op {
       bc::INT => {
-        let x = compose_i32(&a[BCSIZE+i..BCSIZE+i+4]);
+        let x = load_i32(&a[BCSIZE+i..BCSIZE+i+1]);
         let u = format!("push int {} (0x{:x})\n",x,x);
         s.push_str(&u);
-        i+=BCSIZE+4;
+        i+=BCASIZE;
       },
       bc::FLOAT => {
         let x = transmute_u64_to_f64(
-          compose_u64(&a[BCSIZE+i..BCSIZE+i+8])
+          load_u64(&a[BCSIZE+i..BCSIZE+i+2])
         );
-        let u = format!("push float {}\n",x);
+        let u = format!("push float {:e}\n",x);
         s.push_str(&u);
-        i+=BCSIZE+8;
+        i+=BCAASIZE;
       },
       bc::IMAG => {
         let x = transmute_u64_to_f64(
-          compose_u64(&a[BCSIZE+i..BCSIZE+i+8])
+          load_u64(&a[BCSIZE+i..BCSIZE+i+2])
         );
-        let u = format!("push imag {}\n",x);
+        let u = format!("push imag {:e}\n",x);
         s.push_str(&u);
-        i+=BCSIZE+8;
+        i+=BCAASIZE;
       },
       bc::NULL => {s.push_str("null\n"); i+=BCSIZE;},
       bc::TRUE => {s.push_str("true\n"); i+=BCSIZE;},
@@ -2941,142 +2963,142 @@ fn asm_listing(a: &[u8]) -> String {
       bc::RANGE => {s.push_str("range\n"); i+=BCSIZE;},
       bc::TABLE => {s.push_str("table\n"); i+=BCSIZE;},
       bc::LIST => {
-        let x = compose_u32(&a[BCSIZE+i..BCSIZE+i+4]);
+        let x = load_u32(&a[BCSIZE+i..BCSIZE+i+1]);
         let u = format!("list, size={}\n",x);
         s.push_str(&u);
-        i+=BCSIZE+4;
+        i+=BCASIZE;
       },
       bc::MAP => {
-        let x = compose_u32(&a[BCSIZE+i..BCSIZE+i+4]);
+        let x = load_u32(&a[BCSIZE+i..BCSIZE+i+1]);
         let u = format!("map, size={}\n",x);
         s.push_str(&u);
-        i+=BCSIZE+4;
+        i+=BCASIZE;
       },
       bc::LOAD => {
-        let x = compose_u32(&a[BCSIZE+i..BCSIZE+i+4]);
+        let x = load_u32(&a[BCSIZE+i..BCSIZE+i+1]);
         let u = format!("load global [{}]\n",x);
         s.push_str(&u);
-        i+=BCSIZE+4;
+        i+=BCASIZE;
       },
       bc::LOAD_ARG => {
-        let x = compose_u32(&a[BCSIZE+i..BCSIZE+i+4]);
+        let x = load_u32(&a[BCSIZE+i..BCSIZE+i+1]);
         let u = format!("load argument [{}]\n",x);
         s.push_str(&u);
-        i+=BCSIZE+4;
+        i+=BCASIZE;
       },
       bc::LOAD_LOCAL => {
-        let x = compose_u32(&a[BCSIZE+i..BCSIZE+i+4]);
+        let x = load_u32(&a[BCSIZE+i..BCSIZE+i+1]);
         let u = format!("load local [{}]\n",x);
         s.push_str(&u);
-        i+=BCSIZE+4;
+        i+=BCASIZE;
       },
       bc::LOAD_CONTEXT => {
-        let x = compose_u32(&a[BCSIZE+i..BCSIZE+i+4]);
+        let x = load_u32(&a[BCSIZE+i..BCSIZE+i+1]);
         let u = format!("load context [{}]\n",x);
         s.push_str(&u);
-        i+=BCSIZE+4;
+        i+=BCASIZE;
       },
       bc::STORE => {
-        let x = compose_u32(&a[BCSIZE+i..BCSIZE+i+4]);
+        let x = load_u32(&a[BCSIZE+i..BCSIZE+i+1]);
         let u = format!("store global [{}]\n",x);
         s.push_str(&u);
-        i+=BCSIZE+4;
+        i+=BCASIZE;
       },
       bc::STORE_ARG => {
-        let x = compose_u32(&a[BCSIZE+i..BCSIZE+i+4]);
+        let x = load_u32(&a[BCSIZE+i..BCSIZE+i+1]);
         let u = format!("store argument [{}]\n",x);
         s.push_str(&u);
-        i+=BCSIZE+4;
+        i+=BCASIZE;
       },
       bc::STORE_LOCAL => {
-        let x = compose_u32(&a[BCSIZE+i..BCSIZE+i+4]);
+        let x = load_u32(&a[BCSIZE+i..BCSIZE+i+1]);
         let u = format!("store local [{}]\n",x);
         s.push_str(&u);
-        i+=BCSIZE+4;
+        i+=BCASIZE;
       },
       bc::STORE_CONTEXT => {
-        let x = compose_u32(&a[BCSIZE+i..BCSIZE+i+4]);
+        let x = load_u32(&a[BCSIZE+i..BCSIZE+i+1]);
         let u = format!("store context [{}]\n",x);
         s.push_str(&u);
-        i+=BCSIZE+4;
+        i+=BCASIZE;
       },
       bc::STR => {
-        let x = compose_u32(&a[BCSIZE+i..BCSIZE+i+4]);
+        let x = load_u32(&a[BCSIZE+i..BCSIZE+i+1]);
         let u = format!("str literal [{}]\n",x);
         s.push_str(&u);
-        i+=BCSIZE+4;
+        i+=BCASIZE;
       },
       bc::AND => {
-        let x = compose_i32(&a[BCSIZE+i..BCSIZE+i+4]);
+        let x = load_i32(&a[BCSIZE+i..BCSIZE+i+1]);
         let u = format!("and {}\n",i as i32+x);
         s.push_str(&u);
-        i+=BCSIZE+4;
+        i+=BCASIZE;
       },
       bc::OR => {
-        let x = compose_i32(&a[BCSIZE+i..BCSIZE+i+4]);
+        let x = load_i32(&a[BCSIZE+i..BCSIZE+i+1]);
         let u = format!("or {}\n",i as i32+x);
         s.push_str(&u);
-        i+=BCSIZE+4;
+        i+=BCASIZE;
       },
       bc::ELSE => {
-        let x = compose_i32(&a[BCSIZE+i..BCSIZE+i+4]);
+        let x = load_i32(&a[BCSIZE+i..BCSIZE+i+1]);
         let u = format!("else {}\n",i as i32+x);
         s.push_str(&u);
-        i+=BCSIZE+4;
+        i+=BCASIZE;
       },
       bc::JMP => {
-        let x = compose_i32(&a[BCSIZE+i..BCSIZE+i+4]);
+        let x = load_i32(&a[BCSIZE+i..BCSIZE+i+1]);
 
         // Resolve position independent code
         // to make the listing human readable.
         let u = format!("jmp {}\n",i as i32+x);
         s.push_str(&u);
-        i+=BCSIZE+4;
+        i+=BCASIZE;
       },
       bc::JZ => {
-        let x = compose_i32(&a[BCSIZE+i..BCSIZE+i+4]);
+        let x = load_i32(&a[BCSIZE+i..BCSIZE+i+1]);
         let u = format!("jz {}\n",i as i32+x);
         s.push_str(&u);
-        i+=BCSIZE+4;
+        i+=BCASIZE;
       },
       bc::JNZ => {
-        let x = compose_i32(&a[BCSIZE+i..BCSIZE+i+4]);
+        let x = load_i32(&a[BCSIZE+i..BCSIZE+i+1]);
         let u = format!("jnz {}\n",i as i32+x);
         s.push_str(&u);
-        i+=BCSIZE+4;
+        i+=BCASIZE;
       },
       bc::NEXT => {
-        let x = compose_i32(&a[BCSIZE+i..BCSIZE+i+4]);
+        let x = load_i32(&a[BCSIZE+i..BCSIZE+i+1]);
         let u = format!("next {}\n",i as i32+x);
         s.push_str(&u);
-        i+=BCSIZE+4;
+        i+=BCASIZE;
       },
       bc::GET => {
-        let x = compose_u32(&a[BCSIZE+i..BCSIZE+i+4]);
+        let x = load_u32(&a[BCSIZE+i..BCSIZE+i+1]);
         let u = format!("get {}\n",x);
         s.push_str(&u);
-        i+=BCSIZE+4;
+        i+=BCASIZE;
       },
       bc::CALL => {
-        let argc = compose_u32(&a[BCSIZE+i..BCSIZE+i+4]);
+        let argc = load_u32(&a[BCSIZE+i..BCSIZE+i+1]);
         let u = format!("call, argc={}\n",argc);
         s.push_str(&u);
-        i+=BCSIZE+4;
+        i+=BCASIZE;
       },
       bc::RET => {s.push_str("ret\n"); i+=BCSIZE;},
       bc::YIELD => {s.push_str("yield\n"); i+=BCSIZE;},
       bc::FNSEP => {s.push_str("\nFunction\n"); i+=BCSIZE;},
       bc::FN => {
-        let address = compose_i32(&a[BCSIZE+i..BCSIZE+i+4]);
-        let argc_min = compose_i32(&a[BCSIZE+i+4..BCSIZE+i+8]);
-        let argc_max = compose_i32(&a[BCSIZE+i+8..BCSIZE+i+12]);
-        let var_count = compose_i32(&a[BCSIZE+i+12..BCSIZE+i+16]);
+        let address = load_i32(&a[BCSIZE+i..BCSIZE+i+1]);
+        let argc_min = load_i32(&a[BCSIZE+i+1..BCSIZE+i+2]);
+        let argc_max = load_i32(&a[BCSIZE+i+2..BCSIZE+i+3]);
+        let var_count = load_i32(&a[BCSIZE+i+3..BCSIZE+i+4]);
 
         // Resolve position independent code
         // to make the listing human readable.
         let u = format!("fn [{}], argc_min={}, argc_max={}\n",i as i32+address,argc_min,argc_max);
         s.push_str(&u);
-        i+=BCSIZE+16;
+        i+=BCSIZE+4;
       },
       bc::GET_INDEX => {s.push_str("get index\n"); i+=BCSIZE;},
       bc::SET_INDEX => {s.push_str("set index\n"); i+=BCSIZE;},
@@ -3094,7 +3116,7 @@ fn asm_listing(a: &[u8]) -> String {
   return s;
 }
 
-fn print_asm_listing(a: &[u8]){
+fn print_asm_listing(a: &[u32]){
   let s = asm_listing(a);
   println!("{}",&s);
 }
@@ -3171,7 +3193,7 @@ pub fn compile(v: Vec<Token>, mode_cmd: bool,
   let y = try!(compilation.ast(&mut i));
   // print_ast(&y,2);
 
-  let mut bv: Vec<u8> = Vec::new();
+  let mut bv: Vec<u32> = Vec::new();
   try!(compilation.compile_ast(&mut bv, &y));
   push_bc(&mut bv, bc::HALT, y.line, y.col);
   let len = bv.len();
