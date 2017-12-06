@@ -10,6 +10,8 @@ use object::{Object, Map, Table, List,
   VARIADIC, new_module
 };
 use rand::Rand;
+use iterable::iter;
+use std::collections::HashMap;
 
 pub fn fpanic(pself: &Object, argv: &[Object]) -> FnResult{
   panic!()
@@ -150,11 +152,11 @@ fn fload(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
   }
 }
 
-fn iter(pself: &Object, argv: &[Object]) -> FnResult{
+fn fiter(pself: &Object, argv: &[Object]) -> FnResult{
   if argv.len() != 1 {
     return argc_error(argv.len(),1,1,"iter");
   }
-  return ::iterable::iter(&argv[0]);
+  return iter(&argv[0]);
 }
 
 fn record(pself: &Object, argv: &[Object]) -> FnResult{
@@ -255,6 +257,24 @@ pub fn flist(pself: &Object, argv: &[Object]) -> FnResult{
   }
 }
 
+fn set(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+  match argv.len() {
+    1 => {
+      let i = &try!(iter(&argv[0]));
+      let mut m: HashMap<Object,Object> = HashMap::new();
+      loop {
+        let y = try!(env.call(i,&Object::Null,&[]));
+        if y == Object::Empty {break;}
+        m.insert(y,Object::Null);
+      }
+      return Ok(Object::Map(Rc::new(RefCell::new(Map{
+        m: m, frozen: false
+      }))));
+    },
+    n => return argc_error(n,1,1,"set")
+  }
+}
+
 fn copy(pself: &Object, argv: &[Object]) -> FnResult {
   if argv.len()!=1 {
     return argc_error(argv.len(),1,1,"copy");
@@ -324,11 +344,12 @@ pub fn init_rte(rte: &RTE){
   gtab.insert_fn_env  ("eval",eval,1,1);
   gtab.insert_fn_plain("size",size,1,1);
   gtab.insert_fn_env  ("load",fload,1,1);
-  gtab.insert_fn_plain("iter",iter,1,1);
+  gtab.insert_fn_plain("iter",fiter,1,1);
   gtab.insert_fn_plain("record",record,1,1);
   gtab.insert_fn_plain("object",fobject,0,2);
   gtab.insert_fn_env  ("type",ftype,1,1);
   gtab.insert_fn_plain("list",flist,1,1);
+  gtab.insert_fn_env  ("set",set,1,1);
   gtab.insert_fn_plain("copy",copy,1,1);
   gtab.insert_fn_plain("rand",frand,1,1);
   gtab.insert_fn_env  ("gtab",fgtab,0,0);
