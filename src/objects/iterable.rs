@@ -2,9 +2,9 @@
 use std::rc::Rc;
 use std::cell::RefCell;
 use object::{
-  Object, Table, List,
+  Object, Table, List, U32String,
   FnResult, Function, EnumFunction,
-  type_error, argc_error,
+  type_error, argc_error, value_error
 };
 use vm::Env;
 
@@ -18,9 +18,9 @@ pub fn iter(x: &Object) -> FnResult{
         Object::Int(a)=>a,
         _ => {return type_error("Type error in iter(a..b): a is not an integer.");}
       };
-      let f: Box<FnMut(&Object,&[Object])->FnResult> = match r.b {
+      let f: Box<FnMut(&mut Env,&Object,&[Object])->FnResult> = match r.b {
         Object::Int(b) => {
-          Box::new(move |pself: &Object, argv: &[Object]| -> FnResult{
+          Box::new(move |env: &mut Env, pself: &Object, argv: &[Object]| -> FnResult{
             return if a<=b {
               a+=1;
               Ok(Object::Int(a-1))
@@ -30,7 +30,7 @@ pub fn iter(x: &Object) -> FnResult{
           })
         },
         Object::Null => {
-          Box::new(move |pself: &Object, argv: &[Object]| -> FnResult{
+          Box::new(move |env: &mut Env, pself: &Object, argv: &[Object]| -> FnResult{
             a+=1; Ok(Object::Int(a-1))
           })
         },
@@ -45,7 +45,7 @@ pub fn iter(x: &Object) -> FnResult{
     Object::List(ref a) => {
       let mut index: usize = 0;
       let a = a.clone();
-      let f = Box::new(move |pself: &Object, argv: &[Object]| -> FnResult{
+      let f = Box::new(move |env: &mut Env, pself: &Object, argv: &[Object]| -> FnResult{
         let a = a.borrow();
         if index == a.v.len() {
           return Ok(Object::Empty);
@@ -63,12 +63,31 @@ pub fn iter(x: &Object) -> FnResult{
     Object::Map(ref m) => {
       let mut index: usize = 0;
       let mut v: Vec<Object> = m.borrow().m.keys().cloned().collect();
-      let f = Box::new(move |pself: &Object, argv: &[Object]| -> FnResult {
+      let f = Box::new(move |env: &mut Env, pself: &Object, argv: &[Object]| -> FnResult {
         if index == v.len() {
           return Ok(Object::Empty);
         }else{
           index+=1;
           return Ok(v[index-1].clone());
+        }
+      });
+      Ok(Object::Function(Rc::new(Function{
+        f: EnumFunction::Mut(RefCell::new(f)),
+        argc: 0, argc_min: 0, argc_max: 0,
+        id: Object::Null
+      })))
+    },
+    Object::String(ref s) => {
+      let mut index: usize = 0;
+      let s = s.clone();
+      let f = Box::new(move |env: &mut Env, pself: &Object, argv: &[Object]| -> FnResult{
+        if index == s.v.len() {
+          return Ok(Object::Empty);
+        }else{
+          index+=1;
+          return Ok(Object::String(Rc::new(U32String{
+            v: vec![s.v[index-1]]
+          })));
         }
       });
       Ok(Object::Function(Rc::new(Function{
@@ -151,7 +170,7 @@ fn map(pself: &Object, argv: &[Object]) -> FnResult {
     };
   });
   Ok(Object::Function(Rc::new(Function{
-    f: EnumFunction::Env(RefCell::new(g)),
+    f: EnumFunction::Mut(RefCell::new(g)),
     argc: 0, argc_min: 0, argc_max: 0,
     id: Object::Null
   })))
@@ -180,7 +199,7 @@ fn filter(pself: &Object, argv: &[Object]) -> FnResult {
     }
   });
   Ok(Object::Function(Rc::new(Function{
-    f: EnumFunction::Env(RefCell::new(g)),
+    f: EnumFunction::Mut(RefCell::new(g)),
     argc: 0, argc_min: 0, argc_max: 0,
     id: Object::Null
   })))
@@ -270,6 +289,42 @@ fn count(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
   return Ok(Object::Int(k));
 }
 
+fn chunks(pself: &Object, argv: &[Object]) -> FnResult{
+  let n = match argv.len() {
+    1 => {
+      match argv[0] {
+        Object::Int(x)=>{
+          if x>=0 {x as usize}
+          else {return value_error("Value error in a.chunks(n): n<0.")}
+        },
+        _ => return type_error("Type error in a.chunks(n): n is not an integer.")
+      }
+    },
+    n => return argc_error(n,1,1,"chunks")
+  };
+  let i = try!(iter(pself));
+  let mut empty = false;
+  let g = Box::new(move |env: &mut Env, pself: &Object, argv: &[Object]| -> FnResult {
+    if empty {return Ok(Object::Empty);}
+    let mut v: Vec<Object> = Vec::with_capacity(n);
+    for _ in 0..n {
+      let y = try!(env.call(&i,&Object::Null,&[]));
+      if y==Object::Empty {empty=true; break;}
+      v.push(y);
+    }
+    if v.len()==0 {
+      Ok(Object::Empty)
+    }else{
+      Ok(List::new_object(v))
+    }
+  });
+  Ok(Object::Function(Rc::new(Function{
+    f: EnumFunction::Mut(RefCell::new(g)),
+    argc: 0, argc_min: 0, argc_max: 0,
+    id: Object::Null
+  })))
+}
+
 pub fn init(t: &Table){
   let mut m = t.map.borrow_mut();
   m.insert_fn_env  ("list",list,0,1);
@@ -279,5 +334,6 @@ pub fn init(t: &Table){
   m.insert_fn_env  ("count",count,1,1);
   m.insert_fn_plain("map",map,1,1);
   m.insert_fn_plain("filter",filter,1,1);
+  m.insert_fn_plain("chunks",chunks,1,1);
 }
 

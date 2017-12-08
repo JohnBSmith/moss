@@ -7,6 +7,7 @@ use object::{Object, FnResult, U32String, Function, Table, List, Map,
   type_error, argc_error, index_error, std_exception,
   VARIADIC, MutableFn, EnumFunction
 };
+use vm::Env;
 
 pub fn update(m: &mut Map, m2: &Map){
   for (key,value) in &m2.m {
@@ -39,7 +40,7 @@ fn values(pself: &Object, argv: &[Object]) -> FnResult {
   if let Object::Map(ref m) = *pself {
     let mut index: usize = 0;
     let mut v: Vec<Object> = m.borrow().m.values().cloned().collect();
-    let f = Box::new(move |pself: &Object, argv: &[Object]| -> FnResult {
+    let f = Box::new(move |env: &mut Env, pself: &Object, argv: &[Object]| -> FnResult {
       if index == v.len() {
         return Ok(Object::Empty);
       }else{
@@ -70,7 +71,7 @@ fn items(pself: &Object, argv: &[Object]) -> FnResult {
       keys.push(key.clone());
       values.push(value.clone());
     }
-    let f = Box::new(move |pself: &Object, argv: &[Object]| -> FnResult {
+    let f = Box::new(move |env: &mut Env, pself: &Object, argv: &[Object]| -> FnResult {
       if index == keys.len() {
         return Ok(Object::Empty);
       }else{

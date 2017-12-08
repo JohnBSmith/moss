@@ -23,6 +23,9 @@ mod function;
 #[path = "objects/iterable.rs"]
 mod iterable;
 
+#[path = "objects/string.rs"]
+mod string;
+
 #[path = "modules/complex.rs"]
 pub mod complex;
 

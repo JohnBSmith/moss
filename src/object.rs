@@ -105,11 +105,11 @@ impl Map{
     
     self.m.insert(key,f);
   }
-  pub fn insert_fn_env(&mut self, key: &str, fp: PlainEnvFn, argc_min: u32, argc_max: u32){
+  pub fn insert_fn_env(&mut self, key: &str, fp: EnvFn, argc_min: u32, argc_max: u32){
     let key = U32String::new_object_str(key);
 
     let f = Object::Function(Rc::new(Function{
-      f: EnumFunction::Env(RefCell::new(Box::new(fp))),
+      f: EnumFunction::Env(fp),
       argc: if argc_min==argc_max {argc_min} else {VARIADIC},
       argc_min: argc_min, argc_max: argc_max,
       id: key.clone()
@@ -148,6 +148,9 @@ impl Exception{
   }
 }
 
+pub fn std_exception_plain(s: &str) -> Box<Exception> {
+  Exception::new(s)
+}
 pub fn type_error_plain(s: &str) -> Box<Exception> {
   Exception::new(s)
 }
@@ -194,10 +197,10 @@ pub fn argc_error(argc: usize, min: u32, max: u32, id: &str) -> FnResult {
 
 pub type OperatorResult = Result<(),Box<Exception>>;
 pub type FnResult = Result<Object,Box<Exception>>;
+
 pub type PlainFn = fn(pself: &Object, argv: &[Object]) -> FnResult;
-pub type MutableFn = Box<FnMut(&Object, &[Object])->FnResult>;
-pub type EnvFn = Box<FnMut(&mut Env, &Object, &[Object]) -> FnResult>;
-type PlainEnvFn = fn(&mut Env, pself: &Object, argv: &[Object]) -> FnResult;
+pub type EnvFn = fn(&mut Env, pself: &Object, argv: &[Object]) -> FnResult;
+pub type MutableFn = Box<FnMut(&mut Env, &Object, &[Object])->FnResult>;
 
 pub struct StandardFn{
   pub address: Cell<usize>,
@@ -210,8 +213,8 @@ pub struct StandardFn{
 pub enum EnumFunction{
   Std(StandardFn),
   Plain(PlainFn),
-  Mut(RefCell<MutableFn>),
-  Env(RefCell<EnvFn>)
+  Env(EnvFn),
+  Mut(RefCell<MutableFn>)
 }
 
 pub struct Function{
@@ -233,17 +236,17 @@ impl Function{
       id: Object::Null
     }))
   }
-  pub fn new(f: StandardFn, argc_min: u32, argc_max: u32) -> Object {
+  pub fn new(f: StandardFn, id: Object, argc_min: u32, argc_max: u32) -> Object {
     Object::Function(Rc::new(Function{
       f: EnumFunction::Std(f),
       argc: if argc_min==argc_max {argc_min} else {VARIADIC},
       argc_min: argc_min, argc_max: argc_max,
-      id: Object::Null
+      id: id
     }))
   }
-  pub fn env(fp: PlainEnvFn, argc_min: u32, argc_max: u32) -> Object {
+  pub fn env(fp: EnvFn, argc_min: u32, argc_max: u32) -> Object {
     Object::Function(Rc::new(Function{
-      f: EnumFunction::Env(RefCell::new(Box::new(fp))),
+      f: EnumFunction::Env(fp),
       argc: if argc_min==argc_max {argc_min} else {VARIADIC},
       argc_min: argc_min, argc_max: argc_max,
       id: Object::Null

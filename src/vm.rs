@@ -13,7 +13,7 @@ use object::{
   Object, Map, List, Function, EnumFunction, StandardFn,
   FnResult, OperatorResult, Exception, Table, Range, U32String,
   type_error_plain, index_error_plain, argc_error_plain,
-  type_error, argc_error,
+  type_error, argc_error, std_exception_plain
 };
 use complex::Complex64;
 // use ::Interpreter;
@@ -90,6 +90,8 @@ pub mod bc{
   pub const EMPTY:u8 = 59;
   pub const TABLE:u8 = 60;
   pub const GET:  u8 = 61;
+  pub const BAND: u8 = 62;
+  pub const BOR:  u8 = 63;
 
   pub fn op_to_str(x: u8) -> &'static str {
     match x {
@@ -154,6 +156,8 @@ pub mod bc{
       EMPTY => "EMPTY",
       TABLE => "TABLE",
       GET => "GET",
+      BAND => "BAND",
+      BOR => "BOR",
       _ => "unknown"
     }
   }
@@ -568,7 +572,7 @@ fn operator_plus(sp: usize, stack: &mut [Object]) -> OperatorResult {
 fn operator_minus(sp: usize, stack: &mut [Object]) -> OperatorResult {
   match stack[sp-2] {
     Object::Int(x) => {
-      match stack[sp-1] {
+      return match stack[sp-1] {
         Object::Int(y) => {
           stack[sp-2] = match x.checked_sub(y) {
             Some(z) => Object::Int(z),
@@ -585,10 +589,10 @@ fn operator_minus(sp: usize, stack: &mut [Object]) -> OperatorResult {
           Ok(())
         },
         _ => Err(type_error_plain("Type error in a-b."))
-      }
+      };
     },
     Object::Float(x) => {
-      match stack[sp-1] {
+      return match stack[sp-1] {
         Object::Int(y) => {
           stack[sp-2] = Object::Float(x-(y as f64));
           Ok(())
@@ -602,10 +606,10 @@ fn operator_minus(sp: usize, stack: &mut [Object]) -> OperatorResult {
           Ok(())
         },
         _ => Err(type_error_plain("Type error in a-b."))
-      }
+      };
     },
     Object::Complex(x) => {
-      match stack[sp-1] {
+      return match stack[sp-1] {
         Object::Int(y) => {
           stack[sp-2] = Object::Complex(x-y as f64);
           Ok(())
@@ -616,6 +620,27 @@ fn operator_minus(sp: usize, stack: &mut [Object]) -> OperatorResult {
         },
         Object::Complex(y) => {
           stack[sp-2] = Object::Complex(x-y);
+          Ok(())
+        },
+        _ => Err(type_error_plain("Type error in a-b."))
+      };
+    },
+    _ => {}
+  }
+  match replace(&mut stack[sp-2],Object::Null) {
+    Object::Map(a) => {
+      match replace(&mut stack[sp-1],Object::Null) {
+        Object::Map(b) => {
+          let mut m: HashMap<Object,Object> = HashMap::new();
+          let b = &b.borrow().m;
+          for (key,value) in &a.borrow().m {
+            if !b.contains_key(&key) {
+              m.insert(key.clone(),value.clone());
+            }
+          }
+          stack[sp-2] = Object::Map(Rc::new(RefCell::new(
+            Map{m: m, frozen: false}
+          )));
           Ok(())
         },
         _ => Err(type_error_plain("Type error in a-b."))
@@ -834,6 +859,54 @@ fn operator_pow(sp: usize, stack: &mut [Object]) -> OperatorResult {
       }
     },
     _ => Err(type_error_plain("Type error in a^b."))
+  }
+}
+
+fn operator_band(sp: usize, stack: &mut [Object]) -> OperatorResult {
+  match replace(&mut stack[sp-2],Object::Null) {
+    Object::Map(ref a) => {
+      match replace(&mut stack[sp-1],Object::Null) {
+        Object::Map(ref b) => {
+          let mut m: HashMap<Object,Object> = HashMap::new();
+          let b = &b.borrow().m;
+          for (key,value) in &a.borrow().m {
+            if b.contains_key(key) {
+              m.insert(key.clone(),value.clone());
+            }
+          }
+          stack[sp-2] = Object::Map(Rc::new(RefCell::new(
+            Map{m: m, frozen: false}
+          )));
+          Ok(())
+        },
+        _ => Err(type_error_plain("Type error in a&b."))
+      }
+    },
+    _ => Err(type_error_plain("Type error in a&b."))
+  }
+}
+
+fn operator_bor(sp: usize, stack: &mut [Object]) -> OperatorResult {
+  match replace(&mut stack[sp-2],Object::Null) {
+    Object::Map(ref a) => {
+      match replace(&mut stack[sp-1],Object::Null) {
+        Object::Map(ref b) => {
+          let mut m: HashMap<Object,Object> = HashMap::new();
+          for (key,value) in &a.borrow().m {
+            m.insert(key.clone(),value.clone());
+          }
+          for (key,value) in &b.borrow().m {
+            m.insert(key.clone(),value.clone());
+          }
+          stack[sp-2] = Object::Map(Rc::new(RefCell::new(
+            Map{m: m, frozen: false}
+          )));
+          Ok(())
+        },
+        _ => Err(type_error_plain("Type error in a|b."))
+      }
+    },
+    _ => Err(type_error_plain("Type error in a|b."))
   }
 }
 
@@ -1276,6 +1349,25 @@ fn operator_dot(sp: usize, stack: &mut [Object], module: &Module) -> OperatorRes
         }
       }
     },
+    Object::String(a) => {
+      match module.rte.type_string.map.borrow().m.get(&stack[sp-1]) {
+        Some(x) => {
+          stack[sp-2] = x.clone();
+          stack[sp-1] = Object::Null;
+          return Ok(());
+        },
+        None => {
+          match module.rte.type_iterable.map.borrow().m.get(&stack[sp-1]) {
+            Some(x) => {
+              stack[sp-2] = x.clone();
+              stack[sp-1] = Object::Null;
+              return Ok(());
+            },
+            None => {}
+          }
+        }
+      }
+    },
     Object::Range(_) => {
       match module.rte.type_iterable.map.borrow().m.get(&stack[sp-1]) {
         Some(x) => {
@@ -1288,7 +1380,10 @@ fn operator_dot(sp: usize, stack: &mut [Object], module: &Module) -> OperatorRes
     },
     _ => return Err(type_error_plain("Type error in x.m: x is not a table."))
   }
-  return Err(index_error_plain("Index error x.m: m not in property chain."));
+  let key = stack[sp-1].to_string();
+  return Err(index_error_plain(&format!(
+    "Index error in x.{0}: '{0}' not in property chain.", key
+  )));
 }
 
 fn operator_dot_set(sp: usize, stack: &mut [Object]) -> OperatorResult {
@@ -1330,6 +1425,11 @@ fn global_variable_not_found(module: &Module, index: u32, gtab: &RefCell<Map>) -
 #[inline(never)]
 fn non_boolean_condition() -> OperatorResult {
   Err(type_error_plain("Type error: condition is not of type bool."))
+}
+
+#[inline(never)]
+fn mut_fn_aliasing(f: &Function) -> Box<Exception> {
+  std_exception_plain(&format!("Memory error: function '{}' is already borrowed.",f.id.to_string()))
 }
 
 fn get_line_col(a: &[u32], ip: usize) -> (usize,usize) {
@@ -1594,6 +1694,20 @@ fn vm_loop(
         sp-=1;
         ip+=BCSIZE;
       },
+      bc::BAND => {
+        match operator_band(sp, &mut stack) {
+          Ok(())=>{}, Err(e)=>{exception=Err(e); break;}
+        }
+        sp-=1;
+        ip+=BCSIZE;
+      },
+      bc::BOR => {
+        match operator_bor(sp, &mut stack) {
+          Ok(())=>{}, Err(e)=>{exception=Err(e); break;}
+        }
+        sp-=1;
+        ip+=BCSIZE;
+      },
       bc::EQ => {
         let value = stack[sp-2]==stack[sp-1];
         sp-=1;
@@ -1742,8 +1856,8 @@ fn vm_loop(
             match f.f {
               EnumFunction::Std(ref sf) => {
                 if argc != f.argc as usize {
-                  state.sp = sp;
-                  return Err(argc_error_plain(argc, f.argc_min, f.argc_max, "anonymous function"));
+                  exception = Err(argc_error_plain(argc, f.argc_min, f.argc_max, "anonymous function"));
+                  break;
                 }
                 state.env.frame_stack.push(Frame{
                   ip: ip, base_pointer: bp,
@@ -1772,22 +1886,7 @@ fn vm_loop(
               },
               EnumFunction::Plain(fp) => {
                 let y = match fp(&stack[sp-argc-1], &stack[sp-argc..sp]) {
-                  Ok(y) => y,
-                  Err(e) => {
-                    return Err(e);
-                  }
-                };
-                sp-=argc+1;
-                stack[sp-1]=y;
-                continue;
-              },
-              EnumFunction::Mut(ref fp) => {
-                let pf = &mut *fp.borrow_mut();
-                let y = match pf(&stack[sp-argc-1], &stack[sp-argc..sp]) {
-                  Ok(y) => y,
-                  Err(e) => {
-                    return Err(e);
-                  }
+                  Ok(y) => y, Err(e) => {exception = Err(e); break;}
                 };
                 sp-=argc+1;
                 stack[sp-1]=y;
@@ -1797,27 +1896,37 @@ fn vm_loop(
                 let y = {
                   let (s1,s2) = stack.split_at_mut(sp);
                   let mut env = Env{sp: 0, stack: s2, env: &mut state.env};
-                  let pf = &mut *fp.borrow_mut();
-                  match pf(&mut env, &s1[sp-argc-1], &s1[sp-argc..sp]) {
-                    Ok(y) => y,
-                    Err(e) => {
-                      return Err(e);
-                    }
+                  match fp(&mut env, &s1[sp-argc-1], &s1[sp-argc..sp]) {
+                    Ok(y) => y, Err(e) => {exception = Err(e); break;}
                   }
                 };
                 sp-=argc+1;
                 stack[sp-1]=y;
-                continue;              
+                continue;
+              },
+              EnumFunction::Mut(ref fp) => {
+                let y = {
+                  let (s1,s2) = stack.split_at_mut(sp);
+                  let mut env = Env{sp: 0, stack: s2, env: &mut state.env};
+                  let pf = &mut *match fp.try_borrow_mut() {
+                    Ok(f)=>f, Err(e) => {
+                      exception = Err(mut_fn_aliasing(f));
+                      break;
+                    }
+                  };
+                  match pf(&mut env, &s1[sp-argc-1], &s1[sp-argc..sp]) {
+                    Ok(y) => y, Err(e) => {exception = Err(e); break;}
+                  }
+                };
+                sp-=argc+1;
+                stack[sp-1]=y;
+                continue;
               }
             }
           },
           _ => {
             match object_call(&f, &mut stack[sp-argc-2..sp]) {
-              Ok(()) => {},
-              Err(e) => {
-                state.sp = sp;
-                return Err(e);
-              }
+              Ok(()) => {}, Err(e) => {exception = Err(e); break;}
             }
             sp-=argc+1;
             continue;
@@ -1865,7 +1974,8 @@ fn vm_loop(
                 sp+=1;
               },
               None => {
-                return global_variable_not_found(&module,index,&gtab);
+                exception = global_variable_not_found(&module,index,&gtab);
+                break;
               }
             }
           }
@@ -1920,13 +2030,14 @@ fn vm_loop(
           _ => panic!()
         };
         sp-=1;
+        let id = replace(&mut stack[sp],Object::Null);
         stack[sp-1] = Function::new(StandardFn{
           address: Cell::new(address),
           module: module.clone(),
           gtab: gtab.clone(),
           var_count: var_count,
           context: context
-        },argc_min,argc_max);
+        },id,argc_min,argc_max);
       },
       bc::GET_INDEX => {
         match operator_index(sp, &mut stack) {
@@ -2219,12 +2330,13 @@ impl<'a> Env<'a>{
           EnumFunction::Plain(fp) => {
             return fp(pself,argv);
           },
-          EnumFunction::Mut(ref fp) => {
-            let pf = &mut *fp.borrow_mut();
-            return pf(pself,argv);
-          },
           EnumFunction::Env(ref fp) => {
-            let pf = &mut *fp.borrow_mut();
+            return fp(self,pself,argv);
+          },
+          EnumFunction::Mut(ref fp) => {
+            let pf = &mut *match fp.try_borrow_mut() {
+              Ok(f)=>f, Err(e)=> return Err(mut_fn_aliasing(f))
+            };
             return pf(self,pself,argv);
           }
         }

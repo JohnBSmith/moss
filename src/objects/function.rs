@@ -44,7 +44,7 @@ fn orbit(pself: &Object, argv: &[Object]) -> FnResult {
     }
   );
   return Ok(Object::Function(Rc::new(Function{
-    f: EnumFunction::Env(RefCell::new(i)),
+    f: EnumFunction::Mut(RefCell::new(i)),
     argc: 0, argc_min: 0, argc_max: 0,
     id: Object::Null
   })));

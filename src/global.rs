@@ -305,7 +305,7 @@ fn frand(pself: &Object, argv: &[Object]) -> FnResult {
           _ => return type_error("Type error in rand(a..b): b is not an integer.")
         };
         let mut rng = Rand::new(0);
-        let f = Box::new(move |pself: &Object, argv: &[Object]| -> FnResult {
+        let f = Box::new(move |env: &mut Env, pself: &Object, argv: &[Object]| -> FnResult {
           Ok(Object::Int(rng.rand_range(a,b)))
         });
         return Ok(Function::mutable(f,0,0));
@@ -334,11 +334,31 @@ fn fgtab(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
   }
 }
 
+fn stoi(a: &[char]) -> i32 {
+  let mut y = 0;
+  for x in a {
+    y = 10*y+(*x as i32)-('0' as i32);
+  }
+  return y;
+}
+
+fn fint(pself: &Object, argv: &[Object]) -> FnResult {
+  match argv.len() {
+    1 => {}, n => return argc_error(n,1,1,"int")
+  }
+  match argv[0] {
+    Object::Int(n) => Ok(Object::Int(n)),
+    Object::String(ref s) => Ok(Object::Int(stoi(&s.v))),
+    _ => type_error("Type error in int(x): cannot convert x to int.")
+  }
+}
+
 pub fn init_rte(rte: &RTE){
   let mut gtab = rte.gtab.borrow_mut();
   gtab.insert_fn_plain("print",print,0,VARIADIC);
   gtab.insert_fn_plain("put",put,0,VARIADIC);
   gtab.insert_fn_plain("str",fstr,1,1);
+  gtab.insert_fn_plain("int",fint,1,1);
   gtab.insert_fn_plain("repr",repr,1,1);
   gtab.insert_fn_plain("abs",abs,1,1);
   gtab.insert_fn_env  ("eval",eval,1,1);
@@ -368,6 +388,7 @@ pub fn init_rte(rte: &RTE){
   gtab.insert("Complex", Object::Table(type_complex));
 
   let type_string = rte.type_string.clone();
+  ::string::init(&type_string);
   gtab.insert("String", Object::Table(type_string));
 
   let type_list = rte.type_list.clone();

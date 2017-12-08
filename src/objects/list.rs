@@ -7,6 +7,7 @@ use object::{Object, FnResult, U32String, Function, Table, List,
 };
 use vm::Env;
 use rand::Rand;
+use std::cmp::Ordering;
 
 fn push(pself: &Object, argv: &[Object]) -> FnResult{
   match *pself {
@@ -161,7 +162,7 @@ fn all(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
 
 fn new_shuffle() -> MutableFn {
   let mut rng = Rand::new(0);
-  return Box::new(move |pself: &Object, argv: &[Object]| -> FnResult{
+  return Box::new(move |env: &mut Env, pself: &Object, argv: &[Object]| -> FnResult{
     if argv.len() != 0 {
       return argc_error(argv.len(),0,0,"shuffle");
     }
@@ -220,6 +221,75 @@ fn list_join(pself: &Object, argv: &[Object]) -> FnResult{
   Ok(U32String::new_object_str(&y))
 }
 
+fn compare(a: &Object, b: &Object) -> Ordering {
+  match *a {
+    Object::Int(x) => {
+      match *b {
+        Object::Int(y) => x.cmp(&y),
+        _ => Ordering::Equal
+      }
+    },
+    _ => Ordering::Equal
+  }
+}
+
+fn compare_by_value(a: &(Object,Object), b: &(Object,Object)) -> Ordering {
+  match a.1 {
+    Object::Int(x) => {
+      match b.1 {
+        Object::Int(y) => x.cmp(&y),
+        _ => Ordering::Equal
+      }
+    },
+    _ => Ordering::Equal
+  }
+}
+
+fn list_sort(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
+  let mut a = match *pself {
+    Object::List(ref a) => a.borrow_mut(),
+    _ => return type_error("Type error in a.sort(): a is not a list.")
+  };
+  match argv.len() {
+    0 => {
+      a.v.sort_by(compare);
+      Ok(Object::Null)
+    },
+    1 => {
+      let mut v: Vec<(Object,Object)> = Vec::with_capacity(a.v.len());
+      for x in &a.v {
+        let y = try!(env.call(&argv[0],&Object::Null,&[x.clone()]));
+        v.push((x.clone(),y));
+      }
+      v.sort_by(compare_by_value);
+      a.v = v.into_iter().map(|x| x.0).collect();
+      Ok(Object::Null)
+    },
+    n => argc_error(n,0,0,"sort")
+  }
+}
+
+fn list_chain(pself: &Object, argv: &[Object]) -> FnResult{
+  let mut a = match *pself {
+    Object::List(ref a) => a.borrow_mut(),
+    _ => return type_error("Type error in a.sort(): a is not a list.")
+  };
+  let mut v: Vec<Object> = Vec::new();
+  for t in &a.v {
+    match *t {
+      Object::List(ref t) => {
+        for x in &t.borrow_mut().v {
+          v.push(x.clone());
+        }
+      },
+      ref x => {
+        v.push(x.clone());
+      }
+    }
+  }
+  Ok(List::new_object(v))
+}
+
 pub fn init(t: &Table){
   let mut m = t.map.borrow_mut();
   m.insert_fn_plain("push",push,0,VARIADIC);
@@ -231,5 +301,7 @@ pub fn init(t: &Table){
   m.insert_fn_env  ("any",any,1,1);
   m.insert_fn_env  ("all",all,1,1);
   m.insert_fn_plain("join",list_join,0,1);
+  m.insert_fn_env  ("sort",list_sort,0,1);
+  m.insert_fn_plain("chain",list_chain,0,0);
   m.insert("shuffle",Function::mutable(new_shuffle(),0,0));
 }

@@ -830,7 +830,8 @@ pub struct Compilation<'a>{
   vtab: VarTab,
   function_nesting: usize,
   jmp_stack: Vec<JmpInfo>,
-  coroutine: bool
+  coroutine: bool,
+  for_nesting: usize
 }
 
 struct TokenIterator{
@@ -2203,7 +2204,7 @@ fn compile_for(&mut self, bv: &mut Vec<u32>, t: &Rc<AST>)
     identifier("iter",t.line,t.col),
     a[1].clone()
   ]));
-  let it = identifier("_it_",t.line,t.col);
+  let it = identifier(&format!("_it{}_",self.for_nesting),t.line,t.col);
   let assignment = binary_operator(t.line,t.col,Symbol::Assignment,it.clone(),iter);
   try!(self.compile_ast(bv,&assignment));
 
@@ -2338,9 +2339,20 @@ fn compile_fn(&mut self, bv: &mut Vec<u32>, t: &Rc<AST>)
   }
   self.coroutine = coroutine;
 
-  // The name of the function or null in case
-  // the function is anonymous.
-  push_bc(bv, bc::NULL, t.line, t.col);
+  // The name of the function.
+  match t.s {
+    Some(ref s) => {
+      let index = self.get_index(s);
+      push_bc(bv,bc::STR,t.line,t.col);
+      push_u32(bv,index as u32);
+    },
+    None => {
+      let index = self.get_index(&format!("({}:{})",t.line,t.col));
+      push_bc(bv,bc::STR,t.line,t.col);
+      push_u32(bv,index as u32);
+      // push_bc(bv, bc::NULL, t.line, t.col);
+    }
+  }
 
   // Function constructor instruction.
   push_bc(bv, bc::FN, t.line, t.col);
@@ -2670,6 +2682,10 @@ fn compile_ast(&mut self, bv: &mut Vec<u32>, t: &Rc<AST>)
       try!(self.compile_operator(bv,t,bc::NEG));
     }else if value == Symbol::Pow {
       try!(self.compile_operator(bv,t,bc::POW));
+    }else if value == Symbol::Amp {
+      try!(self.compile_operator(bv,t,bc::BAND));
+    }else if value == Symbol::Vline {
+      try!(self.compile_operator(bv,t,bc::BOR));
     }else if value == Symbol::Eq {
       try!(self.compile_operator(bv,t,bc::EQ));
     }else if value == Symbol::Ne {
@@ -2772,7 +2788,9 @@ fn compile_ast(&mut self, bv: &mut Vec<u32>, t: &Rc<AST>)
     }else if value == Symbol::While {
       try!(self.compile_while(bv,t));
     }else if value == Symbol::For {
+      self.for_nesting+=1;
       try!(self.compile_for(bv,t));
+      self.for_nesting-=1;
     }else if value == Symbol::Block {
       let a = ast_argv(t);
       for i in 0..a.len() {
@@ -3187,7 +3205,7 @@ pub fn compile(v: Vec<Token>, mode_cmd: bool,
     stab_index: 0, data: Vec::new(), bv_blocks: Vec::new(),
     fn_indices: Vec::new(), vtab: VarTab::new(None),
     function_nesting: 0, jmp_stack: Vec::new(),
-    coroutine: false
+    coroutine: false, for_nesting: 0
   };
   let mut i = TokenIterator{index: 0, a: Rc::new(v.into_boxed_slice())};
   let y = try!(compilation.ast(&mut i));
