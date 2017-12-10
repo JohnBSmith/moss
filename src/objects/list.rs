@@ -226,23 +226,23 @@ fn compare(a: &Object, b: &Object) -> Ordering {
     Object::Int(x) => {
       match *b {
         Object::Int(y) => x.cmp(&y),
+        Object::String(ref y) => Ordering::Less,
         _ => Ordering::Equal
       }
     },
+    Object::String(ref a) => {
+      match *b {
+        Object::String(ref b) => a.v.cmp(&b.v),
+        Object::Int(y) => Ordering::Greater,
+        _ => Ordering::Equal
+      }
+    }
     _ => Ordering::Equal
   }
 }
 
 fn compare_by_value(a: &(Object,Object), b: &(Object,Object)) -> Ordering {
-  match a.1 {
-    Object::Int(x) => {
-      match b.1 {
-        Object::Int(y) => x.cmp(&y),
-        _ => Ordering::Equal
-      }
-    },
-    _ => Ordering::Equal
-  }
+  compare(&a.1,&b.1)
 }
 
 fn list_sort(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
@@ -253,7 +253,7 @@ fn list_sort(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
   match argv.len() {
     0 => {
       a.v.sort_by(compare);
-      Ok(Object::Null)
+      Ok(pself.clone())
     },
     1 => {
       let mut v: Vec<(Object,Object)> = Vec::with_capacity(a.v.len());
@@ -263,7 +263,7 @@ fn list_sort(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
       }
       v.sort_by(compare_by_value);
       a.v = v.into_iter().map(|x| x.0).collect();
-      Ok(Object::Null)
+      Ok(pself.clone())
     },
     n => argc_error(n,0,0,"sort")
   }

@@ -1,0 +1,29 @@
+
+zip = sub|a|
+  map = a.map
+  any = a.any
+  next = |i| i()
+  is_empty = |x| x==empty
+
+  a = map(a;iter)
+  return sub*||
+    while true
+      t = map(a;next)
+      if any(t;is_empty)
+        return empty
+      else
+        yield t
+      end
+    end
+  end
+end
+
+chain = |a| sub*||
+  for i in a
+    for x in i
+      yield x
+    end
+  end
+end
+
+

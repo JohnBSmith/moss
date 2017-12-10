@@ -395,10 +395,18 @@ pub fn object_to_string(x: &Object) -> String{
       format!("{}",s)
     },
     Object::Function(ref f) => {
-      if f.id == Object::Null {
-        format!("function")
-      }else{
-        format!("function {}",f.id)
+      match f.id {
+        Object::Null => format!("function"),
+        Object::Int(x) => {
+          let line = (x as u32) & 0xffff;
+          let col = (x as u32)>>16;
+          if let EnumFunction::Std(ref f) = f.f {
+            format!("function ({}:{}:{})",&f.module.id,line,col)
+          }else{
+            format!("function ({}:{})",line,col)
+          }
+        },
+        _ => format!("function {}",f.id)
       }
     },
     Object::Range(ref r) => {
@@ -1524,7 +1532,8 @@ pub struct Module{
 
   pub data: Vec<Object>,
   pub rte: Rc<RTE>,
-  pub gtab: Rc<RefCell<Map>>
+  pub gtab: Rc<RefCell<Map>>,
+  pub id: String
 }
 
 pub struct Frame{

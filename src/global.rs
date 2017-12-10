@@ -12,6 +12,7 @@ use object::{Object, Map, Table, List,
 use rand::Rand;
 use iterable::iter;
 use std::collections::HashMap;
+use system::{History};
 
 pub fn fpanic(pself: &Object, argv: &[Object]) -> FnResult{
   panic!()
@@ -353,6 +354,46 @@ fn fint(pself: &Object, argv: &[Object]) -> FnResult {
   }
 }
 
+fn input(pself: &Object, argv: &[Object]) -> FnResult {
+  match argv.len() {
+    0 => {
+      let s = match ::system::getline("") {
+        Ok(s)=>s, Err(e) => return std_exception("Error in input(): could not obtain input.")
+      };
+      Ok(U32String::new_object_str(&s))
+    },
+    1|2 => {
+      let prompt = match argv[0] {
+        Object::String(ref s) => {
+          s.v.iter().cloned().collect::<String>()
+        },
+        _ => return type_error("Type error in input(prompt): prompt is not a string.")
+      };
+      let s = if argv.len()==2 {
+        if let Object::List(ref a) = argv[1] {
+          let mut h = History::new();
+          for x in &a.borrow().v {
+            h.append(&x.to_string());
+          }
+          match ::system::getline_history(&prompt,&h) {
+            Ok(s)=>s, Err(e) => return std_exception("Error in input(): could not obtain input.")
+          }
+        }else{
+          return type_error("Type error in input(prompt,history): history is not a list.")
+        }
+      }else{
+        match ::system::getline(&prompt) {
+          Ok(s)=>s, Err(e) => return std_exception("Error in input(): could not obtain input.")
+        }
+      };
+      Ok(U32String::new_object_str(&s))
+    },
+    n => {
+      argc_error(n,0,2,"input")
+    }
+  }
+}
+
 pub fn init_rte(rte: &RTE){
   let mut gtab = rte.gtab.borrow_mut();
   gtab.insert_fn_plain("print",print,0,VARIADIC);
@@ -360,6 +401,7 @@ pub fn init_rte(rte: &RTE){
   gtab.insert_fn_plain("str",fstr,1,1);
   gtab.insert_fn_plain("int",fint,1,1);
   gtab.insert_fn_plain("repr",repr,1,1);
+  gtab.insert_fn_plain("input",input,0,2);
   gtab.insert_fn_plain("abs",abs,1,1);
   gtab.insert_fn_env  ("eval",eval,1,1);
   gtab.insert_fn_plain("size",size,1,1);
