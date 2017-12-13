@@ -13,7 +13,8 @@ use object::{
   Object, Map, List, Function, EnumFunction, StandardFn,
   FnResult, OperatorResult, Exception, Table, Range, U32String,
   type_error_plain, index_error_plain, argc_error_plain,
-  type_error, argc_error, std_exception_plain
+  type_error, argc_error, std_exception_plain,
+  VARIADIC
 };
 use complex::Complex64;
 // use ::Interpreter;
@@ -1048,41 +1049,53 @@ fn operator_ge(sp: usize, stack: &mut [Object]) -> OperatorResult {
 
 fn operator_is(sp: usize, stack: &mut [Object]) -> OperatorResult {
   match stack[sp-2] {
+    Object::Null => {
+      return match stack[sp-1] {
+        Object::Null => {
+          stack[sp-2] = Object::Bool(true);
+          Ok(())
+        },
+        _ => {
+          stack[sp-2] = Object::Bool(false);
+          Ok(())        
+        }
+      };
+    },
     Object::Bool(x) => {
-      match stack[sp-1] {
+      return match stack[sp-1] {
         Object::Bool(y) => {
           stack[sp-2] = Object::Bool(x==y);
-          return Ok(());
+          Ok(())
         },
         _ => {
           stack[sp-2] = Object::Bool(false);
-          return Ok(());
+          Ok(())
         }
-      }
+      };
     },
     Object::Int(x) => {
-      match stack[sp-1] {
+      return match stack[sp-1] {
         Object::Int(y) => {
           stack[sp-2] = Object::Bool(x==y);
-          return Ok(());
+          Ok(())
         },
         _ => {
           stack[sp-2] = Object::Bool(false);
-          return Ok(());
+          Ok(())
         }
-      }
+      };
     },
     Object::Float(x) => {
-      match stack[sp-1] {
+      return match stack[sp-1] {
         Object::Float(y) => {
           stack[sp-2] = Object::Bool(x==y);
-          return Ok(());
+          Ok(())
         },
         _ => {
           stack[sp-2] = Object::Bool(false);
-          return Ok(());
+          Ok(())
         }
-      }
+      };
     },
     _ => {}
   }
@@ -1858,15 +1871,32 @@ fn vm_loop(
       },
       bc::CALL => {
         ip+=BCASIZE;
-        let argc = load_u32(&a,ip-1) as usize;
-        let f = stack[sp-argc-2].clone();
-        match f {
+        let mut argc = load_u32(&a,ip-1) as usize;
+        let fobj = stack[sp-argc-2].clone();
+        match fobj {
           Object::Function(ref f) => {
             match f.f {
               EnumFunction::Std(ref sf) => {
                 if argc != f.argc as usize {
-                  exception = Err(argc_error_plain(argc, f.argc_min, f.argc_max, "anonymous function"));
-                  break;
+                  if f.argc_min as usize <= argc && f.argc_max == VARIADIC {
+                    let n = argc-f.argc_min as usize;
+                    let mut v: Vec<Object> = Vec::with_capacity(n);
+                    for x in &mut stack[sp-n..sp] {
+                      v.push(replace(x,Object::Null));
+                    }
+                    argc=argc-n+1;
+                    sp = sp-n+1;
+                    stack[sp-1] = List::new_object(v);
+                  }else if f.argc_min as usize <= argc && argc <= f.argc_max as usize {
+                    while argc != f.argc_max as usize {
+                      stack[sp] = Object::Null;
+                      sp+=1;
+                      argc+=1;
+                    }
+                  }else{
+                    exception = Err(argc_error_plain(argc, f.argc_min, f.argc_max, &fobj.to_string()));
+                    break;
+                  }
                 }
                 state.env.frame_stack.push(Frame{
                   ip: ip, base_pointer: bp,
@@ -1934,7 +1964,7 @@ fn vm_loop(
             }
           },
           _ => {
-            match object_call(&f, &mut stack[sp-argc-2..sp]) {
+            match object_call(&fobj, &mut stack[sp-argc-2..sp]) {
               Ok(()) => {}, Err(e) => {exception = Err(e); break;}
             }
             sp-=argc+1;
@@ -2287,6 +2317,12 @@ pub fn get_env(state: &mut State) -> Env {
   };
 }
 
+pub fn stack_clear(a: &mut [Object]) {
+  for x in a {
+    *x = Object::Null;
+  }
+}
+
 pub struct EnvPart{
   frame_stack: Vec<Frame>,
   rte: Rc<RTE>
@@ -2313,15 +2349,33 @@ impl<'a> Env<'a>{
       Object::Function(ref f) => {
         match f.f {
           EnumFunction::Std(ref fp) => {
-            if argv.len() != f.argc as usize {
-              return argc_error(argv.len(), f.argc_min, f.argc_max, "anonymous function");
-            }
             let sp = self.sp;
             self.stack[self.sp] = pself.clone();
             self.sp+=1;
             for x in argv {
               self.stack[self.sp] = x.clone();
               self.sp+=1;
+            }
+            let argc = argv.len();
+            if argc != f.argc as usize {
+              if f.argc_min as usize <= argc && f.argc_max == VARIADIC {
+                let n = argc-f.argc_min as usize;
+                let mut v: Vec<Object> = Vec::with_capacity(n);
+                for x in &mut self.stack[self.sp-n..self.sp] {
+                  v.push(replace(x,Object::Null));
+                }
+                self.sp = self.sp-n+1;
+                self.stack[self.sp-1] = List::new_object(v);
+              }else if f.argc_min as usize <= argc && argc <= f.argc_max as usize {
+                for _ in argc..f.argc_max as usize {
+                  self.stack[self.sp] = Object::Null;
+                  self.sp+=1;
+                }
+              }else{
+                stack_clear(&mut self.stack[sp..self.sp]);
+                self.sp = sp;
+                return argc_error(argc, f.argc_min, f.argc_max, &fobj.to_string());
+              }
             }
             let bp = self.sp;
             for _ in 0..fp.var_count {

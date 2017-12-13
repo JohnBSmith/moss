@@ -9,10 +9,19 @@ use vm::{Module,Env};
 use std::fmt;
 
 pub enum Object{
-  Null, Bool(bool), Int(i32), Float(f64), Complex(Complex64),
-  List(Rc<RefCell<List>>), String(Rc<U32String>),
-  Map(Rc<RefCell<Map>>), Function(Rc<Function>),
-  Range(Rc<Range>), Table(Rc<Table>), Tuple(Rc<Vec<Object>>),
+  Null,
+  Bool(bool),
+  Int(i32),
+  Float(f64),
+  Complex(Complex64),
+
+  List(Rc<RefCell<List>>),
+  String(Rc<U32String>),
+  Map(Rc<RefCell<Map>>),
+  Function(Rc<Function>),
+  Range(Rc<Range>),
+  Table(Rc<Table>),
+  Tuple(Rc<Vec<Object>>),
   Empty
 }
 

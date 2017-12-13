@@ -325,6 +325,33 @@ fn chunks(pself: &Object, argv: &[Object]) -> FnResult{
   })))
 }
 
+fn reduce(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+  let i = try!(iter(pself));
+  match argv.len() {
+    1 => {
+      let mut y = try!(env.call(&i,&Object::Null,&[]));
+      let f = &argv[0];
+      loop{
+        let x = try!(env.call(&i,&Object::Null,&[]));
+        if x == Object::Empty {break;}
+        y = try!(env.call(f,&Object::Null,&[y,x]));
+      }
+      return Ok(y);
+    },
+    2 => {
+      let mut y = argv[0].clone();
+      let f = &argv[1];
+      loop{
+        let x = try!(env.call(&i,&Object::Null,&[]));
+        if x == Object::Empty {break;}
+        y = try!(env.call(f,&Object::Null,&[y,x]));
+      }
+      return Ok(y);
+    },
+    n => argc_error(n,1,2,"reduce")
+  }
+}
+
 pub fn init(t: &Table){
   let mut m = t.map.borrow_mut();
   m.insert_fn_env  ("list",list,0,1);
@@ -332,6 +359,7 @@ pub fn init(t: &Table){
   m.insert_fn_env  ("any",any,1,1);
   m.insert_fn_env  ("all",all,1,1);
   m.insert_fn_env  ("count",count,1,1);
+  m.insert_fn_env  ("reduce",reduce,1,2);
   m.insert_fn_plain("map",map,1,1);
   m.insert_fn_plain("filter",filter,1,1);
   m.insert_fn_plain("chunks",chunks,1,1);

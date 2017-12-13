@@ -1,6 +1,4 @@
 
-// Todo:
-// Syntax: "use x.y.z".
 
 #![allow(dead_code)]
 #![allow(unused_variables)]
@@ -12,7 +10,7 @@ use std::collections::HashMap;
 use std::mem::{transmute,replace};
 use system;
 use vm::{bc, BCSIZE, BCASIZE, BCAASIZE, Module, RTE};
-use object::{Object, U32String};
+use object::{Object, U32String, VARIADIC};
 
 const VALUE_NONE: u8 = 0;
 const VALUE_OPTIONAL: u8 = 1;
@@ -757,7 +755,7 @@ enum ComplexInfoA{
 }
 
 enum Info{
-  None, Some(u8), SelfArg, Coroutine, A(Box<ComplexInfoA>),
+  None, Some(u8), SelfArg, Coroutine, Variadic, A(Box<ComplexInfoA>),
   Int(i32)
 }
 
@@ -788,13 +786,14 @@ struct VarTab{
   count_context: usize,
   count_global: usize,
   context: Option<Box<VarTab>>,
-  fn_id: Option<String>
+  fn_id: Option<String>,
+  count_optional_arg: usize
 }
 impl VarTab{
   fn new(id: Option<String>) -> VarTab {
     VarTab{v: Vec::new(),
       count_local: 0, count_arg: 0, count_context: 0, count_global: 0,
-      context: None, fn_id: id
+      context: None, fn_id: id, count_optional_arg: 0
     }
   }
   fn index_type(&mut self, id: &str) -> Option<(usize,VarType)> {
@@ -1087,16 +1086,41 @@ fn arguments_list(&mut self, i: &mut TokenIterator, t0: &Token, terminator: Symb
   -> Result<Rc<AST>,Error>
 {
   let mut v: Vec<Rc<AST>> = Vec::new();
+  let mut info = Info::None;
   let p = try!(i.next_token(self));
   let t = &p[i.index];
   if t.value == terminator {
     i.index+=1;
   }else{
     loop{
-      let x = try!(self.atom(i));
-      v.push(x);
       let p = try!(i.next_token(self));
       let t = &p[i.index];
+      if t.value == Symbol::Ast {
+        info = Info::Variadic;
+        i.index+=1;
+        let x = try!(self.atom(i));
+        v.push(x);
+        let p = try!(i.next_token(self));
+        let t = &p[i.index];
+        if t.value == terminator {
+          i.index+=1;
+          break;
+        }else{
+          return Err(self.syntax_error(t.line, t.col, String::from("expected '|'.")));
+        }
+      }
+      let x = try!(self.atom(i));
+      let p = try!(i.next_token(self));
+      let t = &p[i.index];
+      if t.value == Symbol::Assignment {
+        i.index+=1;
+        let y = try!(self.atom(i));
+        v.push(binary_operator(t.line,t.col,Symbol::Assignment,x,y));
+      }else{
+        v.push(x);
+      }
+      let p = try!(i.next_token(self));
+      let t = &p[i.index];     
       if t.value == Symbol::Comma {
         i.index+=1;
         let p = try!(i.next_token(self));
@@ -1115,7 +1139,7 @@ fn arguments_list(&mut self, i: &mut TokenIterator, t0: &Token, terminator: Symb
   }
   return Ok(Rc::new(AST{line: t0.line, col: t0.col,
     symbol_type: SymbolType::Operator, value: Symbol::List,
-    info: Info::None, s: None, a: Some(v.into_boxed_slice())
+    info: info, s: None, a: Some(v.into_boxed_slice())
   }));
 }
 
@@ -2403,6 +2427,7 @@ fn compile_fn(&mut self, bv: &mut Vec<u32>, t: &Rc<AST>)
 
   self.function_nesting+=1;
   try!(self.arguments(&mut bv2,&a[0]));
+  let count_optional = self.vtab.count_optional_arg;
 
   let coroutine = self.coroutine;
   self.coroutine = match t.info {
@@ -2475,9 +2500,23 @@ fn compile_fn(&mut self, bv: &mut Vec<u32>, t: &Rc<AST>)
   push_u32(bv,self.bv_blocks.len() as u32+1);
 
   let argv = ast_argv(&a[0]);
-  push_i32(bv,argv.len() as i32); // minimal argument count
-  push_i32(bv,argv.len() as i32); // maximal argument count
-  push_u32(bv,var_count as u32); // number of local variables
+
+  match a[0].info {
+    Info::Variadic => {
+      push_u32(bv,(argv.len()-1) as u32);
+      push_u32(bv,VARIADIC);
+    },
+    _ => {
+      // minimal argument count
+      push_u32(bv,(argv.len()-count_optional) as u32);
+
+      // maximal argument count
+      push_u32(bv,argv.len() as u32);
+    }
+  }
+
+  // number of local variables
+  push_u32(bv,var_count as u32);
 
   // Append the code block to the buffer of code blocks.
   self.bv_blocks.append(&mut bv2);
@@ -2536,6 +2575,18 @@ fn string_literal(&mut self, s: &str) -> Result<String,Error> {
   return Ok(y);
 }
 
+fn compile_default_argument(&mut self, bv: &mut Vec<u32>, t: &Rc<AST>)
+  -> Result<(),Error>
+{
+  let a = ast_argv(t);
+  let null = atomic_literal(t.line,t.col,Symbol::Null);
+  let condition = binary_operator(t.line,t.col,Symbol::Is,null,a[0].clone());
+  let ast = Rc::new(AST{line: t.line, col: t.col, symbol_type: SymbolType::Keyword,
+    value: Symbol::If, info: Info::None, s: None, a: Some(Box::new([condition,t.clone()]))
+  });
+  return self.compile_ast(bv,&ast);
+}
+
 fn arguments(&mut self, bv: &mut Vec<u32>, t: &AST)
   -> Result<(),Error>
 {
@@ -2550,15 +2601,31 @@ fn arguments(&mut self, bv: &mut Vec<u32>, t: &AST)
 
   for i in 0..a.len() {
     if a[i].value == Symbol::List {
+      let ids = format!("_t{}_",i);
+      let helper = identifier(&ids,a[i].line,a[i].col);
       self.vtab.v.push(VarInfo{
-        s: "_t_".to_string(),
+        s: ids,
         index: self.vtab.count_arg,
         var_type: VarType::Argument
       });
       self.vtab.count_arg+=1;
-      let helper = identifier("_t_",a[i].line,a[i].col);
       try!(self.compile_ast(bv,&helper));
       try!(self.compile_unpack(bv,&a[i]));
+    }else if a[i].value == Symbol::Assignment {
+      let u = ast_argv(&a[i]);
+      if let Some(ref s) = u[0].s {
+        self.vtab.v.push(VarInfo{
+          s: s.clone(),
+          index: self.vtab.count_arg,
+          var_type: VarType::Argument
+        });
+        self.vtab.count_arg+=1;
+        self.vtab.count_optional_arg+=1;
+        try!(self.compile_default_argument(bv,&a[i]));
+      }else{
+        // #(todo)
+        panic!();
+      }
     }else{
       if let Some(ref s) = a[i].s {
         self.vtab.v.push(VarInfo{
@@ -2568,6 +2635,7 @@ fn arguments(&mut self, bv: &mut Vec<u32>, t: &AST)
         });
         self.vtab.count_arg+=1;
       }else{
+        // #(todo)
         panic!();
       }
     }
@@ -2948,6 +3016,11 @@ fn compile_ast(&mut self, bv: &mut Vec<u32>, t: &Rc<AST>)
     }else if value == Symbol::Empty {
       push_bc(bv,bc::EMPTY,t.line,t.col);
     }else if value == Symbol::Yield {
+      if !self.coroutine {
+        return Err(self.syntax_error(t.line,t.col,format!(
+          "yield is only valid in sub*."
+        )));
+      }
       let a = ast_argv(t);
       if a.len()==0 {
         push_bc(bv,bc::NULL,t.line,t.col);

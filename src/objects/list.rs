@@ -269,10 +269,10 @@ fn list_sort(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
   }
 }
 
-fn list_chain(pself: &Object, argv: &[Object]) -> FnResult{
+fn list_chain(pself: &Object, argv: &[Object]) -> FnResult {
   let mut a = match *pself {
     Object::List(ref a) => a.borrow_mut(),
-    _ => return type_error("Type error in a.sort(): a is not a list.")
+    _ => return type_error("Type error in a.chain(): a is not a list.")
   };
   let mut v: Vec<Object> = Vec::new();
   for t in &a.v {
@@ -290,6 +290,69 @@ fn list_chain(pself: &Object, argv: &[Object]) -> FnResult{
   Ok(List::new_object(v))
 }
 
+fn list_rev(pself: &Object, argv: &[Object]) -> FnResult {
+  let mut a = match *pself {
+    Object::List(ref a) => a.borrow_mut(),
+    _ => return type_error("Type error in a.rev(): a is not a list.")
+  };
+  match argv.len() {
+    0 => {
+      a.v[..].reverse();
+      Ok(pself.clone())
+    },
+    n => argc_error(n,0,0,"rev")
+  }
+}
+
+fn list_swap(pself: &Object, argv: &[Object]) -> FnResult {
+  let mut a = match *pself {
+    Object::List(ref a) => a.borrow_mut(),
+    _ => return type_error("Type error in a.swap(i,j): a is not a list.")
+  };
+  match argv.len() {
+    2 => {
+      let x = match argv[0] {
+        Object::Int(x)=>x,
+        _ => return type_error("Type error in a.swap(i,j): i is not an integer.")
+      };
+      let y = match argv[1] {
+        Object::Int(y)=>y,
+        _ => return type_error("Type error in a.swap(i,j): j is not an integer.")
+      };
+      let len = a.v.len();
+      let i = if x<0 {
+        // #overflow: len as isize
+        let x = x as isize+len as isize;
+        if x<0 {
+          return index_error("Index error in a.swap(i,j): i is out of lower bound.");
+        }else{
+          x as usize
+        }
+      }else if x as usize >= len {
+        return index_error("Index error in a.swap(i,j): i is out of upper bound.");
+      }else{
+        x as usize
+      };
+      let j = if y<0 {
+        // #overflow: len as isize
+        let y = y as isize+len as isize;
+        if y<0 {
+          return index_error("Index error in a.swap(i,j): j is out of lower bound.");
+        }else{
+          y as usize
+        }
+      }else if y as usize >= len {
+        return index_error("Index error in a.swap(i,j): j is out of upper bound.");
+      }else{
+        y as usize
+      };
+      a.v.swap(i,j);
+      Ok(Object::Null)
+    },
+    n => argc_error(n,2,2,"swap")
+  }
+}
+
 pub fn init(t: &Table){
   let mut m = t.map.borrow_mut();
   m.insert_fn_plain("push",push,0,VARIADIC);
@@ -303,5 +366,7 @@ pub fn init(t: &Table){
   m.insert_fn_plain("join",list_join,0,1);
   m.insert_fn_env  ("sort",list_sort,0,1);
   m.insert_fn_plain("chain",list_chain,0,0);
+  m.insert_fn_plain("rev",list_rev,0,0);
+  m.insert_fn_plain("swap",list_swap,2,2);
   m.insert("shuffle",Function::mutable(new_shuffle(),0,0));
 }

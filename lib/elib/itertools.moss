@@ -26,4 +26,56 @@ chain = |a| sub*||
   end
 end
 
+Iterable.reduce = sub reduce|x0,f|
+  y = x0
+  for x in self
+    y = f(y,x)
+  end
+  return y
+end
+
+Iterable.accumulate = sub accumulate|x0,f|
+  a = self
+  return sub*||
+    y = x0
+    yield y
+    for x in a
+      y = f(y,x)
+      yield y
+    end
+  end
+end
+
+Iterable.take = sub take|n|
+  i = iter(self)
+  return sub*||
+    for k in 1..n
+      yield i()
+    end
+  end
+end
+
+Iterable.skip = sub skip|n|
+  i = iter(self)
+  for k in 1..n
+    i()
+  end
+  return i
+end
+
+Iterable.at = sub at|n|
+  i = self.skip(n)
+  return i()
+end
+
+sub cycle(x)
+  a = x.list()
+  i=0; n=size(a)
+  return sub*||
+    while true
+      i = 1 if i==n else i+1
+      yield a[i-1]
+    end
+  end
+end
 
