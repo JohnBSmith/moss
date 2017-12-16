@@ -465,10 +465,30 @@ pub fn object_to_repr(x: &Object) -> String{
 }
 
 pub fn op_add(env: &mut Env, x: &Object, y: &Object) -> FnResult {
-  // let mut stack = [x.clone(),y.clone()];
   env.stack[env.sp] = x.clone();
   env.stack[env.sp+1] = y.clone();
   try!(::vm::operator_plus(env.env,env.sp+2,env.stack));
+  return Ok(replace(&mut env.stack[env.sp],Object::Null));
+}
+
+pub fn op_sub(env: &mut Env, x: &Object, y: &Object) -> FnResult {
+  env.stack[env.sp] = x.clone();
+  env.stack[env.sp+1] = y.clone();
+  try!(::vm::operator_minus(env.env,env.sp+2,env.stack));
+  return Ok(replace(&mut env.stack[env.sp],Object::Null));
+}
+
+pub fn op_mpy(env: &mut Env, x: &Object, y: &Object) -> FnResult {
+  env.stack[env.sp] = x.clone();
+  env.stack[env.sp+1] = y.clone();
+  try!(::vm::operator_mpy(env.env,env.sp+2,env.stack));
+  return Ok(replace(&mut env.stack[env.sp],Object::Null));
+}
+
+pub fn op_div(env: &mut Env, x: &Object, y: &Object) -> FnResult {
+  env.stack[env.sp] = x.clone();
+  env.stack[env.sp+1] = y.clone();
+  try!(::vm::operator_div(env.env,env.sp+2,env.stack));
   return Ok(replace(&mut env.stack[env.sp],Object::Null));
 }
 
@@ -509,6 +529,7 @@ fn string_add(a: &U32String, b: &U32String) -> Object {
 }
 
 fn operator_plus(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorResult {
+  'r: loop{
   match stack[sp-2] {
     Object::Int(x) => {
       match stack[sp-1] {
@@ -527,7 +548,7 @@ fn operator_plus(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> Operator
           stack[sp-2] = Object::Complex(x as f64+y);
           return Ok(());
         },
-        _ => return Err(type_error_plain("Type error in a+b."))
+        _ => {break 'r;}
       }
     },
     Object::Float(x) => {
@@ -544,7 +565,7 @@ fn operator_plus(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> Operator
           stack[sp-2] = Object::Complex(x+y);
           return Ok(());
         },
-        _ => return Err(type_error_plain("Type error in a+b."))
+        _ => {break 'r;}
       }
     },
     Object::Complex(x) => {
@@ -561,12 +582,12 @@ fn operator_plus(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> Operator
           stack[sp-2] = Object::Complex(x+y);
           return Ok(());
         },
-        _ => return Err(type_error_plain("Type error in a+b."))
+        _ => {break 'r;}
       }
     },
     _ => {}
   }
-  match replace(&mut stack[sp-2],Object::Null) {
+  return match replace(&mut stack[sp-2],Object::Null) {
     Object::String(ref a) => {
       match replace(&mut stack[sp-1],Object::Null) {
         Object::String(ref b) => {
@@ -586,7 +607,7 @@ fn operator_plus(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> Operator
       }
     },
     Object::Interface(a) => {
-      let b = stack[sp-1].clone();
+      let b = replace(&mut stack[sp-1],Object::Null);
       match a.add(&b,&mut Env{env: env, sp: sp, stack: stack}) {
         Ok(y) => {
           stack[sp-2] = y;
@@ -596,10 +617,27 @@ fn operator_plus(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> Operator
       }
     },
     _ => Err(type_error_plain("Type error in a+b."))
+  };
+  } // 'r
+  match replace(&mut stack[sp-1],Object::Null) {
+    Object::Interface(a) => {
+      let b = replace(&mut stack[sp-2],Object::Null);
+      match a.radd(&b,&mut Env{env: env, sp: sp, stack: stack}) {
+        Ok(y) => {
+          stack[sp-2] = y;
+          Ok(())
+        },
+        Err(e) => Err(e)
+      }      
+    },
+    _ => {
+      return Err(type_error_plain("Type error in a+b."));
+    }
   }
 }
 
 fn operator_minus(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorResult {
+  'r: loop{
   match stack[sp-2] {
     Object::Int(x) => {
       return match stack[sp-1] {
@@ -618,7 +656,7 @@ fn operator_minus(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> Operato
           stack[sp-2] = Object::Complex(x as f64-y);
           Ok(())
         },
-        _ => Err(type_error_plain("Type error in a-b."))
+        _ => {break 'r;}
       };
     },
     Object::Float(x) => {
@@ -635,7 +673,7 @@ fn operator_minus(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> Operato
           stack[sp-2] = Object::Complex(x-y);
           Ok(())
         },
-        _ => Err(type_error_plain("Type error in a-b."))
+        _ => {break 'r;}
       };
     },
     Object::Complex(x) => {
@@ -652,12 +690,12 @@ fn operator_minus(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> Operato
           stack[sp-2] = Object::Complex(x-y);
           Ok(())
         },
-        _ => Err(type_error_plain("Type error in a-b."))
+        _ => {break 'r;}
       };
     },
     _ => {}
   }
-  match replace(&mut stack[sp-2],Object::Null) {
+  return match replace(&mut stack[sp-2],Object::Null) {
     Object::Map(a) => {
       match replace(&mut stack[sp-1],Object::Null) {
         Object::Map(b) => {
@@ -676,14 +714,41 @@ fn operator_minus(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> Operato
         _ => Err(type_error_plain("Type error in a-b."))
       }
     },
+    Object::Interface(a) => {
+      let b = replace(&mut stack[sp-1],Object::Null);
+      match a.sub(&b,&mut Env{env: env, sp: sp, stack: stack}) {
+        Ok(y) => {
+          stack[sp-2] = y;
+          Ok(())
+        },
+        Err(e) => Err(e)
+      }
+    },
     _ => Err(type_error_plain("Type error in a-b."))
+  };
+  } // 'r
+  match replace(&mut stack[sp-1],Object::Null) {
+    Object::Interface(a) => {
+      let b = replace(&mut stack[sp-2],Object::Null);
+      match a.rsub(&b,&mut Env{env: env, sp: sp, stack: stack}) {
+        Ok(y) => {
+          stack[sp-2] = y;
+          Ok(())
+        },
+        Err(e) => Err(e)
+      }      
+    },
+    _ => {
+      return Err(type_error_plain("Type error in a-b."));
+    }
   }
 }
 
 fn operator_mpy(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorResult {
+  'r: loop{
   match stack[sp-2] {
     Object::Int(x) => {
-      match stack[sp-1] {
+      return match stack[sp-1] {
         Object::Int(y) => {
           stack[sp-2] = match x.checked_mul(y) {
             Some(z) => Object::Int(z),
@@ -699,13 +764,11 @@ fn operator_mpy(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorR
           stack[sp-2] = Object::Complex(x as f64*y);
           Ok(())
         },
-        _ => Err(type_error_plain(&format!("Type error in a*b: a={}, b={}.",
-          stack[sp-2].to_string(), stack[sp-1].to_string()
-        )))
-      }
+        _ => {break 'r;}
+      };
     },
     Object::Float(x) => {
-      match stack[sp-1] {
+      return match stack[sp-1] {
         Object::Int(y) => {
           stack[sp-2] = Object::Float(x*(y as f64));
           Ok(())
@@ -718,13 +781,11 @@ fn operator_mpy(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorR
           stack[sp-2] = Object::Complex(x*y);
           Ok(())
         },
-        _ => Err(type_error_plain(&format!("Type error in a*b: a={}, b={}.",
-          stack[sp-2].to_string(), stack[sp-1].to_string()
-        )))
-      }
+        _ => {break 'r;}
+      };
     },
     Object::Complex(x) => {
-      match stack[sp-1] {
+      return match stack[sp-1] {
         Object::Int(y) => {
           stack[sp-2] = Object::Complex(y as f64*x);
           Ok(())
@@ -737,15 +798,44 @@ fn operator_mpy(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorR
           stack[sp-2] = Object::Complex(x*y);
           Ok(())
         },
-        _ => Err(type_error_plain(&format!("Type error in a*b: a={}, b={}.",
-          stack[sp-2].to_string(), stack[sp-1].to_string()
-        )))
-      }
+        _ => {break 'r;}
+      };
+    },
+    _ => {}
+  }
+  return match replace(&mut stack[sp-2],Object::Null) {
+    Object::Interface(a) => {
+      let b = replace(&mut stack[sp-1],Object::Null);
+      match a.mpy(&b,&mut Env{env: env, sp: sp, stack: stack}) {
+        Ok(y) => {
+          stack[sp-2] = y;
+          Ok(())
+        },
+        Err(e) => Err(e)
+      }    
     },
     _ => Err(type_error_plain(&format!("Type error in a*b: a={}, b={}.",
       stack[sp-2].to_string(), stack[sp-1].to_string()
     )))
-  }
+  };
+  } // 'r
+  return match replace(&mut stack[sp-1],Object::Null) {
+    Object::Interface(a) => {
+      let b = replace(&mut stack[sp-2],Object::Null);
+      match a.rmpy(&b,&mut Env{env: env, sp: sp, stack: stack}) {
+        Ok(y) => {
+          stack[sp-2] = y;
+          Ok(())
+        },
+        Err(e) => Err(e)
+      }      
+    },
+    _ => {
+      Err(type_error_plain(&format!("Type error in a*b: a={}, b={}.",
+        stack[sp-2].to_string(), stack[sp-1].to_string()
+      )))
+    }
+  };
 }
 
 fn operator_div(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorResult {

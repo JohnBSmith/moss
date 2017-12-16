@@ -9,7 +9,7 @@ use object::{Object, FnResult, Function,
   type_error, argc_error, new_module,
   Interface, std_exception
 };
-use vm::{Env, op_add};
+use vm::{Env, op_add, op_sub, op_mpy, op_div};
 
 struct ShapeStride{
   shape: usize,
@@ -88,6 +88,52 @@ impl Interface for Array {
           let y = try!(op_add(env,&self.a[(base as isize+i as isize*stride) as usize],b));
           v.push(y);
         }
+      }
+      return Ok(Object::Interface(Array::vector(Rc::new(v))));
+    }else{
+      panic!();
+    }
+  }
+  fn sub(&self, b: &Object, env: &mut Env) -> FnResult {
+    if self.n==1 {
+      let stride = self.s[0].stride;
+      let base = self.base;
+      let mut v: Vec<Object> = Vec::with_capacity(self.s[0].shape);
+      if let Some(b) = Array::downcast(b) {
+        if b.n != 1 {
+          return type_error(&format!("Type error in v-w: v is a vector, but w is of order {}.",b.n));
+        }
+        if self.s[0].shape != b.s[0].shape {
+          return type_error("Type error in v-w: v is not of the same size as w.");
+        }
+        let stride2 = b.s[0].stride;
+        let base2 = b.base;
+        for i in 0..self.s[0].shape {
+          let y = try!(op_sub(env,
+            &self.a[(base as isize+i as isize*stride) as usize],
+            &b.a[(base2 as isize+i as isize*stride2) as usize]
+          ));
+          v.push(y);
+        }
+      }else{
+        for i in 0..self.s[0].shape {
+          let y = try!(op_sub(env,&self.a[(base as isize+i as isize*stride) as usize],b));
+          v.push(y);
+        }
+      }
+      return Ok(Object::Interface(Array::vector(Rc::new(v))));
+    }else{
+      panic!();
+    }
+  }
+  fn rmpy(&self, a: &Object, env: &mut Env) -> FnResult {
+    if self.n==1 {
+      let stride = self.s[0].stride;
+      let base = self.base;
+      let mut v: Vec<Object> = Vec::with_capacity(self.s[0].shape);
+      for i in 0..self.s[0].shape {
+        let y = try!(op_mpy(env,a,&self.a[(base as isize+i as isize*stride) as usize]));
+        v.push(y);
       }
       return Ok(Object::Interface(Array::vector(Rc::new(v))));
     }else{
