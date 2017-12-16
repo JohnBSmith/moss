@@ -7,6 +7,8 @@ use complex::Complex64;
 use std::collections::HashMap;
 use vm::{Module,Env};
 use std::fmt;
+use std::any::Any;
+use std::ops;
 
 pub enum Object{
   Null,
@@ -22,7 +24,8 @@ pub enum Object{
   Range(Rc<Range>),
   Table(Rc<Table>),
   Tuple(Rc<Vec<Object>>),
-  Empty
+  Empty,
+  Interface(Rc<Interface>)
 }
 
 impl Object{
@@ -49,7 +52,8 @@ impl Clone for Object{
       Object::Range(ref x) => {Object::Range(x.clone())},
       Object::Tuple(ref x) => {Object::Tuple(x.clone())},
       Object::Table(ref x) => {Object::Table(x.clone())},
-      Object::Empty => {Object::Empty}
+      Object::Empty => {Object::Empty},
+      Object::Interface(ref x) => {Object::Interface(x.clone())}
     }
   }
 }
@@ -284,3 +288,41 @@ impl Table{
 pub fn new_module(id: &str) -> Table{
   Table{prototype: Object::Null, map: Map::new()}
 }
+
+pub trait Interface{
+  fn as_any(&self) -> &Any;
+  fn to_string(&self) -> String {
+    "interface object".to_string()
+  }
+  fn add(&self, b: &Object, &mut Env) -> FnResult {
+    std_exception("Error: a+b is not implemented for objects of this type.")
+  }
+  fn radd(&self, a: &Object, &mut Env) -> FnResult {
+    std_exception("Error: a+b is not implemented for objects of this type.")
+  }
+  fn sub(&self, b: &Object, &mut Env) -> FnResult {
+    std_exception("Error: a-b is not implemented for objects of this type.")
+  }
+  fn rsub(&self, a: &Object, &mut Env) -> FnResult {
+    std_exception("Error: a-b is not implemented for objects of this type.")
+  }
+  fn mpy(&self, b: &Object, &mut Env) -> FnResult {
+    std_exception("Error: a*b is not implemented for objects of this type.")
+  }
+  fn rmpy(&self, a: &Object, &mut Env) -> FnResult {
+    std_exception("Error: a*b is not implemented for objects of this type.")
+  }
+  fn div(&self, b: &Object, &mut Env) -> FnResult {
+    std_exception("Error: a/b is not implemented for objects of this type.")
+  }
+  fn rdiv(&self, a: &Object, &mut Env) -> FnResult {
+    std_exception("Error: a/b is not implemented for objects of this type.")
+  }
+  fn idiv(&self, b: &Object, &mut Env) -> FnResult {
+    std_exception("Error: a//b is not implemented for objects of this type.")
+  }
+  fn ridiv(&self, a: &Object, &mut Env) -> FnResult {
+    std_exception("Error: a//b is not implemented for objects of this type.")
+  }
+}
+

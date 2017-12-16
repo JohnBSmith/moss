@@ -38,6 +38,9 @@ pub mod rand;
 #[path = "modules/sys.rs"]
 mod sys;
 
+#[path = "modules/la.rs"]
+mod la;
+
 use std::rc::Rc;
 use std::cell::RefCell;
 // use std::fs::File;

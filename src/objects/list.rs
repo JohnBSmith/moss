@@ -321,7 +321,7 @@ fn list_swap(pself: &Object, argv: &[Object]) -> FnResult {
       };
       let len = a.v.len();
       let i = if x<0 {
-        // #overflow: len as isize
+        // #overflow-transmutation: len as isize
         let x = x as isize+len as isize;
         if x<0 {
           return index_error("Index error in a.swap(i,j): i is out of lower bound.");
@@ -334,7 +334,7 @@ fn list_swap(pself: &Object, argv: &[Object]) -> FnResult {
         x as usize
       };
       let j = if y<0 {
-        // #overflow: len as isize
+        // #overflow-transmutation: len as isize
         let y = y as isize+len as isize;
         if y<0 {
           return index_error("Index error in a.swap(i,j): j is out of lower bound.");

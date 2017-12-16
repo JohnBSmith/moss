@@ -429,6 +429,9 @@ pub fn object_to_string(x: &Object) -> String{
     },
     Object::Empty => {
       String::from("empty")
+    },
+    Object::Interface(ref t) => {
+      t.to_string()
     }
   }
 }
@@ -461,7 +464,15 @@ pub fn object_to_repr(x: &Object) -> String{
   }
 }
 
-fn operator_neg(sp: usize, stack: &mut [Object]) -> OperatorResult {
+pub fn op_add(env: &mut Env, x: &Object, y: &Object) -> FnResult {
+  // let mut stack = [x.clone(),y.clone()];
+  env.stack[env.sp] = x.clone();
+  env.stack[env.sp+1] = y.clone();
+  try!(::vm::operator_plus(env.env,env.sp+2,env.stack));
+  return Ok(replace(&mut env.stack[env.sp],Object::Null));
+}
+
+fn operator_neg(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorResult {
   match stack[sp-1] {
     Object::Int(x) => {
       stack[sp-1] = Object::Int(-x);
@@ -497,7 +508,7 @@ fn string_add(a: &U32String, b: &U32String) -> Object {
   return U32String::new_object(v);
 }
 
-fn operator_plus(sp: usize, stack: &mut [Object]) -> OperatorResult {
+fn operator_plus(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorResult {
   match stack[sp-2] {
     Object::Int(x) => {
       match stack[sp-1] {
@@ -574,11 +585,21 @@ fn operator_plus(sp: usize, stack: &mut [Object]) -> OperatorResult {
         _ => Err(type_error_plain("Type error in a+b."))
       }
     },
+    Object::Interface(a) => {
+      let b = stack[sp-1].clone();
+      match a.add(&b,&mut Env{env: env, sp: sp, stack: stack}) {
+        Ok(y) => {
+          stack[sp-2] = y;
+          Ok(())
+        },
+        Err(e) => Err(e)
+      }
+    },
     _ => Err(type_error_plain("Type error in a+b."))
   }
 }
 
-fn operator_minus(sp: usize, stack: &mut [Object]) -> OperatorResult {
+fn operator_minus(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorResult {
   match stack[sp-2] {
     Object::Int(x) => {
       return match stack[sp-1] {
@@ -659,7 +680,7 @@ fn operator_minus(sp: usize, stack: &mut [Object]) -> OperatorResult {
   }
 }
 
-fn operator_mpy(sp: usize, stack: &mut [Object]) -> OperatorResult {
+fn operator_mpy(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorResult {
   match stack[sp-2] {
     Object::Int(x) => {
       match stack[sp-1] {
@@ -727,7 +748,7 @@ fn operator_mpy(sp: usize, stack: &mut [Object]) -> OperatorResult {
   }
 }
 
-fn operator_div(sp: usize, stack: &mut [Object]) -> OperatorResult {
+fn operator_div(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorResult {
   match stack[sp-2] {
     Object::Int(x) => {
       match stack[sp-1] {
@@ -784,7 +805,7 @@ fn operator_div(sp: usize, stack: &mut [Object]) -> OperatorResult {
   }
 }
 
-fn operator_idiv(sp: usize, stack: &mut [Object]) -> OperatorResult {
+fn operator_idiv(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorResult {
   match stack[sp-2] {
     Object::Int(x) => {
       match stack[sp-1] {
@@ -799,7 +820,7 @@ fn operator_idiv(sp: usize, stack: &mut [Object]) -> OperatorResult {
   }
 }
 
-fn operator_mod(sp: usize, stack: &mut [Object]) -> OperatorResult {
+fn operator_mod(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorResult {
   match stack[sp-2] {
     Object::Int(x) => {
       match stack[sp-1] {
@@ -814,7 +835,7 @@ fn operator_mod(sp: usize, stack: &mut [Object]) -> OperatorResult {
   }
 }
 
-fn operator_pow(sp: usize, stack: &mut [Object]) -> OperatorResult {
+fn operator_pow(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorResult {
   match stack[sp-2] {
     Object::Int(x) => {
       match stack[sp-1] {
@@ -871,7 +892,7 @@ fn operator_pow(sp: usize, stack: &mut [Object]) -> OperatorResult {
   }
 }
 
-fn operator_band(sp: usize, stack: &mut [Object]) -> OperatorResult {
+fn operator_band(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorResult {
   match replace(&mut stack[sp-2],Object::Null) {
     Object::Map(ref a) => {
       match replace(&mut stack[sp-1],Object::Null) {
@@ -895,7 +916,7 @@ fn operator_band(sp: usize, stack: &mut [Object]) -> OperatorResult {
   }
 }
 
-fn operator_bor(sp: usize, stack: &mut [Object]) -> OperatorResult {
+fn operator_bor(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorResult {
   match replace(&mut stack[sp-2],Object::Null) {
     Object::Map(ref a) => {
       match replace(&mut stack[sp-1],Object::Null) {
@@ -919,7 +940,7 @@ fn operator_bor(sp: usize, stack: &mut [Object]) -> OperatorResult {
   }
 }
 
-fn operator_lt(sp: usize, stack: &mut [Object]) -> OperatorResult {
+fn operator_lt(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorResult {
   match stack[sp-2] {
     Object::Int(x) => {
       match stack[sp-1] {
@@ -951,7 +972,7 @@ fn operator_lt(sp: usize, stack: &mut [Object]) -> OperatorResult {
   }
 }
 
-fn operator_gt(sp: usize, stack: &mut [Object]) -> OperatorResult {
+fn operator_gt(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorResult {
   match stack[sp-2] {
     Object::Int(x) => {
       match stack[sp-1] {
@@ -983,7 +1004,7 @@ fn operator_gt(sp: usize, stack: &mut [Object]) -> OperatorResult {
   }
 }
 
-fn operator_le(sp: usize, stack: &mut [Object]) -> OperatorResult {
+fn operator_le(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorResult {
   match stack[sp-2] {
     Object::Int(x) => {
       match stack[sp-1] {
@@ -1015,7 +1036,7 @@ fn operator_le(sp: usize, stack: &mut [Object]) -> OperatorResult {
   }
 }
 
-fn operator_ge(sp: usize, stack: &mut [Object]) -> OperatorResult {
+fn operator_ge(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorResult {
   match stack[sp-2] {
     Object::Int(x) => {
       match stack[sp-1] {
@@ -1120,7 +1141,7 @@ fn operator_is(sp: usize, stack: &mut [Object]) -> OperatorResult {
   }
 }
 
-fn operator_in(sp: usize, stack: &mut [Object]) -> OperatorResult {
+fn operator_in(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorResult {
   let key = replace(&mut stack[sp-2],Object::Null);
   match replace(&mut stack[sp-1],Object::Null) {
     Object::List(ref a) => {
@@ -1184,7 +1205,7 @@ fn operator_map(sp: usize, stack: &mut [Object], size: usize) -> usize{
   return sp;
 }
 
-fn operator_index(sp: usize, stack: &mut [Object]) -> OperatorResult {
+fn operator_index(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorResult {
   match stack[sp-2].clone() {
     Object::List(a) => {
       let a = a.borrow();
@@ -1583,6 +1604,7 @@ fn vm_loop(
 {
   let mut stack: &mut [Object] = state.stack;
   // let mut a: &[u8] = unsafe{&*(&module.program as &[u8] as *const [u8])};
+  let mut env = &mut state.env;
   let mut a = module.program.clone();
   let mut sp=state.sp;
 
@@ -1662,69 +1684,69 @@ fn vm_loop(
         sp+=1;
       },
       bc::NEG => {
-        match operator_neg(sp, &mut stack) {
+        match operator_neg(env, sp, &mut stack) {
           Ok(())=>{}, Err(e)=>{exception=Err(e); break;}
         }
         ip+=BCSIZE;
       },
       bc::ADD => {
-        match operator_plus(sp, &mut stack) {
+        match operator_plus(env, sp, &mut stack) {
           Ok(())=>{}, Err(e)=>{exception=Err(e); break;}
         }
         sp-=1;
         ip+=BCSIZE;
       },
       bc::SUB => {
-        match operator_minus(sp, &mut stack) {
+        match operator_minus(env, sp, &mut stack) {
           Ok(())=>{}, Err(e)=>{exception=Err(e); break;}
         }
         sp-=1;
         ip+=BCSIZE;
       },
       bc::MPY => {
-        match operator_mpy(sp, &mut stack) {
+        match operator_mpy(env, sp, &mut stack) {
           Ok(())=>{}, Err(e)=>{exception=Err(e); break;}
         }
         sp-=1;
         ip+=BCSIZE;
       },
       bc::DIV => {
-        match operator_div(sp, &mut stack) {
+        match operator_div(env, sp, &mut stack) {
           Ok(())=>{}, Err(e)=>{exception=Err(e); break;}
         }
         sp-=1;
         ip+=BCSIZE;
       },
       bc::IDIV => {
-        match operator_idiv(sp, &mut stack) {
+        match operator_idiv(env, sp, &mut stack) {
           Ok(())=>{}, Err(e)=>{exception=Err(e); break;}
         }
         sp-=1;
         ip+=BCSIZE;
       },
       bc::MOD => {
-        match operator_mod(sp, &mut stack) {
+        match operator_mod(env, sp, &mut stack) {
           Ok(())=>{}, Err(e)=>{exception=Err(e); break;}
         }
         sp-=1;
         ip+=BCSIZE;
       },
       bc::POW => {
-        match operator_pow(sp, &mut stack) {
+        match operator_pow(env, sp, &mut stack) {
           Ok(())=>{}, Err(e)=>{exception=Err(e); break;}
         }
         sp-=1;
         ip+=BCSIZE;
       },
       bc::BAND => {
-        match operator_band(sp, &mut stack) {
+        match operator_band(env, sp, &mut stack) {
           Ok(())=>{}, Err(e)=>{exception=Err(e); break;}
         }
         sp-=1;
         ip+=BCSIZE;
       },
       bc::BOR => {
-        match operator_bor(sp, &mut stack) {
+        match operator_bor(env, sp, &mut stack) {
           Ok(())=>{}, Err(e)=>{exception=Err(e); break;}
         }
         sp-=1;
@@ -1745,28 +1767,28 @@ fn vm_loop(
         ip+=BCSIZE;
       },
       bc::LT => {
-        match operator_lt(sp, &mut stack) {
+        match operator_lt(env, sp, &mut stack) {
           Ok(())=>{}, Err(e)=>{exception=Err(e); break;}
         }
         sp-=1;
         ip+=BCSIZE;
       },
       bc::GT => {
-        match operator_gt(sp, &mut stack) {
+        match operator_gt(env, sp, &mut stack) {
           Ok(())=>{}, Err(e)=>{exception=Err(e); break;}
         }
         sp-=1;
         ip+=BCSIZE;
       },
       bc::LE => {
-        match operator_le(sp, &mut stack) {
+        match operator_le(env, sp, &mut stack) {
           Ok(())=>{}, Err(e)=>{exception=Err(e); break;}
         }
         sp-=1;
         ip+=BCSIZE;
       },
       bc::GE => {
-        match operator_ge(sp, &mut stack) {
+        match operator_ge(env, sp, &mut stack) {
           Ok(())=>{}, Err(e)=>{exception=Err(e); break;}
         }
         sp-=1;
@@ -1780,7 +1802,7 @@ fn vm_loop(
         ip+=BCSIZE;      
       },
       bc::IN => {
-        match operator_in(sp, &mut stack) {
+        match operator_in(env, sp, &mut stack) {
           Ok(())=>{}, Err(e)=>{exception=Err(e); break;}
         }
         sp-=1;
@@ -1898,7 +1920,7 @@ fn vm_loop(
                     break;
                   }
                 }
-                state.env.frame_stack.push(Frame{
+                env.frame_stack.push(Frame{
                   ip: ip, base_pointer: bp,
                   f: replace(&mut fnself,(*f).clone()),
                   module: replace(&mut module,sf.module.clone()),
@@ -1934,7 +1956,7 @@ fn vm_loop(
               EnumFunction::Env(ref fp) => {
                 let y = {
                   let (s1,s2) = stack.split_at_mut(sp);
-                  let mut env = Env{sp: 0, stack: s2, env: &mut state.env};
+                  let mut env = Env{sp: 0, stack: s2, env: env};
                   match fp(&mut env, &s1[sp-argc-1], &s1[sp-argc..sp]) {
                     Ok(y) => y, Err(e) => {exception = Err(e); break;}
                   }
@@ -1946,7 +1968,7 @@ fn vm_loop(
               EnumFunction::Mut(ref fp) => {
                 let y = {
                   let (s1,s2) = stack.split_at_mut(sp);
-                  let mut env = Env{sp: 0, stack: s2, env: &mut state.env};
+                  let mut env = Env{sp: 0, stack: s2, env: env};
                   let pf = &mut *match fp.try_borrow_mut() {
                     Ok(f)=>f, Err(e) => {
                       exception = Err(mut_fn_aliasing(f));
@@ -1977,7 +1999,7 @@ fn vm_loop(
           state.sp = sp;
           return Ok(());
         }
-        let frame = state.env.frame_stack.pop().unwrap();
+        let frame = env.frame_stack.pop().unwrap();
         module = frame.module;
         ip = frame.ip;
         argv_ptr = frame.argv_ptr;
@@ -2079,7 +2101,7 @@ fn vm_loop(
         },id,argc_min,argc_max);
       },
       bc::GET_INDEX => {
-        match operator_index(sp, &mut stack) {
+        match operator_index(env, sp, &mut stack) {
           Ok(())=>{}, Err(e)=>{exception=Err(e); break;}
         }
         sp-=1;
@@ -2122,7 +2144,7 @@ fn vm_loop(
       bc::NEXT => {
         let y = {
           let x = stack[sp-1].clone();
-          let mut env = Env{sp: sp, stack: stack, env: state.env};
+          let mut env = Env{sp: sp, stack: stack, env: env};
           match env.iter_next(&x) {
             Ok(y)=>y, Err(e)=>{exception=Err(e); break;}
           }
@@ -2146,7 +2168,7 @@ fn vm_loop(
           state.sp = sp;
           return Ok(());
         }
-        let frame = state.env.frame_stack.pop().unwrap();
+        let frame = env.frame_stack.pop().unwrap();
         module = frame.module;
         ip = frame.ip;
         argv_ptr = frame.argv_ptr;

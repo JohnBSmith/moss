@@ -7,7 +7,7 @@ use vm::{object_to_string, object_to_repr, RTE, Env};
 use object::{Object, Map, Table, List,
   FnResult, U32String, Function, EnumFunction,
   type_error, argc_error, index_error, value_error, std_exception,
-  VARIADIC, new_module
+  VARIADIC, new_module, Exception, type_error_plain
 };
 use rand::Rand;
 use iterable::iter;
@@ -137,6 +137,8 @@ fn load(env: &mut Env, s: &U32String) -> FnResult{
     return Ok(::math::load_cmath());
   }else if s=="sys" {
     return Ok(::sys::load_sys(env.rte()));
+  }else if s=="la" {
+    return Ok(::la::load_la());
   }else{
     return load_file(env,&s);
     // return index_error(&format!("Could not load module '{}'.",s));
@@ -215,11 +217,8 @@ fn ftype(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
   }
 }
 
-pub fn flist(pself: &Object, argv: &[Object]) -> FnResult{
-  if argv.len()!=1 {
-    return argc_error(argv.len(),1,1,"list");
-  }
-  match argv[0] {
+pub fn list(env: &mut Env, obj: &Object) -> FnResult {
+  match *obj {
     Object::Int(n) => {
       if n<0 {
         return value_error("Value error in list(n): n<0.");
@@ -256,6 +255,13 @@ pub fn flist(pself: &Object, argv: &[Object]) -> FnResult{
     },
     _ => type_error("Type error in list(r): r is not a range.")
   }
+}
+
+pub fn flist(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
+  match argv.len() {
+    1 => {}, n => return argc_error(n,1,1,"list")
+  }
+  return list(env,&argv[0]);
 }
 
 fn set(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
@@ -410,7 +416,7 @@ pub fn init_rte(rte: &RTE){
   gtab.insert_fn_plain("record",record,1,1);
   gtab.insert_fn_plain("object",fobject,0,2);
   gtab.insert_fn_env  ("type",ftype,1,1);
-  gtab.insert_fn_plain("list",flist,1,1);
+  gtab.insert_fn_env  ("list",flist,1,1);
   gtab.insert_fn_env  ("set",set,1,1);
   gtab.insert_fn_plain("copy",copy,1,1);
   gtab.insert_fn_plain("rand",frand,1,1);
