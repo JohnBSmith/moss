@@ -7,7 +7,6 @@ use object::{Object, FnResult, U32String, Function, Table, List,
 };
 use vm::Env;
 use rand::Rand;
-use std::cmp::Ordering;
 
 fn push(pself: &Object, argv: &[Object]) -> FnResult{
   match *pself {
@@ -221,54 +220,6 @@ fn list_join(pself: &Object, argv: &[Object]) -> FnResult{
   Ok(U32String::new_object_str(&y))
 }
 
-fn compare(a: &Object, b: &Object) -> Ordering {
-  match *a {
-    Object::Int(x) => {
-      match *b {
-        Object::Int(y) => x.cmp(&y),
-        Object::String(ref y) => Ordering::Less,
-        _ => Ordering::Equal
-      }
-    },
-    Object::String(ref a) => {
-      match *b {
-        Object::String(ref b) => a.v.cmp(&b.v),
-        Object::Int(y) => Ordering::Greater,
-        _ => Ordering::Equal
-      }
-    }
-    _ => Ordering::Equal
-  }
-}
-
-fn compare_by_value(a: &(Object,Object), b: &(Object,Object)) -> Ordering {
-  compare(&a.1,&b.1)
-}
-
-fn list_sort(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
-  let mut a = match *pself {
-    Object::List(ref a) => a.borrow_mut(),
-    _ => return type_error("Type error in a.sort(): a is not a list.")
-  };
-  match argv.len() {
-    0 => {
-      a.v.sort_by(compare);
-      Ok(pself.clone())
-    },
-    1 => {
-      let mut v: Vec<(Object,Object)> = Vec::with_capacity(a.v.len());
-      for x in &a.v {
-        let y = try!(env.call(&argv[0],&Object::Null,&[x.clone()]));
-        v.push((x.clone(),y));
-      }
-      v.sort_by(compare_by_value);
-      a.v = v.into_iter().map(|x| x.0).collect();
-      Ok(pself.clone())
-    },
-    n => argc_error(n,0,0,"sort")
-  }
-}
-
 fn list_chain(pself: &Object, argv: &[Object]) -> FnResult {
   let mut a = match *pself {
     Object::List(ref a) => a.borrow_mut(),
@@ -364,7 +315,6 @@ pub fn init(t: &Table){
   m.insert_fn_env  ("any",any,1,1);
   m.insert_fn_env  ("all",all,1,1);
   m.insert_fn_plain("join",list_join,0,1);
-  m.insert_fn_env  ("sort",list_sort,0,1);
   m.insert_fn_plain("chain",list_chain,0,0);
   m.insert_fn_plain("rev",list_rev,0,0);
   m.insert_fn_plain("swap",list_swap,2,2);

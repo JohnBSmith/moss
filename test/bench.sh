@@ -1,2 +1,3 @@
 
 ../target/release/moss fib
+

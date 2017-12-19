@@ -34,6 +34,7 @@ pub fn load_sys(rte: &Rc<RTE>) -> Object {
       m.insert("argv", Object::List(argv.clone()));
     }
     m.insert_fn_plain("exit",exit,0,1);
+    m.insert_fn_env  ("call",::vm::sys_call,1,1);
   }
   return Object::Table(Rc::new(sys));
 }

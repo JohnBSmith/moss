@@ -7,6 +7,8 @@ use object::{
   type_error, argc_error, value_error
 };
 use vm::Env;
+use global::list;
+use std::cmp::Ordering;
 
 pub fn iter(x: &Object) -> FnResult{
   match *x {
@@ -113,7 +115,7 @@ fn list_comprehension(env: &mut Env, i: &Object, f: &Object) -> FnResult {
   Ok(List::new_object(v))
 }
 
-fn list(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+fn to_list(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
   let i = &try!(iter(pself));
   match argv.len() {
     0 => {
@@ -352,14 +354,71 @@ fn reduce(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
   }
 }
 
+fn compare(a: &Object, b: &Object) -> Ordering {
+  match *a {
+    Object::Int(x) => {
+      match *b {
+        Object::Int(y) => x.cmp(&y),
+        Object::String(ref y) => Ordering::Less,
+        _ => Ordering::Equal
+      }
+    },
+    Object::String(ref a) => {
+      match *b {
+        Object::String(ref b) => a.v.cmp(&b.v),
+        Object::Int(y) => Ordering::Greater,
+        _ => Ordering::Equal
+      }
+    }
+    _ => Ordering::Equal
+  }
+}
+
+fn compare_by_value(a: &(Object,Object), b: &(Object,Object)) -> Ordering {
+  compare(&a.1,&b.1)
+}
+
+fn sort(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
+  let a = match *pself {
+    Object::List(ref a) => a.clone(),
+    ref x => {
+      let y = try!(list(env,x));
+      match y {
+        Object::List(a) => a,
+        _ => panic!()
+      }
+    }
+  };
+  {
+    let mut ba = a.borrow_mut();
+    match argv.len() {
+      0 => {
+        ba.v.sort_by(compare);
+      },
+      1 => {
+        let mut v: Vec<(Object,Object)> = Vec::with_capacity(ba.v.len());
+        for x in &ba.v {
+          let y = try!(env.call(&argv[0],&Object::Null,&[x.clone()]));
+          v.push((x.clone(),y));
+        }
+        v.sort_by(compare_by_value);
+        ba.v = v.into_iter().map(|x| x.0).collect();
+      },
+      n => return argc_error(n,0,0,"sort")
+    }
+  }
+  return Ok(Object::List(a));
+}
+
 pub fn init(t: &Table){
   let mut m = t.map.borrow_mut();
-  m.insert_fn_env  ("list",list,0,1);
+  m.insert_fn_env  ("list",to_list,0,1);
   m.insert_fn_env  ("each",each,1,1);
   m.insert_fn_env  ("any",any,1,1);
   m.insert_fn_env  ("all",all,1,1);
   m.insert_fn_env  ("count",count,1,1);
   m.insert_fn_env  ("reduce",reduce,1,2);
+  m.insert_fn_env  ("sort",sort,0,1);
   m.insert_fn_plain("map",map,1,1);
   m.insert_fn_plain("filter",filter,1,1);
   m.insert_fn_plain("chunks",chunks,1,1);

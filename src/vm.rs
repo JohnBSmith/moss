@@ -1679,9 +1679,6 @@ pub struct State{
   pub env: EnvPart
 }
 
-pub const STACK_SIZE: usize = 2000;
-pub const FRAME_STACK_SIZE: usize = 200;
-
 fn vm_loop(
   state: &mut Env,
   mut ip: usize,
@@ -2615,5 +2612,21 @@ impl<'a> Env<'a>{
       Ok(x) => {}, Err(e) => {print_exception(&e);}
     }
   }
+}
+
+pub fn sys_call(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+  if argv.len()<2 {
+    return argc_error(argv.len(),2,VARIADIC,"sys.call");
+  }
+  let n = match argv[0] {
+    Object::Int(x)=>{
+      if x<0 {panic!();}
+      x as usize
+    },
+    _ => return type_error("Type error in sys.call(n,f): n is not an integer.")
+  };
+  let mut v: Vec<Object> = vec![Object::Null; n];
+  let mut calling_env = Env{sp: 0, stack: &mut v, env: env.env};
+  calling_env.call(&argv[1],&Object::Null,&argv[2..])
 }
 

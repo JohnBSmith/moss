@@ -94,11 +94,12 @@ impl Info{
 }
 
 fn main(){
+  let info = Info::new();
   let i = moss::Interpreter::new();
+
   let gtab = Map::new();
   i.rte.clear_at_exit(gtab.clone());
 
-  let info = Info::new();
   if info.exit {return;}
   {
     let mut argv = i.rte.argv.borrow_mut();

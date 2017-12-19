@@ -3,6 +3,10 @@
 #![allow(unused_variables)]
 #![allow(unused_mut)]
 
+pub const STACK_SIZE: usize = 4000;
+pub const FRAME_STACK_SIZE: usize = 200;
+
+
 #[path = "system/system.rs"]
 mod system;
 
@@ -46,9 +50,7 @@ use std::cell::RefCell;
 // use std::fs::File;
 // use std::io::Read;
 use object::{Object, List, Map, U32String};
-use vm::{RTE,State,EnvPart,Frame,STACK_SIZE,FRAME_STACK_SIZE,
-  get_env
-};
+use vm::{RTE,State,EnvPart,Frame, get_env};
 
 pub struct Interpreter{
   pub rte: Rc<RTE>,
@@ -56,14 +58,15 @@ pub struct Interpreter{
 }
 
 impl Interpreter{
-  pub fn new() -> Self {
+  pub fn new_config(stack_size: usize) -> Self {
     let rte = RTE::new();
     ::global::init_rte(&rte);
 
-    let mut stack: Vec<Object> = Vec::with_capacity(STACK_SIZE);
-    for _ in 0..STACK_SIZE {
+    let mut stack: Vec<Object> = Vec::with_capacity(stack_size);
+    for _ in 0..stack_size {
       stack.push(Object::Null);
     }
+    
     let mut frame_stack: Vec<Frame> = Vec::with_capacity(FRAME_STACK_SIZE);
     let mut state = RefCell::new(State{
       stack: stack, sp: 0,
@@ -71,6 +74,10 @@ impl Interpreter{
     });
 
     return Self{rte, state};
+  }
+
+  pub fn new() -> Self {
+    Interpreter::new_config(STACK_SIZE)
   }
 
   pub fn eval_env(&self, s: &str, gtab: Rc<RefCell<Map>>) -> Object {
