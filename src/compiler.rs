@@ -37,7 +37,7 @@ enum Symbol{
   Use, Yield, True, False, Null, Dot, Comma, Colon, Semicolon,
   List, Map, Application, Index, Block, Statement, Terminal,
   APlus, AMinus, AAst, ADiv, AIdiv, AMod, AAmp, AVline, ASvert,
-  SubStatement, Empty
+  Empty
 }
 
 enum Item{
@@ -151,9 +151,7 @@ pub fn scan(s: &str, line_start: usize, file: &str, new_line_start: bool)
   let mut line=line_start;
   let mut col=1;
   let mut hcol: usize;
-  let mut encountered_sub = false;
-  let mut sub_index: usize = 0;
-  
+
   let a: Vec<char> = s.chars().collect();
   let mut i=0;
   let n = a.len();
@@ -213,9 +211,6 @@ pub fn scan(s: &str, line_start: usize, file: &str, new_line_start: bool)
                 continue;
               }
             }
-          }else if *x.v==Symbol::Sub {
-            encountered_sub = true;
-            sub_index = v.len();
           }
           v.push(Token{token_type: *x.t, value: *x.v,
             line: line, col: hcol, item: Item::None});
@@ -232,16 +227,6 @@ pub fn scan(s: &str, line_start: usize, file: &str, new_line_start: bool)
           i+=1; col+=1;
         },
         '\n' => {
-          if encountered_sub {
-            encountered_sub = false;
-            v[sub_index].value = Symbol::SubStatement;
-            v.push(Token{token_type: SymbolType::Bracket,
-              value: Symbol::PLeft, line: line, col: col,
-              item: Item::None});
-            v.push(Token{token_type: SymbolType::Bracket,
-              value: Symbol::PRight, line: line, col: col,
-              item: Item::None});
-          }
           v.push(Token{token_type: SymbolType::Separator,
             value: Symbol::Newline, line: line, col: col,
             item: Item::None});
@@ -266,10 +251,6 @@ pub fn scan(s: &str, line_start: usize, file: &str, new_line_start: bool)
           i+=1; col+=1;
         },
         '(' => {
-          if encountered_sub {
-            encountered_sub = false;
-            v[sub_index].value = Symbol::SubStatement;
-          }
           v.push(Token{token_type: SymbolType::Bracket,
             value: Symbol::PLeft, line: line, col: col,
             item: Item::None});
@@ -485,9 +466,6 @@ pub fn scan(s: &str, line_start: usize, file: &str, new_line_start: bool)
               item: Item::None});
             i+=2; col+=2;
           }else{
-            if encountered_sub {
-              encountered_sub = false;
-            }
             v.push(Token{token_type: SymbolType::Operator,
               value: Symbol::Vline, line: line, col: col,
               item: Item::None});
@@ -589,13 +567,6 @@ pub fn scan(s: &str, line_start: usize, file: &str, new_line_start: bool)
       }
     }
   }
-  if encountered_sub {
-    v[sub_index].value = Symbol::SubStatement;
-    v.push(Token{token_type: SymbolType::Bracket,
-      value: Symbol::PLeft, line: line, col: col, item: Item::None});
-    v.push(Token{token_type: SymbolType::Bracket,
-      value: Symbol::PRight, line: line, col: col, item: Item::None});
-  }
   v.push(Token{token_type: SymbolType::Separator,
     value: Symbol::Terminal, line: line, col: col, item: Item::None});
   return Ok(v);
@@ -636,7 +607,6 @@ fn symbol_to_string(value: Symbol) -> &'static str {
     Symbol::ASvert => "$=",
     Symbol::Block => "block",
     Symbol::Statement => "statement",
-    Symbol::SubStatement => "sub statement",
     Symbol::Empty => "empty",
     Symbol::Range => "..",
     Symbol::Assignment => "=",
@@ -1002,7 +972,38 @@ fn map_literal(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error> {
     i.index+=1;
   }else{
     loop{
-      let key = try!(self.expression(i));
+      let p = try!(i.next_token(self));
+      let t = &p[i.index];
+      let key = if t.value == Symbol::Sub {
+        i.index+=1;
+        let literal = try!(self.function_literal(i,t));
+        if literal.value == Symbol::Assignment {
+          let a = ast_argv(&literal);
+
+          let key = Rc::new(AST{
+            line: a[0].line, col: a[0].col,
+            symbol_type: SymbolType::String, value: Symbol::None,
+            info: Info::None, s: a[0].s.clone(), a: None
+          });
+          v.push(key);
+          v.push(a[1].clone());
+
+          let p2 = try!(i.next_token(self));
+          let t2 = &p2[i.index];
+          if t2.value == Symbol::CRight {
+            i.index+=1;
+            break;
+          }else if t2.value != Symbol::Comma {
+            return Err(self.syntax_error(t2.line, t2.col, String::from("expected ',' or '}'.")));
+          }
+          i.index+=1;
+          continue;
+        }else{
+          literal
+        }
+      }else{
+        try!(self.expression(i))
+      };
       let p = try!(i.next_token(self));
       let t = &p[i.index];
       if t.value == Symbol::Comma {
@@ -1154,9 +1155,18 @@ fn concise_function_literal(&mut self, i: &mut TokenIterator, t0: &Token)
   }));
 }
 
-fn function_literal(&mut self, i: &mut TokenIterator,
-  t0: &Token, statement: bool
-) -> Result<Rc<AST>,Error>
+/*
+fn sub_statement(&mut self, i: &mut TokenIterator, t: &Token)
+  -> Result<Rc<AST>,Error>
+{
+  let x = try!(self.function_literal(i,t));
+  let id = identifier(match x.s {Some(ref s) => s, None => panic!()},t.line,t.col);
+  return Ok(binary_operator(t.line,t.col,Symbol::Assignment,id,x));
+}
+*/
+
+fn function_literal(&mut self, i: &mut TokenIterator, t0: &Token)
+  -> Result<Rc<AST>,Error>
 {
   let p = try!(i.next_token(self));
   let t = &p[i.index];
@@ -1174,22 +1184,22 @@ fn function_literal(&mut self, i: &mut TokenIterator,
   }else{
     None
   };
-  let p = try!(i.next_token(self));
+  let p = try!(i.next_token_optional(self));
   let t = &p[i.index];
-  let terminator = if statement {
-    if t.value == Symbol::PLeft {
-      Symbol::PRight
-    }else{
-      return Err(self.syntax_error(t.line, t.col, String::from("expected ')'.")));
-    }
+  let terminator = if t.value == Symbol::PLeft {
+    i.index+=1;
+    Symbol::PRight
+  }else if t.value == Symbol::Vline {
+    i.index+=1;
+    Symbol::Vline
+  }else if t.value == Symbol::Newline {
+    i.index+=1;
+    Symbol::Newline
+  }else if t.value == Symbol::Terminal {
+    Symbol::Newline
   }else{
-    if t.value == Symbol::Vline {
-      Symbol::Vline
-    }else{
-      return Err(self.syntax_error(t.line, t.col, String::from("expected '|'.")));
-    }
+    return Err(self.syntax_error(t.line, t.col, String::from("expected '(' or '|'.")));
   };
-  i.index+=1;
   let args = if terminator == Symbol::Newline {
     Rc::new(AST{line: t0.line, col: t0.col,
       symbol_type: SymbolType::Operator, value: Symbol::List,
@@ -1218,10 +1228,16 @@ fn function_literal(&mut self, i: &mut TokenIterator,
   self.syntax_nesting-=1;
   i.index+=1;
   try!(self.end_of(i,Symbol::Sub));
-  return Ok(Rc::new(AST{line: t0.line, col: t0.col,
+  let y = Rc::new(AST{line: t0.line, col: t0.col,
     symbol_type: SymbolType::Keyword, value: Symbol::Sub,
     info: info, s: id, a: Some(Box::new([args,x]))
-  }));
+  });
+  if terminator == Symbol::PRight || terminator == Symbol::Newline {
+    let id = identifier(match y.s {Some(ref s) => s, None => panic!()},t.line,t.col);
+    return Ok(binary_operator(t.line,t.col,Symbol::Assignment,id,y));
+  }else{
+    return Ok(y); 
+  }
 }
 
 
@@ -1319,7 +1335,10 @@ fn atom(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error> {
     y = try!(self.concise_function_literal(i,t));
   }else if t.value==Symbol::Sub {
     i.index+=1;
-    y = try!(self.function_literal(i,t,false));
+    y = try!(self.function_literal(i,t));
+    if y.value == Symbol::Assignment {
+      return Err(self.syntax_error(t.line,t.col,"unexpected sub-statement.".to_string()));
+    }
   }else{
     return Err(self.unexpected_token(t.line, t.col, t.value));
   }
@@ -1849,14 +1868,6 @@ fn yield_statement(&mut self, i: &mut TokenIterator, t0: &Token) -> Result<Rc<AS
     value: Symbol::Yield, info: Info::None, s: None, a: Some(Box::new([x]))}));
 }
 
-fn sub_statement(&mut self, i: &mut TokenIterator, t: &Token)
-  -> Result<Rc<AST>,Error>
-{
-  let x = try!(self.function_literal(i,t,true));
-  let id = identifier(match x.s {Some(ref s) => s, None => panic!()},t.line,t.col);
-  return Ok(binary_operator(t.line,t.col,Symbol::Assignment,id,x));
-}
-
 fn identifier(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error> {
   let p = try!(i.next_token(self));
   let t = &p[i.index];
@@ -2136,9 +2147,9 @@ fn statements(&mut self, i: &mut TokenIterator, last_value: u8)
       i.index+=1;
       let x = try!(self.return_statement(i,t));
       v.push(x);
-    }else if value == Symbol::SubStatement {
+    }else if value == Symbol::Sub {
       i.index+=1;
-      let x = try!(self.sub_statement(i,t));
+      let x = try!(self.function_literal(i,t));
       v.push(x);
     }else if value == Symbol::Break {
       i.index+=1;
