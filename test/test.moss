@@ -253,4 +253,139 @@ end)()
   end
 end)()
 
+f = || []
+if [] != f.apply([])
+  error("#12.0")
+end
+
+f = |x| [x]
+if [100] != f.apply([100])
+  error("#12.1")
+end
+
+f = |x,y| [x,y]
+if [101,102] != f.apply([101,102])
+  error("#12.2")
+end
+
+f = |x,y,z| [x,y,z]
+if [103,104,105] != f.apply([103,104,105])
+  error("#12.3")
+end
+
+f = |x,y,z,w| [x,y,z,w]
+if [106,107,108,109] != f.apply([106,107,108,109])
+  error("#12.4")
+end
+
+if [2,4] != List.map([1,2];|x| 2*x)
+  error("#12.5")
+end
+
+if [2,4] != List.map.apply([1,2],[|x| 2*x])
+  error("#12.6")
+end
+
+(sub||
+  f = || []
+  if [] != f.apply([])
+    error("#12.7")
+  end
+
+  f = |x| [x]
+  if [100] != f.apply([100])
+    error("#12.8")
+  end
+
+  f = |x,y| [x,y]
+  if [101,102] != f.apply([101,102])
+    error("#12.9")
+  end
+
+  f = |x,y,z| [x,y,z]
+  if [103,104,105]!=f.apply([103,104,105])
+    error("#12.10")
+  end
+
+  f = |x,y,z,w| [x,y,z,w]
+  if [106,107,108,109]!=f.apply([106,107,108,109])
+    error("#12.11")
+  end
+
+  if [2,4] != List.map([1,2];|x| 2*x)
+    error("#12.12")
+  end
+
+  if [2,4] != List.map.apply([1,2],[|x| 2*x])
+    error("#12.13")
+  end
+end)()
+
+a = (|[x,y]| [x+y,x]).orbit([1,1]).map(|x| x[1]).list(10)
+if a!=list(1..10).map(fib)
+  error("#13.1")
+end
+
+curry = sub|f|
+  n = f.argc()
+  a = list(0..n-1)
+  return (2..n).reduce(
+    sub|x| a[n-1]=x; f.apply(a) end,
+    |g,i| sub|x| a[n-i]=x; g end)
+end
+
+uncurry = |f| |*a| a.reduce(f,|g,x| g(x))
+
+if [1] != curry(|x| [x])(1)
+  error("#14.1")
+end
+
+if [1,2] != curry(|x,y| [x,y])(1)(2)
+  error("#14.2")
+end
+
+if [1,2,3] != curry(|x,y,z| [x,y,z])(1)(2)(3)
+  error("#14.3")
+end
+
+if [1,2,3,4] != curry(|x,y,z,w| [x,y,z,w])(1)(2)(3)(4)
+  error("#14.4")
+end
+
+if [1] != uncurry(|x| [x])(1)
+  error("#14.5")
+end
+
+if [1,2] != uncurry(|x| |y| [x,y])(1,2)
+  error("#14.6")
+end
+
+if [1,2,3] != uncurry(|x| |y| |z| [x,y,z])(1,2,3)
+  error("#14.7")
+end
+
+if [1,2,3,4] != uncurry(|x| |y| |z| |w| [x,y,z,w])(1,2,3,4)
+  error("#14.8")
+end
+
+curry = sub|n,f|
+  a = list(0..n-1)
+  return (2..n).reduce(
+    sub|x| a[n-1]=x; f.apply(a) end,
+    |g,i| sub|x| a[n-i]=x; g end)
+end
+
+if list(0..9) != curry(10,|*a| a)(0)(1)(2)(3)(4)(5)(6)(7)(8)(9)
+  error("#14.9")
+end
+
+n = 20
+u = list(1..n)
+if u != uncurry(curry(n,|*a| a)).apply(u)
+  error("#14.10")
+end
+
+
+
+
 

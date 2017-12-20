@@ -1,0 +1,80 @@
+
+List.map = sub|f|
+  a = []
+  for x in self
+    a.push(f(x))
+  end
+  return a
+end
+
+List.filter = sub|p|
+  a = []
+  for x in self
+    if p(x)
+      a.push(x)
+    end
+  end
+  return a
+end
+
+Iterable.map = sub|f|
+  a = self
+  sub*||
+    for x in a
+      yield f(x)
+    end
+  end
+end
+
+Iterable.filter = sub|p|
+  a = self
+  sub*||
+    for x in a
+      if p(x)
+        yield x
+      end
+    end
+  end
+end
+
+Iterable.all = sub|p|
+  for x in self
+    if not p(x)
+      return false
+    end
+  end
+  return true
+end
+
+Iterable.any = sub|p|
+  for x in self
+    if p(x)
+      return true
+    end
+  end
+  return false
+end
+
+List.all = Iterable.all
+List.any = Iterable.any
+
+Iterable.reduce = sub|e,f=null|
+  if f is null
+    f = e
+    i = iter(self)
+    x = i()
+    for y in self
+      x = f(x,y)
+    end
+    return x
+  else
+    x = e
+    for y in self
+      x = f(x,y)
+    end
+    return x
+  end
+end
+
+
+

@@ -2149,7 +2149,11 @@ fn statements(&mut self, i: &mut TokenIterator, last_value: u8)
       v.push(x);
     }else if value == Symbol::Sub {
       i.index+=1;
-      let x = try!(self.function_literal(i,t));
+      let mut x = try!(self.function_literal(i,t));
+      if x.value == Symbol::Sub && self.statement {
+        x = Rc::new(AST{line: t.line, col: t.col, symbol_type: SymbolType::Keyword,
+        value: Symbol::Statement, info: Info::None, s: None, a: Some(Box::new([x]))});
+      }
       v.push(x);
     }else if value == Symbol::Break {
       i.index+=1;
