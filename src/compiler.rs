@@ -919,6 +919,13 @@ fn apply(line: usize, col: usize, a: Box<[Rc<AST>]>) -> Rc<AST> {
     value: Symbol::Application, info: Info::None, s: None, a: Some(a)})
 }
 
+fn empty_list(line: usize, col: usize) -> Rc<AST> {
+  Rc::new(AST{line: line, col: col,
+    symbol_type: SymbolType::Operator, value: Symbol::List,
+    info: Info::None, s: None, a: Some(Box::new([]))
+  })
+}
+
 impl<'a> Compilation<'a>{
 
 fn syntax_error(&self, line: usize, col: usize, s: String) -> Error{
@@ -1281,6 +1288,32 @@ fn application(&mut self, i: &mut TokenIterator, f: Rc<AST>, terminal: Symbol)
     value: value, info: self_argument, s: None, a: Some(v.into_boxed_slice())}));
 }
 
+fn block(&mut self, i: &mut TokenIterator, t0: &Token) -> Result<Rc<AST>,Error> {
+  let statement = self.statement;
+  self.statement = true;
+  self.function_nesting+=1;
+  self.syntax_nesting+=1;
+  let parens = self.parens;
+  self.parens = 0;
+  let x = try!(self.statements(i,VALUE_NULL));
+  self.function_nesting-=1;
+  self.statement = statement;
+
+  let p = try!(i.next_token_optional(self));
+  let t = &p[i.index];
+  if t.value != Symbol::End {
+    return Err(self.syntax_error(t.line, t.col, String::from("expected 'end'.")));
+  }
+  self.parens = parens;
+  self.syntax_nesting-=1;
+  i.index+=1;
+  let y = Rc::new(AST{line: t0.line, col: t0.col,
+    symbol_type: SymbolType::Keyword, value: Symbol::Sub,
+    info: Info::None, s: None, a: Some(Box::new([empty_list(t0.line,t0.col),x]))
+  });
+  return Ok(apply(t0.line,t0.col,Box::new([y])));
+}
+
 fn atom(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error> {
   let p = try!(i.next_token(self));
   let t = &p[i.index];
@@ -1339,6 +1372,9 @@ fn atom(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error> {
     if y.value == Symbol::Assignment {
       return Err(self.syntax_error(t.line,t.col,"unexpected sub-statement.".to_string()));
     }
+  }else if t.value==Symbol::Begin {
+    i.index+=1;
+    y = try!(self.block(i,t));
   }else{
     return Err(self.unexpected_token(t.line, t.col, t.value));
   }
@@ -2075,6 +2111,25 @@ fn use_statement(&mut self, i: &mut TokenIterator, t0: &Token)
   }
 }
 
+fn global_statement(&mut self, i: &mut TokenIterator, t0: &Token)
+  -> Result<Rc<AST>,Error>
+{
+  let mut v: Vec<Rc<AST>> = Vec::new();
+  loop{
+    let x = try!(self.atom(i));
+    v.push(x);
+    let p = try!(i.next_token_optional(self));
+    let t = &p[i.index];
+    if t.value == Symbol::Comma {
+      i.index+=1;
+    }else{
+      break;
+    }
+  }
+  return Ok(Rc::new(AST{line: t0.line, col: t0.col, symbol_type: SymbolType::Keyword,
+    value: Symbol::Global, info: Info::None, s: None, a: Some(v.into_boxed_slice())}));
+}
+
 fn statements(&mut self, i: &mut TokenIterator, last_value: u8)
   -> Result<Rc<AST>,Error>
 {
@@ -2170,6 +2225,10 @@ fn statements(&mut self, i: &mut TokenIterator, last_value: u8)
     }else if value == Symbol::Use {
       i.index+=1;
       let x = try!(self.use_statement(i,t));
+      v.push(x);
+    }else if value == Symbol::Global {
+      i.index+=1;
+      let x = try!(self.global_statement(i,t));
       v.push(x);
     }else{
       let x = try!(self.assignment(i));
@@ -2677,10 +2736,14 @@ fn compile_variable(&mut self, bv: &mut Vec<u32>, t: &AST)
           push_bc(bv,bc::LOAD_CONTEXT,t.line,t.col);
           push_u32(bv,index as u32);
         },
+        VarType::Global => {
+          let index = self.get_index(key);
+          push_bc(bv,bc::LOAD,t.line,t.col);
+          push_u32(bv,index as u32);    
+        },
         VarType::FnId => {
           push_bc(bv,bc::FNSELF,t.line,t.col);
         }
-        _ => {panic!()}
       }
       return Ok(());
     },
@@ -2713,7 +2776,14 @@ fn compile_assignment(&mut self, bv: &mut Vec<u32>, t: &AST,
             push_bc(bv,bc::STORE_CONTEXT,line,col);
             push_u32(bv,index as u32);
           },
-          _ => panic!()
+          VarType::Global => {
+            let index = self.get_index(key);
+            push_bc(bv,bc::STORE,line,col);
+            push_u32(bv,index as u32);
+          },
+          VarType::FnId => {
+            panic!();
+          }
         }
       },
       None => {
@@ -2808,6 +2878,19 @@ fn closure(&mut self, bv: &mut Vec<u32>, t: &AST){
   }
   push_bc(bv,bc::LIST,t.line,t.col);
   push_u32(bv,self.vtab.count_context as u32);
+}
+
+fn global_declaration(&mut self, a: &[Rc<AST>]) -> Result<(),Error> {
+  for t in a {
+    let key = match t.s {Some(ref x)=>x, None=>panic!()};
+    self.vtab.v.push(VarInfo{
+      s: key.clone(),
+      index: self.vtab.count_global,
+      var_type: VarType::Global
+    });
+    self.vtab.count_global+=1;
+  }
+  return Ok(());
 }
 
 fn compile_unpack(&mut self, bv: &mut Vec<u32>, t: &AST)
@@ -3048,6 +3131,9 @@ fn compile_ast(&mut self, bv: &mut Vec<u32>, t: &Rc<AST>)
       try!(self.compile_ast(bv,&a[1]));
       try!(self.compile_ast(bv,&a[0]));
       push_bc(bv,bc::TABLE,t.line,t.col);
+    }else if value == Symbol::Global {
+      let a = ast_argv(t);
+      try!(self.global_declaration(a));
     }else{
       panic!();
     }

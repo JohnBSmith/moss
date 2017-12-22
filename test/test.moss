@@ -379,13 +379,21 @@ if list(0..9) != curry(10,|*a| a)(0)(1)(2)(3)(4)(5)(6)(7)(8)(9)
   error("#14.9")
 end
 
-n = 20
-u = list(1..n)
-if u != uncurry(curry(n,|*a| a)).apply(u)
-  error("#14.10")
+# Use sys.call(1000000,main) to set up a bigger call stack.
+# Even then a high value of n results in a stack overflow,
+# but this time an overflow of the machine stack.
+# The source is a recursively called destructor that
+# cleans up the linked list of closures, produced in curry.
+sub main
+  n = 20
+  u = list(1..n)
+  if u != uncurry(curry(n,|*a| a)).apply(u)
+    error("#14.10")
+  end
 end
 
-
+# sys.call(1000000,main)
+main()
 
 
 
