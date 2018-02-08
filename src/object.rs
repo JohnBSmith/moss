@@ -3,12 +3,15 @@
 
 use std::rc::Rc;
 use std::cell::{Cell,RefCell};
-use complex::Complex64;
 use std::collections::HashMap;
-use vm::{Module,Env};
 use std::fmt;
 use std::any::Any;
 use std::ops;
+use std::fmt::Write;
+
+use complex::Complex64;
+use vm::{Module,Env};
+use global::type_name;
 
 pub enum Object{
   Null,
@@ -174,18 +177,22 @@ pub fn index_error_plain(s: &str) -> Box<Exception> {
   Exception::new(s)
 }
 
+#[inline(never)]
 pub fn std_exception(s: &str) -> FnResult {
   Err(Exception::new(s))
 }
 
+#[inline(never)]
 pub fn type_error(s: &str) -> FnResult {
   Err(Exception::new(s))
 }
 
+#[inline(never)]
 pub fn value_error(s: &str) -> FnResult {
   Err(Exception::new(s))
 }
 
+#[inline(never)]
 pub fn index_error(s: &str) -> FnResult {
   Err(Exception::new(s))
 }
@@ -204,8 +211,57 @@ pub fn argc_error_plain(argc: usize, min: u32, max: u32, id: &str) -> Box<Except
   }
 }
 
+#[inline(never)]
 pub fn argc_error(argc: usize, min: u32, max: u32, id: &str) -> FnResult {
   Err(argc_error_plain(argc,min,max,id))
+}
+
+fn bounded_repr(x: &Object) -> String {
+  let s = x.repr();
+  if s.len()>32 {
+    return s[0..32].to_string()+"... ";
+  }else{
+    return s;
+  }
+}
+
+#[inline(never)]
+pub fn type_error1_plain(
+  s: &str, sx: &str, x: &Object
+) -> Box<Exception>
+{
+  let mut buffer = s.to_string();
+  write!(buffer,"\nNote:\n").unwrap();
+  write!(buffer,"  {0}: {1}, {0} = {2}.",sx,&type_name(x),&bounded_repr(x)).unwrap();
+  return type_error_plain(&buffer);
+}
+
+#[inline(never)]
+pub fn type_error1(
+  s: &str, sx: &str, x: &Object
+) -> FnResult
+{
+  return Err(type_error1_plain(s,sx,x));
+}
+
+#[inline(never)]
+pub fn type_error2_plain(
+  s: &str, sx: &str, sy: &str, x: &Object, y: &Object
+) -> Box<Exception>
+{
+  let mut buffer = s.to_string();
+  write!(buffer,"\nNote:\n").unwrap();
+  write!(buffer,"  {0}: {1}, {0} = {2},\n",sx,&type_name(x),&bounded_repr(x)).unwrap();
+  write!(buffer,"  {0}: {1}, {0} = {2}.",sy,&type_name(y),&bounded_repr(y)).unwrap();
+  return type_error_plain(&buffer);
+}
+
+#[inline(never)]
+pub fn type_error2(
+  s: &str, sx: &str, sy: &str, x: &Object, y: &Object
+) -> FnResult
+{
+  return Err(type_error2_plain(s,sx,sy,x,y));
 }
 
 pub type OperatorResult = Result<(),Box<Exception>>;
@@ -323,6 +379,58 @@ pub trait Interface{
   }
   fn ridiv(&self, a: &Object, &mut Env) -> FnResult {
     std_exception("Error: a//b is not implemented for objects of this type.")
+  }
+  fn imod(&self, b: &Object, &mut Env) -> FnResult {
+    std_exception("Error: a%b is not implemented for objects of this type.")
+  }
+  fn pow(&self, b: &Object, &mut Env) -> FnResult {
+    std_exception("Error: a^b is not implemented for objects of this type.")
+  }
+  fn rpow(&self, b: &Object, &mut Env) -> FnResult {
+    std_exception("Error: a^b is not implemented for objects of this type.")
+  }
+
+  fn eq(&self, b: &Object) -> bool {
+    false
+  }
+  fn req(&self, a: &Object) -> bool {
+    false
+  }
+  fn lt(&self, b: &Object, &mut Env) -> FnResult {
+    std_exception("Error: a<b is not implemented for objects of this type.")
+  }
+  fn gt(&self, b: &Object, &mut Env) -> FnResult {
+    std_exception("Error: a>b is not implemented for objects of this type.")
+  }
+  fn le(&self, b: &Object, &mut Env) -> FnResult {
+    std_exception("Error: a<=b is not implemented for objects of this type.")
+  }
+  fn ge(&self, b: &Object, &mut Env) -> FnResult {
+    std_exception("Error: a>=b is not implemented for objects of this type.")
+  }
+
+  fn rlt(&self, b: &Object, &mut Env) -> FnResult {
+    std_exception("Error: a<b is not implemented for objects of this type.")
+  }
+  fn rgt(&self, b: &Object, &mut Env) -> FnResult {
+    std_exception("Error: a>b is not implemented for objects of this type.")
+  }
+  fn rle(&self, b: &Object, &mut Env) -> FnResult {
+    std_exception("Error: a<=b is not implemented for objects of this type.")
+  }
+  fn rge(&self, b: &Object, &mut Env) -> FnResult {
+    std_exception("Error: a>=b is not implemented for objects of this type.")
+  }
+  
+  fn neg(&self, &mut Env) -> FnResult {
+    std_exception("Error: -a is not implemented for objects of this type.")
+  }
+  
+  fn abs(&self) -> FnResult {
+    std_exception("Error: abs(x) is not implemented for objects of this type.")
+  }
+  fn type_name(&self) -> String {
+    "Interface object".to_string()
   }
 }
 

@@ -12,11 +12,14 @@ use std::io::Read;
 use object::{
   Object, Map, List, Function, EnumFunction, StandardFn,
   FnResult, OperatorResult, Exception, Table, Range, U32String,
-  type_error_plain, index_error_plain, argc_error_plain,
-  type_error, argc_error, std_exception_plain,
+  type_error_plain, type_error1_plain, type_error2_plain,
+  index_error_plain, argc_error_plain,
+  type_error, value_error_plain, argc_error, std_exception_plain,
   VARIADIC
 };
 use complex::Complex64;
+use long::Long;
+
 // use ::Interpreter;
 use system;
 use compiler;
@@ -175,86 +178,100 @@ fn print_stack(a: &[Object]){
 
 impl PartialEq for Object{
   fn eq(&self, b: &Object) -> bool{
-    match self {
-      &Object::Null => {
-        match b {
-          &Object::Null => true,
+    'r: loop{
+    match *self {
+      Object::Null => {
+        return match *b {
+          Object::Null => true,
           _ => false
-        }
+        };
       },
-      &Object::Bool(x) => {
-        match b {
-          &Object::Bool(y) => x==y,
+      Object::Bool(x) => {
+        return match *b {
+          Object::Bool(y) => x==y,
           _ => false
-        }
+        };
       },
-      &Object::Int(x) => {
-        match b {
-          &Object::Int(y) => x==y,
-          &Object::Float(y) => (x as f64)==y,
-          &Object::Complex(y) => (x as f64)==y.re && y.im==0.0,
+      Object::Int(x) => {
+        return match *b {
+          Object::Int(y) => x==y,
+          Object::Float(y) => (x as f64)==y,
+          Object::Complex(y) => (x as f64)==y.re && y.im==0.0,
+          _ => {break 'r;}
+        };
+      },
+      Object::Float(x) => {
+        return match *b {
+          Object::Int(y) => x==(y as f64),
+          Object::Float(y) => x==y,
+          Object::Complex(y) => x==y.re && y.im==0.0,
+          _ => {break 'r;}
+        };
+      },
+      Object::Complex(x) => {
+        return match *b {
+          Object::Int(y) => x.re==(y as f64) && x.im==0.0,
+          Object::Float(y) => x.re==y && x.im==0.0,
+          Object::Complex(y) => x==y,
+          _ => {break 'r;}
+        };
+      },
+      Object::String(ref x) => {
+        return match *b {
+          Object::String(ref y) => x.v==y.v,
           _ => false
-        }
+        };
       },
-      &Object::Float(x) => {
-        match b {
-          &Object::Int(y) => x==(y as f64),
-          &Object::Float(y) => x==y,
-          &Object::Complex(y) => x==y.re && y.im==0.0,
-          _ => false
-        }
-      },
-      &Object::Complex(x) => {
-        match b {
-          &Object::Int(y) => x.re==(y as f64) && x.im==0.0,
-          &Object::Float(y) => x.re==y && x.im==0.0,
-          &Object::Complex(y) => x==y,
-          _ => false
-        }
-      },
-      &Object::String(ref x) => {
-        match b {
-          &Object::String(ref y) => x.v==y.v,
-          _ => false
-        }
-      },
-      &Object::List(ref x) => {
-        match b {
-          &Object::List(ref y) => {
+      Object::List(ref x) => {
+        return match *b {
+          Object::List(ref y) => {
             x.borrow().v == y.borrow().v
           },
           _ => false
-        }
+        };
       },
-      &Object::Map(ref x) => {
-        match b {
-          &Object::Map(ref y) => {
+      Object::Map(ref x) => {
+        return match *b {
+          Object::Map(ref y) => {
             x.borrow().m == y.borrow().m
           },
           _ => false
-        }
+        };
       },
-      &Object::Function(ref f) => {
-        match b {
-          &Object::Function(ref g) => {
+      Object::Function(ref f) => {
+        return match *b {
+          Object::Function(ref g) => {
             Rc::ptr_eq(f,g)
           },
           _ => false
-        }
+        };
       },
-      &Object::Range(ref x) => {
-        match b {
-          &Object::Range(ref y) => {
+      Object::Range(ref x) => {
+        return match *b {
+          Object::Range(ref y) => {
             x.a==y.a && x.b==y.b && x.step==y.step
           },
           _ => false
-        }
+        };
       },
-      &Object::Empty => {
-        match b {
-          &Object::Empty => true,
+      Object::Empty => {
+        return match *b {
+          Object::Empty => true,
           _ => false
-        }
+        };
+      },
+      _ => {}
+    }
+    return match *self {
+      Object::Interface(ref x) => {
+        return x.eq(b);
+      },
+      _ => false
+    };
+    } // 'r
+    return match *b {
+      Object::Interface(ref x) => {
+        return x.req(self);
       },
       _ => false
     }
@@ -496,13 +513,22 @@ fn operator_neg(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorR
   match stack[sp-1] {
     Object::Int(x) => {
       stack[sp-1] = Object::Int(-x);
-      Ok(())
+      return Ok(());
     },
     Object::Float(x) => {
       stack[sp-1] = Object::Float(-x);
-      Ok(())
+      return Ok(());
     },
-    _ => Err(type_error_plain("Type error in -a."))
+    _ => {}
+  }
+  match replace(&mut stack[sp-1],Object::Null) {
+    Object::Interface(x) => {
+      match x.neg(&mut Env{env: env, sp: sp, stack: stack}) {
+        Ok(y) => {stack[sp-1] = y; Ok(())},
+        Err(e) => Err(e)
+      }
+    },
+    x => Err(type_error1_plain("Type error in -a.","a",&x))
   }
 }
 
@@ -536,7 +562,7 @@ fn operator_plus(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> Operator
         Object::Int(y) => {
           stack[sp-2] = match x.checked_add(y) {
             Some(z) => Object::Int(z),
-            None => panic!()
+            None => {Long::add_int_int(x,y)}
           };
           return Ok(());
         },
@@ -594,7 +620,7 @@ fn operator_plus(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> Operator
           stack[sp-2] = string_add(a,b);
           Ok(())
         },
-        _ => Err(type_error_plain("Type error in a+b."))
+        _ => {break 'r;}
       }
     },
     Object::List(ref a) => {
@@ -603,7 +629,7 @@ fn operator_plus(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> Operator
           stack[sp-2] = list_add(&*a.borrow(),&*b.borrow());
           Ok(())
         },
-        _ => Err(type_error_plain("Type error in a+b."))
+        _ => {break 'r;}
       }
     },
     Object::Interface(a) => {
@@ -616,7 +642,7 @@ fn operator_plus(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> Operator
         Err(e) => Err(e)
       }
     },
-    _ => Err(type_error_plain("Type error in a+b."))
+    _ => {break 'r;}
   };
   } // 'r
   match replace(&mut stack[sp-1],Object::Null) {
@@ -630,8 +656,10 @@ fn operator_plus(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> Operator
         Err(e) => Err(e)
       }      
     },
-    _ => {
-      return Err(type_error_plain("Type error in a+b."));
+    a => {
+      return Err(type_error2_plain(
+        "Type error in a+b.","a","b",&stack[sp-2],&a
+      ));
     }
   }
 }
@@ -711,7 +739,7 @@ fn operator_minus(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> Operato
           )));
           Ok(())
         },
-        _ => Err(type_error_plain("Type error in a-b."))
+        _ => {break 'r;}
       }
     },
     Object::Interface(a) => {
@@ -724,7 +752,7 @@ fn operator_minus(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> Operato
         Err(e) => Err(e)
       }
     },
-    _ => Err(type_error_plain("Type error in a-b."))
+    _ => {break 'r;}
   };
   } // 'r
   match replace(&mut stack[sp-1],Object::Null) {
@@ -738,8 +766,10 @@ fn operator_minus(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> Operato
         Err(e) => Err(e)
       }      
     },
-    _ => {
-      return Err(type_error_plain("Type error in a-b."));
+    a => {
+      return Err(type_error2_plain(
+        "Type error in x-y.","x","y",&stack[sp-2],&a
+      ));
     }
   }
 }
@@ -752,7 +782,7 @@ fn operator_mpy(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorR
         Object::Int(y) => {
           stack[sp-2] = match x.checked_mul(y) {
             Some(z) => Object::Int(z),
-            None => panic!()
+            None => Long::mpy_int_int(x,y)
           };
           Ok(())
         },
@@ -814,9 +844,7 @@ fn operator_mpy(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorR
         Err(e) => Err(e)
       }    
     },
-    _ => Err(type_error_plain(&format!("Type error in a*b: a={}, b={}.",
-      stack[sp-2].to_string(), stack[sp-1].to_string()
-    )))
+    _ => {break 'r;}
   };
   } // 'r
   return match replace(&mut stack[sp-1],Object::Null) {
@@ -830,18 +858,19 @@ fn operator_mpy(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorR
         Err(e) => Err(e)
       }      
     },
-    _ => {
-      Err(type_error_plain(&format!("Type error in a*b: a={}, b={}.",
-        stack[sp-2].to_string(), stack[sp-1].to_string()
-      )))
+    a => {
+      Err(type_error2_plain(
+        "Type error in x*y.","x","y",&stack[sp-2],&a
+      ))
     }
   };
 }
 
 fn operator_div(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorResult {
+  'r: loop{
   match stack[sp-2] {
     Object::Int(x) => {
-      match stack[sp-1] {
+      return match stack[sp-1] {
         Object::Int(y) => {
           stack[sp-2] = Object::Float((x as f64 )/(y as f64));
           Ok(())
@@ -854,11 +883,11 @@ fn operator_div(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorR
           stack[sp-2] = Object::Complex(x as f64/y);
           Ok(())
         },
-        _ => Err(type_error_plain("Type error in a/b."))
-      }
+        _ => {break 'r;}
+      };
     },
     Object::Float(x) => {
-      match stack[sp-1] {
+      return match stack[sp-1] {
         Object::Int(y) => {
           stack[sp-2] = Object::Float(x/(y as f64));
           Ok(())
@@ -871,11 +900,11 @@ fn operator_div(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorR
           stack[sp-2] = Object::Complex(x/y);
           Ok(())
         },
-        _ => Err(type_error_plain("Type error in a/b."))
-      }
+        _ => {break 'r;}
+      };
     },
     Object::Complex(x) => {
-      match stack[sp-1] {
+      return match stack[sp-1] {
         Object::Int(y) => {
           stack[sp-2] = Object::Complex(x/y as f64);
           Ok(())
@@ -888,49 +917,111 @@ fn operator_div(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorR
           stack[sp-2] = Object::Complex(x/y);
           Ok(())
         },
-        _ => Err(type_error_plain("Type error in a/b."))
-      }
+        _ => {break 'r;}
+      };
     },
-    _ => Err(type_error_plain("Type error in a/b."))
+    _ => {}
   }
+  break 'r;
+  } // 'r
+  return Err(type_error2_plain(
+    "Type error in x/y.","x","y",&stack[sp-2],&stack[sp-1]
+  ));
 }
 
 fn operator_idiv(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorResult {
+  'r: loop{
   match stack[sp-2] {
     Object::Int(x) => {
-      match stack[sp-1] {
+      return match stack[sp-1] {
         Object::Int(y) => {
+          if y==0 {
+            return Err(value_error_plain("Value error in a//b: b==0."));
+          }
           stack[sp-2] = Object::Int(x/y);
           Ok(())
         },
-        _ => Err(type_error_plain("Type error in a//b."))
-      }
+        _ => {break 'r;}
+      };
     },
-    _ => Err(type_error_plain("Type error in a//b."))
+    _ => {}
   }
+  return match replace(&mut stack[sp-2],Object::Null) {
+    Object::Interface(a) => {
+      let b = replace(&mut stack[sp-1],Object::Null);
+      match a.idiv(&b,&mut Env{env: env, sp: sp, stack: stack}) {
+        Ok(y) => {
+          stack[sp-2] = y;
+          Ok(())
+        },
+        Err(e) => Err(e)
+      }    
+    },
+    _ => {break 'r;}
+  };
+  } // 'r
+  return Err(type_error2_plain(
+    "Type error in x//y.","x","y",&stack[sp-2],&stack[sp-1]
+  ));
 }
 
 fn operator_mod(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorResult {
+  'r: loop{
   match stack[sp-2] {
     Object::Int(x) => {
-      match stack[sp-1] {
+      return match stack[sp-1] {
         Object::Int(y) => {
           stack[sp-2] = Object::Int(x%y);
           Ok(())
         },
-        _ => Err(type_error_plain("Type error in a%b."))
-      }
+        _ => {break 'r;}
+      };
     },
-    _ => Err(type_error_plain("Type error in a%b."))
+    _ => {}
   }
+  return match replace(&mut stack[sp-2],Object::Null) {
+    Object::Interface(a) => {
+      let b = replace(&mut stack[sp-1],Object::Null);
+      match a.imod(&b,&mut Env{env: env, sp: sp, stack: stack}) {
+        Ok(y) => {
+          stack[sp-2] = y;
+          Ok(())
+        },
+        Err(e) => Err(e)
+      }    
+    },
+    _ => {break 'r;}
+  };
+  } // 'r
+  return Err(type_error2_plain(
+    "Type error in x%y.","x","y",&stack[sp-2],&stack[sp-1]
+  ));
+}
+
+fn checked_pow(mut base: i32, mut exp: u32) -> Option<i32> {
+  if exp == 0 {return Some(1);}
+  let mut acc: i32 = 1;
+  loop {
+    if (exp & 1) == 1 {
+      acc = match acc.checked_mul(base) {Some(x)=>x, None=>return None};
+    }
+    exp /= 2;
+    if exp == 0 {break;}
+    base = match base.checked_mul(base) {Some(x)=>x, None=>return None};
+  }
+  return Some(acc);
 }
 
 fn operator_pow(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorResult {
+  'r: loop{
   match stack[sp-2] {
     Object::Int(x) => {
-      match stack[sp-1] {
+      return match stack[sp-1] {
         Object::Int(y) => {
-          stack[sp-2] = Object::Int(x.pow(y as u32));
+          stack[sp-2] = match checked_pow(x,y as u32) {
+            Some(z) => Object::Int(z),
+            None => Long::pow_int_uint(x,y as u32)
+          };
           Ok(())
         },
         Object::Float(y) => {
@@ -941,11 +1032,11 @@ fn operator_pow(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorR
           stack[sp-2] = Object::Complex(y.expa(x as f64));
           Ok(())
         },
-        _ => Err(type_error_plain("Type error in a^b."))
-      }
+        _ => {break 'r;}
+      };
     },
     Object::Float(x) => {
-      match stack[sp-1] {
+      return match stack[sp-1] {
         Object::Int(y) => {
           stack[sp-2] = Object::Float(x.powi(y));
           Ok(())
@@ -958,11 +1049,11 @@ fn operator_pow(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorR
           stack[sp-2] = Object::Complex(y.expa(x));
           Ok(())
         },
-        _ => Err(type_error_plain("Type error in a^b."))
-      }
+        _ => {break 'r;}
+      };
     },
     Object::Complex(x) => {
-      match stack[sp-1] {
+      return match stack[sp-1] {
         Object::Int(y) => {
           stack[sp-2] = Object::Complex(x.powf(y as f64));
           Ok(())
@@ -975,17 +1066,32 @@ fn operator_pow(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorR
           stack[sp-2] = Object::Complex(x.pow(y));
           Ok(())
         },
-        _ => Err(type_error_plain("Type error in a^b."))
-      }
+        _ => {break 'r;}
+      };
     },
-    _ => Err(type_error_plain("Type error in a^b."))
+    _ => {}
   }
+  return match replace(&mut stack[sp-2],Object::Null) {
+    Object::Interface(a) => {
+      let b = replace(&mut stack[sp-1],Object::Null);
+      match a.pow(&b,&mut Env{env: env, sp: sp, stack: stack}) {
+        Ok(y) => {stack[sp-2] = y; Ok(())},
+        Err(e) => Err(e)
+      }     
+    },
+    _ => {break 'r;}
+  };
+  } // 'r
+  return Err(type_error2_plain(
+    "Type error in x^y.","x","y",&stack[sp-2],&stack[sp-1]
+  ));
 }
 
 fn operator_band(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorResult {
+  'r: loop{
   match replace(&mut stack[sp-2],Object::Null) {
     Object::Map(ref a) => {
-      match replace(&mut stack[sp-1],Object::Null) {
+      return match replace(&mut stack[sp-1],Object::Null) {
         Object::Map(ref b) => {
           let mut m: HashMap<Object,Object> = HashMap::new();
           let b = &b.borrow().m;
@@ -999,17 +1105,23 @@ fn operator_band(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> Operator
           )));
           Ok(())
         },
-        _ => Err(type_error_plain("Type error in a&b."))
-      }
+        _ => {break 'r;}
+      };
     },
-    _ => Err(type_error_plain("Type error in a&b."))
+    _ => {}
   }
+  break 'r;
+  } // 'r
+  return Err(type_error2_plain(
+    "Type error in x&y.","x","y",&stack[sp-2],&stack[sp-1]
+  ));
 }
 
 fn operator_bor(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorResult {
+  'r: loop{
   match replace(&mut stack[sp-2],Object::Null) {
     Object::Map(ref a) => {
-      match replace(&mut stack[sp-1],Object::Null) {
+      return match replace(&mut stack[sp-1],Object::Null) {
         Object::Map(ref b) => {
           let mut m: HashMap<Object,Object> = HashMap::new();
           for (key,value) in &a.borrow().m {
@@ -1023,17 +1135,23 @@ fn operator_bor(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorR
           )));
           Ok(())
         },
-        _ => Err(type_error_plain("Type error in a|b."))
-      }
+        _ => {break 'r;}
+      };
     },
-    _ => Err(type_error_plain("Type error in a|b."))
+    _ => {}
   }
+  break 'r;
+  } // 'r
+  return Err(type_error2_plain(
+    "Type error in x|y.","x","y",&stack[sp-2],&stack[sp-1]
+  ));
 }
 
 fn operator_lt(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorResult {
+  'r: loop{
   match stack[sp-2] {
     Object::Int(x) => {
-      match stack[sp-1] {
+      return match stack[sp-1] {
         Object::Int(y) => {
           stack[sp-2] = Object::Bool(x<y);
           Ok(())
@@ -1042,11 +1160,11 @@ fn operator_lt(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorRe
           stack[sp-2] = Object::Bool((x as f64)<y);
           Ok(())
         },
-        _ => Err(type_error_plain("Type error in a<b."))
-      }
+        _ => {break 'r;}
+      };
     },
     Object::Float(x) => {
-      match stack[sp-1] {
+      return match stack[sp-1] {
         Object::Int(y) => {
           stack[sp-2] = Object::Bool(x<(y as f64));
           Ok(())
@@ -1055,17 +1173,41 @@ fn operator_lt(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorRe
           stack[sp-2] = Object::Bool(x<y);
           Ok(())
         },
-        _ => Err(type_error_plain("Type error in a<b."))
+        _ => {break 'r;}
+      };
+    },
+    _ => {}
+  }
+  return match replace(&mut stack[sp-2],Object::Null) {
+    Object::Interface(ref x) => {
+      let b = replace(&mut stack[sp-1],Object::Null);
+      match x.lt(&b,&mut Env{env: env, sp: sp, stack: stack}) {
+        Ok(value) => {stack[sp-2] = value; Ok(())},
+        Err(e) => Err(e)
       }
     },
-    _ => Err(type_error_plain("Type error in a<b."))
-  }
+    _ => {break 'r;}
+  };
+  } // 'r
+  return match replace(&mut stack[sp-1],Object::Null) {
+    Object::Interface(ref x) => {
+      let a = replace(&mut stack[sp-2],Object::Null);
+      match x.rlt(&a,&mut Env{env: env, sp: sp, stack: stack}) {
+        Ok(value) => {stack[sp-2] = value; Ok(())},
+        Err(e) => Err(e)
+      }
+    },
+    a => Err(type_error2_plain(
+      "Type error in x<y.","x","y",&stack[sp-2],&a
+    ))
+  };
 }
 
 fn operator_gt(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorResult {
+  'r: loop{
   match stack[sp-2] {
     Object::Int(x) => {
-      match stack[sp-1] {
+      return match stack[sp-1] {
         Object::Int(y) => {
           stack[sp-2] = Object::Bool(x>y);
           Ok(())
@@ -1074,11 +1216,11 @@ fn operator_gt(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorRe
           stack[sp-2] = Object::Bool((x as f64)>y);
           Ok(())
         },
-        _ => Err(type_error_plain("Type error in a>b."))
-      }
+        _ => {break 'r;}
+      };
     },
     Object::Float(x) => {
-      match stack[sp-1] {
+      return match stack[sp-1] {
         Object::Int(y) => {
           stack[sp-2] = Object::Bool(x>(y as f64));
           Ok(())
@@ -1087,17 +1229,41 @@ fn operator_gt(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorRe
           stack[sp-2] = Object::Bool(x>y);
           Ok(())
         },
-        _ => Err(type_error_plain("Type error in a>b."))
+        _ => {break 'r;}
+      };
+    },
+    _ => {}
+  }
+  return match replace(&mut stack[sp-2],Object::Null) {
+    Object::Interface(ref x) => {
+      let b = replace(&mut stack[sp-1],Object::Null);
+      match x.gt(&b,&mut Env{env: env, sp: sp, stack: stack}) {
+        Ok(value) => {stack[sp-2] = value; Ok(())},
+        Err(e) => Err(e)
       }
     },
-    _ => Err(type_error_plain("Type error in a>b."))
-  }
+    _ => {break 'r;}
+  };
+  } // 'r
+  return match replace(&mut stack[sp-1],Object::Null) {
+    Object::Interface(ref x) => {
+      let a = replace(&mut stack[sp-2],Object::Null);
+      match x.rgt(&a,&mut Env{env: env, sp: sp, stack: stack}) {
+        Ok(value) => {stack[sp-2] = value; Ok(())},
+        Err(e) => Err(e)
+      }
+    },
+    a => Err(type_error2_plain(
+      "Type error in x>y.","x","y",&stack[sp-2],&a
+    ))
+  };
 }
 
 fn operator_le(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorResult {
+  'r: loop{
   match stack[sp-2] {
     Object::Int(x) => {
-      match stack[sp-1] {
+      return match stack[sp-1] {
         Object::Int(y) => {
           stack[sp-2] = Object::Bool(x<=y);
           Ok(())
@@ -1106,11 +1272,11 @@ fn operator_le(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorRe
           stack[sp-2] = Object::Bool((x as f64)<=y);
           Ok(())
         },
-        _ => Err(type_error_plain("Type error in a<=b."))
-      }
+        _ => {break 'r;}
+      };
     },
     Object::Float(x) => {
-      match stack[sp-1] {
+      return match stack[sp-1] {
         Object::Int(y) => {
           stack[sp-2] = Object::Bool(x<=(y as f64));
           Ok(())
@@ -1119,17 +1285,41 @@ fn operator_le(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorRe
           stack[sp-2] = Object::Bool(x<=y);
           Ok(())
         },
-        _ => Err(type_error_plain("Type error in a<=b."))
+        _ => {break 'r;}
+      };
+    },
+    _ => {}
+  }
+  return match replace(&mut stack[sp-2],Object::Null) {
+    Object::Interface(ref x) => {
+      let b = replace(&mut stack[sp-1],Object::Null);
+      match x.le(&b,&mut Env{env: env, sp: sp, stack: stack}) {
+        Ok(value) => {stack[sp-2] = value; Ok(())},
+        Err(e) => Err(e)
       }
     },
-    _ => Err(type_error_plain("Type error in a<=b."))
-  }
+    _ => {break 'r;}
+  };
+  } // 'r
+  return match replace(&mut stack[sp-1],Object::Null) {
+    Object::Interface(ref x) => {
+      let a = replace(&mut stack[sp-2],Object::Null);
+      match x.rle(&a,&mut Env{env: env, sp: sp, stack: stack}) {
+        Ok(value) => {stack[sp-2] = value; Ok(())},
+        Err(e) => Err(e)
+      }
+    },
+    a => Err(type_error2_plain(
+      "Type error in x<=y.","x","y",&stack[sp-2],&a
+    ))
+  };
 }
 
 fn operator_ge(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorResult {
+  'r: loop{
   match stack[sp-2] {
     Object::Int(x) => {
-      match stack[sp-1] {
+      return match stack[sp-1] {
         Object::Int(y) => {
           stack[sp-2] = Object::Bool(x>=y);
           Ok(())
@@ -1138,11 +1328,11 @@ fn operator_ge(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorRe
           stack[sp-2] = Object::Bool((x as f64)>=y);
           Ok(())
         },
-        _ => Err(type_error_plain("Type error in a>=b."))
-      }
+        _ => {break 'r;}
+      };
     },
     Object::Float(x) => {
-      match stack[sp-1] {
+      return match stack[sp-1] {
         Object::Int(y) => {
           stack[sp-2] = Object::Bool(x>=(y as f64));
           Ok(())
@@ -1151,11 +1341,34 @@ fn operator_ge(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorRe
           stack[sp-2] = Object::Bool(x>=y);
           Ok(())
         },
-        _ => Err(type_error_plain("Type error in a>=b."))
+        _ => {break 'r;}
+      };
+    },
+    _ => {}
+  }
+  return match replace(&mut stack[sp-2],Object::Null) {
+    Object::Interface(ref x) => {
+      let b = replace(&mut stack[sp-1],Object::Null);
+      match x.le(&b,&mut Env{env: env, sp: sp, stack: stack}) {
+        Ok(value) => {stack[sp-2] = value; Ok(())},
+        Err(e) => Err(e)
       }
     },
-    _ => Err(type_error_plain("Type error in a>=b."))
-  }
+    _ => {break 'r;}
+  };
+  } // 'r
+  return match replace(&mut stack[sp-1],Object::Null) {
+    Object::Interface(ref x) => {
+      let a = replace(&mut stack[sp-2],Object::Null);
+      match x.rge(&a,&mut Env{env: env, sp: sp, stack: stack}) {
+        Ok(value) => {stack[sp-2] = value; Ok(())},
+        Err(e) => Err(e)
+      }
+    },
+    a => Err(type_error2_plain(
+      "Type error in x>=y.","x","y",&stack[sp-2],&a
+    ))
+  };
 }
 
 fn operator_is(sp: usize, stack: &mut [Object]) -> OperatorResult {
@@ -1252,7 +1465,9 @@ fn operator_in(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorRe
       }
       return Ok(());
     },
-    _ => Err(type_error_plain("Type error in x in a: a is not a list and not a map."))
+    a => Err(type_error1_plain(
+      "Type error in x in a: a is not a list and not a map.", "a", &a
+    ))
   }
 }
 
@@ -1648,10 +1863,10 @@ impl RTE{
 }
 
 pub struct Module{
-  pub program: Rc<Vec<u32>>,
-  // pub program: Vec<u8>,
+  // pub program: Rc<Vec<u32>>,
+  // pub program: Vec<u32>,
 
-  // pub program: Rc<[u8]>,
+  pub program: Rc<[u32]>,
   // Rc<[T]> is available in Rust version 1.21 onwards.
 
   pub data: Vec<Object>,

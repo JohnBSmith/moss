@@ -725,8 +725,8 @@ enum ComplexInfoA{
 }
 
 enum Info{
-  None, Some(u8), SelfArg, Coroutine, Variadic, A(Box<ComplexInfoA>),
-  Int(i32)
+  None, Some(u8), SelfArg, Coroutine, A(Box<ComplexInfoA>),
+  Int(i32), ArgvInfo{variadic: bool, selfarg: bool}
 }
 
 struct AST{
@@ -1094,7 +1094,8 @@ fn arguments_list(&mut self, i: &mut TokenIterator, t0: &Token, terminator: Symb
   -> Result<Rc<AST>,Error>
 {
   let mut v: Vec<Rc<AST>> = Vec::new();
-  let mut info = Info::None;
+  let mut selfarg = false;
+  let mut variadic = false;
   let p = try!(i.next_token(self));
   let t = &p[i.index];
   if t.value == terminator {
@@ -1104,7 +1105,7 @@ fn arguments_list(&mut self, i: &mut TokenIterator, t0: &Token, terminator: Symb
       let p = try!(i.next_token(self));
       let t = &p[i.index];
       if t.value == Symbol::Ast {
-        info = Info::Variadic;
+        variadic = true;
         i.index+=1;
         let x = try!(self.atom(i));
         v.push(x);
@@ -1137,6 +1138,15 @@ fn arguments_list(&mut self, i: &mut TokenIterator, t0: &Token, terminator: Symb
           i.index+=1;
           break;
         }
+      }else if t.value == Symbol::Semicolon {
+        i.index+=1;
+        selfarg = true;
+        let p = try!(i.next_token(self));
+        let t = &p[i.index];
+        if t.value == terminator {
+          i.index+=1;
+          break;
+        }
       }else if t.value==terminator {
         i.index+=1;
         break;
@@ -1145,6 +1155,11 @@ fn arguments_list(&mut self, i: &mut TokenIterator, t0: &Token, terminator: Symb
       }
     }
   }
+  let info = if selfarg || variadic {
+    Info::ArgvInfo{selfarg: selfarg, variadic: variadic}
+  }else{
+    Info::None
+  };
   return Ok(Rc::new(AST{line: t0.line, col: t0.col,
     symbol_type: SymbolType::Operator, value: Symbol::List,
     info: info, s: None, a: Some(v.into_boxed_slice())
@@ -2487,6 +2502,11 @@ fn compile_fn(&mut self, bv: &mut Vec<u32>, t: &Rc<AST>)
   let a = ast_argv(t);
   let mut bv2: Vec<u32> = Vec::new();
 
+  let (selfarg,variadic) = match a[0].info {
+    Info::ArgvInfo{selfarg,variadic} => (selfarg,variadic),
+    _ => (false,false)
+  };
+
   // A separator to identify a new code block. Just needed
   // to make the assembler listing human readable.
   push_bc(&mut bv2, bc::FNSEP, t.line, t.col);
@@ -2500,7 +2520,7 @@ fn compile_fn(&mut self, bv: &mut Vec<u32>, t: &Rc<AST>)
   self.vtab.context = Some(Box::new(vtab));
 
   self.function_nesting+=1;
-  try!(self.arguments(&mut bv2,&a[0]));
+  try!(self.arguments(&mut bv2,&a[0],selfarg));
   let count_optional = self.vtab.count_optional_arg;
 
   let coroutine = self.coroutine;
@@ -2575,18 +2595,21 @@ fn compile_fn(&mut self, bv: &mut Vec<u32>, t: &Rc<AST>)
 
   let argv = ast_argv(&a[0]);
 
-  match a[0].info {
-    Info::Variadic => {
-      push_u32(bv,(argv.len()-1) as u32);
-      push_u32(bv,VARIADIC);
-    },
-    _ => {
-      // minimal argument count
-      push_u32(bv,(argv.len()-count_optional) as u32);
+  let argc = if selfarg {
+    argv.len()-1
+  }else{
+    argv.len()
+  };
 
-      // maximal argument count
-      push_u32(bv,argv.len() as u32);
-    }
+  if variadic {
+    push_u32(bv,(argc-1) as u32);
+    push_u32(bv,VARIADIC);
+  }else{
+    // minimal argument count
+    push_u32(bv,(argc-count_optional) as u32);
+
+    // maximal argument count
+    push_u32(bv,argc as u32);
   }
 
   // number of local variables
@@ -2661,17 +2684,19 @@ fn compile_default_argument(&mut self, bv: &mut Vec<u32>, t: &Rc<AST>)
   return self.compile_ast(bv,&ast);
 }
 
-fn arguments(&mut self, bv: &mut Vec<u32>, t: &AST)
+fn arguments(&mut self, bv: &mut Vec<u32>, t: &AST, selfarg: bool)
   -> Result<(),Error>
 {
   let a = ast_argv(t);
 
-  self.vtab.v.push(VarInfo{
-    s: "self".to_string(),
-    index: self.vtab.count_arg,
-    var_type: VarType::Argument
-  });
-  self.vtab.count_arg+=1;
+  if !selfarg {
+    self.vtab.v.push(VarInfo{
+      s: "self".to_string(),
+      index: self.vtab.count_arg,
+      var_type: VarType::Argument
+    });
+    self.vtab.count_arg+=1;
+  }
 
   for i in 0..a.len() {
     if a[i].value == Symbol::List {
@@ -2923,10 +2948,40 @@ fn compile_left_hand_side(&mut self, bv: &mut Vec<u32>, t: &AST)
     push_bc(bv,bc::DOT_SET,t.line,t.col);
   }else if t.value == Symbol::List {
     try!(self.compile_unpack(bv,t));
+  }else if t.value == Symbol::Map {
+    let id = identifier("_m_",t.line,t.col);
+    self.compile_assignment(bv,&id,t.line,t.col);
+    let a = ast_argv(t);
+    let n = a.len();
+    let mut i=0;
+    while i<n {
+      if a[i+1].value == Symbol::Null {
+        try!(self.compile_ast(bv,&id));
+        try!(self.compile_string(bv,&a[i]));
+        push_bc(bv,bc::GET_INDEX,t.line,t.col);
+      }else{
+        let app = apply(t.line,t.col,Box::new([id.clone(),a[i].clone()]));
+        let null_coalescing = operator(t.line,t.col,Symbol::Else,Box::new([app,a[i+1].clone()]));
+        try!(self.compile_ast(bv,&null_coalescing));
+      }
+      self.compile_assignment(bv,&a[i],t.line,t.col);
+      i+=2;
+    }
   }else{
     return Err(self.syntax_error(t.line,t.col,
       String::from("expected identifier before '='.")));
   }
+  return Ok(());
+}
+
+fn compile_string(&mut self, bv: &mut Vec<u32>, t: &AST)
+  -> Result<(),Error>
+{
+  let s = match t.s {Some(ref x)=>x, None=>panic!()};
+  let key = try!(self.string_literal(s));
+  let index = self.get_index(&key);
+  push_bc(bv,bc::STR,t.line,t.col);
+  push_u32(bv,index as u32);
   return Ok(());
 }
 
@@ -3006,7 +3061,7 @@ fn compile_ast(&mut self, bv: &mut Vec<u32>, t: &Rc<AST>)
     }else if value == Symbol::Dot {
       try!(self.compile_operator(bv,t,bc::DOT));
     }else if value == Symbol::And {
-      // Use a AND[1] b (1) instead of
+      // We use a AND[1] b (1) instead of
       // a JPZ[1] b JMP[2] (1) CONST_BOOL false (2).
       let a = ast_argv(t);
       try!(self.compile_ast(bv,&a[0]));
@@ -3017,7 +3072,7 @@ fn compile_ast(&mut self, bv: &mut Vec<u32>, t: &Rc<AST>)
       let len = bv.len();
       write_i32(&mut bv[index..index+1], (BCSIZE+len) as i32-index as i32);
     }else if value == Symbol::Or {
-      // Use a OR[1] b (1) instead of
+      // We use a OR[1] b (1) instead of
       // a JPZ[1] CONST_BOOL true JMP[2] (1) b (2).
       let a = ast_argv(t);
       try!(self.compile_ast(bv,&a[0]));
@@ -3138,11 +3193,7 @@ fn compile_ast(&mut self, bv: &mut Vec<u32>, t: &Rc<AST>)
       panic!();
     }
   }else if t.symbol_type == SymbolType::String {
-    let s = match t.s {Some(ref x)=>x, None=>panic!()};
-    let key = try!(self.string_literal(s));
-    let index = self.get_index(&key);
-    push_bc(bv,bc::STR,t.line,t.col);
-    push_u32(bv,index as u32);
+    try!(self.compile_string(bv,t));
   }else if t.symbol_type == SymbolType::Assignment {
     try!(self.compile_compound_assignment(bv,t));
   }else{
@@ -3506,7 +3557,7 @@ pub fn compile(v: Vec<Token>, mode_cmd: bool,
   // print_data(&compilation.data);
   let m = Rc::new(Module{
     // program: bv,
-    program: Rc::new(bv),
+    program: Rc::from(bv),
     data: compilation.data,
     rte: rte.clone(),
     gtab: rte.gtab.clone(),

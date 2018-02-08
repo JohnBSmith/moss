@@ -30,6 +30,9 @@ mod iterable;
 #[path = "objects/string.rs"]
 mod string;
 
+#[path = "objects/long-gmp.rs"]
+mod long;
+
 #[path = "modules/complex.rs"]
 pub mod complex;
 
@@ -44,6 +47,9 @@ mod sys;
 
 #[path = "modules/la.rs"]
 mod la;
+
+#[path = "modules/sf.rs"]
+mod sf;
 
 use std::rc::Rc;
 use std::cell::RefCell;

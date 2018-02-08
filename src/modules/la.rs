@@ -43,6 +43,9 @@ impl Array {
 
 impl Interface for Array {
   fn as_any(&self) -> &Any {self}
+  fn type_name(&self) -> String {
+    "Array".to_string()
+  }
   fn to_string(&self) -> String {
     if self.n==1 {
       let mut s = "vector(".to_string();
