@@ -162,6 +162,18 @@ impl Exception{
   pub fn set_spot(&mut self, line: usize, col: usize) {
     self.spot = Some(Spot{line,col});
   }
+  pub fn push(&mut self, line: usize, col: usize, id: &str) {
+    let s = U32String::new_object_str(&format!(
+      "{}, {}:{}",id,line,col
+    ));
+    if let Some(ref mut a) = self.traceback {
+      a.v.push(s);
+    }else{
+      let mut a = List::new();
+      a.v.push(s);
+      self.traceback = Some(a);
+    }
+  }
 }
 
 pub fn std_exception_plain(s: &str) -> Box<Exception> {

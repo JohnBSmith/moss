@@ -2,7 +2,8 @@
 #![allow(unused_imports)]
 
 use object::{Object, FnResult, U32String, Function, Table, List,
-  type_error, argc_error, index_error, std_exception,
+  type_error, type_error1, type_error2,
+  argc_error, index_error, std_exception,
   VARIADIC, MutableFn
 };
 use vm::Env;
@@ -38,7 +39,9 @@ fn append(pself: &Object, argv: &[Object]) -> FnResult{
             let mut a = a.borrow_mut();
             a.v.append(&mut v);
           },
-          _ => return type_error("Type error in a.append(b): b is not a list.")
+          ref b => return type_error1(
+            "Type error in a.append(b): b is not a list.",
+            "b",b)
         }
       }
       Ok(Object::Null)
@@ -88,7 +91,9 @@ fn filter(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     let y = try!(env.call(&argv[0],&Object::Null,&[x.clone()]));
     let condition = match y {
       Object::Bool(u)=>u,
-      _ => return type_error("Type error in a.filter(p): return value of p is not of boolean type.")
+      ref value => return type_error2(
+        "Type error in a.filter(p): return value of p is not of boolean type.",
+        "x","p(x)",x,value)
     };
     if condition {
       v.push(x.clone());
@@ -110,7 +115,9 @@ fn count(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     let y = try!(env.call(&argv[0],&Object::Null,&[x.clone()]));
     let condition = match y {
       Object::Bool(u)=>u,
-      _ => return type_error("Type error in a.count(p): return value of p is not of boolean type.")
+      ref value => return type_error2(
+        "Type error in a.count(p): return value of p is not of boolean type.",
+        "x","p(x)",x,value)
     };
     if condition {k+=1;}
   }
@@ -129,7 +136,9 @@ fn any(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     let y = try!(env.call(&argv[0],&Object::Null,&[x.clone()]));
     let condition = match y {
       Object::Bool(u)=>u,
-      _ => return type_error("Type error in a.any(p): return value of p is not of boolean type.")
+      ref value => return type_error2(
+        "Type error in a.any(p): return value of p is not of boolean type.",
+        "x","p(x)",x,value)
     };
     if condition {
       return Ok(Object::Bool(true));
@@ -150,7 +159,9 @@ fn all(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     let y = try!(env.call(&argv[0],&Object::Null,&[x.clone()]));
     let condition = match y {
       Object::Bool(u)=>u,
-      _ => return type_error("Type error in a.all(p): return value of p is not of boolean type.")
+      ref value => return type_error2(
+        "Type error in a.all(p): return value of p is not of boolean type.",
+        "x","p(x)",x,value)
     };
     if !condition {
       return Ok(Object::Bool(false));
@@ -264,11 +275,15 @@ fn list_swap(pself: &Object, argv: &[Object]) -> FnResult {
     2 => {
       let x = match argv[0] {
         Object::Int(x)=>x,
-        _ => return type_error("Type error in a.swap(i,j): i is not an integer.")
+        ref index => return type_error1(
+          "Type error in a.swap(i,j): i is not an integer.",
+          "i",index)
       };
       let y = match argv[1] {
         Object::Int(y)=>y,
-        _ => return type_error("Type error in a.swap(i,j): j is not an integer.")
+        ref index => return type_error1(
+          "Type error in a.swap(i,j): j is not an integer.",
+          "j",index)
       };
       let len = a.v.len();
       let i = if x<0 {

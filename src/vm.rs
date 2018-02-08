@@ -13,8 +13,8 @@ use object::{
   Object, Map, List, Function, EnumFunction, StandardFn,
   FnResult, OperatorResult, Exception, Table, Range, U32String,
   type_error_plain, type_error1_plain, type_error2_plain,
-  index_error_plain, argc_error_plain,
-  type_error, value_error_plain, argc_error, std_exception_plain,
+  type_error1, index_error_plain, argc_error_plain,
+  value_error_plain, argc_error, std_exception_plain,
   VARIADIC
 };
 use complex::Complex64;
@@ -478,6 +478,22 @@ pub fn object_to_repr(x: &Object) -> String{
       string_to_repr(a)
     },
     _ => object_to_string(x)
+  }
+}
+
+fn function_id_to_string(f: &Function) -> String {
+  match f.id {
+    Object::Null => format!("function"),
+    Object::Int(x) => {
+      let line = (x as u32) & 0xffff;
+      let col = (x as u32)>>16;
+      if let EnumFunction::Std(ref f) = f.f {
+        format!("function ({}:{}:{})",&f.module.id,line,col)
+      }else{
+        format!("function ({}:{})",line,col)
+      }
+    },
+    _ => format!("{}",f.id)
   }
 }
 
@@ -1542,12 +1558,16 @@ fn operator_index(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> Operato
           let i = match r.a {
             Object::Int(x)=>x,
             Object::Null=>0,
-            _ => return Err(type_error_plain("Type error in a[i..j]: i is not an integer."))
+            _ => return Err(type_error1_plain(
+              "Type error in a[i..j]: i is not an integer.",
+              "i",&r.a))
           };
           let j = match r.b {
             Object::Int(x)=>x,
             Object::Null=>n-1,
-            _ => return Err(type_error_plain("Type error in a[i..j]: j is not an integer."))
+            _ => return Err(type_error1_plain(
+              "Type error in a[i..j]: j is not an integer.",
+              "j",&r.b))
           };
           let mut v: Vec<Object> = Vec::new();
           for k in i..j+1 {
@@ -1558,7 +1578,9 @@ fn operator_index(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> Operato
           stack[sp-2] = List::new_object(v);
           Ok(())
         },
-        _ => Err(type_error_plain("Type error in a[i]: i is not an integer."))
+        x => Err(type_error2_plain(
+          "Type error in a[i]: i is not an integer.",
+          "a","i",&stack[sp-2],&x))
       }
     },
     Object::Map(m) => {
@@ -1571,7 +1593,9 @@ fn operator_index(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> Operato
         None => Err(index_error_plain("Index error in m[key]: key not found."))
       }
     },
-    _ => Err(type_error_plain("Type error in a[i]: a is not index-able."))
+    a => Err(type_error1_plain(
+      "Type error in a[i]: a is not index-able.",
+      "a",&a))
   }
 }
 
@@ -1608,14 +1632,14 @@ fn index_assignment(sp: usize, stack: &mut [Object]) -> OperatorResult {
           Ok(())          
         },
         _ => Err(type_error_plain("Type error in a[i]=value: i is not an integer."))
-      }    
+      }
     },
     Object::Map(m) => {
       let key = replace(&mut stack[sp-1],Object::Null);
       let value = replace(&mut stack[sp-3],Object::Null);
       let mut m = m.borrow_mut();
       if m.frozen {
-        return Err(type_error_plain("Index error in m[key]=value: m is frozen."));
+        return Err(index_error_plain("Index error in m[key]=value: m is frozen."));
       }
       match m.m.insert(key,value) {
         Some(_) => {},
@@ -1623,7 +1647,10 @@ fn index_assignment(sp: usize, stack: &mut [Object]) -> OperatorResult {
       }
       Ok(())
     },
-    _ => Err(type_error_plain("Type error in a[i]=value: a is not index-able."))
+    a => Err(type_error1_plain(
+      "Type error in a[i]=value: a is not index-able.",
+      "a",&a
+    ))
   }
 }
 
@@ -1725,7 +1752,10 @@ fn operator_dot(sp: usize, stack: &mut [Object], module: &Module) -> OperatorRes
         None => {}
       }      
     },
-    _ => return Err(type_error_plain("Type error in x.m: x is not a table."))
+    x => return Err(type_error1_plain(
+      "Type error in x.m: x is not a table.",
+      "x",&x
+    ))
   }
   let key = stack[sp-1].to_string();
   return Err(index_error_plain(&format!(
@@ -1740,7 +1770,7 @@ fn operator_dot_set(sp: usize, stack: &mut [Object]) -> OperatorResult {
       let value = replace(&mut stack[sp-3],Object::Null);
       let mut m = t.map.borrow_mut();
       if m.frozen {
-        return Err(type_error_plain("Index error in a.x=value: a is frozen."));
+        return Err(index_error_plain("Index error in a.x=value: a is frozen."));
       }
       match m.m.insert(key,value) {
         Some(_) => {},
@@ -1748,7 +1778,10 @@ fn operator_dot_set(sp: usize, stack: &mut [Object]) -> OperatorResult {
       }
       Ok(())
     },
-    _ => Err(type_error_plain("Type error in a.x: a is not a table."))
+    a => Err(type_error1_plain(
+      "Type error in a.x: a is not a table.",
+      "a",&a
+    ))
   }
 }
 
@@ -1756,7 +1789,7 @@ fn operator_get(list: &Object, index: u32) -> FnResult {
   if let Object::List(ref a) = *list {
     Ok(a.borrow().v[index as usize].clone())
   }else{
-    type_error("Type error in x,y = a: a is not a list.")
+    type_error1("Type error in x,y = a: a is not a list.","a",list)
   }
 }
 
@@ -1770,8 +1803,11 @@ fn global_variable_not_found(module: &Module, index: u32, gtab: &RefCell<Map>) -
 }
 
 #[inline(never)]
-fn non_boolean_condition() -> OperatorResult {
-  Err(type_error_plain("Type error: condition is not of type bool."))
+fn non_boolean_condition(condition: &Object) -> OperatorResult {
+  Err(type_error1_plain(
+    "Type error: condition is not of type bool.",
+    "condition", condition
+  ))
 }
 
 #[inline(never)]
@@ -2174,7 +2210,7 @@ fn vm_loop(
       bc::JZ => {
         let condition = match stack[sp-1] {
           Object::Bool(x)=>{sp-=1; x},
-          _ => {exception = non_boolean_condition(); break;}
+          _ => {exception = non_boolean_condition(&stack[sp-1]); break;}
         };
         if condition {
           ip+=BCASIZE;
@@ -2185,7 +2221,7 @@ fn vm_loop(
       bc::JNZ => {
         let condition = match stack[sp-1] {
           Object::Bool(x)=>{sp-=1; x},
-          _ => {exception = non_boolean_condition(); break;}
+          _ => {exception = non_boolean_condition(&stack[sp-1]); break;}
         };
         if condition {
           ip = (ip as i32+load_i32(&a,ip+BCSIZE)) as usize;
@@ -2535,6 +2571,18 @@ fn vm_loop(
     if let Err(ref mut e) = exception {
       let (line,col) = get_line_col(&a,ip);
       e.set_spot(line,col);
+
+      loop{
+        let frame = match env.frame_stack.pop() {
+          Some(x)=>x,
+          None=>{break;}
+        };
+        module = frame.module;
+        a = module.program.clone();
+        let (line,col) = get_line_col(&a,frame.ip-BCASIZE);
+        e.push(line,col,&function_id_to_string(&*fnself));
+        fnself = frame.f;
+      }
     }
     return exception;
   }
@@ -2585,7 +2633,7 @@ pub fn eval(env: &mut Env,
       match stack[i] {
         Object::Null => {},
         ref x => {
-          println!("{}",object_to_repr(&x));
+          println!("{}",x.repr());
         }
       }
     }
@@ -2623,15 +2671,22 @@ fn object_call(f: &Object, argv: &mut [Object]) -> OperatorResult {
       };
       Ok(())
     },
-    _ => Err(type_error_plain("Type error in f(...): f is not callable."))
+    _ => Err(type_error1_plain(
+      "Type error in f(...): f is not callable.",
+      "f", f))
   }
 }
 
 fn print_exception(e: &Exception) {
+  if let Some(ref traceback) = e.traceback {
+    for x in traceback.v.iter().rev() {
+      println!("  in {}",x);
+    }
+  }
   if let Some(ref spot) = e.spot {
     println!("Line {}, col {}:",spot.line,spot.col);
   }
-  println!("{}",::vm::object_to_string(&e.value));
+  println!("{}",&e.value);
 }
 
 pub fn get_env(state: &mut State) -> Env {
@@ -2728,7 +2783,9 @@ impl<'a> Env<'a>{
           }
         }
       },
-      _ => type_error("Type error in f(...): f is not a function.")
+      _ => type_error1(
+        "Type error in f(...): f is not a function.",
+        "f", fobj)
     }
   }
   fn iter_next(&mut self, f: &Object) -> FnResult {
@@ -2838,7 +2895,9 @@ pub fn sys_call(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
       if x<0 {panic!();}
       x as usize
     },
-    _ => return type_error("Type error in sys.call(n,f): n is not an integer.")
+    _ => return type_error1(
+      "Type error in sys.call(n,f): n is not an integer.",
+      "n",&argv[0])
   };
   let mut v: Vec<Object> = vec![Object::Null; n];
   let mut calling_env = Env{sp: 0, stack: &mut v, env: env.env};

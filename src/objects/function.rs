@@ -5,7 +5,8 @@ use std::rc::Rc;
 use std::cell::RefCell;
 use std::i32;
 use object::{Object, FnResult, U32String, Function, Table, List,
-  type_error, argc_error, index_error, value_error,
+  type_error, type_error1,
+  argc_error, index_error, value_error,
   VARIADIC, MutableFn, EnumFunction, Range
 };
 use vm::Env;
@@ -16,14 +17,16 @@ fn apply(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
       Object::List(ref a) => {
         env.call(pself,&Object::Null,&a.borrow().v)
       },
-      _ => type_error("Type error in f.apply(a): a is not a list.")
+      ref a => type_error1(
+        "Type error in f.apply(a): a is not a list.","a",a)
     }
   }else if argv.len()==2 {
     match argv[1] {
       Object::List(ref a) => {
         env.call(pself,&argv[0],&a.borrow().v)
       },
-      _ => type_error("Type error in f.apply(a): a is not a list.")    
+      ref a => type_error1(
+        "Type error in f.apply(a): a is not a list.","a",a)
     }
   }else{
     return argc_error(argv.len(),1,1,"apply");
@@ -71,7 +74,7 @@ fn argc(pself: &Object, argv: &[Object]) -> FnResult {
       Ok(Object::Int(f.argc as i32))
     }
   }else{
-    type_error("Type error in f.argc(): f is not a function.")
+    type_error1("Type error in f.argc(): f is not a function.","f",pself)
   }
 }
 
