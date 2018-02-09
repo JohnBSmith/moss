@@ -3,16 +3,16 @@ Todo list
 
 == Interpreter kernel ==
 * format strings
-* stack trace
 * load a module only once, then Rc::clone
-* named arguments
 * delete temporary variables after use
 * coroutines
 * continuations
+* custom detstructors
 
 == Library ==
 * reverse iterator
 * cycling iterator
+* iterator: tee
 * extend for objects
 * reverse slice for lists
 * rotate slice for lists
@@ -26,4 +26,11 @@ Todo list
 * matrix multiplication
 * scalar product
 * absolute value of a vector
+
+== Audits ==
+* break 'r in vm.rs: replace vs. clone
+* overflow by integer arithmetic
+* overflow by type conversion
+
+
 

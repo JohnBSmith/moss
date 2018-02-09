@@ -143,7 +143,8 @@ pub struct Range{
 
 pub struct Spot{
   pub line: usize,
-  pub col: usize
+  pub col: usize,
+  pub module: String
 }
 
 pub struct Exception{
@@ -159,12 +160,12 @@ impl Exception{
       traceback: None, spot: None
     })
   }
-  pub fn set_spot(&mut self, line: usize, col: usize) {
-    self.spot = Some(Spot{line,col});
+  pub fn set_spot(&mut self, line: usize, col: usize, module: &str) {
+    self.spot = Some(Spot{line,col,module: module.to_string()});
   }
-  pub fn push(&mut self, line: usize, col: usize, id: &str) {
+  pub fn push_clm(&mut self, line: usize, col: usize, module: &str, fid: &str) {
     let s = U32String::new_object_str(&format!(
-      "{}, {}:{}",id,line,col
+      "{}, {}:{}:{}",fid,module,line,col
     ));
     if let Some(ref mut a) = self.traceback {
       a.v.push(s);

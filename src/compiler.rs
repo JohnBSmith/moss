@@ -909,9 +909,9 @@ fn identifier(id: &str, line: usize, col: usize) -> Rc<AST>{
     value: Symbol::None, info: Info::None, s: Some(id.to_string()), a: None})
 }
 
-fn string(id: &str, line: usize, col: usize) -> Rc<AST>{
+fn string(id: String, line: usize, col: usize) -> Rc<AST>{
   Rc::new(AST{line: line, col: col, symbol_type: SymbolType::String,
-    value: Symbol::None, info: Info::None, s: Some(id.to_string()), a: None})
+    value: Symbol::None, info: Info::None, s: Some(id), a: None})
 }
 
 fn apply(line: usize, col: usize, a: Box<[Rc<AST>]>) -> Rc<AST> {
@@ -1267,6 +1267,7 @@ fn application(&mut self, i: &mut TokenIterator, f: Rc<AST>, terminal: Symbol)
   -> Result<Rc<AST>,Error>
 {
   let mut v: Vec<Rc<AST>> = Vec::new();
+  let mut v_named: Vec<Rc<AST>> = Vec::new();
   let mut self_argument = Info::None;
   let line = f.line;
   let col = f.col;
@@ -1278,7 +1279,26 @@ fn application(&mut self, i: &mut TokenIterator, f: Rc<AST>, terminal: Symbol)
   }else{
     loop{
       let x = try!(self.expression(i));
-      v.push(x);
+      let p = try!(i.next_token(self));
+      let t = &p[i.index];
+      if t.value == Symbol::Assignment {
+        if x.symbol_type == SymbolType::Identifier {
+          i.index+=1;
+          let y = try!(self.expression(i));
+          if let Some(ref s) = x.s {
+            v_named.push(string(s.clone(),t.line,t.col));
+            v_named.push(y);
+          }else{
+            panic!();
+          }
+        }else{
+          return Err(self.syntax_error(t.line, t.col,
+            "expected identifer before '='.".to_string()
+          ));
+        }
+      }else{
+        v.push(x);
+      }
       let p = try!(i.next_token(self));
       let t = &p[i.index];
       if t.value == Symbol::Comma {
@@ -1293,6 +1313,13 @@ fn application(&mut self, i: &mut TokenIterator, f: Rc<AST>, terminal: Symbol)
         return Err(self.unexpected_token(t.line, t.col, t.value));
       }
     }
+  }
+  if v_named.len()>0 {
+    let m = Rc::new(AST{line: t.line, col: t.col,
+      symbol_type: SymbolType::Operator, value: Symbol::Map,
+      info: Info::None, s: None, a: Some(v_named.into_boxed_slice())
+    });
+    v.push(m);
   }
   let value = if terminal==Symbol::PRight {
     Symbol::Application
@@ -1934,7 +1961,7 @@ fn qualification_assignment(&mut self, id: &str, module: Rc<AST>,
   property: &str, line: usize, col: usize
 ) -> Rc<AST> {
   let id = identifier(id,line,col);
-  let property = string(property,line,col);
+  let property = string(property.to_string(),line,col);
   let dot = binary_operator(line,col,Symbol::Dot,module,property);
   return assignment(line,col,id,dot);
 }
@@ -2021,7 +2048,7 @@ fn use_path(&mut self, i: &mut TokenIterator, t0: &Token)
       buffer.push('/');
       i.index+=1;
     }else{
-      let path = string(&buffer,t0.line,t0.col);
+      let path = string(buffer,t0.line,t0.col);
       let id = identifier(s,t.line,t.col);
       return Ok((id,Some(path)));
     }
@@ -2054,7 +2081,7 @@ fn use_statement(&mut self, i: &mut TokenIterator, t0: &Token)
             let (_,path) = try!(self.use_path(i,t3));
             (id,path)
           }else{
-            let path = string(s2,t.line,t.col);
+            let path = string(s2.to_string(),t.line,t.col);
             (id,Some(path))
           }
         }else{
@@ -2063,7 +2090,7 @@ fn use_statement(&mut self, i: &mut TokenIterator, t0: &Token)
       }else if t2.value == Symbol::Dot {
         try!(self.use_path(i,t))
       }else{
-        let path = string(s,t.line,t.col);
+        let path = string(s.to_string(),t.line,t.col);
         (id,Some(path))
       }
     }else if t.value == Symbol::PLeft {

@@ -629,19 +629,21 @@ fn operator_plus(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> Operator
     },
     _ => {}
   }
-  return match replace(&mut stack[sp-2],Object::Null) {
-    Object::String(ref a) => {
-      match replace(&mut stack[sp-1],Object::Null) {
-        Object::String(ref b) => {
-          stack[sp-2] = string_add(a,b);
+  return match stack[sp-2].clone() {
+    Object::String(a) => {
+      match stack[sp-1].clone() {
+        Object::String(b) => {
+          stack[sp-1] = Object::Null;
+          stack[sp-2] = string_add(&a,&b);
           Ok(())
         },
         _ => {break 'r;}
       }
     },
-    Object::List(ref a) => {
-      match replace(&mut stack[sp-1],Object::Null) {
-        Object::List(ref b) => {
+    Object::List(a) => {
+      match stack[sp-1].clone() {
+        Object::List(b) => {
+          stack[sp-1] = Object::Null;
           stack[sp-2] = list_add(&*a.borrow(),&*b.borrow());
           Ok(())
         },
@@ -739,9 +741,9 @@ fn operator_minus(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> Operato
     },
     _ => {}
   }
-  return match replace(&mut stack[sp-2],Object::Null) {
+  return match stack[sp-2].clone() {
     Object::Map(a) => {
-      match replace(&mut stack[sp-1],Object::Null) {
+      match stack[sp-1].clone() {
         Object::Map(b) => {
           let mut m: HashMap<Object,Object> = HashMap::new();
           let b = &b.borrow().m;
@@ -750,6 +752,7 @@ fn operator_minus(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> Operato
               m.insert(key.clone(),value.clone());
             }
           }
+          stack[sp-1] = Object::Null;
           stack[sp-2] = Object::Map(Rc::new(RefCell::new(
             Map{m: m, frozen: false}
           )));
@@ -849,7 +852,7 @@ fn operator_mpy(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorR
     },
     _ => {}
   }
-  return match replace(&mut stack[sp-2],Object::Null) {
+  return match stack[sp-2].clone() {
     Object::Interface(a) => {
       let b = replace(&mut stack[sp-1],Object::Null);
       match a.mpy(&b,&mut Env{env: env, sp: sp, stack: stack}) {
@@ -962,7 +965,7 @@ fn operator_idiv(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> Operator
     },
     _ => {}
   }
-  return match replace(&mut stack[sp-2],Object::Null) {
+  return match stack[sp-2].clone() {
     Object::Interface(a) => {
       let b = replace(&mut stack[sp-1],Object::Null);
       match a.idiv(&b,&mut Env{env: env, sp: sp, stack: stack}) {
@@ -995,7 +998,7 @@ fn operator_mod(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorR
     },
     _ => {}
   }
-  return match replace(&mut stack[sp-2],Object::Null) {
+  return match stack[sp-2].clone() {
     Object::Interface(a) => {
       let b = replace(&mut stack[sp-1],Object::Null);
       match a.imod(&b,&mut Env{env: env, sp: sp, stack: stack}) {
@@ -1087,7 +1090,7 @@ fn operator_pow(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorR
     },
     _ => {}
   }
-  return match replace(&mut stack[sp-2],Object::Null) {
+  return match stack[sp-2].clone() {
     Object::Interface(a) => {
       let b = replace(&mut stack[sp-1],Object::Null);
       match a.pow(&b,&mut Env{env: env, sp: sp, stack: stack}) {
@@ -1105,9 +1108,9 @@ fn operator_pow(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorR
 
 fn operator_band(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorResult {
   'r: loop{
-  match replace(&mut stack[sp-2],Object::Null) {
+  match stack[sp-2].clone() {
     Object::Map(ref a) => {
-      return match replace(&mut stack[sp-1],Object::Null) {
+      return match stack[sp-1].clone() {
         Object::Map(ref b) => {
           let mut m: HashMap<Object,Object> = HashMap::new();
           let b = &b.borrow().m;
@@ -1116,6 +1119,7 @@ fn operator_band(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> Operator
               m.insert(key.clone(),value.clone());
             }
           }
+          stack[sp-1] = Object::Null;
           stack[sp-2] = Object::Map(Rc::new(RefCell::new(
             Map{m: m, frozen: false}
           )));
@@ -1135,9 +1139,9 @@ fn operator_band(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> Operator
 
 fn operator_bor(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorResult {
   'r: loop{
-  match replace(&mut stack[sp-2],Object::Null) {
+  match stack[sp-2].clone() {
     Object::Map(ref a) => {
-      return match replace(&mut stack[sp-1],Object::Null) {
+      return match stack[sp-1].clone() {
         Object::Map(ref b) => {
           let mut m: HashMap<Object,Object> = HashMap::new();
           for (key,value) in &a.borrow().m {
@@ -1146,6 +1150,7 @@ fn operator_bor(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorR
           for (key,value) in &b.borrow().m {
             m.insert(key.clone(),value.clone());
           }
+          stack[sp-1] = Object::Null;
           stack[sp-2] = Object::Map(Rc::new(RefCell::new(
             Map{m: m, frozen: false}
           )));
@@ -1194,8 +1199,8 @@ fn operator_lt(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorRe
     },
     _ => {}
   }
-  return match replace(&mut stack[sp-2],Object::Null) {
-    Object::Interface(ref x) => {
+  return match stack[sp-2].clone() {
+    Object::Interface(x) => {
       let b = replace(&mut stack[sp-1],Object::Null);
       match x.lt(&b,&mut Env{env: env, sp: sp, stack: stack}) {
         Ok(value) => {stack[sp-2] = value; Ok(())},
@@ -1206,7 +1211,7 @@ fn operator_lt(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorRe
   };
   } // 'r
   return match replace(&mut stack[sp-1],Object::Null) {
-    Object::Interface(ref x) => {
+    Object::Interface(x) => {
       let a = replace(&mut stack[sp-2],Object::Null);
       match x.rlt(&a,&mut Env{env: env, sp: sp, stack: stack}) {
         Ok(value) => {stack[sp-2] = value; Ok(())},
@@ -1250,8 +1255,8 @@ fn operator_gt(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorRe
     },
     _ => {}
   }
-  return match replace(&mut stack[sp-2],Object::Null) {
-    Object::Interface(ref x) => {
+  return match stack[sp-2].clone() {
+    Object::Interface(x) => {
       let b = replace(&mut stack[sp-1],Object::Null);
       match x.gt(&b,&mut Env{env: env, sp: sp, stack: stack}) {
         Ok(value) => {stack[sp-2] = value; Ok(())},
@@ -1262,7 +1267,7 @@ fn operator_gt(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorRe
   };
   } // 'r
   return match replace(&mut stack[sp-1],Object::Null) {
-    Object::Interface(ref x) => {
+    Object::Interface(x) => {
       let a = replace(&mut stack[sp-2],Object::Null);
       match x.rgt(&a,&mut Env{env: env, sp: sp, stack: stack}) {
         Ok(value) => {stack[sp-2] = value; Ok(())},
@@ -1306,8 +1311,8 @@ fn operator_le(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorRe
     },
     _ => {}
   }
-  return match replace(&mut stack[sp-2],Object::Null) {
-    Object::Interface(ref x) => {
+  return match stack[sp-2].clone() {
+    Object::Interface(x) => {
       let b = replace(&mut stack[sp-1],Object::Null);
       match x.le(&b,&mut Env{env: env, sp: sp, stack: stack}) {
         Ok(value) => {stack[sp-2] = value; Ok(())},
@@ -1318,7 +1323,7 @@ fn operator_le(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorRe
   };
   } // 'r
   return match replace(&mut stack[sp-1],Object::Null) {
-    Object::Interface(ref x) => {
+    Object::Interface(x) => {
       let a = replace(&mut stack[sp-2],Object::Null);
       match x.rle(&a,&mut Env{env: env, sp: sp, stack: stack}) {
         Ok(value) => {stack[sp-2] = value; Ok(())},
@@ -1362,8 +1367,8 @@ fn operator_ge(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorRe
     },
     _ => {}
   }
-  return match replace(&mut stack[sp-2],Object::Null) {
-    Object::Interface(ref x) => {
+  return match stack[sp-2].clone() {
+    Object::Interface(x) => {
       let b = replace(&mut stack[sp-1],Object::Null);
       match x.le(&b,&mut Env{env: env, sp: sp, stack: stack}) {
         Ok(value) => {stack[sp-2] = value; Ok(())},
@@ -1374,7 +1379,7 @@ fn operator_ge(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorRe
   };
   } // 'r
   return match replace(&mut stack[sp-1],Object::Null) {
-    Object::Interface(ref x) => {
+    Object::Interface(x) => {
       let a = replace(&mut stack[sp-2],Object::Null);
       match x.rge(&a,&mut Env{env: env, sp: sp, stack: stack}) {
         Ok(value) => {stack[sp-2] = value; Ok(())},
@@ -2570,7 +2575,7 @@ fn vm_loop(
     state.sp = sp;
     if let Err(ref mut e) = exception {
       let (line,col) = get_line_col(&a,ip);
-      e.set_spot(line,col);
+      e.set_spot(line,col,&module.id);
 
       loop{
         let frame = match env.frame_stack.pop() {
@@ -2580,7 +2585,7 @@ fn vm_loop(
         module = frame.module;
         a = module.program.clone();
         let (line,col) = get_line_col(&a,frame.ip-BCASIZE);
-        e.push(line,col,&function_id_to_string(&*fnself));
+        e.push_clm(line,col,&module.id,&function_id_to_string(&*fnself));
         fnself = frame.f;
       }
     }
@@ -2684,7 +2689,7 @@ fn print_exception(e: &Exception) {
     }
   }
   if let Some(ref spot) = e.spot {
-    println!("Line {}, col {}:",spot.line,spot.col);
+    println!("Line {}, col {} ({}):",spot.line,spot.col,&spot.module);
   }
   println!("{}",&e.value);
 }
