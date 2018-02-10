@@ -21,6 +21,7 @@ Todo list
 * graphics
 * powmod
 * hash long
+* string: rjust, ljust
 
 === Linear Algebra ===
 * matrix multiplication

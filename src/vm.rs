@@ -19,6 +19,7 @@ use object::{
 };
 use complex::Complex64;
 use long::Long;
+use format::u32string_format;
 
 // use ::Interpreter;
 use system;
@@ -1002,12 +1003,16 @@ fn operator_mod(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorR
     Object::Interface(a) => {
       let b = replace(&mut stack[sp-1],Object::Null);
       match a.imod(&b,&mut Env{env: env, sp: sp, stack: stack}) {
-        Ok(y) => {
-          stack[sp-2] = y;
-          Ok(())
-        },
+        Ok(y) => {stack[sp-2]=y; Ok(())},
         Err(e) => Err(e)
       }    
+    },
+    Object::String(s) => {
+      let a = replace(&mut stack[sp-1],Object::Null);
+      match u32string_format(&s,&a) {
+        Ok(y) => {stack[sp-2]=y; Ok(())},
+        Err(e) => Err(e)
+      }
     },
     _ => {break 'r;}
   };

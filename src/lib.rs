@@ -51,6 +51,9 @@ mod la;
 #[path = "modules/sf.rs"]
 mod sf;
 
+#[path = "modules/format.rs"]
+mod format;
+
 use std::rc::Rc;
 use std::cell::RefCell;
 // use std::fs::File;
