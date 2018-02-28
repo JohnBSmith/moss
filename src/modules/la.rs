@@ -5,10 +5,7 @@
 
 use std::rc::Rc;
 use std::any::Any;
-use object::{Object, FnResult, Function,
-  type_error, argc_error, new_module,
-  Interface, std_exception
-};
+use object::{Object, FnResult, Function, Interface, new_module};
 use vm::{Env, op_add, op_sub, op_mpy, op_div};
 
 struct ShapeStride{
@@ -72,10 +69,10 @@ impl Interface for Array {
       let mut v: Vec<Object> = Vec::with_capacity(self.s[0].shape);
       if let Some(b) = Array::downcast(b) {
         if b.n != 1 {
-          return type_error(&format!("Type error in v+w: v is a vector, but w is of order {}.",b.n));
+          return env.type_error(&format!("Type error in v+w: v is a vector, but w is of order {}.",b.n));
         }
         if self.s[0].shape != b.s[0].shape {
-          return type_error("Type error in v+w: v is not of the same size as w.");
+          return env.type_error("Type error in v+w: v is not of the same size as w.");
         }
         let stride2 = b.s[0].stride;
         let base2 = b.base;
@@ -104,10 +101,10 @@ impl Interface for Array {
       let mut v: Vec<Object> = Vec::with_capacity(self.s[0].shape);
       if let Some(b) = Array::downcast(b) {
         if b.n != 1 {
-          return type_error(&format!("Type error in v-w: v is a vector, but w is of order {}.",b.n));
+          return env.type_error(&format!("Type error in v-w: v is a vector, but w is of order {}.",b.n));
         }
         if self.s[0].shape != b.s[0].shape {
-          return type_error("Type error in v-w: v is not of the same size as w.");
+          return env.type_error("Type error in v-w: v is not of the same size as w.");
         }
         let stride2 = b.s[0].stride;
         let base2 = b.base;
@@ -151,11 +148,11 @@ fn vector(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
 
 fn array(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
   match argv.len() {
-    2 => {}, argc => return argc_error(argc,2,2,"array")
+    2 => {}, argc => return env.argc_error(argc,2,2,"array")
   }
   let n = match argv[0] {
     Object::Int(x) => x as usize,
-    _ => return type_error("Type error in array(n,a): n is not an integer.")
+    _ => return env.type_error("Type error in array(n,a): n is not an integer.")
   };
   if n==1 {
     let y = try!(::global::list(env,&argv[1]));
@@ -165,7 +162,7 @@ fn array(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
       panic!();
     }
   }else{
-    return std_exception("Dimension not supported.");
+    return env.std_exception("Dimension not supported.");
   }
 }
 
@@ -173,8 +170,8 @@ pub fn load_la() -> Object {
   let la = new_module("la");
   {
     let mut m = la.map.borrow_mut();
-    m.insert_fn_env("vector",vector,1,1);
-    m.insert_fn_env("array",array,2,2);
+    m.insert_fn_plain("vector",vector,1,1);
+    m.insert_fn_plain("array",array,2,2);
   }
   return Object::Table(Rc::new(la));
 }

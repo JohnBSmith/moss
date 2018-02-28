@@ -4,7 +4,6 @@
 use std::rc::Rc;
 use std::cell::RefCell;
 use object::{Object, FnResult, U32String, Function, Table, List, Map,
-  type_error, argc_error, index_error, std_exception,
   VARIADIC, MutableFn, EnumFunction
 };
 use vm::Env;
@@ -15,9 +14,9 @@ pub fn update(m: &mut Map, m2: &Map){
   }
 }
 
-fn fupdate(pself: &Object, argv: &[Object]) -> FnResult {
+fn fupdate(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
   if argv.len()!=1 {
-    return argc_error(argv.len(),1,1,"update");
+    return env.argc_error(argv.len(),1,1,"update");
   }
   match *pself {
     Object::Map(ref m) => {
@@ -26,16 +25,16 @@ fn fupdate(pself: &Object, argv: &[Object]) -> FnResult {
           update(&mut *m.borrow_mut(),&*m2.borrow());
           Ok(Object::Null)
         },
-        _ => type_error("Type error in m.update(m2): m2 is not a map.")
+        _ => env.type_error("Type error in m.update(m2): m2 is not a map.")
       }
     },
-    _ => type_error("Type error in m.update(m2): m is not a map.")
+    _ => env.type_error("Type error in m.update(m2): m is not a map.")
   }
 }
 
-fn values(pself: &Object, argv: &[Object]) -> FnResult {
+fn values(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
   if argv.len()!=0 {
-    return argc_error(argv.len(),0,0,"values");
+    return env.argc_error(argv.len(),0,0,"values");
   }
   if let Object::Map(ref m) = *pself {
     let mut index: usize = 0;
@@ -54,13 +53,13 @@ fn values(pself: &Object, argv: &[Object]) -> FnResult {
       id: Object::Null
     })))
   }else{
-    type_error("Type error in m.values(): m is not a map.")
+    env.type_error("Type error in m.values(): m is not a map.")
   }
 }
 
-fn items(pself: &Object, argv: &[Object]) -> FnResult {
+fn items(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
   if argv.len()!=0 {
-    return argc_error(argv.len(),0,0,"items");
+    return env.argc_error(argv.len(),0,0,"items");
   }
   if let Object::Map(ref m) = *pself {
     let mut index: usize = 0;
@@ -86,36 +85,36 @@ fn items(pself: &Object, argv: &[Object]) -> FnResult {
       id: Object::Null
     })))
   }else{
-    type_error("Type error in m.items(): m is not a map.")
+    env.type_error("Type error in m.items(): m is not a map.")
   }
 }
 
-fn clear(pself: &Object, argv: &[Object]) -> FnResult {
+fn clear(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
   if argv.len()!=0 {
-    return argc_error(argv.len(),0,0,"clear");
+    return env.argc_error(argv.len(),0,0,"clear");
   }
   match *pself {
     Object::Map(ref m) => {
       m.borrow_mut().m.clear();
       Ok(Object::Null)
     },
-    _ => type_error("Type error in m.clear(): m is not a map.")
+    _ => env.type_error("Type error in m.clear(): m is not a map.")
   }
 }
 
-fn remove(pself: &Object, argv: &[Object]) -> FnResult {
+fn remove(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
   if argv.len()!=1 {
-    return argc_error(argv.len(),1,1,"remove");
+    return env.argc_error(argv.len(),1,1,"remove");
   }
   match *pself {
     Object::Map(ref m) => {
       let mut m = m.borrow_mut();
       match m.m.remove(&argv[0]) {
         Some(value) => Ok(value),
-        None => index_error("Index error in m.remove(key): key was not in m.")
+        None => env.index_error("Index error in m.remove(key): key was not in m.")
       }
     },
-    _ => type_error("Type error in m.remove(key): m is not a map.")
+    _ => env.type_error("Type error in m.remove(key): m is not a map.")
   }
 }
 

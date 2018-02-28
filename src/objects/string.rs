@@ -2,10 +2,9 @@
 // use std::rc::Rc;
 // use std::cell::RefCell;
 use object::{
-  Object, Table, FnResult, U32String,
-  type_error, type_error1, argc_error, value_error
+  Object, Table, FnResult, U32String
 };
-// use vm::Env;
+use vm::Env;
 
 fn isdigit(c: char) -> bool {
   ('0' as u32)<=(c as u32) && (c as u32)<=('9' as u32)
@@ -17,9 +16,9 @@ fn isalpha(c: char) -> bool {
   ('a' as u32)<=c && c<=('z' as u32)
 }
 
-fn fisdigit(pself: &Object, argv: &[Object]) -> FnResult {
+fn fisdigit(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
   match argv.len() {
-    0 => {}, n => return argc_error(n,0,0,"isdigit")
+    0 => {}, n => return env.argc_error(n,0,0,"isdigit")
   }
   match *pself {
     Object::String(ref s) => {
@@ -28,13 +27,13 @@ fn fisdigit(pself: &Object, argv: &[Object]) -> FnResult {
       }
       return Ok(Object::Bool(true));
     },
-    _ => type_error("Type error in s.isdigit(): s is not a string.")
+    _ => env.type_error("Type error in s.isdigit(): s is not a string.")
   }
 }
 
-fn fisalpha(pself: &Object, argv: &[Object]) -> FnResult {
+fn fisalpha(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
   match argv.len() {
-    0 => {}, n => return argc_error(n,0,0,"isalpha")
+    0 => {}, n => return env.argc_error(n,0,0,"isalpha")
   }
   match *pself {
     Object::String(ref s) => {
@@ -43,30 +42,30 @@ fn fisalpha(pself: &Object, argv: &[Object]) -> FnResult {
       }
       return Ok(Object::Bool(true));
     },
-    _ => type_error("Type error in s.isalpha(): s is not a string.")
+    _ => env.type_error("Type error in s.isalpha(): s is not a string.")
   }
 }
 
-fn ljust(pself: &Object, argv: &[Object]) -> FnResult {
+fn ljust(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
   let c = match argv.len() {
     1 => {' '},
     2 => {
       match argv[1] {
         Object::String(ref s) => {
           if s.v.len()==1 {s.v[0]} else {
-            return value_error("Value error in s.ljust(n,c): size(c)!=1.");
+            return env.value_error("Value error in s.ljust(n,c): size(c)!=1.");
           }
         },
         _ => {
-          return type_error1("Type error in s.ljust(n,c): c is not a string.","c",&argv[1]);
+          return env.type_error1("Type error in s.ljust(n,c): c is not a string.","c",&argv[1]);
         }
       }
     },
-    n => return argc_error(n,2,2,"ljust")
+    n => return env.argc_error(n,2,2,"ljust")
   };
   let s = match *pself {
     Object::String(ref s) => &s.v,
-    _ => {return type_error1(
+    _ => {return env.type_error1(
       "Type error in s.ljust(n): s is not a string.",
       "s",pself
     );}
@@ -75,7 +74,7 @@ fn ljust(pself: &Object, argv: &[Object]) -> FnResult {
     Object::Int(x) => {
       if x<0 {0} else{x as usize}
     },
-    _ => {return type_error1(
+    _ => {return env.type_error1(
       "Type error in s.ljust(n): n is not an integer.",
       "s",pself
     );}
@@ -87,26 +86,26 @@ fn ljust(pself: &Object, argv: &[Object]) -> FnResult {
   return Ok(U32String::new_object(v));
 }
 
-fn rjust(pself: &Object, argv: &[Object]) -> FnResult {
+fn rjust(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
   let c = match argv.len() {
     1 => {' '},
     2 => {
       match argv[1] {
         Object::String(ref s) => {
           if s.v.len()==1 {s.v[0]} else {
-            return value_error("Value error in s.rjust(n,c): size(c)!=1.");
+            return env.value_error("Value error in s.rjust(n,c): size(c)!=1.");
           }
         },
         _ => {
-          return type_error1("Type error in s.rjust(n,c): c is not a string.","c",&argv[1]);
+          return env.type_error1("Type error in s.rjust(n,c): c is not a string.","c",&argv[1]);
         }
       }
     },
-    n => return argc_error(n,2,2,"ljust")
+    n => return env.argc_error(n,2,2,"ljust")
   };
   let s = match *pself {
     Object::String(ref s) => &s.v,
-    _ => {return type_error1(
+    _ => {return env.type_error1(
       "Type error in s.rjust(n): s is not a string.",
       "s",pself
     );}
@@ -115,7 +114,7 @@ fn rjust(pself: &Object, argv: &[Object]) -> FnResult {
     Object::Int(x) => {
       if x<0 {0} else{x as usize}
     },
-    _ => {return type_error1(
+    _ => {return env.type_error1(
       "Type error in s.rjust(n): n is not an integer.",
       "s",pself
     );}

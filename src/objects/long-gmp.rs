@@ -11,10 +11,7 @@ use std::ptr::null;
 
 use std::rc::Rc;
 use std::any::Any;
-use object::{Object, FnResult, Function,
-  type_error, argc_error, value_error,
-  Interface, std_exception
-};
+use object::{Object, FnResult, Function, Interface};
 use vm::{Env, op_add, op_sub, op_mpy, op_div};
 
 #[repr(C)]
@@ -282,7 +279,7 @@ impl Interface for Long {
       y.add(&self.value,&b.value);
       return Ok(Object::Interface(Rc::new(Long{value: y})));
     }else{
-      return type_error("Type error in a+b: cannot add a: long and b.");
+      return env.type_error("Type error in a+b: cannot add a: long and b.");
     }
   }
 
@@ -296,7 +293,7 @@ impl Interface for Long {
       y.sub(&self.value,&b.value);
       return Ok(Object::Interface(Rc::new(Long{value: y})));
     }else{
-      return type_error("Type error in a+b: cannot add a: long and b.");
+      return env.type_error("Type error in a+b: cannot add a: long and b.");
     }
   }
 
@@ -310,7 +307,7 @@ impl Interface for Long {
       y.mul(&self.value,&b.value);
       return Ok(Object::Interface(Rc::new(Long{value: y})));
     }else{
-      return type_error("Type error in a+b: cannot add a: long and b.");
+      return env.type_error("Type error in a+b: cannot add a: long and b.");
     }
   }
 
@@ -320,7 +317,7 @@ impl Interface for Long {
       y.add_int(&self.value,a);
       return Ok(Object::Interface(Rc::new(Long{value: y})));
     }else{
-      return type_error("Type error in a+b: cannot add a and b: long.");
+      return env.type_error("Type error in a+b: cannot add a and b: long.");
     }
   }
   
@@ -330,7 +327,7 @@ impl Interface for Long {
       y.int_sub(a,&self.value);
       return Ok(Object::Interface(Rc::new(Long{value: y})));
     }else{
-      return type_error("Type error in a-b: cannot add a and b: long.");
+      return env.type_error("Type error in a-b: cannot add a and b: long.");
     }
   }
 
@@ -340,27 +337,27 @@ impl Interface for Long {
       y.mul_int(&self.value,a);
       return Ok(Object::Interface(Rc::new(Long{value: y})));
     }else{
-      return type_error("Type error in a*b: cannot multiply a and b: long.");
+      return env.type_error("Type error in a*b: cannot multiply a and b: long.");
     }
   }
 
   fn idiv(&self, b: &Object, env: &mut Env) -> FnResult {
     if let Object::Int(b) = *b {
       if b==0 {
-        return value_error("Value error in a//b: b==0.");
+        return env.value_error("Value error in a//b: b==0.");
       }
       let mut y = Mpz::new();
       y.fdiv_int(&self.value,b);
       return Ok(Object::Interface(Rc::new(Long{value: y})));
     }else if let Some(b) = Long::downcast(b) {
       if b.value.cmp_int(0)==0 {
-        return value_error("Value error in a//b: b==0.");
+        return env.value_error("Value error in a//b: b==0.");
       }
       let mut y = Mpz::new();
       y.fdiv(&self.value,&b.value);
       return Ok(Object::Interface(Rc::new(Long{value: y})));
     }else{
-      return type_error("Type error in a+b: cannot add a: long and b.");
+      return env.type_error("Type error in a+b: cannot add a: long and b.");
     }
   }
   
@@ -374,20 +371,20 @@ impl Interface for Long {
       y.fdiv_rem(&self.value,&b.value);
       return Ok(Object::Interface(Rc::new(Long{value: y})));
     }else{
-      return type_error("Type error in a+b: cannot add a: long and b.");
+      return env.type_error("Type error in a+b: cannot add a: long and b.");
     }
   }
   
   fn pow(&self, b: &Object, env: &mut Env) -> FnResult {
     if let Object::Int(b) = *b {
       if b<0 {
-        return value_error("Value error in a^b: b<0.");
+        return env.value_error("Value error in a^b: b<0.");
       }
       let mut y = Mpz::new();
       y.pow_uint(&self.value,b as u32);
       return Ok(Object::Interface(Rc::new(Long{value: y})));      
     }else{
-      return type_error("Type error in a^b.");
+      return env.type_error("Type error in a^b.");
     }
   }
 
@@ -417,7 +414,7 @@ impl Interface for Long {
     }else if let Some(b) = Long::downcast(b) {
       return Ok(Object::Bool(self.value.cmp(&b.value)<0));
     }else{
-      return type_error("Type error in a<b.");
+      return env.type_error("Type error in a<b.");
     }
   }
 
@@ -427,7 +424,7 @@ impl Interface for Long {
     }else if let Some(b) = Long::downcast(b) {
       return Ok(Object::Bool(self.value.cmp(&b.value)>0));
     }else{
-      return type_error("Type error in a>b.");
+      return env.type_error("Type error in a>b.");
     }
   }
 
@@ -437,7 +434,7 @@ impl Interface for Long {
     }else if let Some(b) = Long::downcast(b) {
       return Ok(Object::Bool(self.value.cmp(&b.value)<=0));
     }else{
-      return type_error("Type error in a<=b.");
+      return env.type_error("Type error in a<=b.");
     }
   }
 
@@ -447,7 +444,7 @@ impl Interface for Long {
     }else if let Some(b) = Long::downcast(b) {
       return Ok(Object::Bool(self.value.cmp(&b.value)>=0));
     }else{
-      return type_error("Type error in a>=b.");
+      return env.type_error("Type error in a>=b.");
     }
   }
 
@@ -457,7 +454,7 @@ impl Interface for Long {
     }else if let Some(a) = Long::downcast(a) {
       return Ok(Object::Bool(self.value.cmp(&a.value)>0));
     }else{
-      return type_error("Type error in a<b.");
+      return env.type_error("Type error in a<b.");
     }
   }
 
@@ -467,7 +464,7 @@ impl Interface for Long {
     }else if let Some(a) = Long::downcast(a) {
       return Ok(Object::Bool(self.value.cmp(&a.value)<0));
     }else{
-      return type_error("Type error in a<b.");
+      return env.type_error("Type error in a<b.");
     }
   }
   
@@ -477,7 +474,7 @@ impl Interface for Long {
     }else if let Some(a) = Long::downcast(a) {
       return Ok(Object::Bool(self.value.cmp(&a.value)>=0));
     }else{
-      return type_error("Type error in a<b.");
+      return env.type_error("Type error in a<b.");
     }
   }
 
@@ -487,11 +484,11 @@ impl Interface for Long {
     }else if let Some(a) = Long::downcast(a) {
       return Ok(Object::Bool(self.value.cmp(&a.value)<=0));
     }else{
-      return type_error("Type error in a<b.");
+      return env.type_error("Type error in a<b.");
     }
   }
 
-  fn abs(&self) -> FnResult {
+  fn abs(&self, env: &mut Env) -> FnResult {
     let mut y = Mpz::new();
     y.abs(&self.value);
     return Ok(Object::Interface(Rc::new(Long{value: y})));

@@ -4,9 +4,8 @@
 use std::f64::consts::{PI,E,LOG10_E};
 use std::rc::Rc;
 use complex::Complex64;
-use object::{Object, FnResult, Function,
-  type_error, argc_error, new_module
-};
+use object::{Object, FnResult, Function, new_module};
+use vm::Env;
 
 fn lanczos_gamma(x: f64) -> f64 {
   let p=[
@@ -56,9 +55,9 @@ pub fn cgamma(z: Complex64) -> Complex64 {
   }
 }
 
-fn floor(pself: &Object, argv: &[Object]) -> FnResult{
+fn floor(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
   if argv.len() != 1 {
-    return argc_error(argv.len(),1,1,"floor");
+    return env.argc_error(argv.len(),1,1,"floor");
   }
   match argv[0] {
     Object::Int(x) => {
@@ -67,13 +66,13 @@ fn floor(pself: &Object, argv: &[Object]) -> FnResult{
     Object::Float(x) => {
       Ok(Object::Float(x.floor()))
     },
-    _ => type_error("Type error in floor(x): x is not a number.")
+    _ => env.type_error("Type error in floor(x): x is not a number.")
   }
 }
 
-fn ceil(pself: &Object, argv: &[Object]) -> FnResult{
+fn ceil(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
   if argv.len() != 1 {
-    return argc_error(argv.len(),1,1,"ceil");
+    return env.argc_error(argv.len(),1,1,"ceil");
   }
   match argv[0] {
     Object::Int(x) => {
@@ -82,13 +81,13 @@ fn ceil(pself: &Object, argv: &[Object]) -> FnResult{
     Object::Float(x) => {
       Ok(Object::Float(x.ceil()))
     },
-    _ => type_error("Type error in ceil(x): x is not a number.")
+    _ => env.type_error("Type error in ceil(x): x is not a number.")
   }
 }
 
-fn sqrt(pself: &Object, argv: &[Object]) -> FnResult{
+fn sqrt(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
   if argv.len() != 1 {
-    return argc_error(argv.len(),1,1,"sqrt");
+    return env.argc_error(argv.len(),1,1,"sqrt");
   }
   match argv[0] {
     Object::Float(x) => {
@@ -97,13 +96,13 @@ fn sqrt(pself: &Object, argv: &[Object]) -> FnResult{
     Object::Int(x) => {
       Ok(Object::Float((x as f64).sqrt()))
     },
-    _ => type_error("Type error in sqrt(x): x is not a number.")
+    _ => env.type_error("Type error in sqrt(x): x is not a number.")
   }
 }
 
-fn exp(pself: &Object, argv: &[Object]) -> FnResult{
+fn exp(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
   if argv.len() != 1 {
-    return argc_error(argv.len(),1,1,"exp");
+    return env.argc_error(argv.len(),1,1,"exp");
   }
   match argv[0] {
     Object::Int(x) => {
@@ -115,13 +114,13 @@ fn exp(pself: &Object, argv: &[Object]) -> FnResult{
     Object::Complex(z) => {
       Ok(Object::Complex(z.exp()))
     },
-    _ => type_error("Type error in exp(x): x is not a number.")
+    _ => env.type_error("Type error in exp(x): x is not a number.")
   }
 }
 
-fn ln(pself: &Object, argv: &[Object]) -> FnResult{
+fn ln(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
   if argv.len() != 1 {
-    return argc_error(argv.len(),1,1,"ln");
+    return env.argc_error(argv.len(),1,1,"ln");
   }
   match argv[0] {
     Object::Int(x) => {
@@ -133,13 +132,13 @@ fn ln(pself: &Object, argv: &[Object]) -> FnResult{
     Object::Complex(z) => {
       Ok(Object::Complex(z.ln()))
     },
-    _ => type_error("Type error in ln(x): x is not a number.")
+    _ => env.type_error("Type error in ln(x): x is not a number.")
   }
 }
 
-fn lg(pself: &Object, argv: &[Object]) -> FnResult{
+fn lg(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
   if argv.len() != 1 {
-    return argc_error(argv.len(),1,1,"lg");
+    return env.argc_error(argv.len(),1,1,"lg");
   }
   match argv[0] {
     Object::Int(x) => {
@@ -151,14 +150,14 @@ fn lg(pself: &Object, argv: &[Object]) -> FnResult{
     Object::Complex(z) => {
       Ok(Object::Complex(LOG10_E*z.ln()))
     },
-    _ => type_error("Type error in lg(x): x is not a number.")
+    _ => env.type_error("Type error in lg(x): x is not a number.")
   }
 }
 
 
-fn sin(pself: &Object, argv: &[Object]) -> FnResult{
+fn sin(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
   if argv.len() != 1 {
-    return argc_error(argv.len(),1,1,"sin");
+    return env.argc_error(argv.len(),1,1,"sin");
   }
   match argv[0] {
     Object::Int(x) => {
@@ -170,13 +169,13 @@ fn sin(pself: &Object, argv: &[Object]) -> FnResult{
     Object::Complex(z) => {
       Ok(Object::Complex(z.sin()))
     },
-    _ => type_error("Type error in sin(x): x is not a number.")
+    _ => env.type_error("Type error in sin(x): x is not a number.")
   }
 }
 
-fn cos(pself: &Object, argv: &[Object]) -> FnResult{
+fn cos(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
   if argv.len() != 1 {
-    return argc_error(argv.len(),1,1,"cos");
+    return env.argc_error(argv.len(),1,1,"cos");
   }
   match argv[0] {
     Object::Int(x) => {
@@ -188,13 +187,13 @@ fn cos(pself: &Object, argv: &[Object]) -> FnResult{
     Object::Complex(z) => {
       Ok(Object::Complex(z.cos()))
     },
-    _ => type_error("Type error in cos(x): x is not a number.")
+    _ => env.type_error("Type error in cos(x): x is not a number.")
   }
 }
 
-fn tan(pself: &Object, argv: &[Object]) -> FnResult{
+fn tan(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
   if argv.len() != 1 {
-    return argc_error(argv.len(),1,1,"tan");
+    return env.argc_error(argv.len(),1,1,"tan");
   }
   match argv[0] {
     Object::Int(x) => {
@@ -206,13 +205,13 @@ fn tan(pself: &Object, argv: &[Object]) -> FnResult{
     Object::Complex(z) => {
       Ok(Object::Complex(z.tan()))
     },
-    _ => type_error("Type error in tan(x): x is not a number.")
+    _ => env.type_error("Type error in tan(x): x is not a number.")
   }
 }
 
-fn sinh(pself: &Object, argv: &[Object]) -> FnResult{
+fn sinh(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
   if argv.len() != 1 {
-    return argc_error(argv.len(),1,1,"sinh");
+    return env.argc_error(argv.len(),1,1,"sinh");
   }
   match argv[0] {
     Object::Int(x) => {
@@ -224,13 +223,13 @@ fn sinh(pself: &Object, argv: &[Object]) -> FnResult{
     Object::Complex(z) => {
       Ok(Object::Complex(z.sinh()))
     },
-    _ => type_error("Type error in sinh(x): x is not a number.")
+    _ => env.type_error("Type error in sinh(x): x is not a number.")
   }
 }
 
-fn cosh(pself: &Object, argv: &[Object]) -> FnResult{
+fn cosh(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
   if argv.len() != 1 {
-    return argc_error(argv.len(),1,1,"cosh");
+    return env.argc_error(argv.len(),1,1,"cosh");
   }
   match argv[0] {
     Object::Int(x) => {
@@ -242,13 +241,13 @@ fn cosh(pself: &Object, argv: &[Object]) -> FnResult{
     Object::Complex(z) => {
       Ok(Object::Complex(z.cosh()))
     },
-    _ => type_error("Type error in cosh(x): x is not a number.")
+    _ => env.type_error("Type error in cosh(x): x is not a number.")
   }
 }
 
-fn tanh(pself: &Object, argv: &[Object]) -> FnResult{
+fn tanh(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
   if argv.len() != 1 {
-    return argc_error(argv.len(),1,1,"tanh");
+    return env.argc_error(argv.len(),1,1,"tanh");
   }
   match argv[0] {
     Object::Int(x) => {
@@ -260,13 +259,13 @@ fn tanh(pself: &Object, argv: &[Object]) -> FnResult{
     Object::Complex(z) => {
       Ok(Object::Complex(z.tanh()))
     },
-    _ => type_error("Type error in tanh(x): x is not a number.")
+    _ => env.type_error("Type error in tanh(x): x is not a number.")
   }
 }
 
-fn asin(pself: &Object, argv: &[Object]) -> FnResult{
+fn asin(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
   if argv.len() != 1 {
-    return argc_error(argv.len(),1,1,"asin");
+    return env.argc_error(argv.len(),1,1,"asin");
   }
   match argv[0] {
     Object::Int(x) => {
@@ -275,13 +274,13 @@ fn asin(pself: &Object, argv: &[Object]) -> FnResult{
     Object::Float(x) => {
       Ok(Object::Float(x.asin()))
     },
-    _ => type_error("Type error in asin(x): x is not a number.")
+    _ => env.type_error("Type error in asin(x): x is not a number.")
   }
 }
 
-fn acos(pself: &Object, argv: &[Object]) -> FnResult{
+fn acos(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
   if argv.len() != 1 {
-    return argc_error(argv.len(),1,1,"acos");
+    return env.argc_error(argv.len(),1,1,"acos");
   }
   match argv[0] {
     Object::Int(x) => {
@@ -290,13 +289,13 @@ fn acos(pself: &Object, argv: &[Object]) -> FnResult{
     Object::Float(x) => {
       Ok(Object::Float(x.acos()))
     },
-    _ => type_error("Type error in acos(x): x is not a number.")
+    _ => env.type_error("Type error in acos(x): x is not a number.")
   }
 }
 
-fn atan(pself: &Object, argv: &[Object]) -> FnResult{
+fn atan(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
   if argv.len() != 1 {
-    return argc_error(argv.len(),1,1,"atan");
+    return env.argc_error(argv.len(),1,1,"atan");
   }
   match argv[0] {
     Object::Int(x) => {
@@ -305,13 +304,13 @@ fn atan(pself: &Object, argv: &[Object]) -> FnResult{
     Object::Float(x) => {
       Ok(Object::Float(x.atan()))
     },
-    _ => type_error("Type error in atan(x): x is not a number.")
+    _ => env.type_error("Type error in atan(x): x is not a number.")
   }
 }
 
-fn asinh(pself: &Object, argv: &[Object]) -> FnResult{
+fn asinh(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
   if argv.len() != 1 {
-    return argc_error(argv.len(),1,1,"asinh");
+    return env.argc_error(argv.len(),1,1,"asinh");
   }
   match argv[0] {
     Object::Int(x) => {
@@ -320,13 +319,13 @@ fn asinh(pself: &Object, argv: &[Object]) -> FnResult{
     Object::Float(x) => {
       Ok(Object::Float(x.asinh()))
     },
-    _ => type_error("Type error in asinh(x): x is not a number.")
+    _ => env.type_error("Type error in asinh(x): x is not a number.")
   }
 }
 
-fn acosh(pself: &Object, argv: &[Object]) -> FnResult{
+fn acosh(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
   if argv.len() != 1 {
-    return argc_error(argv.len(),1,1,"acosh");
+    return env.argc_error(argv.len(),1,1,"acosh");
   }
   match argv[0] {
     Object::Int(x) => {
@@ -335,13 +334,13 @@ fn acosh(pself: &Object, argv: &[Object]) -> FnResult{
     Object::Float(x) => {
       Ok(Object::Float(x.acosh()))
     },
-    _ => type_error("Type error in acosh(x): x is not a number.")
+    _ => env.type_error("Type error in acosh(x): x is not a number.")
   }
 }
 
-fn atanh(pself: &Object, argv: &[Object]) -> FnResult{
+fn atanh(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
   if argv.len() != 1 {
-    return argc_error(argv.len(),1,1,"atanh");
+    return env.argc_error(argv.len(),1,1,"atanh");
   }
   match argv[0] {
     Object::Int(x) => {
@@ -350,13 +349,13 @@ fn atanh(pself: &Object, argv: &[Object]) -> FnResult{
     Object::Float(x) => {
       Ok(Object::Float(x.atanh()))
     },
-    _ => type_error("Type error in atanh(x): x is not a number.")
+    _ => env.type_error("Type error in atanh(x): x is not a number.")
   }
 }
 
-fn fgamma(pself: &Object, argv: &[Object]) -> FnResult{
+fn fgamma(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
   if argv.len() != 1 {
-    return argc_error(argv.len(),1,1,"gamma");
+    return env.argc_error(argv.len(),1,1,"gamma");
   }
   match argv[0] {
     Object::Int(x) => {
@@ -368,13 +367,13 @@ fn fgamma(pself: &Object, argv: &[Object]) -> FnResult{
     Object::Complex(z) => {
       Ok(Object::Complex(cgamma(z)))
     },
-    _ => type_error("Type error in gamma(x): x is not a number.")
+    _ => env.type_error("Type error in gamma(x): x is not a number.")
   }
 }
 
-fn hypot(pself: &Object, argv: &[Object]) -> FnResult{
+fn hypot(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
   if argv.len() != 1 {
-    return argc_error(argv.len(),2,2,"hypot");
+    return env.argc_error(argv.len(),2,2,"hypot");
   }
   match argv[0] {
     Object::Float(x) => {
@@ -385,7 +384,7 @@ fn hypot(pself: &Object, argv: &[Object]) -> FnResult{
         Object::Int(y) => {
           Ok(Object::Float(x.hypot(y as f64)))
         },
-        _ => type_error("Type error in hypot(x,y): y is not a float.")
+        _ => env.type_error("Type error in hypot(x,y): y is not a float.")
       }
     },
     Object::Int(x) => {
@@ -396,16 +395,16 @@ fn hypot(pself: &Object, argv: &[Object]) -> FnResult{
         Object::Int(y) => {
           Ok(Object::Float((x as f64).hypot(y as f64)))
         },
-        _ => type_error("Type error in hypot(x,y): y is not a float.")
+        _ => env.type_error("Type error in hypot(x,y): y is not a float.")
       }
     },
-    _ => type_error("Type error in hypot(x,y): x is not a float.")
+    _ => env.type_error("Type error in hypot(x,y): x is not a float.")
   }
 }
 
-fn atan2(pself: &Object, argv: &[Object]) -> FnResult{
+fn atan2(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
   if argv.len() != 1 {
-    return argc_error(argv.len(),2,2,"atan2");
+    return env.argc_error(argv.len(),2,2,"atan2");
   }
   match argv[0] {
     Object::Float(y) => {
@@ -416,7 +415,7 @@ fn atan2(pself: &Object, argv: &[Object]) -> FnResult{
         Object::Int(x) => {
           Ok(Object::Float(y.atan2(x as f64)))
         },
-        _ => type_error("Type error in atan2(y,x): x is not a float.")
+        _ => env.type_error("Type error in atan2(y,x): x is not a float.")
       }
     },
     Object::Int(y) => {
@@ -427,16 +426,16 @@ fn atan2(pself: &Object, argv: &[Object]) -> FnResult{
         Object::Int(x) => {
           Ok(Object::Float((y as f64).atan2(x as f64)))
         },
-        _ => type_error("Type error in atan2(y,x): x is not a float.")
+        _ => env.type_error("Type error in atan2(y,x): x is not a float.")
       }
     },
-    _ => type_error("Type error in atan2(y,x): y is not a float.")
+    _ => env.type_error("Type error in atan2(y,x): y is not a float.")
   }
 }
 
-fn re(pself: &Object, argv: &[Object]) -> FnResult{
+fn re(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
   if argv.len() != 1 {
-    return argc_error(argv.len(),1,1,"re");
+    return env.argc_error(argv.len(),1,1,"re");
   }
   match argv[0] {
     Object::Complex(z) => {
@@ -448,13 +447,13 @@ fn re(pself: &Object, argv: &[Object]) -> FnResult{
     Object::Int(x) => {
       Ok(Object::Int(x))
     },
-    _ => type_error("Type error in re(z): z is not a number.")
+    _ => env.type_error("Type error in re(z): z is not a number.")
   }
 }
 
-fn im(pself: &Object, argv: &[Object]) -> FnResult{
+fn im(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
   if argv.len() != 1 {
-    return argc_error(argv.len(),1,1,"im");
+    return env.argc_error(argv.len(),1,1,"im");
   }
   match argv[0] {
     Object::Complex(z) => {
@@ -466,13 +465,13 @@ fn im(pself: &Object, argv: &[Object]) -> FnResult{
     Object::Int(x) => {
       Ok(Object::Int(x))
     },
-    _ => type_error("Type error in im(z): z is not a number.")
+    _ => env.type_error("Type error in im(z): z is not a number.")
   }
 }
 
-fn conj(pself: &Object, argv: &[Object]) -> FnResult{
+fn conj(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
   if argv.len() != 1 {
-    return argc_error(argv.len(),1,1,"conj");
+    return env.argc_error(argv.len(),1,1,"conj");
   }
   match argv[0] {
     Object::Complex(z) => {
@@ -484,13 +483,13 @@ fn conj(pself: &Object, argv: &[Object]) -> FnResult{
     Object::Int(x) => {
       Ok(Object::Int(x))
     },
-    _ => type_error("Type error in conj(z): z is not a number.")
+    _ => env.type_error("Type error in conj(z): z is not a number.")
   }
 }
 
-fn csqrt(pself: &Object, argv: &[Object]) -> FnResult{
+fn csqrt(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
   if argv.len() != 1 {
-    return argc_error(argv.len(),1,1,"csqrt");
+    return env.argc_error(argv.len(),1,1,"csqrt");
   }
   match argv[0] {
     Object::Complex(z) => {
@@ -510,13 +509,13 @@ fn csqrt(pself: &Object, argv: &[Object]) -> FnResult{
         Ok(Object::Float((x as f64).sqrt()))
       }
     },
-    _ => type_error("Type error in csqrt(z): z is not a number.")
+    _ => env.type_error("Type error in csqrt(z): z is not a number.")
   }
 }
 
-fn cln(pself: &Object, argv: &[Object]) -> FnResult{
+fn cln(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
   if argv.len() != 1 {
-    return argc_error(argv.len(),1,1,"ln");
+    return env.argc_error(argv.len(),1,1,"ln");
   }
   match argv[0] {
     Object::Int(x) => {
@@ -528,13 +527,13 @@ fn cln(pself: &Object, argv: &[Object]) -> FnResult{
     Object::Complex(z) => {
       Ok(Object::Complex(z.ln()))
     },
-    _ => type_error("Type error in ln(z): z is not a number.")
+    _ => env.type_error("Type error in ln(z): z is not a number.")
   }
 }
 
-fn casin(pself: &Object, argv: &[Object]) -> FnResult{
+fn casin(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
   if argv.len() != 1 {
-    return argc_error(argv.len(),1,1,"asin");
+    return env.argc_error(argv.len(),1,1,"asin");
   }
   match argv[0] {
     Object::Int(x) => {
@@ -546,13 +545,13 @@ fn casin(pself: &Object, argv: &[Object]) -> FnResult{
     Object::Complex(z) => {
       Ok(Object::Complex(z.asin()))
     },
-    _ => type_error("Type error in asin(z): z is not a number.")
+    _ => env.type_error("Type error in asin(z): z is not a number.")
   }
 }
 
-fn cacos(pself: &Object, argv: &[Object]) -> FnResult{
+fn cacos(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
   if argv.len() != 1 {
-    return argc_error(argv.len(),1,1,"acos");
+    return env.argc_error(argv.len(),1,1,"acos");
   }
   match argv[0] {
     Object::Int(x) => {
@@ -564,13 +563,13 @@ fn cacos(pself: &Object, argv: &[Object]) -> FnResult{
     Object::Complex(z) => {
       Ok(Object::Complex(z.acos()))
     },
-    _ => type_error("Type error in acos(z): z is not a number.")
+    _ => env.type_error("Type error in acos(z): z is not a number.")
   }
 }
 
-fn catan(pself: &Object, argv: &[Object]) -> FnResult{
+fn catan(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
   if argv.len() != 1 {
-    return argc_error(argv.len(),1,1,"atan");
+    return env.argc_error(argv.len(),1,1,"atan");
   }
   match argv[0] {
     Object::Int(x) => {
@@ -582,13 +581,13 @@ fn catan(pself: &Object, argv: &[Object]) -> FnResult{
     Object::Complex(z) => {
       Ok(Object::Complex(z.atan()))
     },
-    _ => type_error("Type error in atan(z): z is not a number.")
+    _ => env.type_error("Type error in atan(z): z is not a number.")
   }
 }
 
-fn casinh(pself: &Object, argv: &[Object]) -> FnResult{
+fn casinh(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
   if argv.len() != 1 {
-    return argc_error(argv.len(),1,1,"asinh");
+    return env.argc_error(argv.len(),1,1,"asinh");
   }
   match argv[0] {
     Object::Int(x) => {
@@ -600,13 +599,13 @@ fn casinh(pself: &Object, argv: &[Object]) -> FnResult{
     Object::Complex(z) => {
       Ok(Object::Complex(z.asinh()))
     },
-    _ => type_error("Type error in asinh(z): z is not a number.")
+    _ => env.type_error("Type error in asinh(z): z is not a number.")
   }
 }
 
-fn cacosh(pself: &Object, argv: &[Object]) -> FnResult{
+fn cacosh(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
   if argv.len() != 1 {
-    return argc_error(argv.len(),1,1,"acosh");
+    return env.argc_error(argv.len(),1,1,"acosh");
   }
   match argv[0] {
     Object::Int(x) => {
@@ -618,13 +617,13 @@ fn cacosh(pself: &Object, argv: &[Object]) -> FnResult{
     Object::Complex(z) => {
       Ok(Object::Complex(z.acosh()))
     },
-    _ => type_error("Type error in acosh(z): z is not a number.")
+    _ => env.type_error("Type error in acosh(z): z is not a number.")
   }
 }
 
-fn catanh(pself: &Object, argv: &[Object]) -> FnResult{
+fn catanh(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
   if argv.len() != 1 {
-    return argc_error(argv.len(),1,1,"atanh");
+    return env.argc_error(argv.len(),1,1,"atanh");
   }
   match argv[0] {
     Object::Int(x) => {
@@ -636,7 +635,7 @@ fn catanh(pself: &Object, argv: &[Object]) -> FnResult{
     Object::Complex(z) => {
       Ok(Object::Complex(z.atanh()))
     },
-    _ => type_error("Type error in atanh(z): z is not a number.")
+    _ => env.type_error("Type error in atanh(z): z is not a number.")
   }
 }
 

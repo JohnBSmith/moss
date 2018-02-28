@@ -6,9 +6,7 @@ use std::cell::RefCell;
 use vm::{object_to_string, object_to_repr, RTE, Env};
 use object::{Object, Map, Table, List,
   FnResult, U32String, Function, EnumFunction,
-  type_error, type_error1, type_error2,
-  argc_error, index_error, value_error, std_exception,
-  VARIADIC, new_module, Exception, type_error_plain
+  VARIADIC, new_module, Exception,
 };
 use rand::Rand;
 use iterable::iter;
@@ -40,11 +38,11 @@ pub fn type_name(x: &Object) -> String {
   }
 }
 
-pub fn fpanic(pself: &Object, argv: &[Object]) -> FnResult{
+pub fn fpanic(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
   panic!()
 }
 
-pub fn print(pself: &Object, argv: &[Object]) -> FnResult{
+pub fn print(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
   for i in 0..argv.len() {
     print!("{}",object_to_string(&argv[i]));
   }
@@ -52,67 +50,67 @@ pub fn print(pself: &Object, argv: &[Object]) -> FnResult{
   return Ok(Object::Null);
 }
 
-pub fn put(pself: &Object, argv: &[Object]) -> FnResult{
+pub fn put(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
   for i in 0..argv.len() {
     print!("{}",object_to_string(&argv[0]));
   }
   return Ok(Object::Null);
 }
 
-fn float_to_string(x: &Object, fmt: &Object, precision: &Object) -> FnResult {
+fn float_to_string(env: &Env, x: &Object, fmt: &Object, precision: &Object) -> FnResult {
   let n = match *precision {
     Object::Int(n) => if n<0 {0} else {n as usize},
-    _ => return type_error("Type error in str(x,fmt,precision): precision is not an integer.")
+    _ => return env.type_error("Type error in str(x,fmt,precision): precision is not an integer.")
   };
   let fmt = match *fmt {
     Object::String(ref s) => &s.v,
-    _ => return type_error("Type error in str(x,fmt,precision): fmt is not a string.")
+    _ => return env.type_error("Type error in str(x,fmt,precision): fmt is not a string.")
   };
   let x = match *x {
     Object::Int(n) => n as f64,
     Object::Float(f) => f,
-    _ => return type_error("Type error in str(x,fmt,precision): x should be of type Float or Int.")
+    _ => return env.type_error("Type error in str(x,fmt,precision): x should be of type Float or Int.")
   };
   if fmt.len() != 1 {
-    return value_error("Value error in str(x,fmt,precision): size(fmt)!=1.");
+    return env.value_error("Value error in str(x,fmt,precision): size(fmt)!=1.");
   }
   let s = match fmt[0] {
     'f' => {format!("{:.*}",n,x)},
     'e' => {format!("{:.*e}",n,x)},
     'E' => {format!("{:.*E}",n,x)},
     _ => {
-      return value_error("Value error in str(x,fmt,precision): fmt should be one of 'f', 'e', 'E'.");
+      return env.value_error("Value error in str(x,fmt,precision): fmt should be one of 'f', 'e', 'E'.");
     }
   };
   return Ok(U32String::new_object_str(&s));
 }
 
-fn fstr(pself: &Object, argv: &[Object]) -> FnResult{
+fn fstr(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
   match argv.len() {
     1 => {
       let s = object_to_string(&argv[0]);
       return Ok(U32String::new_object_str(&s));
     },
     3 => {
-      return float_to_string(&argv[0],&argv[1],&argv[2]);
+      return float_to_string(env,&argv[0],&argv[1],&argv[2]);
     },
     n => {
-      return argc_error(n,1,1,"str");
+      return env.argc_error(n,1,1,"str");
     }
   }
 }
 
-fn repr(pself: &Object, argv: &[Object]) -> FnResult{
+fn repr(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
   if argv.len() != 1 {
-    return argc_error(argv.len(),1,1,"repr");
+    return env.argc_error(argv.len(),1,1,"repr");
   }
   let s = object_to_repr(&argv[0]);
   return Ok(U32String::new_object_str(&s));
 }
 
-fn abs(pself: &Object, argv: &[Object]) -> FnResult{
+fn abs(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
   if argv.len() != 1 {
-    return argc_error(argv.len(),1,1,"abs");
+    return env.argc_error(argv.len(),1,1,"abs");
   }
   match argv[0] {
     Object::Int(x) => {
@@ -125,10 +123,10 @@ fn abs(pself: &Object, argv: &[Object]) -> FnResult{
       return Ok(Object::Float(z.abs()));
     },
     Object::Interface(ref x) => {
-      return x.abs();
+      return x.abs(env);
     },
     _ => {
-      return type_error1(
+      return env.type_error1(
         "Type error in abs(x): x should be of type Int, Long, Float, Complex.",
         "x",&argv[0]
       );
@@ -142,13 +140,13 @@ fn eval(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
     2 => {
       match argv[1] {
         Object::Map(ref m) => m.clone(),
-        _ => return type_error2(
+        _ => return env.type_error2(
           "Type error in eval(s,m): m is not a map.",
           "s","m",&argv[0],&argv[1])
       }
     },
     n => {
-      return argc_error(n,1,1,"eval")
+      return env.argc_error(n,1,1,"eval")
     }
   };
   match argv[0] {
@@ -160,7 +158,7 @@ fn eval(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
       }
     },
     _ => {
-      return type_error1(
+      return env.type_error1(
         "Type error in eval(s): s is not a string.",
         "s", &argv[0]
       );
@@ -168,9 +166,9 @@ fn eval(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
   }
 }
 
-fn size(pself: &Object, argv: &[Object]) -> FnResult{
+fn size(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
   if argv.len() != 1 {
-    return argc_error(argv.len(),1,1,"size");
+    return env.argc_error(argv.len(),1,1,"size");
   }
   match argv[0] {
     Object::List(ref a) => {
@@ -182,7 +180,7 @@ fn size(pself: &Object, argv: &[Object]) -> FnResult{
     Object::String(ref s) => {
       Ok(Object::Int(s.v.len() as i32))
     },
-    _ => type_error1(
+    _ => env.type_error1(
       "Type error in size(a): cannot determine the size of a.",
       "a",&argv[0])
   }
@@ -191,7 +189,7 @@ fn size(pself: &Object, argv: &[Object]) -> FnResult{
 fn load_file(env: &mut Env, id: &str) -> FnResult {
   let s = match ::system::read_file(id) {
     Ok(s)=>s,
-    Err(()) => return std_exception(&format!("Error: Could not load file '{}.moss'.",id))
+    Err(()) => return env.std_exception(&format!("Error: Could not load file '{}.moss'.",id))
   };
   let module = new_module(id);
   env.rte().clear_at_exit(module.map.clone());
@@ -223,38 +221,38 @@ fn load(env: &mut Env, s: &U32String) -> FnResult{
 
 fn fload(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
   if argv.len() != 1 {
-    return argc_error(argv.len(),1,1,"load");
+    return env.argc_error(argv.len(),1,1,"load");
   }
   match argv[0] {
     Object::String(ref s) => load(env,s),
-    _ => type_error1(
+    _ => env.type_error1(
       "Type error in load(id): id is not a string.",
       "id",&argv[0])
   }
 }
 
-fn fiter(pself: &Object, argv: &[Object]) -> FnResult{
+fn fiter(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
   if argv.len() != 1 {
-    return argc_error(argv.len(),1,1,"iter");
+    return env.argc_error(argv.len(),1,1,"iter");
   }
-  return iter(&argv[0]);
+  return iter(env,&argv[0]);
 }
 
-fn record(pself: &Object, argv: &[Object]) -> FnResult{
+fn record(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
   if argv.len()!=1 {
-    return argc_error(argv.len(),1,1,"record");    
+    return env.argc_error(argv.len(),1,1,"record");    
   }
   match argv[0] {
     Object::Table(ref t) => {
       Ok(Object::Map(t.map.clone()))
     },
-    _ => type_error1(
+    _ => env.type_error1(
       "Type error in record(x): x is not a table.",
       "x",&argv[0])
   }
 }
 
-fn fobject(pself: &Object, argv: &[Object]) -> FnResult{
+fn fobject(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
   match argv.len() {
     0 => {
       Ok(Object::Table(Table::new(Object::Null)))
@@ -270,18 +268,18 @@ fn fobject(pself: &Object, argv: &[Object]) -> FnResult{
             map: m.clone()
           })))
         },
-        _ => type_error1(
+        _ => env.type_error1(
           "Type error in object(p,m): m is not a map.",
           "m",&argv[1])
       }
     },
-    n => argc_error(n,0,0,"object")
+    n => env.argc_error(n,0,0,"object")
   }
 }
 
 fn ftype(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
   if argv.len()!=1 {
-    return argc_error(argv.len(),1,1,"type");
+    return env.argc_error(argv.len(),1,1,"type");
   }
   match argv[0] {
     Object::Null => Ok(Object::Null),
@@ -303,7 +301,7 @@ pub fn list(env: &mut Env, obj: &Object) -> FnResult {
   match *obj {
     Object::Int(n) => {
       if n<0 {
-        return value_error("Value error in list(n): n<0.");
+        return env.value_error("Value error in list(n): n<0.");
       }
       let mut v: Vec<Object> = Vec::with_capacity(n as usize);
       for i in 0..n {
@@ -314,13 +312,13 @@ pub fn list(env: &mut Env, obj: &Object) -> FnResult {
     Object::Range(ref r) => {
       let a = match r.a {
         Object::Int(x)=>x,
-        _ => return type_error1(
+        _ => return env.type_error1(
           "Type error in list(a..b): a is not an integer.",
           "a",&r.a)
       };
       let b = match r.b {
         Object::Int(x)=>x,
-        _ => return type_error1(
+        _ => return env.type_error1(
           "Type error in list(a..b): b is not an integer.",
           "b",&r.b)
       };
@@ -339,7 +337,7 @@ pub fn list(env: &mut Env, obj: &Object) -> FnResult {
       let v: Vec<Object> = m.borrow().m.keys().cloned().collect();
       Ok(List::new_object(v))
     },
-    _ => type_error1(
+    _ => env.type_error1(
       "Type error in list(x): cannot convert x into a list.",
       "x",obj)
   }
@@ -347,7 +345,7 @@ pub fn list(env: &mut Env, obj: &Object) -> FnResult {
 
 pub fn flist(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
   match argv.len() {
-    1 => {}, n => return argc_error(n,1,1,"list")
+    1 => {}, n => return env.argc_error(n,1,1,"list")
   }
   return list(env,&argv[0]);
 }
@@ -355,7 +353,7 @@ pub fn flist(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
 fn set(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
   match argv.len() {
     1 => {
-      let i = &try!(iter(&argv[0]));
+      let i = &try!(iter(env,&argv[0]));
       let mut m: HashMap<Object,Object> = HashMap::new();
       loop {
         let y = try!(env.call(i,&Object::Null,&[]));
@@ -366,13 +364,13 @@ fn set(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
         m: m, frozen: false
       }))));
     },
-    n => return argc_error(n,1,1,"set")
+    n => return env.argc_error(n,1,1,"set")
   }
 }
 
-fn copy(pself: &Object, argv: &[Object]) -> FnResult {
+fn copy(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
   if argv.len()!=1 {
-    return argc_error(argv.len(),1,1,"copy");
+    return env.argc_error(argv.len(),1,1,"copy");
   }
   match argv[0] {
     Object::List(ref a) => {
@@ -387,19 +385,19 @@ fn copy(pself: &Object, argv: &[Object]) -> FnResult {
   }
 }
 
-fn frand(pself: &Object, argv: &[Object]) -> FnResult {
+fn frand(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
   if argv.len()==1 {
     match argv[0] {
       Object::Range(ref r) => {
         let a = match r.a {
           Object::Int(x)=>x,
-          _ => return type_error1(
+          _ => return env.type_error1(
             "Type error in rand(a..b): a is not an integer.",
             "a",&r.a)
         };
         let b = match r.b {
           Object::Int(x)=>x,
-          _ => return type_error1(
+          _ => return env.type_error1(
             "Type error in rand(a..b): b is not an integer.",
             "b",&r.b)
         };
@@ -409,12 +407,12 @@ fn frand(pself: &Object, argv: &[Object]) -> FnResult {
         });
         return Ok(Function::mutable(f,0,0));
       },
-      _ => return type_error1(
+      _ => return env.type_error1(
         "Type error in rand(r): r is not a range.",
         "r",&argv[0])
     }
   }else{
-    return argc_error(argv.len(),1,1,"rand");
+    return env.argc_error(argv.len(),1,1,"rand");
   }
 }
 
@@ -425,10 +423,10 @@ fn fgtab(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
         if let EnumFunction::Std(ref fp) = f.f {
           Ok(Object::Map(fp.gtab.clone()))
         }else{
-          type_error("Type error in gtab(f): f is not a function from Moss source code.")
+          env.type_error("Type error in gtab(f): f is not a function from Moss source code.")
         }
       },
-      _ => type_error1(
+      _ => env.type_error1(
         "Type error in gtab(f): f is not a function.",
         "f",&argv[0])
     }
@@ -445,24 +443,24 @@ fn stoi(a: &[char]) -> i32 {
   return y;
 }
 
-fn fint(pself: &Object, argv: &[Object]) -> FnResult {
+fn fint(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
   match argv.len() {
-    1 => {}, n => return argc_error(n,1,1,"int")
+    1 => {}, n => return env.argc_error(n,1,1,"int")
   }
   match argv[0] {
     Object::Int(n) => Ok(Object::Int(n)),
     Object::String(ref s) => Ok(Object::Int(stoi(&s.v))),
-    _ => type_error1(
+    _ => env.type_error1(
       "Type error in int(x): cannot convert x to int.",
       "x",&argv[0])
   }
 }
 
-fn input(pself: &Object, argv: &[Object]) -> FnResult {
+fn input(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
   match argv.len() {
     0 => {
       let s = match ::system::getline("") {
-        Ok(s)=>s, Err(e) => return std_exception("Error in input(): could not obtain input.")
+        Ok(s)=>s, Err(e) => return env.std_exception("Error in input(): could not obtain input.")
       };
       Ok(U32String::new_object_str(&s))
     },
@@ -471,7 +469,7 @@ fn input(pself: &Object, argv: &[Object]) -> FnResult {
         Object::String(ref s) => {
           s.v.iter().cloned().collect::<String>()
         },
-        _ => return type_error1(
+        _ => return env.type_error1(
           "Type error in input(prompt): prompt is not a string.",
           "prompt",&argv[0])
       };
@@ -482,24 +480,28 @@ fn input(pself: &Object, argv: &[Object]) -> FnResult {
             h.append(&x.to_string());
           }
           match ::system::getline_history(&prompt,&h) {
-            Ok(s)=>s, Err(e) => return std_exception("Error in input(): could not obtain input.")
+            Ok(s)=>s, Err(e) => return env.std_exception("Error in input(): could not obtain input.")
           }
         }else{
-          return type_error1(
+          return env.type_error1(
             "Type error in input(prompt,history): history is not a list.",
             "history",&argv[1])
         }
       }else{
         match ::system::getline(&prompt) {
-          Ok(s)=>s, Err(e) => return std_exception("Error in input(): could not obtain input.")
+          Ok(s)=>s, Err(e) => return env.std_exception("Error in input(): could not obtain input.")
         }
       };
       Ok(U32String::new_object_str(&s))
     },
     n => {
-      argc_error(n,0,2,"input")
+      env.argc_error(n,0,2,"input")
     }
   }
+}
+
+fn bench(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+  return Ok(Object::Null);
 }
 
 pub fn init_rte(rte: &RTE){
@@ -511,19 +513,21 @@ pub fn init_rte(rte: &RTE){
   gtab.insert_fn_plain("repr",repr,1,1);
   gtab.insert_fn_plain("input",input,0,2);
   gtab.insert_fn_plain("abs",abs,1,1);
-  gtab.insert_fn_env  ("eval",eval,1,1);
+  gtab.insert_fn_plain("eval",eval,1,1);
   gtab.insert_fn_plain("size",size,1,1);
-  gtab.insert_fn_env  ("load",fload,1,1);
+  gtab.insert_fn_plain("load",fload,1,1);
   gtab.insert_fn_plain("iter",fiter,1,1);
   gtab.insert_fn_plain("record",record,1,1);
   gtab.insert_fn_plain("object",fobject,0,2);
-  gtab.insert_fn_env  ("type",ftype,1,1);
-  gtab.insert_fn_env  ("list",flist,1,1);
-  gtab.insert_fn_env  ("set",set,1,1);
+  gtab.insert_fn_plain("type",ftype,1,1);
+  gtab.insert_fn_plain("list",flist,1,1);
+  gtab.insert_fn_plain("set",set,1,1);
   gtab.insert_fn_plain("copy",copy,1,1);
   gtab.insert_fn_plain("rand",frand,1,1);
-  gtab.insert_fn_env  ("gtab",fgtab,0,0);
+  gtab.insert_fn_plain("gtab",fgtab,0,0);
   gtab.insert("empty", Object::Empty);
+
+  gtab.insert_fn_plain("bench",bench,0,0);
 
   let type_bool = rte.type_bool.clone();
   gtab.insert("Bool", Object::Table(type_bool));

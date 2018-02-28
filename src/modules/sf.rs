@@ -5,9 +5,8 @@
 use std::f64::consts::{PI,E,LOG10_E};
 use std::rc::Rc;
 use complex::Complex64;
-use object::{Object, FnResult, Function,
-  type_error, argc_error, new_module
-};
+use object::{Object, FnResult, Function, new_module};
+use vm::Env;
 
 fn agm(mut x: f64, mut y: f64) -> f64 {
     for _ in 0..20 {
@@ -107,9 +106,9 @@ fn eiPi(phi: f64,n: f64,m: f64) -> f64 {
     return s*RF(c*c,1.0-mss,1.0)+1.0/3.0*nss*s*RJ(c*c,1.0-mss,1.0,1.0-nss);
 }
 
-fn sf_K(pself: &Object, argv: &[Object]) -> FnResult{
+fn sf_K(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
   if argv.len() != 1 {
-    return argc_error(argv.len(),1,1,"K");
+    return env.argc_error(argv.len(),1,1,"K");
   }
   match argv[0] {
     Object::Int(x) => {
@@ -118,13 +117,13 @@ fn sf_K(pself: &Object, argv: &[Object]) -> FnResult{
     Object::Float(x) => {
       Ok(Object::Float(cK(x)))
     },
-    _ => type_error("Type error in K(x): x is not a number.")
+    _ => env.type_error("Type error in K(x): x is not a number.")
   }
 }
 
-fn sf_E(pself: &Object, argv: &[Object]) -> FnResult{
+fn sf_E(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
   if argv.len() != 1 {
-    return argc_error(argv.len(),1,1,"E");
+    return env.argc_error(argv.len(),1,1,"E");
   }
   match argv[0] {
     Object::Int(x) => {
@@ -133,7 +132,7 @@ fn sf_E(pself: &Object, argv: &[Object]) -> FnResult{
     Object::Float(x) => {
       Ok(Object::Float(cE(x)))
     },
-    _ => type_error("Type error in E(x): x is not a number.")
+    _ => env.type_error("Type error in E(x): x is not a number.")
   }
 }
 

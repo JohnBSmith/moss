@@ -1,40 +1,39 @@
 
 #![allow(unused_imports)]
 
-use object::{Object, FnResult, U32String, Exception,
-  type_error, argc_error, value_error, index_error
-};
+use object::{Object, FnResult, U32String, Exception};
+use vm::Env;
 
-fn get(a: &Object, i: usize) -> FnResult {
+fn get(env: &Env, a: &Object, i: usize) -> FnResult {
   match *a {
     Object::List(ref a) => {
       let v = &a.borrow_mut().v;
       match v.get(i) {
         Some(value) => Ok(value.clone()),
-        None => index_error("Index error in a[i]: out of bounds.")
+        None => env.index_error("Index error in a[i]: out of bounds.")
       }
     },
     Object::Map(ref m) => {
       let d = &m.borrow_mut().m;
       match d.get(&Object::Int(i as i32)) {
         Some(value) => Ok(value.clone()),
-        None => index_error("Index error in m[key]: key not found.")
+        None => env.index_error("Index error in m[key]: key not found.")
       }
     },
-    _ => type_error("Type error in a[i]: a is not a list.")
+    _ => env.type_error("Type error in a[i]: a is not a list.")
   }
 }
 
-fn get_key(m: &Object, key: &Object) -> FnResult {
+fn get_key(env: &Env, m: &Object, key: &Object) -> FnResult {
   match *m {
     Object::Map(ref m) => {
       let d = &m.borrow_mut().m;
       match d.get(key) {
         Some(value) => Ok(value.clone()),
-        None => index_error("Index error in m[key]: key not found.")
+        None => env.index_error("Index error in m[key]: key not found.")
       }
     },
-    _ => type_error("Type error in m[key]: m is not a map.")
+    _ => env.type_error("Type error in m[key]: m is not a map.")
   }
 }
 
@@ -107,7 +106,7 @@ fn apply_fmt(buffer: &mut String, fmt: &Fmt, x: &Object) {
   }
 }
 
-pub fn u32string_format(s: &U32String, a: &Object) -> FnResult {
+pub fn u32string_format(env: &Env, s: &U32String, a: &Object) -> FnResult {
   let mut buffer = "".to_string();
   let mut index: usize = 0;
   let mut i: usize = 0;
@@ -128,7 +127,7 @@ pub fn u32string_format(s: &U32String, a: &Object) -> FnResult {
           let j = i;
           while i<n && (v[i].is_alphabetic() || v[i].is_digit(10) || v[i]=='_') {i+=1;}
           let key = U32String::new_object(v[j..i].iter().cloned().collect());
-          x = try!(get_key(&a,&key));
+          x = try!(get_key(env,&a,&key));
         }else if i<n && v[i].is_digit(10) {
           let mut j: usize = v[i] as usize-'0' as usize;
           i+=1;
@@ -136,9 +135,9 @@ pub fn u32string_format(s: &U32String, a: &Object) -> FnResult {
             j = 10*j + v[i] as usize-'0' as usize;
             i+=1;
           }
-          x = try!(get(&a,j));
+          x = try!(get(env,&a,j));
         }else{
-          x = try!(get(&a,index));
+          x = try!(get(env,&a,index));
           index+=1;    
         }
         while i<n && v[i]==' ' {i+=1;}

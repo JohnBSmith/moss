@@ -5,8 +5,6 @@ use std::rc::Rc;
 use std::cell::RefCell;
 use std::i32;
 use object::{Object, FnResult, U32String, Function, Table, List,
-  type_error, type_error1,
-  argc_error, index_error, value_error,
   VARIADIC, MutableFn, EnumFunction, Range
 };
 use vm::Env;
@@ -17,7 +15,7 @@ fn apply(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
       Object::List(ref a) => {
         env.call(pself,&Object::Null,&a.borrow().v)
       },
-      ref a => type_error1(
+      ref a => env.type_error1(
         "Type error in f.apply(a): a is not a list.","a",a)
     }
   }else if argv.len()==2 {
@@ -25,17 +23,17 @@ fn apply(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
       Object::List(ref a) => {
         env.call(pself,&argv[0],&a.borrow().v)
       },
-      ref a => type_error1(
+      ref a => env.type_error1(
         "Type error in f.apply(a): a is not a list.","a",a)
     }
   }else{
-    return argc_error(argv.len(),1,1,"apply");
+    return env.argc_error(argv.len(),1,1,"apply");
   }
 }
 
-fn orbit(pself: &Object, argv: &[Object]) -> FnResult {
+fn orbit(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
   if argv.len()!=1 {
-    return argc_error(argv.len(),1,1,"orbit");
+    return env.argc_error(argv.len(),1,1,"orbit");
   }
   let mut x = argv[0].clone();
   let f = pself.clone();
@@ -53,9 +51,9 @@ fn orbit(pself: &Object, argv: &[Object]) -> FnResult {
   })));
 }
 
-fn argc(pself: &Object, argv: &[Object]) -> FnResult {
+fn argc(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
   if argv.len()!=0 {
-    return argc_error(argv.len(),0,0,"argc");
+    return env.argc_error(argv.len(),0,0,"argc");
   }
   if let Object::Function(ref f) = *pself {
     if f.argc == VARIADIC {
@@ -69,18 +67,18 @@ fn argc(pself: &Object, argv: &[Object]) -> FnResult {
         a: min, b: max, step: Object::Null
       })))
     }else if f.argc > i32::MAX as u32 {
-      value_error("Value error f.argc(): the count is too large to be represented as i32.")
+      env.value_error("Value error f.argc(): the count is too large to be represented as i32.")
     }else{
       Ok(Object::Int(f.argc as i32))
     }
   }else{
-    type_error1("Type error in f.argc(): f is not a function.","f",pself)
+    env.type_error1("Type error in f.argc(): f is not a function.","f",pself)
   }
 }
 
 pub fn init(t: &Table){
   let mut m = t.map.borrow_mut();
-  m.insert_fn_env  ("apply",apply,1,1);
+  m.insert_fn_plain("apply",apply,1,1);
   m.insert_fn_plain("orbit",orbit,1,1);
   m.insert_fn_plain("argc",argc,0,0);
 }

@@ -3,14 +3,13 @@ use std::rc::Rc;
 use std::cell::RefCell;
 use object::{
   Object, Table, List, U32String,
-  FnResult, Function, EnumFunction,
-  type_error, argc_error, value_error
+  FnResult, Function, EnumFunction
 };
 use vm::Env;
 use global::list;
 use std::cmp::Ordering;
 
-pub fn iter(x: &Object) -> FnResult{
+pub fn iter(env: &Env, x: &Object) -> FnResult{
   match *x {
     Object::Function(ref f) => {
       Ok(Object::Function(f.clone()))
@@ -18,7 +17,7 @@ pub fn iter(x: &Object) -> FnResult{
     Object::Range(ref r) => {
       let mut a = match r.a {
         Object::Int(a)=>a,
-        _ => {return type_error("Type error in iter(a..b): a is not an integer.");}
+        _ => {return env.type_error("Type error in iter(a..b): a is not an integer.");}
       };
       let f: Box<FnMut(&mut Env,&Object,&[Object])->FnResult> = match r.b {
         Object::Int(b) => {
@@ -36,7 +35,7 @@ pub fn iter(x: &Object) -> FnResult{
             a+=1; Ok(Object::Int(a-1))
           })
         },
-        _ => {return type_error("Type error in iter(a..b): b is not an integer.");}
+        _ => {return env.type_error("Type error in iter(a..b): b is not an integer.");}
       };
       return Ok(Object::Function(Rc::new(Function{
         f: EnumFunction::Mut(RefCell::new(f)),
@@ -98,7 +97,7 @@ pub fn iter(x: &Object) -> FnResult{
         id: Object::Null
       })))
     },
-    _ => type_error("Type error in iter(x): x is not iterable.")
+    _ => env.type_error("Type error in iter(x): x is not iterable.")
   }
 }
 
@@ -116,7 +115,7 @@ fn list_comprehension(env: &mut Env, i: &Object, f: &Object) -> FnResult {
 }
 
 fn to_list(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
-  let i = &try!(iter(pself));
+  let i = &try!(iter(env,pself));
   match argv.len() {
     0 => {
       let mut v: Vec<Object> = Vec::new();
@@ -147,20 +146,20 @@ fn to_list(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
         Object::Function(ref f) => {
           return list_comprehension(env,i,&argv[0]);
         },
-        _ => return type_error("Type error in i.list(n): n is not an integer.")
+        _ => return env.type_error("Type error in i.list(n): n is not an integer.")
       }    
     },
     n => {
-      return argc_error(n,1,1,"list");
+      return env.argc_error(n,1,1,"list");
     }
   }
 }
 
-fn map(pself: &Object, argv: &[Object]) -> FnResult {
+fn map(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
   if argv.len()!=1 {
-    return argc_error(argv.len(),1,1,"map");
+    return env.argc_error(argv.len(),1,1,"map");
   }
-  let i = try!(iter(pself));
+  let i = try!(iter(env,pself));
   let f = argv[0].clone();
   let g = Box::new(move |env: &mut Env, pself: &Object, argv: &[Object]| -> FnResult {
     let x = try!(env.call(&i,&Object::Null,&[]));
@@ -178,11 +177,11 @@ fn map(pself: &Object, argv: &[Object]) -> FnResult {
   })))
 }
 
-fn filter(pself: &Object, argv: &[Object]) -> FnResult {
+fn filter(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
   if argv.len()!=1 {
-    return argc_error(argv.len(),1,1,"filter");
+    return env.argc_error(argv.len(),1,1,"filter");
   }
-  let i = try!(iter(pself));
+  let i = try!(iter(env,pself));
   let f = argv[0].clone();
   let g = Box::new(move |env: &mut Env, pself: &Object, argv: &[Object]| -> FnResult {
     loop{
@@ -195,7 +194,7 @@ fn filter(pself: &Object, argv: &[Object]) -> FnResult {
           Object::Bool(u) => {
             if u {return Ok(x);}
           },
-          _ => return type_error("Type error in i.filter(p): return value of p is not of boolean type.")
+          _ => return env.type_error("Type error in i.filter(p): return value of p is not of boolean type.")
         }
       }
     }
@@ -208,7 +207,7 @@ fn filter(pself: &Object, argv: &[Object]) -> FnResult {
 }
 
 fn each(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
-  let i = &try!(iter(pself));
+  let i = &try!(iter(env,pself));
   if argv.len() == 1 {
     loop{
       let y = try!(env.call(i,&Object::Null,&[]));
@@ -220,15 +219,15 @@ fn each(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     }
     return Ok(Object::Null);
   }else{
-    return argc_error(argv.len(),1,1,"each");
+    return env.argc_error(argv.len(),1,1,"each");
   }
 }
 
 fn any(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
   if argv.len()!=1 {
-    return argc_error(argv.len(),1,1,"any");  
+    return env.argc_error(argv.len(),1,1,"any");  
   }
-  let i = &try!(iter(pself));
+  let i = &try!(iter(env,pself));
   let p = &argv[0];
   loop{
     let x = try!(env.call(i,&Object::Null,&[]));
@@ -239,7 +238,7 @@ fn any(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
       if let Object::Bool(yb) = y {
         if yb {return Ok(Object::Bool(true));}
       }else{
-        return type_error("Type error in i.any(p): return value of p is not of boolean type.");
+        return env.type_error("Type error in i.any(p): return value of p is not of boolean type.");
       }
     }
   }
@@ -248,9 +247,9 @@ fn any(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
 
 fn all(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
   if argv.len()!=1 {
-    return argc_error(argv.len(),1,1,"all");  
+    return env.argc_error(argv.len(),1,1,"all");  
   }
-  let i = &try!(iter(pself));
+  let i = &try!(iter(env,pself));
   let p = &argv[0];
   loop{
     let x = try!(env.call(i,&Object::Null,&[]));
@@ -261,7 +260,7 @@ fn all(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
       if let Object::Bool(yb) = y {
         if !yb {return Ok(Object::Bool(false));}
       }else{
-        return type_error("Type error in i.all(p): return value of p is not of boolean type.");
+        return env.type_error("Type error in i.all(p): return value of p is not of boolean type.");
       }
     }
   }
@@ -270,9 +269,9 @@ fn all(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
 
 fn count(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
   if argv.len()!=1 {
-    return argc_error(argv.len(),1,1,"count");  
+    return env.argc_error(argv.len(),1,1,"count");  
   }
-  let i = &try!(iter(pself));
+  let i = &try!(iter(env,pself));
   let p = &argv[0];
   let mut k: i32 = 0;
   loop{
@@ -284,27 +283,27 @@ fn count(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
       if let Object::Bool(yb) = y {
         if yb {k+=1;}
       }else{
-        return type_error("Type error in i.count(p): return value of p is not of boolean type.");
+        return env.type_error("Type error in i.count(p): return value of p is not of boolean type.");
       }
     }
   }
   return Ok(Object::Int(k));
 }
 
-fn chunks(pself: &Object, argv: &[Object]) -> FnResult{
+fn chunks(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
   let n = match argv.len() {
     1 => {
       match argv[0] {
         Object::Int(x)=>{
           if x>=0 {x as usize}
-          else {return value_error("Value error in a.chunks(n): n<0.")}
+          else {return env.value_error("Value error in a.chunks(n): n<0.")}
         },
-        _ => return type_error("Type error in a.chunks(n): n is not an integer.")
+        _ => return env.type_error("Type error in a.chunks(n): n is not an integer.")
       }
     },
-    n => return argc_error(n,1,1,"chunks")
+    n => return env.argc_error(n,1,1,"chunks")
   };
-  let i = try!(iter(pself));
+  let i = try!(iter(env,pself));
   let mut empty = false;
   let g = Box::new(move |env: &mut Env, pself: &Object, argv: &[Object]| -> FnResult {
     if empty {return Ok(Object::Empty);}
@@ -328,7 +327,7 @@ fn chunks(pself: &Object, argv: &[Object]) -> FnResult{
 }
 
 fn reduce(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
-  let i = try!(iter(pself));
+  let i = try!(iter(env,pself));
   match argv.len() {
     1 => {
       let mut y = try!(env.call(&i,&Object::Null,&[]));
@@ -350,7 +349,7 @@ fn reduce(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
       }
       return Ok(y);
     },
-    n => argc_error(n,1,2,"reduce")
+    n => env.argc_error(n,1,2,"reduce")
   }
 }
 
@@ -404,7 +403,7 @@ fn sort(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
         v.sort_by(compare_by_value);
         ba.v = v.into_iter().map(|x| x.0).collect();
       },
-      n => return argc_error(n,0,0,"sort")
+      n => return env.argc_error(n,0,0,"sort")
     }
   }
   return Ok(Object::List(a));
@@ -412,13 +411,13 @@ fn sort(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
 
 pub fn init(t: &Table){
   let mut m = t.map.borrow_mut();
-  m.insert_fn_env  ("list",to_list,0,1);
-  m.insert_fn_env  ("each",each,1,1);
-  m.insert_fn_env  ("any",any,1,1);
-  m.insert_fn_env  ("all",all,1,1);
-  m.insert_fn_env  ("count",count,1,1);
-  m.insert_fn_env  ("reduce",reduce,1,2);
-  m.insert_fn_env  ("sort",sort,0,1);
+  m.insert_fn_plain("list",to_list,0,1);
+  m.insert_fn_plain("each",each,1,1);
+  m.insert_fn_plain("any",any,1,1);
+  m.insert_fn_plain("all",all,1,1);
+  m.insert_fn_plain("count",count,1,1);
+  m.insert_fn_plain("reduce",reduce,1,2);
+  m.insert_fn_plain("sort",sort,0,1);
   m.insert_fn_plain("map",map,1,1);
   m.insert_fn_plain("filter",filter,1,1);
   m.insert_fn_plain("chunks",chunks,1,1);
