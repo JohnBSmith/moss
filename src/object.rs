@@ -160,6 +160,11 @@ impl Exception{
       traceback: None, spot: None
     })
   }
+  pub fn raise(x: Object) -> Box<Exception> {
+    Box::new(Exception{
+      value: x, traceback: None, spot: None
+    })
+  }
   pub fn set_spot(&mut self, line: usize, col: usize, module: &str) {
     self.spot = Some(Spot{line,col,module: module.to_string()});
   }

@@ -1,8 +1,7 @@
 
-Todo list
-
+= TODO LIST =
 == Interpreter kernel ==
-* format strings
+* error objects
 * load a module only once, then Rc::clone
 * delete temporary variables after use
 * coroutines
@@ -21,17 +20,39 @@ Todo list
 * graphics
 * powmod
 * hash long
-* string: rjust, ljust
 
-=== Linear Algebra ===
-* matrix multiplication
-* scalar product
-* absolute value of a vector
+=== Linear algebra ===
+* polymorphic arrays
+  * matrix multiplication
+  * scalar product
+  * absolute value of a vector
+* homogeneous arrays
+  * BLAS compatible interface
+
+=== OS Interface ===
+* change directory
+* list files, subdirectories
+* file access
+
+=== Network, Cryptography ==
+* SHA3-256 interface
+* AES-256 interface
+* ECDH interface
+* sockets
+* TLS-1.3 sockets
+* https interface
+
 
 == Audits ==
 * break 'r in vm.rs: replace vs. clone
 * overflow by integer arithmetic
 * overflow by type conversion
+* search for "as usize", "as isize", "as i32", "as u32", etc.
 
+
+= DONE =
+== Interpreter kernel ==
+* format strings
+* try-catch
 
 

@@ -1009,7 +1009,7 @@ fn map_literal(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error> {
           literal
         }
       }else{
-        try!(self.expression(i))
+        try!(self.union(i))
       };
       let p = try!(i.next_token(self));
       let t = &p[i.index];
@@ -1655,7 +1655,8 @@ fn eq_expression(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
   let value=t.value;
   if value==Symbol::Eq || value==Symbol::Ne ||
      value==Symbol::Is || value==Symbol::Isin ||
-     value==Symbol::In || value==Symbol::Notin
+     value==Symbol::In || value==Symbol::Notin ||
+     value==Symbol::Colon
   {
     i.index+=1;
     let y = try!(self.comparison(i));
@@ -1926,6 +1927,53 @@ fn end_of(&mut self, i: &mut TokenIterator, symbol: Symbol) -> Result<(),Error>{
   return Ok(());
 }
 
+fn try_catch_statement(
+  &mut self, i: &mut TokenIterator, t0: &Token
+) -> Result<Rc<AST>,Error>
+{
+  let mut v: Vec<Rc<AST>> = Vec::new();
+  let block = try!(self.statements(i,VALUE_NONE));
+  v.push(block);
+  let mut first = true;
+  loop{
+    let p = try!(i.next_token(self));
+    let t = &p[i.index];
+    let cline;
+    let ccol;
+    if t.value == Symbol::Catch {
+      i.index+=1;
+      first = false;
+      cline = t.line;
+      ccol = t.col;
+    }else if !first && t.value == Symbol::End {
+      i.index+=1;
+      break;
+    }else{
+      return Err(self.syntax_error(t.line, t.col, String::from("expected 'catch'.")));
+    }
+    let id = try!(self.identifier(i));
+    i.index+=1;
+    let p = try!(i.next_any_token(self));
+    let t = &p[i.index];
+    let expression = if t.value == Symbol::If {
+      i.index+=1;
+      Some(try!(self.expression(i)))
+    }else if t.value == Symbol::Newline {
+      i.index+=1;
+      None
+    }else{
+      return Err(self.syntax_error(t.line, t.col, String::from("expected 'if'.")));   
+    };
+    let cblock = try!(self.statements(i,VALUE_NONE));
+    let c = Rc::new(AST{line: cline, col: ccol, symbol_type: SymbolType::Keyword,
+      value: Symbol::Catch, info: Info::None, s: None,
+      a: Some(if let Some(x)=expression {Box::new([id,x,cblock])}else{Box::new([id,cblock])})});
+    v.push(c);
+  }
+  return Ok(Rc::new(AST{line: t0.line, col: t0.col, symbol_type: SymbolType::Keyword,
+    value: Symbol::Try, info: Info::None, s: None, a: Some(v.into_boxed_slice())}));  
+}
+
 fn return_statement(&mut self, i: &mut TokenIterator, t0: &Token) -> Result<Rc<AST>,Error>{
   let p = try!(i.next_any_token(self));
   let t = &p[i.index];
@@ -1944,6 +1992,12 @@ fn yield_statement(&mut self, i: &mut TokenIterator, t0: &Token) -> Result<Rc<AS
   let x = try!(self.comma_expression(i));
   return Ok(Rc::new(AST{line: t0.line, col: t0.col, symbol_type: SymbolType::Keyword,
     value: Symbol::Yield, info: Info::None, s: None, a: Some(Box::new([x]))}));
+}
+
+fn raise_statement(&mut self, i: &mut TokenIterator, t0: &Token) -> Result<Rc<AST>,Error>{
+  let x = try!(self.comma_expression(i));
+  return Ok(Rc::new(AST{line: t0.line, col: t0.col, symbol_type: SymbolType::Keyword,
+    value: Symbol::Raise, info: Info::None, s: None, a: Some(Box::new([x]))}));
 }
 
 fn identifier(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error> {
@@ -2237,7 +2291,7 @@ fn statements(&mut self, i: &mut TokenIterator, last_value: u8)
       i.index+=1;
       try!(self.end_of(i,Symbol::If));
     }else if value == Symbol::End || value == Symbol::Elif ||
-      value == Symbol::Else
+      value == Symbol::Else || value == Symbol::Catch
     {
       break;
     }else if value == Symbol::Return {
@@ -2272,6 +2326,19 @@ fn statements(&mut self, i: &mut TokenIterator, last_value: u8)
       i.index+=1;
       let x = try!(self.global_statement(i,t));
       v.push(x);
+    }else if value == Symbol::Raise {
+      i.index+=1;
+      let x = try!(self.raise_statement(i,t));
+      v.push(x);
+    }else if value == Symbol::Try {
+      i.index+=1;
+      let statement = self.statement;
+      self.statement = true;
+      self.syntax_nesting+=1;
+      let x = try!(self.try_catch_statement(i,t));
+      self.syntax_nesting-=1;
+      self.statement = statement;
+      v.push(x);
     }else{
       let x = try!(self.assignment(i));
       v.push(x);
@@ -2281,7 +2348,7 @@ fn statements(&mut self, i: &mut TokenIterator, last_value: u8)
     if t.value == Symbol::Semicolon {
       i.index+=1;
     }else if t.value == Symbol::End || t.value == Symbol::Elif ||
-      t.value == Symbol::Else
+      t.value == Symbol::Else || t.value == Symbol::Catch
     {
       break;
     }else if t.value == Symbol::Newline {
@@ -2477,6 +2544,54 @@ fn compile_for(&mut self, bv: &mut Vec<u32>, t: &Rc<AST>)
   for index in info.breaks {
     write_i32(&mut bv[index..index+1],(BCSIZE+len) as i32-index as i32);
   }
+
+  return Ok(());
+}
+
+fn compile_try_catch(&mut self, bv: &mut Vec<u32>, t: &Rc<AST>)
+  -> Result<(),Error>
+{
+  push_bc(bv,bc::OP,t.line,t.col);
+  push_bc(bv,bc::TRY,t.line,t.col);
+  let index1 = bv.len();
+  push_i32(bv,0xcafe);
+
+  let a = ast_argv(t);
+  try!(self.compile_ast(bv,&a[0]));
+
+  push_bc(bv,bc::OP,t.line,t.col);
+  push_bc(bv,bc::TRYEND,t.line,t.col);
+  push_bc(bv,bc::JMP,t.line,t.col);
+  let index2 = bv.len();
+  push_i32(bv,0xcafe);
+  let len = bv.len();
+  write_i32(&mut bv[index1..index1+1],(BCSIZE+len) as i32-index1 as i32);
+  
+  push_bc(bv,bc::OP,t.line,t.col);
+  push_bc(bv,bc::GETEXC,t.line,t.col);
+  let c = ast_argv(&a[1]);
+  self.compile_assignment(bv,&c[0],c[0].line,c[0].col);
+  if c.len()==2 {
+    push_bc(bv,bc::OP,t.line,t.col);
+    push_bc(bv,bc::TRYEND,t.line,t.col);
+    try!(self.compile_ast(bv,&c[1]));
+  }else{
+    try!(self.compile_ast(bv,&c[1]));
+    push_bc(bv,bc::JNZ,t.line,t.col);
+    let index3 = bv.len();
+    push_i32(bv,0xcafe);
+    push_bc(bv,bc::OP,t.line,t.col);
+    push_bc(bv,bc::CRAISE,t.line,t.col);
+    let len = bv.len();
+    write_i32(&mut bv[index3..index3+1],(BCSIZE+len) as i32-index3 as i32);   
+
+    push_bc(bv,bc::OP,t.line,t.col);
+    push_bc(bv,bc::TRYEND,t.line,t.col);
+    try!(self.compile_ast(bv,&c[2]));
+  }
+  
+  let len = bv.len();
+  write_i32(&mut bv[index2..index2+1],(BCSIZE+len) as i32-index2 as i32);
 
   return Ok(());
 }
@@ -3063,10 +3178,12 @@ fn compile_ast(&mut self, bv: &mut Vec<u32>, t: &Rc<AST>)
       push_bc(bv,bc::NOT,t.line,t.col);
     }else if value == Symbol::In {
       try!(self.compile_operator(bv,t,bc::IN));
-    }else if  value == Symbol::Notin {
+    }else if value == Symbol::Notin {
       // try!(self.compile_operator(bv,t,bc::NOTIN));
       try!(self.compile_operator(bv,t,bc::IN));
       push_bc(bv,bc::NOT,t.line,t.col);
+    }else if value == Symbol::Colon {
+      try!(self.compile_operator(bv,t,bc::OF));
     }else if value == Symbol::Index {
       try!(self.compile_operator(bv,t,bc::GET_INDEX));
     }else if value == Symbol::Not {
@@ -3166,7 +3283,11 @@ fn compile_ast(&mut self, bv: &mut Vec<u32>, t: &Rc<AST>)
       }else{
         try!(self.compile_ast(bv,&a[0]));
       }
-      push_bc(bv,bc::RET,t.line,t.col);    
+      push_bc(bv,bc::RET,t.line,t.col);
+    }else if value == Symbol::Raise {
+      let a = ast_argv(t);
+      try!(self.compile_ast(bv,&a[0]));
+      push_bc(bv,bc::RAISE,t.line,t.col);
     }else if value == Symbol::Break {
       push_bc(bv,bc::JMP,t.line,t.col);
       // let index2 = v.len();
@@ -3216,6 +3337,8 @@ fn compile_ast(&mut self, bv: &mut Vec<u32>, t: &Rc<AST>)
     }else if value == Symbol::Global {
       let a = ast_argv(t);
       try!(self.global_declaration(a));
+    }else if value == Symbol::Try {
+      try!(self.compile_try_catch(bv,t));
     }else{
       panic!();
     }
@@ -3335,6 +3458,7 @@ fn asm_listing(a: &[u32]) -> String {
       bc::LE => {s.push_str("le\n"); i+=BCSIZE;},
       bc::GE => {s.push_str("not ge\n"); i+=BCSIZE;},
       bc::IS => {s.push_str("is\n"); i+=BCSIZE;},
+      bc::OF => {s.push_str("of\n"); i+=BCSIZE;},
       bc::ISNOT => {s.push_str("is not\n"); i+=BCSIZE;},
       bc::IN => {s.push_str("in\n"); i+=BCSIZE;},
       bc::NOTIN => {s.push_str("not in\n"); i+=BCSIZE;},
@@ -3466,6 +3590,7 @@ fn asm_listing(a: &[u32]) -> String {
       },
       bc::RET => {s.push_str("ret\n"); i+=BCSIZE;},
       bc::YIELD => {s.push_str("yield\n"); i+=BCSIZE;},
+      bc::RAISE => {s.push_str("raise\n"); i+=BCSIZE;},
       bc::FNSEP => {s.push_str("\nFunction\n"); i+=BCSIZE;},
       bc::FN => {
         let address = load_i32(&a[BCSIZE+i..BCSIZE+i+1]);
@@ -3488,6 +3613,28 @@ fn asm_listing(a: &[u32]) -> String {
       bc::DUP_DOT_SWAP => {s.push_str("dup dot swap\n"); i+=BCSIZE;},
       bc::POP => {s.push_str("pop\n"); i+=BCSIZE;},
       bc::EMPTY => {s.push_str("empty\n"); i+=BCSIZE;},
+      bc::OP => {
+        s.push_str("op ");
+        i+=BCSIZE;
+        let op = a[i] as u8;
+        if op==bc::TRY {
+          let x = load_i32(&a[BCSIZE+i..BCSIZE+i+1]);
+          let u = format!("try, catch {}\n",i as i32+x);
+          s.push_str(&u);
+          i+=BCASIZE;
+        }else if op==bc::TRYEND {
+          s.push_str("try end\n");
+          i+=BCSIZE;
+        }else if op==bc::GETEXC {
+          s.push_str("get exception\n");
+          i+=BCSIZE;
+        }else if op==bc::CRAISE {
+          s.push_str("raise further\n");
+          i+=BCSIZE;
+        }else{
+          panic!("op ??");
+        }
+      },
       bc::HALT => {s.push_str("halt\n"); i+=BCSIZE;},
       _ => {unimplemented!();}
     }

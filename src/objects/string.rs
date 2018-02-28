@@ -2,8 +2,8 @@
 // use std::rc::Rc;
 // use std::cell::RefCell;
 use object::{
-  Object, Table, FnResult,
-  type_error, argc_error,
+  Object, Table, FnResult, U32String,
+  type_error, type_error1, argc_error, value_error
 };
 // use vm::Env;
 
@@ -47,8 +47,93 @@ fn fisalpha(pself: &Object, argv: &[Object]) -> FnResult {
   }
 }
 
+fn ljust(pself: &Object, argv: &[Object]) -> FnResult {
+  let c = match argv.len() {
+    1 => {' '},
+    2 => {
+      match argv[1] {
+        Object::String(ref s) => {
+          if s.v.len()==1 {s.v[0]} else {
+            return value_error("Value error in s.ljust(n,c): size(c)!=1.");
+          }
+        },
+        _ => {
+          return type_error1("Type error in s.ljust(n,c): c is not a string.","c",&argv[1]);
+        }
+      }
+    },
+    n => return argc_error(n,2,2,"ljust")
+  };
+  let s = match *pself {
+    Object::String(ref s) => &s.v,
+    _ => {return type_error1(
+      "Type error in s.ljust(n): s is not a string.",
+      "s",pself
+    );}
+  };
+  let n = match argv[0] {
+    Object::Int(x) => {
+      if x<0 {0} else{x as usize}
+    },
+    _ => {return type_error1(
+      "Type error in s.ljust(n): n is not an integer.",
+      "s",pself
+    );}
+  };
+  let mut v: Vec<char> = s.clone();
+  for _ in s.len()..n {
+    v.push(c);
+  }
+  return Ok(U32String::new_object(v));
+}
+
+fn rjust(pself: &Object, argv: &[Object]) -> FnResult {
+  let c = match argv.len() {
+    1 => {' '},
+    2 => {
+      match argv[1] {
+        Object::String(ref s) => {
+          if s.v.len()==1 {s.v[0]} else {
+            return value_error("Value error in s.rjust(n,c): size(c)!=1.");
+          }
+        },
+        _ => {
+          return type_error1("Type error in s.rjust(n,c): c is not a string.","c",&argv[1]);
+        }
+      }
+    },
+    n => return argc_error(n,2,2,"ljust")
+  };
+  let s = match *pself {
+    Object::String(ref s) => &s.v,
+    _ => {return type_error1(
+      "Type error in s.rjust(n): s is not a string.",
+      "s",pself
+    );}
+  };
+  let n = match argv[0] {
+    Object::Int(x) => {
+      if x<0 {0} else{x as usize}
+    },
+    _ => {return type_error1(
+      "Type error in s.rjust(n): n is not an integer.",
+      "s",pself
+    );}
+  };
+  let mut v: Vec<char> = Vec::new();
+  for _ in s.len()..n {
+    v.push(c);
+  }
+  for x in s {
+    v.push(*x);
+  }
+  return Ok(U32String::new_object(v));
+}
+
 pub fn init(t: &Table){
   let mut m = t.map.borrow_mut();
   m.insert_fn_plain("isdigit",fisdigit,0,0);
   m.insert_fn_plain("isalpha",fisalpha,0,0);
+  m.insert_fn_plain("ljust",ljust,1,2);
+  m.insert_fn_plain("rjust",rjust,1,2);
 }

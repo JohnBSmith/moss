@@ -59,12 +59,47 @@ pub fn put(pself: &Object, argv: &[Object]) -> FnResult{
   return Ok(Object::Null);
 }
 
-fn fstr(pself: &Object, argv: &[Object]) -> FnResult{
-  if argv.len() != 1 {
-    return argc_error(argv.len(),1,1,"str");
+fn float_to_string(x: &Object, fmt: &Object, precision: &Object) -> FnResult {
+  let n = match *precision {
+    Object::Int(n) => if n<0 {0} else {n as usize},
+    _ => return type_error("Type error in str(x,fmt,precision): precision is not an integer.")
+  };
+  let fmt = match *fmt {
+    Object::String(ref s) => &s.v,
+    _ => return type_error("Type error in str(x,fmt,precision): fmt is not a string.")
+  };
+  let x = match *x {
+    Object::Int(n) => n as f64,
+    Object::Float(f) => f,
+    _ => return type_error("Type error in str(x,fmt,precision): x should be of type Float or Int.")
+  };
+  if fmt.len() != 1 {
+    return value_error("Value error in str(x,fmt,precision): size(fmt)!=1.");
   }
-  let s = object_to_string(&argv[0]);
+  let s = match fmt[0] {
+    'f' => {format!("{:.*}",n,x)},
+    'e' => {format!("{:.*e}",n,x)},
+    'E' => {format!("{:.*E}",n,x)},
+    _ => {
+      return value_error("Value error in str(x,fmt,precision): fmt should be one of 'f', 'e', 'E'.");
+    }
+  };
   return Ok(U32String::new_object_str(&s));
+}
+
+fn fstr(pself: &Object, argv: &[Object]) -> FnResult{
+  match argv.len() {
+    1 => {
+      let s = object_to_string(&argv[0]);
+      return Ok(U32String::new_object_str(&s));
+    },
+    3 => {
+      return float_to_string(&argv[0],&argv[1],&argv[2]);
+    },
+    n => {
+      return argc_error(n,1,1,"str");
+    }
+  }
 }
 
 fn repr(pself: &Object, argv: &[Object]) -> FnResult{

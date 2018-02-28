@@ -34,7 +34,7 @@ pub const BCAASIZE: usize = 3;
 
 pub mod bc{
   pub const NULL: u8 = 00;
-  pub const HALT: u8 = 01;
+  pub const OF: u8 = 01;
   pub const FALSE:u8 = 02;
   pub const TRUE: u8 = 03;
   pub const INT:  u8 = 04;
@@ -97,11 +97,18 @@ pub mod bc{
   pub const GET:  u8 = 61;
   pub const BAND: u8 = 62;
   pub const BOR:  u8 = 63;
+  pub const RAISE:u8 = 64;
+  pub const OP:  u8 = 65;
+  pub const TRY:  u8 = 66;
+  pub const TRYEND:u8 = 67;
+  pub const GETEXC:u8 = 68;
+  pub const CRAISE:u8 = 69;
+  pub const HALT: u8 = 70;
 
   pub fn op_to_str(x: u8) -> &'static str {
     match x {
       NULL => "NULL",
-      HALT => "HALT",
+      OF => "OF",
       FALSE => "FALSE",
       TRUE => "TRUE",
       INT => "INT",
@@ -163,6 +170,13 @@ pub mod bc{
       GET => "GET",
       BAND => "BAND",
       BOR => "BOR",
+      RAISE => "RAISE",
+      OP => "OP",
+      TRY => "TRY",
+      TRYEND => "TRYEND",
+      GETEXC => "GETEXC",
+      CRAISE => "CRAISE",
+      HALT => "HALT",
       _ => "unknown"
     }
   }
@@ -1470,6 +1484,85 @@ fn operator_is(sp: usize, stack: &mut [Object]) -> OperatorResult {
   }
 }
 
+fn operator_of(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorResult {
+  let type_obj = replace(&mut stack[sp-1],Object::Null);
+  let value: bool;
+  'ret: loop{
+  match stack[sp-2] {
+    Object::Null => {
+      value = match type_obj {
+        Object::Null => true,
+        _ => false
+      };
+      break 'ret;
+    },
+    Object::Bool(x) => {
+      value = match type_obj {
+        Object::Table(ref t) => Rc::ptr_eq(t,&env.rte.type_bool),
+        _ => false
+      };
+      break 'ret;
+    },
+    Object::Int(x) => {
+      value = match type_obj {
+        Object::Table(ref t) => Rc::ptr_eq(t,&env.rte.type_int),
+        _ => false
+      };
+      break 'ret;
+    },
+    Object::Float(x) => {
+      value = match type_obj {
+        Object::Table(ref t) => Rc::ptr_eq(t,&env.rte.type_float),
+        _ => false
+      };
+      break 'ret;
+    },
+    Object::Complex(x) => {
+      value = match type_obj {
+        Object::Table(ref t) => Rc::ptr_eq(t,&env.rte.type_complex),
+        _ => false
+      };
+      break 'ret;
+    },
+    _ => {}
+  }
+  match replace(&mut stack[sp-2],Object::Null) {
+    Object::String(x) => {
+      value = match type_obj {
+        Object::Table(ref t) => Rc::ptr_eq(t,&env.rte.type_string),
+        _ => false
+      };
+    },
+    Object::List(x) => {
+      value = match type_obj {
+        Object::Table(ref t) => Rc::ptr_eq(t,&env.rte.type_list),
+        _ => false
+      };
+    },
+    Object::Function(x) => {
+      value = match type_obj {
+        Object::Table(ref t) => Rc::ptr_eq(t,&env.rte.type_function),
+        _ => false
+      };
+    },
+    Object::Table(x) => {
+      value = match type_obj {
+        Object::Table(ref t) => {
+          stack[sp-2] = x.prototype.clone();
+          stack[sp-1] = type_obj.clone();
+          return operator_is(sp,stack);
+        }
+        _ => false
+      };
+    },
+    _ => {value = false;}
+  }
+  break 'ret;
+  } // 'ret
+  stack[sp-2] = Object::Bool(value);
+  return Ok(());
+}
+
 fn operator_in(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorResult {
   let key = replace(&mut stack[sp-2],Object::Null);
   match replace(&mut stack[sp-1],Object::Null) {
@@ -1956,13 +2049,13 @@ fn vm_loop(
   let mut a = module.program.clone();
   let mut sp=state.sp;
 
-  let mut exception: OperatorResult;
+  let mut exception: OperatorResult = Ok(());
   let mut ret = true;
   let mut catch = false;
 
   // print_stack(&stack[0..10]);
 
-  loop{ // loop
+  'main: loop{ // loop
   loop{ // try
     // print_stack(&stack[0..10]);
     // print_op(a[ip]);
@@ -2155,6 +2248,13 @@ fn vm_loop(
         }
         sp-=1;
         ip+=BCSIZE;
+      },
+      bc::OF => {
+        match operator_of(env, sp, &mut stack) {
+          Ok(())=>{}, Err(e)=>{exception=Err(e); break;}
+        }
+        sp-=1;
+        ip+=BCSIZE;      
       },
       bc::NOT => {
         let x = match stack[sp-1] {
@@ -2565,9 +2665,45 @@ fn vm_loop(
         sp+=1;
         ip+=BCASIZE;
       },
+      bc::RAISE => {
+        sp-=1;
+        exception = Err(Exception::raise(
+          replace(&mut stack[sp],Object::Null)
+        ));
+        break;
+      },
       bc::HALT => {
         state.sp=sp;
         return Ok(());
+      },
+      bc::OP => {
+        ip+=BCSIZE;
+        let op = a[ip] as u8;
+        if op == bc::TRY {
+          catch = true;
+          env.catch_stack.push(CatchFrame{
+            sp: sp, ip: (ip as i32+load_i32(&a,ip+BCSIZE)) as usize
+          });
+          ip+=BCASIZE;
+        }else if op == bc::TRYEND {
+          catch = false;
+          env.catch_stack.pop();
+          ip+=BCSIZE;
+        }else if op == bc::GETEXC {
+          if let Err(ref e) = exception {
+            stack[sp] = e.value.clone();
+            sp+=1;
+          }else{
+            panic!();
+          }
+          ip+=BCSIZE;
+        }else if op == bc::CRAISE {
+          catch = false;
+          env.catch_stack.pop();
+          break;
+        }else{
+          panic!();
+        }
       },
       _ => {panic!()}
     }
@@ -2575,7 +2711,12 @@ fn vm_loop(
 
   // catch:
   if catch {
-    unimplemented!();
+    let cframe = env.catch_stack.last().unwrap();
+    ip = cframe.ip;
+    for i in cframe.sp..sp {
+      stack[i] = Object::Null;
+    }
+    sp = cframe.sp;
   }else{
     state.sp = sp;
     if let Err(ref mut e) = exception {
@@ -2592,7 +2733,24 @@ fn vm_loop(
         let (line,col) = get_line_col(&a,frame.ip-BCASIZE);
         e.push_clm(line,col,&module.id,&function_id_to_string(&*fnself));
         fnself = frame.f;
+        if frame.catch {
+          let cframe = env.catch_stack.last().unwrap();
+          ip = cframe.ip;
+          for i in cframe.sp..sp {
+            stack[i] = Object::Null;
+          }
+          sp = cframe.sp;
+          argv_ptr = frame.argv_ptr;
+          bp = frame.base_pointer;
+          gtab = frame.gtab;
+          ret = frame.ret;
+          catch = true;
+
+          continue 'main;
+        }
       }
+    }else{
+      panic!();
     }
     return exception;
   }
@@ -2712,13 +2870,19 @@ pub fn stack_clear(a: &mut [Object]) {
   }
 }
 
+pub struct CatchFrame{
+  ip: usize,
+  sp: usize
+}
+
 pub struct EnvPart{
   frame_stack: Vec<Frame>,
-  rte: Rc<RTE>
+  catch_stack: Vec<CatchFrame>,
+  rte: Rc<RTE>,
 }
 impl EnvPart{
   pub fn new(frame_stack: Vec<Frame>, rte: Rc<RTE>) -> Self {
-    Self{frame_stack, rte}
+    Self{frame_stack, catch_stack: Vec::new(), rte}
   }
 }
 
