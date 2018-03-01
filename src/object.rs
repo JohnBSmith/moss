@@ -140,9 +140,11 @@ pub struct Exception{
 }
 
 impl Exception{
-  pub fn new(s: &str) -> Box<Exception> {
+  pub fn new(s: &str, prototype: Object) -> Box<Exception> {
+    let mut t = Table{prototype, map: Map::new()};
+    t.map.borrow_mut().insert("value", U32String::new_object_str(s));
     Box::new(Exception{
-      value: U32String::new_object_str(s),
+      value: Object::Table(Rc::new(t)),
       traceback: None, spot: None
     })
   }

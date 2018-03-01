@@ -1977,6 +1977,10 @@ pub struct RTE{
   pub type_map: Rc<Table>,
   pub type_function: Rc<Table>,
   pub type_iterable: Rc<Table>,
+  pub type_std_exception: Rc<Table>,
+  pub type_type_error: Rc<Table>,
+  pub type_value_error: Rc<Table>,
+  pub type_index_error: Rc<Table>,
   pub argv: RefCell<Option<Rc<RefCell<List>>>>,
   pub gtab: Rc<RefCell<Map>>,
   pub pgtab: RefCell<Rc<RefCell<Map>>>,
@@ -1995,6 +1999,10 @@ impl RTE{
       type_map:  Table::new(Object::Null),
       type_function: Table::new(Object::Null),
       type_iterable: Table::new(Object::Null),
+      type_std_exception: Table::new(Object::Null),
+      type_type_error: Table::new(Object::Null),
+      type_value_error: Table::new(Object::Null),
+      type_index_error: Table::new(Object::Null),
       argv: RefCell::new(None),
       gtab: Map::new(),
       pgtab: RefCell::new(Map::new()),
@@ -2009,29 +2017,30 @@ impl RTE{
   }
 
   pub fn std_exception_plain(&self, s: &str) -> Box<Exception> {
-    Exception::new(s)
+    Exception::new(s,Object::Table(self.type_std_exception.clone()))
   }
   pub fn type_error_plain(&self, s: &str) -> Box<Exception> {
-    Exception::new(s)
+    Exception::new(s,Object::Table(self.type_type_error.clone()))
   }
   pub fn value_error_plain(&self, s: &str) -> Box<Exception> {
-    Exception::new(s)
+    Exception::new(s,Object::Table(self.type_value_error.clone()))
   }
   pub fn index_error_plain(&self, s: &str) -> Box<Exception> {
-    Exception::new(s)
+    Exception::new(s,Object::Table(self.type_index_error.clone()))
   }
 
   pub fn argc_error_plain(&self, argc: usize, min: u32, max: u32, id: &str) -> Box<Exception> {
+    let t = Object::Table(self.type_std_exception.clone());
     if min==max {
       if min==0 {
-        Exception::new(&format!("Error in {}: expected no argument, but got {}.",id,argc))
+        Exception::new(&format!("Error in {}: expected no argument, but got {}.",id,argc),t)
       }else if min==1 {
-        Exception::new(&format!("Error in {}: expected 1 argument, but got {}.",id,argc))
+        Exception::new(&format!("Error in {}: expected 1 argument, but got {}.",id,argc),t)
       }else{
-        Exception::new(&format!("Error in {}: expected {} arguments, but got {}.",id,min,argc))
+        Exception::new(&format!("Error in {}: expected {} arguments, but got {}.",id,min,argc),t)
       }
     }else{
-      Exception::new(&format!("Error in {}: expected {}..{} arguments, but got {}.",id,min,max,argc))
+      Exception::new(&format!("Error in {}: expected {}..{} arguments, but got {}.",id,min,max,argc),t)
     }
   }
 
@@ -2897,6 +2906,17 @@ fn object_call(env: &EnvPart, f: &Object, argv: &mut [Object]) -> OperatorResult
   }
 }
 
+fn exception_value_to_string(x: &Object) -> String{
+  if let Object::Table(ref t) = *x {
+    let m = &t.map.borrow().m;
+    let key = U32String::new_object_str("value");
+    if let Some(value) = m.get(&key) {
+      return value.to_string();
+    }
+  }
+  return x.to_string();
+}
+
 fn print_exception(e: &Exception) {
   if let Some(ref traceback) = e.traceback {
     for x in traceback.v.iter().rev() {
@@ -2906,7 +2926,7 @@ fn print_exception(e: &Exception) {
   if let Some(ref spot) = e.spot {
     println!("Line {}, col {} ({}):",spot.line,spot.col,&spot.module);
   }
-  println!("{}",&e.value);
+  println!("{}",exception_value_to_string(&e.value));
 }
 
 pub fn get_env(state: &mut State) -> Env {
@@ -3107,25 +3127,25 @@ impl<'a> Env<'a>{
       Ok(x) => {}, Err(e) => {print_exception(&e);}
     }
   }
-  
+
   #[inline(never)]
   pub fn std_exception(&self, s: &str) -> FnResult {
-    Err(Exception::new(s))
+    Err(self.rte().std_exception_plain(s))
   }
 
   #[inline(never)]
   pub fn type_error(&self, s: &str) -> FnResult {
-    Err(Exception::new(s))
+    Err(self.rte().type_error_plain(s))
   }
 
   #[inline(never)]
   pub fn value_error(&self, s: &str) -> FnResult {
-    Err(Exception::new(s))
+    Err(self.rte().value_error_plain(s))
   }
 
   #[inline(never)]
   pub fn index_error(&self, s: &str) -> FnResult {
-    Err(Exception::new(s))
+    Err(self.rte().index_error_plain(s))
   }
 
   #[inline(never)]

@@ -560,5 +560,14 @@ pub fn init_rte(rte: &RTE){
   let type_iterable = rte.type_iterable.clone();
   ::iterable::init(&type_iterable);
   gtab.insert("Iterable", Object::Table(type_iterable));
+  
+  let type_type_error = rte.type_type_error.clone();
+  gtab.insert("TypeError", Object::Table(type_type_error));
+  
+  let type_value_error = rte.type_value_error.clone();
+  gtab.insert("ValueError", Object::Table(type_value_error));
+  
+  let type_index_error = rte.type_index_error.clone();
+  gtab.insert("IndexError", Object::Table(type_index_error));
 }
 
