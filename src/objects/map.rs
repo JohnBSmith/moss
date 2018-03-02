@@ -22,7 +22,11 @@ fn fupdate(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     Object::Map(ref m) => {
       match argv[0] {
         Object::Map(ref m2) => {
-          update(&mut *m.borrow_mut(),&*m2.borrow());
+          let m = &mut *m.borrow_mut();
+          if m.frozen {
+            return env.value_error("Value error in m.update(m2): m is frozen.");
+          }
+          update(m,&*m2.borrow());
           Ok(Object::Null)
         },
         _ => env.type_error("Type error in m.update(m2): m2 is not a map.")
@@ -95,7 +99,11 @@ fn clear(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
   }
   match *pself {
     Object::Map(ref m) => {
-      m.borrow_mut().m.clear();
+      let mut m = m.borrow_mut();
+      if m.frozen {
+        return env.value_error("Value error in m.clear(): m is frozen.");
+      }
+      m.m.clear();
       Ok(Object::Null)
     },
     _ => env.type_error("Type error in m.clear(): m is not a map.")
@@ -109,6 +117,9 @@ fn remove(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
   match *pself {
     Object::Map(ref m) => {
       let mut m = m.borrow_mut();
+      if m.frozen {
+        return env.value_error("Value error in m.remove(key): m is frozen.");
+      }
       match m.m.remove(&argv[0]) {
         Some(value) => Ok(value),
         None => env.index_error("Index error in m.remove(key): key was not in m.")

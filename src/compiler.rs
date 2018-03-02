@@ -12,10 +12,10 @@ use system;
 use vm::{bc, BCSIZE, BCASIZE, BCAASIZE, Module, RTE};
 use object::{Object, U32String, VARIADIC};
 
-const VALUE_NONE: u8 = 0;
-const VALUE_OPTIONAL: u8 = 1;
-const VALUE_NULL: u8 = 2;
-const VALUE_EMPTY: u8 = 3;
+#[derive(Copy,Clone,PartialEq)]
+pub enum Value{
+  None, Optional, Null, Empty
+}
 
 #[derive(Copy,Clone,PartialEq)]
 enum SymbolType{
@@ -1237,7 +1237,7 @@ fn function_literal(&mut self, i: &mut TokenIterator, t0: &Token)
   self.syntax_nesting+=1;
   let parens = self.parens;
   self.parens = 0;
-  let x = try!(self.statements(i,if coroutine {VALUE_EMPTY} else {VALUE_NULL}));
+  let x = try!(self.statements(i,if coroutine {Value::Empty} else {Value::Null}));
   self.function_nesting-=1;
   self.statement = statement;
 
@@ -1337,7 +1337,7 @@ fn block(&mut self, i: &mut TokenIterator, t0: &Token) -> Result<Rc<AST>,Error> 
   self.syntax_nesting+=1;
   let parens = self.parens;
   self.parens = 0;
-  let x = try!(self.statements(i,VALUE_NULL));
+  let x = try!(self.statements(i,Value::Null));
   self.function_nesting-=1;
   self.statement = statement;
 
@@ -1813,7 +1813,7 @@ fn while_statement(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
   }else{
     return Err(self.syntax_error(t.line, t.col, String::from("expected 'do' or a line break.")));
   }
-  let body = try!(self.statements(i,VALUE_NONE));
+  let body = try!(self.statements(i,Value::None));
   return Ok(Rc::new(AST{line: t.line, col: t.col, symbol_type: SymbolType::Keyword,
     value: Symbol::While, info: Info::None, s: None, a: Some(Box::new([condition,body]))}));
 }
@@ -1858,7 +1858,7 @@ fn for_statement(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error> {
   }else{
     return Err(self.syntax_error(t.line, t.col, String::from("expected 'do' or a line break.")));
   }
-  let body = try!(self.statements(i,VALUE_NONE));
+  let body = try!(self.statements(i,Value::None));
   return Ok(Rc::new(AST{line: t.line, col: t.col, symbol_type: SymbolType::Keyword,
     value: Symbol::For, info: Info::None, s: None, a: Some(Box::new([variable,a,body]))}));  
 }
@@ -1875,7 +1875,7 @@ fn if_statement(&mut self, i: &mut TokenIterator, t0: &Token) -> Result<Rc<AST>,
       format!("expected 'then' or a line break.")
     ));
   }
-  let body = try!(self.statements(i,VALUE_NONE));
+  let body = try!(self.statements(i,Value::None));
   v.push(condition);
   v.push(body);
   loop{
@@ -1891,12 +1891,12 @@ fn if_statement(&mut self, i: &mut TokenIterator, t0: &Token) -> Result<Rc<AST>,
       }else{
         return Err(self.syntax_error(t.line, t.col, String::from("expected 'then' or a line break.")));
       }
-      let body = try!(self.statements(i,VALUE_NONE));
+      let body = try!(self.statements(i,Value::None));
       v.push(condition);
       v.push(body);
     }else if t.value == Symbol::Else {
       i.index+=1;
-      let body = try!(self.statements(i,VALUE_NONE));
+      let body = try!(self.statements(i,Value::None));
       v.push(body);
     }else if t.value == Symbol::End {
       break;
@@ -1932,7 +1932,7 @@ fn try_catch_statement(
 ) -> Result<Rc<AST>,Error>
 {
   let mut v: Vec<Rc<AST>> = Vec::new();
-  let block = try!(self.statements(i,VALUE_NONE));
+  let block = try!(self.statements(i,Value::None));
   v.push(block);
   let mut first = true;
   loop{
@@ -1964,7 +1964,7 @@ fn try_catch_statement(
     }else{
       return Err(self.syntax_error(t.line, t.col, String::from("expected 'if'.")));   
     };
-    let cblock = try!(self.statements(i,VALUE_NONE));
+    let cblock = try!(self.statements(i,Value::None));
     let c = Rc::new(AST{line: cline, col: ccol, symbol_type: SymbolType::Keyword,
       value: Symbol::Catch, info: Info::None, s: None,
       a: Some(if let Some(x)=expression {Box::new([id,x,cblock])}else{Box::new([id,cblock])})});
@@ -2226,7 +2226,7 @@ fn global_statement(&mut self, i: &mut TokenIterator, t0: &Token)
     value: Symbol::Global, info: Info::None, s: None, a: Some(v.into_boxed_slice())}));
 }
 
-fn statements(&mut self, i: &mut TokenIterator, last_value: u8)
+fn statements(&mut self, i: &mut TokenIterator, last_value: Value)
   -> Result<Rc<AST>,Error>
 {
   let mut v: Vec<Rc<AST>> = Vec::new();
@@ -2359,14 +2359,14 @@ fn statements(&mut self, i: &mut TokenIterator, last_value: u8)
       return Err(self.unexpected_token(t.line, t.col, t.value));
     }
   }
-  if last_value>VALUE_NONE {
+  if last_value != Value::None {
     let n = v.len();
     if n>0 && v[n-1].value == Symbol::Statement {
       let x = ast_argv(&v[n-1])[0].clone();
       v[n-1] = x;
-    }else if last_value==VALUE_NULL {
+    }else if last_value == Value::Null {
       v.push(atomic_literal(t0.line,t0.col,Symbol::Null));
-    }else if last_value==VALUE_EMPTY {
+    }else if last_value == Value::Empty {
       v.push(atomic_literal(t0.line,t0.col,Symbol::Empty));
     }
   }
@@ -2378,8 +2378,8 @@ fn statements(&mut self, i: &mut TokenIterator, last_value: u8)
   }
 }
 
-fn ast(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
-  return self.statements(i,VALUE_OPTIONAL);
+fn ast(&mut self, i: &mut TokenIterator, value: Value) -> Result<Rc<AST>,Error>{
+  return self.statements(i,value);
 }
 
 fn compile_operator(&mut self, bv: &mut Vec<u32>,
@@ -3003,7 +3003,32 @@ fn compile_compound_assignment(
     try!(self.compile_ast(bv,&op));
     self.compile_assignment(bv,&a[0],t.line,t.col);
   }else{
-    unimplemented!();
+    let args_left = ast_argv(&a[0]);
+    try!(self.compile_ast(bv,&args_left[0]));
+    try!(self.compile_ast(bv,&args_left[1]));
+    try!(self.compile_ast(bv,&a[1]));
+
+    let op_code = match t.value {
+      Symbol::APlus => bc::ADD,
+      Symbol::AMinus => bc::SUB,
+      Symbol::AAst => bc::MPY,
+      Symbol::ADiv => bc::DIV,
+      Symbol::AIdiv => bc::IDIV,
+      Symbol::AMod => bc::MOD,
+      Symbol::AAmp => bc::BAND,
+      Symbol::AVline => bc::BOR,
+      _ => panic!()
+    };
+
+    push_bc(bv,bc::AOP,a[0].line,a[0].col);
+    if a[0].value == Symbol::Index {
+      push_bc(bv,bc::GET_INDEX,a[0].line,a[0].col);
+    }else if a[0].value == Symbol::Dot {
+      push_bc(bv,bc::DOT,a[0].line,a[0].col);
+    }else{
+      panic!();
+    }
+    push_bc(bv,op_code,a[0].line,a[0].col);
   }
   return Ok(());
 }
@@ -3613,6 +3638,7 @@ fn asm_listing(a: &[u32]) -> String {
       bc::DUP_DOT_SWAP => {s.push_str("dup dot swap\n"); i+=BCSIZE;},
       bc::POP => {s.push_str("pop\n"); i+=BCSIZE;},
       bc::EMPTY => {s.push_str("empty\n"); i+=BCSIZE;},
+      bc::AOP => {s.push_str("aop\n"); i+=BCSIZE;},
       bc::OP => {
         s.push_str("op ");
         i+=BCSIZE;
@@ -3701,7 +3727,7 @@ fn print_var_tab(vtab: &VarTab, indent: usize){
   }
 }
 
-pub fn compile(v: Vec<Token>, mode_cmd: bool,
+pub fn compile(v: Vec<Token>, mode_cmd: bool, value: Value,
   history: &mut system::History, id: &str,
   rte: &Rc<RTE>
 ) -> Result<Rc<Module>,Error>
@@ -3716,7 +3742,7 @@ pub fn compile(v: Vec<Token>, mode_cmd: bool,
     coroutine: false, for_nesting: 0
   };
   let mut i = TokenIterator{index: 0, a: Rc::new(v.into_boxed_slice())};
-  let y = try!(compilation.ast(&mut i));
+  let y = try!(compilation.ast(&mut i,value));
   // print_ast(&y,2);
 
   let mut bv: Vec<u32> = Vec::new();

@@ -12,6 +12,7 @@ use rand::Rand;
 use iterable::iter;
 use std::collections::HashMap;
 use system::{History};
+use compiler::Value;
 
 pub fn type_name(x: &Object) -> String {
   loop{
@@ -152,7 +153,7 @@ fn eval(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
   match argv[0] {
     Object::String(ref s) => {
       let a: String = s.v.iter().collect();
-      return match env.eval_string(&a,"",gtab) {
+      return match env.eval_string(&a,"",gtab,Value::Optional) {
         Ok(x) => {Ok(x)},
         Err(e) => Err(e)
       }
@@ -193,9 +194,12 @@ fn load_file(env: &mut Env, id: &str) -> FnResult {
   };
   let module = new_module(id);
   env.rte().clear_at_exit(module.map.clone());
-  match env.eval_string(&s,id,module.map.clone()) {
+  match env.eval_string(&s,id,module.map.clone(),Value::None) {
     Ok(x) => {
-      Ok(Object::Table(Rc::new(module)))
+      Ok(match x {
+        Object::Null => Object::Table(Rc::new(module)),
+        x => x
+      })
     },
     Err(e) => Err(e)
   }
@@ -500,8 +504,26 @@ fn input(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
   }
 }
 
-fn bench(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
-  return Ok(Object::Null);
+fn fconst(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+  match argv.len() {
+    1 => {}, n => {return env.argc_error(n,1,1,"const");}
+  }
+  match argv[0] {
+    Object::List(ref a) => {
+      let mut a = a.borrow_mut();
+      a.frozen = true;
+    },
+    Object::Map(ref m) => {
+      let mut m = m.borrow_mut();
+      m.frozen = true;
+    },
+    Object::Table(ref t) => {
+      let mut m = t.map.borrow_mut();
+      m.frozen = true;
+    },
+    _ => {}
+  }
+  return Ok(argv[0].clone());
 }
 
 pub fn init_rte(rte: &RTE){
@@ -525,9 +547,8 @@ pub fn init_rte(rte: &RTE){
   gtab.insert_fn_plain("copy",copy,1,1);
   gtab.insert_fn_plain("rand",frand,1,1);
   gtab.insert_fn_plain("gtab",fgtab,0,0);
+  gtab.insert_fn_plain("const",fconst,1,1);
   gtab.insert("empty", Object::Empty);
-
-  gtab.insert_fn_plain("bench",bench,0,0);
 
   let type_bool = rte.type_bool.clone();
   gtab.insert("Bool", Object::Table(type_bool));

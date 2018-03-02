@@ -96,13 +96,14 @@ pub mod bc{
   pub const GET:  u8 = 61;
   pub const BAND: u8 = 62;
   pub const BOR:  u8 = 63;
-  pub const RAISE:u8 = 64;
-  pub const OP:  u8 = 65;
-  pub const TRY:  u8 = 66;
-  pub const TRYEND:u8 = 67;
-  pub const GETEXC:u8 = 68;
-  pub const CRAISE:u8 = 69;
-  pub const HALT: u8 = 70;
+  pub const AOP:  u8 = 64;
+  pub const RAISE:u8 = 65;
+  pub const OP:  u8 = 66;
+  pub const TRY:  u8 = 67;
+  pub const TRYEND:u8 = 68;
+  pub const GETEXC:u8 = 69;
+  pub const CRAISE:u8 = 70;
+  pub const HALT: u8 = 71;
 
   pub fn op_to_str(x: u8) -> &'static str {
     match x {
@@ -1708,7 +1709,7 @@ fn index_assignment(env: &EnvPart, sp: usize, stack: &mut [Object]) -> OperatorR
         Object::Int(i) => {
           let mut a = a.borrow_mut();
           if a.frozen {
-            return Err(env.rte.index_error_plain("Error in a[i]: a is immutable."));
+            return Err(env.rte.value_error_plain("Value error in a[i]: a is immutable."));
           }
           let index = if i<0 {
             let iplus = i+(a.v.len() as i32);
@@ -1741,7 +1742,7 @@ fn index_assignment(env: &EnvPart, sp: usize, stack: &mut [Object]) -> OperatorR
       let value = replace(&mut stack[sp-3],Object::Null);
       let mut m = m.borrow_mut();
       if m.frozen {
-        return Err(env.rte.index_error_plain("Index error in m[key]=value: m is frozen."));
+        return Err(env.rte.value_error_plain("Value error in m[key]=value: m is frozen."));
       }
       match m.m.insert(key,value) {
         Some(_) => {},
@@ -1872,7 +1873,7 @@ fn operator_dot_set(env: &EnvPart, sp: usize, stack: &mut [Object]) -> OperatorR
       let value = replace(&mut stack[sp-3],Object::Null);
       let mut m = t.map.borrow_mut();
       if m.frozen {
-        return Err(env.rte.index_error_plain("Index error in a.x=value: a is frozen."));
+        return Err(env.rte.value_error_plain("Value error in a.x=value: a is frozen."));
       }
       match m.m.insert(key,value) {
         Some(_) => {},
@@ -1892,6 +1893,113 @@ fn operator_get(env: &EnvPart, list: &Object, index: u32) -> FnResult {
     Ok(a.borrow().v[index as usize].clone())
   }else{
     Err(env.rte.type_error1_plain("Type error in x,y = a: a is not a list.","a",list))
+  }
+}
+
+fn operate(op: u32, env: &mut EnvPart, sp: usize, stack: &mut [Object],
+  p: &mut Object, x: Object
+) -> OperatorResult {
+  stack[sp] = p.clone();
+  stack[sp+1] = x;
+  match op as u8 {
+    bc::ADD  => {try!(operator_plus (env,sp+2,stack));},
+    bc::SUB  => {try!(operator_minus(env,sp+2,stack));},
+    bc::MPY  => {try!(operator_mpy  (env,sp+2,stack));},
+    bc::DIV  => {try!(operator_div  (env,sp+2,stack));},
+    bc::IDIV => {try!(operator_idiv (env,sp+2,stack));},
+    bc::BAND => {try!(operator_band (env,sp+2,stack));},
+    bc::BOR  => {try!(operator_bor  (env,sp+2,stack));},
+    _ => {panic!();}
+  }
+  *p = replace(&mut stack[sp],Object::Null);
+  return Ok(());
+}
+
+fn compound_assignment(key_op: u32, op: u32,
+  env: &mut EnvPart, sp: usize, stack: &mut [Object]
+) -> OperatorResult
+{
+  match key_op as u8 {
+    bc::GET_INDEX => {
+      match replace(&mut stack[sp-3],Object::Null) {
+        Object::List(a) => {
+          let i = match stack[sp-2] {
+            Object::Int(x) => x,
+            _ => {
+              return Err(env.rte.type_error_plain("Type error in a[i]: i is not an integer."));
+            }
+          };
+          let mut a = a.borrow_mut();
+          if a.frozen {
+            return Err(env.rte.value_error_plain("Value error in assignment to a[i]: a is frozen."));            
+          }
+          let index = if i<0 {
+            let iplus = i+(a.v.len() as i32);
+            if iplus<0 {
+              return Err(env.rte.index_error_plain(&format!(
+                "Index error in assignment to a[i]: i=={} is out of lower bound.",i
+              )));
+            }else{
+              iplus as usize
+            }
+          }else{
+            i as usize
+          };
+          let p = match a.v.get_mut(index) {
+            Some(value) => value,
+            None => {
+              return Err(env.rte.index_error_plain(&format!(
+                "Index error in assignment to a[i]: i=={} is out of upper bound.", i
+              )));
+            }
+          };
+
+          let x = replace(&mut stack[sp-1],Object::Null);
+          return operate(op,env,sp,stack,p,x);
+        },
+        Object::Map(m) => {
+          let key = replace(&mut stack[sp-2],Object::Null);
+          let mut m = m.borrow_mut();
+          if m.frozen {
+            return Err(env.rte.value_error_plain("Value error in assignment to m[key]: m is frozen."));            
+          }
+          let p = match m.m.get_mut(&key) {
+            Some(value)=>value,
+            None => {
+              return Err(env.rte.index_error_plain("Index error in m[key]: key is not in m."));
+            }
+          };
+          let x = replace(&mut stack[sp-1],Object::Null);
+          return operate(op,env,sp,stack,p,x);
+        },
+        _ => {
+          return Err(env.rte.type_error_plain("Type error in a[i]: a is not a list."));
+        }
+      }
+    },
+    bc::DOT => {
+      match replace(&mut stack[sp-3],Object::Null) {
+        Object::Table(t) => {
+          let key = replace(&mut stack[sp-2],Object::Null);
+          let mut m = t.map.borrow_mut();
+          if m.frozen {
+            return Err(env.rte.value_error_plain("Value error in assignment to t.(key): t is frozen."));            
+          }
+          let p = match m.m.get_mut(&key) {
+            Some(value)=>value,
+            None => {
+              return Err(env.rte.index_error_plain("Index error in assignment to t.(key): key is not in t."));
+            }
+          };
+          let x = replace(&mut stack[sp-1],Object::Null);
+          return operate(op,env,sp,stack,p,x);
+        },
+        _ => {
+          return Err(env.rte.type_error_plain("Type error in assignment to t.(key): t is not a table."));
+        }
+      }    
+    },
+    _ => panic!()
   }
 }
 
@@ -2733,6 +2841,13 @@ fn vm_loop(
         ));
         break;
       },
+      bc::AOP => {
+        match compound_assignment(a[ip+1],a[ip+2],env, sp, &mut stack) {
+          Ok(())=>{}, Err(e)=>{exception=Err(e); break;}
+        }
+        sp-=3;
+        ip+=BCAASIZE;
+      },
       bc::HALT => {
         state.sp=sp;
         return Ok(());
@@ -3038,13 +3153,13 @@ impl<'a> Env<'a>{
     &self.env.rte
   }
 
-  pub fn eval_string(&mut self, s: &str, id: &str, gtab: Rc<RefCell<Map>>)
+  pub fn eval_string(&mut self, s: &str, id: &str, gtab: Rc<RefCell<Map>>, value: compiler::Value)
     -> Result<Object,Box<Exception>>
   {
     let mut history = system::History::new();
     match compiler::scan(s,1,id,false) {
       Ok(v) => {
-        match compiler::compile(v,false,&mut history,id,self.rte()) {
+        match compiler::compile(v,false,value,&mut history,id,self.rte()) {
           Ok(module) => {
             return eval(self,module.clone(),gtab.clone(),false);
           },
@@ -3074,7 +3189,9 @@ impl<'a> Env<'a>{
       match compiler::scan(&input,1,"command line",false) {
         Ok(v) => {
           // compiler::print_vtoken(&v);
-          match compiler::compile(v,true,&mut history,"command line",self.rte()) {
+          match compiler::compile(
+            v,true,compiler::Value::Optional,&mut history,"command line",self.rte()
+          ){
             Ok(module) => {
               match eval(self,module.clone(),gtab.clone(),true) {
                 Ok(x) => {}, Err(e) => {print_exception(&e);}
@@ -3092,14 +3209,14 @@ impl<'a> Env<'a>{
 
   pub fn eval(&mut self, s: &str) -> Object {
     let gtab = Map::new();
-    return match self.eval_string(s,"",gtab) {
+    return match self.eval_string(s,"",gtab,compiler::Value::Optional) {
       Ok(x) => x,
       Err(e) => e.value
     };
   }
 
   pub fn eval_env(&mut self, s: &str, gtab: Rc<RefCell<Map>>) -> Object {
-    return match self.eval_string(s,"",gtab) {
+    return match self.eval_string(s,"",gtab,compiler::Value::Optional) {
       Ok(x) => x,
       Err(e) => e.value
     };    
@@ -3123,7 +3240,7 @@ impl<'a> Env<'a>{
     let mut s = String::new();
     f.read_to_string(&mut s).expect("something went wrong reading the file");
 
-    match self.eval_string(&s,id,gtab) {
+    match self.eval_string(&s,id,gtab,compiler::Value::Optional) {
       Ok(x) => {}, Err(e) => {print_exception(&e);}
     }
   }

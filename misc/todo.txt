@@ -1,7 +1,6 @@
 
 = TODO LIST =
 == Interpreter kernel ==
-* error objects
 * load a module only once, then Rc::clone
 * delete temporary variables after use
 * coroutines
@@ -54,5 +53,8 @@
 == Interpreter kernel ==
 * format strings
 * try-catch
+* exception objects
+
+
 
 
