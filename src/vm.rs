@@ -2092,7 +2092,8 @@ pub struct RTE{
   pub argv: RefCell<Option<Rc<RefCell<List>>>>,
   pub gtab: Rc<RefCell<Map>>,
   pub pgtab: RefCell<Rc<RefCell<Map>>>,
-  pub delay: RefCell<Vec<Rc<RefCell<Map>>>>
+  pub delay: RefCell<Vec<Rc<RefCell<Map>>>>,
+  pub module_table: Rc<RefCell<Map>>
 }
 
 impl RTE{
@@ -2114,7 +2115,8 @@ impl RTE{
       argv: RefCell::new(None),
       gtab: Map::new(),
       pgtab: RefCell::new(Map::new()),
-      delay: RefCell::new(Vec::new())
+      delay: RefCell::new(Vec::new()),
+      module_table: Map::new()
     })
   }
   pub fn clear_at_exit(&self, gtab: Rc<RefCell<Map>>){

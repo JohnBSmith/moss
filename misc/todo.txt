@@ -1,7 +1,7 @@
 
 = TODO LIST =
 == Interpreter kernel ==
-* load a module only once, then Rc::clone
+* floating point range to list
 * delete temporary variables after use
 * coroutines
 * continuations
@@ -54,6 +54,7 @@
 * format strings
 * try-catch
 * exception objects
+* load a module only once, then Rc::clone
 
 
 

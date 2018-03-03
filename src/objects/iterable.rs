@@ -19,20 +19,41 @@ pub fn iter(env: &Env, x: &Object) -> FnResult{
         Object::Int(a)=>a,
         _ => {return env.type_error("Type error in iter(a..b): a is not an integer.");}
       };
+      let d = match r.step {
+        Object::Null => 1,
+        Object::Int(x)=>x,
+        _ => return env.type_error1(
+          "Type error in iter(a..b: d): d is not an integer.",
+          "d",&r.step)
+      };
+      if d==0 {
+        return env.value_error("Value error in iter(a..b: d): d==0.");
+      }
       let f: Box<FnMut(&mut Env,&Object,&[Object])->FnResult> = match r.b {
         Object::Int(b) => {
-          Box::new(move |env: &mut Env, pself: &Object, argv: &[Object]| -> FnResult{
-            return if a<=b {
-              a+=1;
-              Ok(Object::Int(a-1))
-            }else{
-              Ok(Object::Empty)
-            }
-          })
+          if d<0 {
+            Box::new(move |env: &mut Env, pself: &Object, argv: &[Object]| -> FnResult{
+              return if a>=b {
+                a+=d;
+                Ok(Object::Int(a-d))
+              }else{
+                Ok(Object::Empty)
+              }
+            })
+          }else{
+            Box::new(move |env: &mut Env, pself: &Object, argv: &[Object]| -> FnResult{
+              return if a<=b {
+                a+=d;
+                Ok(Object::Int(a-d))
+              }else{
+                Ok(Object::Empty)
+              }
+            })
+          }
         },
         Object::Null => {
           Box::new(move |env: &mut Env, pself: &Object, argv: &[Object]| -> FnResult{
-            a+=1; Ok(Object::Int(a-1))
+            a+=d; Ok(Object::Int(a-d))
           })
         },
         _ => {return env.type_error("Type error in iter(a..b): b is not an integer.");}

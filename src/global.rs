@@ -205,22 +205,30 @@ fn load_file(env: &mut Env, id: &str) -> FnResult {
   }
 }
 
-fn load(env: &mut Env, s: &U32String) -> FnResult{
-  let s: String = s.v.iter().collect();
-  if s=="math" {
-    return Ok(::math::load_math());
-  }else if s=="cmath" {
-    return Ok(::math::load_cmath());
-  }else if s=="sys" {
-    return Ok(::sys::load_sys(env.rte()));
-  }else if s=="la" {
-    return Ok(::la::load_la());
-  }else if s=="sf" {
-    return Ok(::sf::load_sf());
-  }else{
-    return load_file(env,&s);
-    // return index_error(&format!("Could not load module '{}'.",s));
+fn load(env: &mut Env, id: Rc<U32String>, hot_plug: bool) -> FnResult{
+  if !hot_plug {
+    let m = env.rte().module_table.borrow();
+    if let Some(value) = m.m.get(&Object::String(id.clone())) {
+      return Ok(value.clone());
+    }
   }
+  let s: String = id.v.iter().collect();
+  let y = match &s[..] {
+    "math"  => ::math::load_math(),
+    "cmath" => ::math::load_cmath(),
+    "sys"   => ::sys::load_sys(env.rte()),
+    "la"    => ::la::load_la(),
+    "sf"    => ::sf::load_sf(),    
+    _ => {
+      try!(load_file(env,&s))
+      // return index_error(&format!("Could not load module '{}'.",s));
+    }
+  };
+  if !hot_plug {
+    let mut m = env.rte().module_table.borrow_mut();
+    m.m.insert(Object::String(id),y.clone());
+  }
+  return Ok(y);
 }
 
 fn fload(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
@@ -228,7 +236,7 @@ fn fload(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
     return env.argc_error(argv.len(),1,1,"load");
   }
   match argv[0] {
-    Object::String(ref s) => load(env,s),
+    Object::String(ref s) => load(env,s.clone(),false),
     _ => env.type_error1(
       "Type error in load(id): id is not a string.",
       "id",&argv[0])
@@ -326,11 +334,23 @@ pub fn list(env: &mut Env, obj: &Object) -> FnResult {
           "Type error in list(a..b): b is not an integer.",
           "b",&r.b)
       };
-      let mut n = b-a+1;
+      let d = match r.step {
+        Object::Null => 1,
+        Object::Int(x)=>x,
+        _ => return env.type_error1(
+          "Type error in list(a..b: d): d is not an integer.",
+          "d",&r.step)
+      };
+      if d==0 {
+        return env.value_error("Value error in list(a..b: d): d==0.");
+      }
+      let mut n = (b-a)/d+1;
       if n<0 {n=0;}
       let mut v: Vec<Object> = Vec::with_capacity(n as usize);
-      for i in a..b+1 {
-        v.push(Object::Int(i));
+      let mut k = a;
+      for i in 0..n {
+        v.push(Object::Int(k));
+        k+=d;
       }
       Ok(List::new_object(v))
     },
