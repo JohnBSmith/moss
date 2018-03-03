@@ -433,6 +433,36 @@ fn atan2(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
   }
 }
 
+fn isnan(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
+  if argv.len() != 1 {
+    return env.argc_error(argv.len(),1,1,"isnan");
+  }
+  match argv[0] {
+    Object::Int(x) => {
+      Ok(Object::Bool(false))
+    },
+    Object::Float(x) => {
+      Ok(Object::Bool(x.is_nan()))
+    },
+    _ => env.type_error("Type error in isnan(x): x is not a number.")
+  }
+}
+
+fn isinf(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
+  if argv.len() != 1 {
+    return env.argc_error(argv.len(),1,1,"isinf");
+  }
+  match argv[0] {
+    Object::Int(x) => {
+      Ok(Object::Bool(false))
+    },
+    Object::Float(x) => {
+      Ok(Object::Bool(x.is_infinite()))
+    },
+    _ => env.type_error("Type error in isinf(x): x is not a number.")
+  }
+}
+
 fn re(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
   if argv.len() != 1 {
     return env.argc_error(argv.len(),1,1,"re");
@@ -673,6 +703,8 @@ pub fn load_math() -> Object {
     m.insert_fn_plain("gamma",fgamma,1,1);
     m.insert_fn_plain("hypot",hypot,2,2);
     m.insert_fn_plain("atan2",atan2,2,2);
+    m.insert_fn_plain("isnan",isnan,1,1);
+    m.insert_fn_plain("isinf",isinf,1,1);
   }
   return Object::Table(Rc::new(math));
 }

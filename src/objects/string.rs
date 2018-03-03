@@ -16,6 +16,10 @@ fn isalpha(c: char) -> bool {
   ('a' as u32)<=c && c<=('z' as u32)
 }
 
+fn isspace(c: char) -> bool {
+  c==' ' || c=='\t' || c=='\n'
+}
+
 fn fisdigit(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
   match argv.len() {
     0 => {}, n => return env.argc_error(n,0,0,"isdigit")
@@ -43,6 +47,21 @@ fn fisalpha(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
       return Ok(Object::Bool(true));
     },
     _ => env.type_error("Type error in s.isalpha(): s is not a string.")
+  }
+}
+
+fn fisspace(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+  match argv.len() {
+    0 => {}, n => return env.argc_error(n,0,0,"isspace")
+  }
+  match *pself {
+    Object::String(ref s) => {
+      for c in &s.v {
+        if !isspace(*c) {return Ok(Object::Bool(false));}
+      }
+      return Ok(Object::Bool(true));
+    },
+    _ => env.type_error("Type error in s.isspace(): s is not a string.")
   }
 }
 
@@ -129,10 +148,23 @@ fn rjust(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
   return Ok(U32String::new_object(v));
 }
 
+pub fn duplicate(s: &[char], n: i32) -> Object {
+  if n<0 {
+    return U32String::new_object_str("");
+  }else{
+    let mut v: Vec<char> = Vec::with_capacity(n as usize*s.len());
+    for _ in 0..n {
+      v.extend_from_slice(&s);
+    }
+    return U32String::new_object(v);
+  }
+}
+
 pub fn init(t: &Table){
   let mut m = t.map.borrow_mut();
   m.insert_fn_plain("isdigit",fisdigit,0,0);
   m.insert_fn_plain("isalpha",fisalpha,0,0);
+  m.insert_fn_plain("isspace",fisspace,0,0);
   m.insert_fn_plain("ljust",ljust,1,2);
   m.insert_fn_plain("rjust",rjust,1,2);
 }

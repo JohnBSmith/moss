@@ -361,6 +361,9 @@ pub fn list(env: &mut Env, obj: &Object) -> FnResult {
       let v: Vec<Object> = m.borrow().m.keys().cloned().collect();
       Ok(List::new_object(v))
     },
+    Object::Function(ref f) => {
+      return ::iterable::to_list(env,obj,&[]);
+    },
     _ => env.type_error1(
       "Type error in list(x): cannot convert x into a list.",
       "x",obj)

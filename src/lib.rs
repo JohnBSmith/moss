@@ -6,6 +6,7 @@
 pub const STACK_SIZE: usize = 4000;
 pub const FRAME_STACK_SIZE: usize = 200;
 
+// Assert size of usize is at least 32 bit.
 
 #[path = "system/system.rs"]
 mod system;

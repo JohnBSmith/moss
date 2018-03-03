@@ -809,6 +809,7 @@ fn operator_minus(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> Operato
 }
 
 fn operator_mpy(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorResult {
+  'string: loop{
   'r: loop{
   match stack[sp-2] {
     Object::Int(x) => {
@@ -827,6 +828,9 @@ fn operator_mpy(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorR
         Object::Complex(y) => {
           stack[sp-2] = Object::Complex(x as f64*y);
           Ok(())
+        },
+        Object::String(_) => {
+          break 'string;
         },
         _ => {break 'r;}
       };
@@ -868,6 +872,14 @@ fn operator_mpy(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorR
     _ => {}
   }
   return match stack[sp-2].clone() {
+    Object::String(s) => {
+      let n = match stack[sp-1] {
+        Object::Int(i) => i,
+        _ => {break 'r;}
+      };
+      stack[sp-2] = ::string::duplicate(&s.v,n);
+      Ok(())
+    }
     Object::Interface(a) => {
       let b = replace(&mut stack[sp-1],Object::Null);
       match a.mpy(&b,&mut Env{env: env, sp: sp, stack: stack}) {
@@ -898,6 +910,17 @@ fn operator_mpy(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorR
       ))
     }
   };
+  } // 'string
+  let n = match stack[sp-2] {
+    Object::Int(i) => i,
+    _ => panic!()
+  };
+  let s = match replace(&mut stack[sp-1],Object::Null) {
+    Object::String(s) => s,
+    _ => panic!()
+  };
+  stack[sp-2] = ::string::duplicate(&s.v,n);
+  return Ok(());
 }
 
 fn operator_div(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorResult {
@@ -1479,7 +1502,7 @@ fn operator_is(sp: usize, stack: &mut [Object]) -> OperatorResult {
     _ => {
       stack[sp-1] = Object::Null;
       stack[sp-2] = Object::Bool(false);
-      Ok(())       
+      Ok(())
     }
   }
 }
@@ -1529,31 +1552,56 @@ fn operator_of(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorRe
   match replace(&mut stack[sp-2],Object::Null) {
     Object::String(x) => {
       value = match type_obj {
-        Object::Table(ref t) => Rc::ptr_eq(t,&env.rte.type_string),
+        Object::Table(ref t) => {
+          Rc::ptr_eq(t,&env.rte.type_string) ||
+          Rc::ptr_eq(t,&env.rte.type_iterable)
+        },
         _ => false
       };
     },
     Object::List(x) => {
       value = match type_obj {
-        Object::Table(ref t) => Rc::ptr_eq(t,&env.rte.type_list),
+        Object::Table(ref t) => {
+          Rc::ptr_eq(t,&env.rte.type_list) ||
+          Rc::ptr_eq(t,&env.rte.type_iterable)
+        },
         _ => false
       };
     },
     Object::Function(x) => {
       value = match type_obj {
-        Object::Table(ref t) => Rc::ptr_eq(t,&env.rte.type_function),
+        Object::Table(ref t) => {
+          Rc::ptr_eq(t,&env.rte.type_function) ||
+          Rc::ptr_eq(t,&env.rte.type_iterable)
+        },
         _ => false
       };
     },
     Object::Table(x) => {
-      value = match type_obj {
-        Object::Table(ref t) => {
-          stack[sp-2] = x.prototype.clone();
-          stack[sp-1] = type_obj.clone();
-          return operator_is(sp,stack);
+      let t = match type_obj {
+        Object::Table(t)=>t,
+        _ => {
+          value = false;
+          break 'ret;
         }
-        _ => false
       };
+      let mut p = &x.prototype;
+      loop{
+        match *p {
+          Object::Table(ref pt) => {
+            if Rc::ptr_eq(pt,&t) {
+              value = true;
+              break 'ret;
+            }else{
+              p = &pt.prototype;
+            }
+          },
+          _ => {
+            value = false;
+            break 'ret;
+          }
+        }
+      }
     },
     _ => {value = false;}
   }
@@ -1566,17 +1614,40 @@ fn operator_of(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorRe
 fn operator_in(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorResult {
   let key = replace(&mut stack[sp-2],Object::Null);
   match replace(&mut stack[sp-1],Object::Null) {
-    Object::List(ref a) => {
+    Object::List(a) => {
       for x in &a.borrow().v {
         if key==*x {
-          stack[sp-2]=Object::Bool(true);
+          stack[sp-2] = Object::Bool(true);
           return Ok(())
         };
       }
       stack[sp-2] = Object::Bool(false);
       return Ok(());
     },
-    Object::Map(ref m) => {
+    Object::String(s) => {
+      let c = match key {
+        Object::String(cs) => {
+          if cs.v.len()==1 {cs.v[0]}
+          else{
+            return Err(env.rte.value_error_plain("Value error in 'c in s': size(c)!=1."));
+          }
+        },
+        _ => {
+          return Err(env.rte.type_error1_plain(
+            "Type error in 'c in s': s is a string, but c is not.", "c", &key
+          ));
+        }
+      };
+      for x in &s.v {
+        if c==*x {
+          stack[sp-2] = Object::Bool(true);
+          return Ok(());
+        }
+      }
+      stack[sp-2] = Object::Bool(false);
+      return Ok(());
+    },
+    Object::Map(m) => {
       if m.borrow().m.contains_key(&key) {
         stack[sp-2] = Object::Bool(true);
       }else{
@@ -1585,7 +1656,7 @@ fn operator_in(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorRe
       return Ok(());
     },
     a => Err(env.rte.type_error1_plain(
-      "Type error in x in a: a is not a list and not a map.", "a", &a
+      "Type error in 'x in a': expected a to be of type List, String or Map.", "a", &a
     ))
   }
 }
@@ -1684,6 +1755,60 @@ fn operator_index(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> Operato
         x => Err(env.rte.type_error2_plain(
           "Type error in a[i]: i is not an integer.",
           "a","i",&stack[sp-2],&x))
+      }
+    },
+    Object::String(s) => {
+      if let Object::Int(i) = stack[sp-1] {
+        let index = if i<0 {
+          let iplus = i+(s.v.len() as i32);
+          if iplus<0 {
+            return Err(env.rte.index_error_plain(&format!("Error in s[i]: i=={} is out of lower bound.",i)));          
+          }else{
+            iplus as usize
+          }
+        }else{
+          i as usize
+        };
+        stack[sp-2] = match s.v.get(index) {
+          Some(c) => U32String::new_object_char(*c),
+          None => {
+            return Err(env.rte.index_error_plain(&format!(
+              "Error in s[i]: i=={} is out of upper bound, size(s)=={}.",
+              i, s.v.len()
+            )));
+          }
+        };
+        return Ok(());
+      }
+      match replace(&mut stack[sp-1],Object::Null) {
+        Object::Range(r) => {
+          let n = s.v.len() as i32;
+          let i = match r.a {
+            Object::Int(x)=>x,
+            Object::Null=>0,
+            _ => return Err(env.rte.type_error1_plain(
+              "Type error in s[i..j]: i is not an integer.",
+              "i",&r.a))
+          };
+          let j = match r.b {
+            Object::Int(x)=>x,
+            Object::Null=>n-1,
+            _ => return Err(env.rte.type_error1_plain(
+              "Type error in s[i..j]: j is not an integer.",
+              "j",&r.b))
+          };
+          let mut v: Vec<char> = Vec::new();
+          for k in i..j+1 {
+            if 0<=k && k<n {
+              v.push(s.v[k as usize]);
+            }
+          }
+          stack[sp-2] = U32String::new_object(v);
+          Ok(())
+        },
+        x => Err(env.rte.type_error2_plain(
+          "Type error in s[i]: i is not an integer.",
+          "s","i",&stack[sp-2],&x))
       }
     },
     Object::Map(m) => {

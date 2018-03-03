@@ -76,6 +76,9 @@ impl U32String{
   pub fn new_object_str(s: &str) -> Object{
     return Object::String(Rc::new(U32String{v: s.chars().collect()}));
   }
+  pub fn new_object_char(c: char) -> Object{
+    return Object::String(Rc::new(U32String{v: vec![c]}));
+  }
 }
 
 pub struct List{

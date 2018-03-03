@@ -1,0 +1,398 @@
+
+# data = json.load(json_string)
+# json_string = json.dump(data)
+# json.dump(data,{trim,nan})
+# trim: no whitespace
+# nan: allow NaN and Infinity
+
+use math: isnan, isinf
+
+Bracket = object()
+Sep = object()
+mode_nan=null
+
+keyword_tab = {
+  "null": [null,null],
+  "true": [Bool,true],
+  "false": [Bool,false],
+  "NaN": [Float,math.nan],
+  "Infinity": [Float,math.inf]
+}
+
+escape_tab = {
+  "n": "\n",
+  "r": "\x0d",
+  "t": "\t",
+  "b": "\x08",
+  "f": "\x0c",
+  "\b": "\b",
+  "\d": "\d",
+  "/": "/"
+}
+
+json_repr_tab = {
+  "\n": "\bn",
+  "\t": "\bt",
+  "\d": "\b\d",
+  "\x0d": "\br",
+  "\x08": "\bb",
+  "\x0c": "\bf",
+  "\b": "\b\b"
+}
+
+sub syntax_error(line,col,s)
+  raise "Line {}, col {}\nSyntax error: {}"%[line+1,col+1,s]
+end
+
+sub encode_escape(s)
+  if '\b' in s
+    a=[]
+    sequence=false
+    unicode=false
+    for c in s
+      if sequence
+        sequence=false
+        a.push(escape_tab[c])
+      elif c=='\b'
+        sequence=true
+      else
+        a.push(c)
+      end
+    end
+    return a.join()
+  else
+    return s
+  end
+end
+
+sub scan(s)
+  i=0
+  n=size(s)
+  a=[]
+  line=0; col=0
+  negate=false
+  while i<n
+    c=s[i]
+    if c.isdigit()
+      j=i; hcol=col
+      f=false
+      while i<n
+        if s[i] in '.Ee'
+          f=true
+        elif not s[i].isdigit()
+          break
+        end
+        i++; col++
+      end
+      x = (float if f else int)(s[j..i-1])
+      if negate
+        negate=false
+        x=-x
+      end
+      a.push([Float if f else Int,x,line,hcol])
+    elif c.isalpha()
+      j=i; hcol=col
+      while i<n and s[i].isalpha()
+        i++; col++
+      end
+      w = s[j..i-1]
+      if w in keyword_tab
+        T,value = keyword_tab[w]
+        if T is Float and negate
+          negate=false
+          value=-value
+        end
+        a.push([T,value,line,hcol])
+      else
+        raise ("Line {}, col {}\nSyntax error:\s"+
+          "unexpected identifier '{}'.")%[line+1,col+1,w]
+      end
+    elif c in "{}[]"
+      a.push([Bracket,c,line,col])
+      i++; col++
+    elif c in ",:"
+      a.push([Sep,c,line,col])
+      i++; col++
+    elif c=='"'
+      hcol=col
+      i++; col++; j=i
+      while i<n
+        if s[i]=='\b'
+          i+=2; col+=2
+        elif s[i]=='"'
+          break
+        else
+          i++; col++
+        end
+      end
+      a.push([String,s[j..i-1],line,hcol])
+      i++; col++
+    elif c.isspace()
+      if c=='\n'
+        line++; col=0
+      else
+        col++
+      end
+      i++
+    elif c=='-'
+      i++; col++
+      negate = not negate
+    else
+      raise ("Line {}, col {}\nSyntax error:\s"+
+        "unexpected character '{}'.")%[line+1,col+1,c]
+    end
+  end
+  return a
+end
+
+sub get_token(i)
+  n,a=i
+  if n>=size(a)
+    if size(a)>0
+      syntax_error(a[-1][2],a[-1][3],"expected a token.")
+    else
+      syntax_error(-1,-1,"expected a token.")
+    end
+  else
+    return a[n]
+  end
+end
+
+sub atom(x)
+  if x[0] is Int or x[0] is Float
+    return x[1]
+  elif x[0] is String
+    return encode_escape(x[1])
+  elif x[0] is Bool or x[0] is null
+    return x[1]
+  else
+    syntax_error(x[2],x[3],"unknown atom.")
+  end
+end
+
+sub list_literal(i)
+  a=[]
+  x = get_token(i)
+  if x[0] is Bracket and x[1]==']'
+    i[0]++
+    return a
+  end
+  while true
+    t = expression(i)
+    a.push(t)
+    x = get_token(i)
+    if x[0] is Sep and x[1]==','
+      i[0]++
+      continue
+    elif x[0] is Bracket and x[1]==']'
+      i[0]++
+      break
+    else
+      syntax_error(x[2],x[3],"expected ',' or ']'.")
+    end
+  end
+  return a
+end
+
+sub map_literal(i)
+  d={}
+  x = get_token(i)
+  if x[0] is Bracket and x[1]=='}'
+    i[0]++
+    return d
+  end
+  while true
+    key = expression(i)
+    x = get_token(i)
+    if not x[0] is Sep or x[1]!=':'
+      syntax_error(x[2],x[3],"expected ':'.")
+    end
+    i[0]++
+    value = expression(i)
+    d[key]=value
+    x = get_token(i)
+    if x[0] is Sep and x[1]==','
+      i[0]++
+      continue
+    elif x[0] is Bracket and x[1]=='}'
+      i[0]++
+      break
+    else
+      syntax_error(x[2],x[3],"expected ',' or '}'.")
+    end
+  end
+  return d
+end
+
+sub expression(i)
+  x = get_token(i)
+  if x[0] is Bracket
+    if x[1]=='['
+      i[0]++
+      return list_literal(i)
+    elif x[1]=='{'
+      i[0]++
+      return map_literal(i)
+    end
+  else
+    i[0]++
+    return atom(x)
+  end
+end
+
+sub load(s)
+  a = scan(s)
+  i = [0,a]
+  return expression(i)
+end
+
+sub is_atomic(a)
+  a.all(sub|x|
+    T = type(x)
+    return not(T is List or T is Map) or size(x)==0
+  end)
+end
+
+sub json_str_repr(s)
+  a=["\d"]
+  for c in s
+    if c in json_repr_tab
+      a.push(json_repr_tab[c])
+    else
+      a.push(c)
+    end
+  end
+  a.push("\d")
+  return a.join()
+end
+
+sub json_float_repr(x)
+  if isnan(x)
+    return "NaN" if mode_nan else "\dNaN\d"
+  elif isinf(x)
+    if x<0
+      return "-Infinity" if mode_nan else "\d-Infinity\d"
+    else
+      return "Infinity" if mode_nan else "\dInfinity\d"
+    end
+  else
+    return str(x)
+  end
+end
+
+sub dump_rec(a,n,x)
+  T = type(x)
+  if T is Int or T is Bool or T is null
+    a.push(x)
+  elif T is Float
+    a.push(json_float_repr(x))
+  elif T is String
+    a.push(json_str_repr(x))
+  elif T is List
+    m = size(x)
+    if is_atomic(x)
+      a.push("[")
+      for i in 0..m-2
+        dump_rec(a,0,x[i])
+        a.push(",\s")
+      end
+      if m>0
+        dump_rec(a,0,x[-1])
+      end
+      a.push("]")
+    else
+      a.push("[\n")
+      for i in 0..m-2
+        a.push("\s"*(n+2))
+        dump_rec(a,n+2,x[i])
+        a.push(",\n")
+      end
+      if m>0
+        a.push("\s"*(n+2))
+        dump_rec(a,n+2,x[-1])
+        a.push("\n")
+      end
+      a.push("\s"*n,"]")
+    end
+  elif T is Map
+    if size(x)==0
+      a.push("{}")
+      return null
+    end
+    a.push("{\n")
+    x = list(x.items()).sort(|t| str(t[0]))
+    m = size(x)
+    for i in 0..m-2
+      a.push("\s"*(n+2))
+      dump_rec(a,n+2,str(x[i][0]))
+      a.push(":\s")
+      dump_rec(a,n+2,x[i][1])
+      a.push(",\n")
+    end
+    if m>0
+      a.push("\s"*(n+2))
+      dump_rec(a,n+2,str(x[-1][0]))
+      a.push(":\s")
+      dump_rec(a,n+2,x[-1][1])
+      a.push("\n")
+    end
+    a.push("\s"*n,"}")
+  else
+    a.push("\dobject\d")
+  end
+end
+
+sub dump_rec_compressed(a,x)
+  T = type(x)
+  if T is Int or T is Bool or T is null
+    a.push(x)
+  elif T is Float
+    a.push(json_float_repr(x))
+  elif T is String
+    a.push(json_str_repr(x))
+  elif T is List
+    m = size(x)
+    a.push("[")
+    for i in 0..m-2
+      dump_rec_compressed(a,x[i])
+      a.push(",")
+    end
+    if m>0
+      dump_rec_compressed(a,x[-1])
+    end
+    a.push("]")
+  elif T is Map
+    a.push("{")
+    x = list(x).sort(|t| str(t[0]))
+    m = size(x)
+    for i in 0..m-2
+      dump_rec_compressed(a,str(x[i][0]))
+      a.push(":")
+      dump_rec_compressed(a,x[i][1])
+      a.push(",")
+    end
+    if m>0
+      dump_rec_compressed(a,str(x[-1][0]))
+      a.push(":")
+      dump_rec_compressed(a,x[-1][1])
+    end
+    a.push("}")
+  else
+    a.push("\dobject\d")
+  end
+end
+
+sub dump(x,*argv)
+  t = argv[0] if size(argv)!=0 else {}
+  global mode_nan
+  mode_nan = "nan" in t
+  a=[]
+  if "trim" in t
+    dump_rec_compressed(a,x)
+  else
+    dump_rec(a,0,x)
+  end
+  return a.join()
+end
+
+

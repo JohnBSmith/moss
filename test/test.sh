@@ -4,4 +4,4 @@ alias moss-test="../target/debug/moss"
 
 moss-test test
 moss-test test-sudoku
-
+moss-test test-json

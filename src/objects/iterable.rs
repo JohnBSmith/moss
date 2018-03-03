@@ -135,7 +135,7 @@ fn list_comprehension(env: &mut Env, i: &Object, f: &Object) -> FnResult {
   Ok(List::new_object(v))
 }
 
-fn to_list(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+pub fn to_list(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
   let i = &try!(iter(env,pself));
   match argv.len() {
     0 => {
