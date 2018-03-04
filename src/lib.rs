@@ -59,7 +59,7 @@ use std::rc::Rc;
 use std::cell::RefCell;
 // use std::fs::File;
 // use std::io::Read;
-use object::{Object, List, Map, U32String};
+use object::{Object, List, Map, U32String, FnResult};
 use vm::{RTE,State,EnvPart,Frame, get_env};
 
 pub struct Interpreter{
@@ -101,11 +101,23 @@ impl Interpreter{
     let mut env = get_env(&mut state);
     return env.eval_file(id,gtab);
   }
+  
+  pub fn eval(&self, s: &str) -> Object {
+    let mut state = &mut *self.state.borrow_mut();
+    let mut env = get_env(&mut state);
+    return env.eval(s);  
+  }
 
   pub fn command_line_session(&self, gtab: Rc<RefCell<Map>>){
     let mut state = &mut *self.state.borrow_mut();
     let mut env = get_env(&mut state);
     env.command_line_session(gtab);
+  }
+
+  pub fn call(&self, f: &Object, pself: &Object, argv: &[Object]) -> FnResult {
+    let mut state = &mut *self.state.borrow_mut();
+    let mut env = get_env(&mut state);
+    return env.call(f,pself,argv);
   }
 }
 

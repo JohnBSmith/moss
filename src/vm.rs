@@ -443,7 +443,14 @@ pub fn object_to_string(x: &Object) -> String{
       }
     },
     Object::Range(ref r) => {
-      format!("{}..{}",object_to_string(&r.a),object_to_string(&r.b))
+      match r.step {
+        Object::Null => {
+          format!("{}..{}",object_to_string(&r.a),object_to_string(&r.b))
+        },
+        ref step => {
+          format!("{}..{}: {}",object_to_string(&r.a),object_to_string(&r.b),object_to_string(step))
+        }
+      }
     },
     Object::Tuple(ref t) => {
       tuple_to_string(&t)
@@ -1730,15 +1737,15 @@ fn operator_index(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> Operato
         Object::Range(r) => {
           let n = a.v.len() as i32;
           let i = match r.a {
-            Object::Int(x)=>x,
-            Object::Null=>0,
+            Object::Int(x) => if x<0 {x+n} else {x},
+            Object::Null => 0,
             _ => return Err(env.rte.type_error1_plain(
               "Type error in a[i..j]: i is not an integer.",
               "i",&r.a))
           };
           let j = match r.b {
-            Object::Int(x)=>x,
-            Object::Null=>n-1,
+            Object::Int(x) => if x< -1 {x+n} else {x},
+            Object::Null => n-1,
             _ => return Err(env.rte.type_error1_plain(
               "Type error in a[i..j]: j is not an integer.",
               "j",&r.b))
@@ -1784,15 +1791,15 @@ fn operator_index(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> Operato
         Object::Range(r) => {
           let n = s.v.len() as i32;
           let i = match r.a {
-            Object::Int(x)=>x,
-            Object::Null=>0,
+            Object::Int(x) => if x<0 {x+n} else {x},
+            Object::Null => 0,
             _ => return Err(env.rte.type_error1_plain(
               "Type error in s[i..j]: i is not an integer.",
               "i",&r.a))
           };
           let j = match r.b {
-            Object::Int(x)=>x,
-            Object::Null=>n-1,
+            Object::Int(x) => if x< -1 {x+n} else{x},
+            Object::Null => n-1,
             _ => return Err(env.rte.type_error1_plain(
               "Type error in s[i..j]: j is not an integer.",
               "j",&r.b))

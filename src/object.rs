@@ -9,7 +9,8 @@ use std::any::Any;
 use std::ops;
 
 use complex::Complex64;
-use vm::{Module,Env};
+use vm::Module;
+pub use vm::Env;
 
 pub enum Object{
   Null,

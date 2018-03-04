@@ -4,7 +4,7 @@
 use std::rc::Rc;
 use std::cell::RefCell;
 use vm::{object_to_string, object_to_repr, RTE, Env};
-use object::{Object, Map, Table, List,
+use object::{Object, Map, Table, List, Range,
   FnResult, U32String, Function, EnumFunction,
   VARIADIC, new_module, Exception,
 };
@@ -309,6 +309,40 @@ fn ftype(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
   }
 }
 
+fn float_range_to_list(env: &mut Env, r: &Range) -> FnResult {
+  let a = match r.a {
+    Object::Int(x) => x as f64,
+    Object::Float(x) => x,
+    _ => return env.type_error1(
+      "Type error in list(a..b): a is not of type Float.",
+      "a",&r.a)
+  };
+  let b = match r.b {
+    Object::Int(x) => x as f64,
+    Object::Float(x) => x,
+    _ => return env.type_error1(
+      "Type error in list(a..b): b is not of type Float.",
+      "b",&r.b)
+  };
+  let d = match r.step {
+    Object::Null => 1.0,
+    Object::Int(x) => x as f64,
+    Object::Float(x) => x,
+    _ => return env.type_error1(
+      "Type error in list(a..b: d): d is not of type Float.",
+      "d",&r.step)
+  };
+
+  let q = (b-a)/d;
+  let n = if q<0.0 {0} else {(q+0.001) as usize+1};
+
+  let mut v: Vec<Object> = Vec::with_capacity(n);
+  for k in 0..n {
+    v.push(Object::Float(a+k as f64*d));
+  }
+  return Ok(List::new_object(v));
+}
+
 pub fn list(env: &mut Env, obj: &Object) -> FnResult {
   match *obj {
     Object::Int(n) => {
@@ -324,12 +358,18 @@ pub fn list(env: &mut Env, obj: &Object) -> FnResult {
     Object::Range(ref r) => {
       let a = match r.a {
         Object::Int(x)=>x,
+        Object::Float(x) => {
+          return float_range_to_list(env,r);
+        },
         _ => return env.type_error1(
           "Type error in list(a..b): a is not an integer.",
           "a",&r.a)
       };
       let b = match r.b {
         Object::Int(x)=>x,
+        Object::Float(x) => {
+          return float_range_to_list(env,r);
+        },
         _ => return env.type_error1(
           "Type error in list(a..b): b is not an integer.",
           "b",&r.b)
@@ -337,6 +377,9 @@ pub fn list(env: &mut Env, obj: &Object) -> FnResult {
       let d = match r.step {
         Object::Null => 1,
         Object::Int(x)=>x,
+        Object::Float(x) => {
+          return float_range_to_list(env,r);
+        },
         _ => return env.type_error1(
           "Type error in list(a..b: d): d is not an integer.",
           "d",&r.step)

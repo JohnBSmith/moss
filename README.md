@@ -1,4 +1,9 @@
 
+[Home](https://johnbsmith.github.io/moss/home.htm)
+| [Rust-Moss examples](doc/md/Examples.md)
+| [Language](https://johnbsmith.github.io/moss/doc/Tutorial.htm)
+| [Lib](https://johnbsmith.github.io/moss/doc/Library.htm)
+
 # Experimental Moss interpreter in Rust
 
 Experimental interpreter for the dynamic programming language Moss.
@@ -15,14 +20,13 @@ use moss::object::Object;
 
 fn main(){
     let i = moss::Interpreter::new();
-    let x = i.eval("
+    let x = i.eval(r#"
         f = |n| 1 if n==0 else n*f(n-1)
         f(4)
-    ");
+    "#);
     if let Object::Int(x) = x {
         println!("{}",x);
     }
 }
 ```
-
 
