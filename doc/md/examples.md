@@ -33,7 +33,7 @@ use moss::object::{Object,Function,FnResult,Env};
 fn new_i32_to_i32(f: fn(i32)->i32) -> Object {
     let fp = move |_env: &mut Env, _pself: &Object, argv: &[Object]| -> FnResult {
         match argv[0] {
-            Object::Int(n) => {Ok(Object::Int(f(n)))},
+            Object::Int(n) => Ok(Object::Int(f(n))),
             _ => panic!()
         }
     };
@@ -69,10 +69,10 @@ impl I32TOI32 for Rc<moss::Interpreter> {
         let i = self.clone();
         let fobj = i.eval(f);
         return Box::new(move |x: i32| -> i32 {
-            return match i.call(&fobj,&Object::Null,&[Object::Int(x)]) {
+            match i.call(&fobj,&Object::Null,&[Object::Int(x)]) {
                 Ok(y) => match y {Object::Int(y) => y, _ => panic!()},
                 Err(_) => panic!()
-            };
+            }
         });
     }
 }
