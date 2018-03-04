@@ -1,6 +1,11 @@
 
 # Examples
 
+**Table of contents**
+1. [Minimal working example](#minimal-working-example)
+2. [Calling a Rust function from Moss](#calling-a-rust-function-from-moss)
+3. [Calling a Moss function from Rust](#calling-a-moss-function-from-rust)
+
 ## Minimal working example
 
 ```rust
