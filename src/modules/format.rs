@@ -2,7 +2,7 @@
 #![allow(unused_imports)]
 
 use object::{Object, FnResult, U32String, Exception};
-use vm::Env;
+use vm::{Env, call_str};
 
 fn get(env: &Env, a: &Object, i: usize) -> FnResult {
   match *a {
@@ -106,7 +106,7 @@ fn apply_fmt(buffer: &mut String, fmt: &Fmt, x: &Object) {
   }
 }
 
-pub fn u32string_format(env: &Env, s: &U32String, a: &Object) -> FnResult {
+pub fn u32string_format(env: &mut Env, s: &U32String, a: &Object) -> FnResult {
   let mut buffer = "".to_string();
   let mut index: usize = 0;
   let mut i: usize = 0;
@@ -143,7 +143,15 @@ pub fn u32string_format(env: &Env, s: &U32String, a: &Object) -> FnResult {
         while i<n && v[i]==' ' {i+=1;}
         if i<n && v[i]==':' {i+=1;}
         i = try!(obtain_fmt(&mut fmt,v,i));
-        apply_fmt(&mut buffer,&fmt,&x);
+        if let Some(y) = call_str(env,&x) {
+          if let Ok(value) = y {
+            apply_fmt(&mut buffer,&fmt,&value);
+          }else{
+            return y;
+          }
+        }else{
+          apply_fmt(&mut buffer,&fmt,&x);
+        }
         while i<n && v[i]==' ' {i+=1;}
         if i<n && v[i]=='}' {i+=1;}
       }

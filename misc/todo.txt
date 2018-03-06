@@ -1,7 +1,8 @@
 
 = TODO LIST =
 == Interpreter kernel ==
-* operator overloading
+* compare trait method pointer
+* str() in Interface::to_string
 * delete temporary variables after use
 * coroutines
 * continuations
@@ -56,6 +57,7 @@
 * exception objects
 * load a module only once, then Rc::clone
 * floating point range to list
+* operator overloading
 
 
 

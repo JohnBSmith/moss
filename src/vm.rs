@@ -475,6 +475,17 @@ pub fn object_to_string(x: &Object) -> String{
   }
 }
 
+pub fn call_str(env: &mut Env, x: &Object) -> Option<FnResult> {
+  if let Object::Table(ref t) = *x {
+    if let Object::Table(ref pt) = t.prototype {
+      if let Some(f) = pt.get(&env.rte().key_string) {
+        return Some(env.call(&f,x,&[]));
+      }
+    }
+  }
+  return None;
+}
+
 fn string_to_repr(s: &U32String) -> String{
   let mut buffer = "\"".to_string();
   for c in &s.v {
@@ -560,13 +571,26 @@ fn operator_neg(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorR
     _ => {}
   }
   match replace(&mut stack[sp-1],Object::Null) {
+    Object::Table(t) => {
+      match t.get(&env.rte.key_neg) {
+        Some(ref f) => {
+          match (Env{env,sp,stack}).call(f,&Object::Table(t),&[]) {
+            Ok(y) => {stack[sp-1] = y; Ok(())},
+            Err(e) => Err(e)
+          }
+        },
+        None => {
+          Err(env.rte.type_error1_plain("Type error in -x.","x",&Object::Table(t)))
+        }
+      }
+    },
     Object::Interface(x) => {
       match x.neg(&mut Env{env: env, sp: sp, stack: stack}) {
         Ok(y) => {stack[sp-1] = y; Ok(())},
         Err(e) => Err(e)
       }
     },
-    x => Err(env.rte.type_error1_plain("Type error in -a.","a",&x))
+    x => Err(env.rte.type_error1_plain("Type error in -x.","x",&x))
   }
 }
 
@@ -672,13 +696,23 @@ fn operator_plus(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> Operator
         _ => {break 'r;}
       }
     },
+    Object::Table(a) => {
+      match a.get(&env.rte.key_plus) {
+        Some(ref f) => {
+          let x = replace(&mut stack[sp-2],Object::Null);
+          let y = replace(&mut stack[sp-1],Object::Null);
+          match (Env{env,sp,stack}).call(f,&x,&[y]) {
+            Ok(y) => {stack[sp-2] = y; Ok(())},
+            Err(e) => Err(e)
+          }
+        },
+        None => {break 'r;}
+      }
+    },
     Object::Interface(a) => {
       let b = replace(&mut stack[sp-1],Object::Null);
       match a.add(&b,&mut Env{env: env, sp: sp, stack: stack}) {
-        Ok(y) => {
-          stack[sp-2] = y;
-          Ok(())
-        },
+        Ok(y) => {stack[sp-2] = y; Ok(())},
         Err(e) => Err(e)
       }
     },
@@ -689,17 +723,30 @@ fn operator_plus(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> Operator
     Object::Interface(a) => {
       let b = replace(&mut stack[sp-2],Object::Null);
       match a.radd(&b,&mut Env{env: env, sp: sp, stack: stack}) {
-        Ok(y) => {
-          stack[sp-2] = y;
-          Ok(())
-        },
+        Ok(y) => {stack[sp-2] = y; Ok(())},
         Err(e) => Err(e)
       }      
     },
+    Object::Table(a) => {
+      match a.get(&env.rte.key_rplus) {
+        Some(ref f) => {
+          let x = replace(&mut stack[sp-2],Object::Null);
+          match (Env{env,sp,stack}).call(f,&x,&[Object::Table(a)]) {
+            Ok(y) => {stack[sp-2] = y; Ok(())},
+            Err(e) => Err(e)
+          }
+        },
+        None => {
+          Err(env.rte.type_error2_plain(
+            "Type error in x+y.","x","y",&stack[sp-2],&Object::Table(a)
+          ))   
+        }
+      }
+    },
     a => {
-      return Err(env.rte.type_error2_plain(
-        "Type error in a+b.","a","b",&stack[sp-2],&a
-      ));
+      Err(env.rte.type_error2_plain(
+        "Type error in x+y.","x","y",&stack[sp-2],&a
+      ))
     }
   }
 }
@@ -783,6 +830,19 @@ fn operator_minus(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> Operato
         _ => {break 'r;}
       }
     },
+    Object::Table(a) => {
+      match a.get(&env.rte.key_minus) {
+        Some(ref f) => {
+          let x = replace(&mut stack[sp-2],Object::Null);
+          let y = replace(&mut stack[sp-1],Object::Null);
+          match (Env{env,sp,stack}).call(f,&x,&[y]) {
+            Ok(y) => {stack[sp-2] = y; Ok(())},
+            Err(e) => Err(e)
+          }
+        },
+        None => {break 'r;}
+      }
+    },
     Object::Interface(a) => {
       let b = replace(&mut stack[sp-1],Object::Null);
       match a.sub(&b,&mut Env{env: env, sp: sp, stack: stack}) {
@@ -805,12 +865,28 @@ fn operator_minus(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> Operato
           Ok(())
         },
         Err(e) => Err(e)
-      }      
+      }
+    },
+    Object::Table(a) => {
+      match a.get(&env.rte.key_rminus) {
+        Some(ref f) => {
+          let x = replace(&mut stack[sp-2],Object::Null);
+          match (Env{env,sp,stack}).call(f,&x,&[Object::Table(a)]) {
+            Ok(y) => {stack[sp-2] = y; Ok(())},
+            Err(e) => Err(e)
+          }
+        },
+        None => {
+          Err(env.rte.type_error2_plain(
+            "Type error in x-y.","x","y",&stack[sp-2],&Object::Table(a)
+          ))   
+        }
+      }
     },
     a => {
-      return Err(env.rte.type_error2_plain(
+      Err(env.rte.type_error2_plain(
         "Type error in x-y.","x","y",&stack[sp-2],&a
-      ));
+      ))
     }
   }
 }
@@ -886,7 +962,20 @@ fn operator_mpy(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorR
       };
       stack[sp-2] = ::string::duplicate(&s.v,n);
       Ok(())
-    }
+    },
+    Object::Table(a) => {
+      match a.get(&env.rte.key_mpy) {
+        Some(ref f) => {
+          let x = replace(&mut stack[sp-2],Object::Null);
+          let y = replace(&mut stack[sp-1],Object::Null);
+          match (Env{env,sp,stack}).call(f,&x,&[y]) {
+            Ok(y) => {stack[sp-2] = y; Ok(())},
+            Err(e) => Err(e)
+          }
+        },
+        None => {break 'r;}
+      }
+    },
     Object::Interface(a) => {
       let b = replace(&mut stack[sp-1],Object::Null);
       match a.mpy(&b,&mut Env{env: env, sp: sp, stack: stack}) {
@@ -910,6 +999,22 @@ fn operator_mpy(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorR
         },
         Err(e) => Err(e)
       }      
+    },
+    Object::Table(a) => {
+      match a.get(&env.rte.key_rmpy) {
+        Some(ref f) => {
+          let x = replace(&mut stack[sp-2],Object::Null);
+          match (Env{env,sp,stack}).call(f,&x,&[Object::Table(a)]) {
+            Ok(y) => {stack[sp-2] = y; Ok(())},
+            Err(e) => Err(e)
+          }
+        },
+        None => {
+          Err(env.rte.type_error2_plain(
+            "Type error in x*y.","x","y",&stack[sp-2],&Object::Table(a)
+          ))   
+        }
+      }
     },
     a => {
       Err(env.rte.type_error2_plain(
@@ -986,11 +1091,63 @@ fn operator_div(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorR
     },
     _ => {}
   }
-  break 'r;
+  return match stack[sp-2].clone() {
+    Object::Table(a) => {
+      match a.get(&env.rte.key_div) {
+        Some(ref f) => {
+          let x = replace(&mut stack[sp-2],Object::Null);
+          let y = replace(&mut stack[sp-1],Object::Null);
+          match (Env{env,sp,stack}).call(f,&x,&[y]) {
+            Ok(y) => {stack[sp-2] = y; Ok(())},
+            Err(e) => Err(e)
+          }
+        },
+        None => {break 'r;}
+      }
+    },
+    Object::Interface(a) => {
+      let b = replace(&mut stack[sp-1],Object::Null);
+      match a.div(&b,&mut Env{env: env, sp: sp, stack: stack}) {
+        Ok(y) => {
+          stack[sp-2] = y;
+          Ok(())
+        },
+        Err(e) => Err(e)
+      }    
+    },
+    _ => {break 'r;}
+  };
   } // 'r
-  return Err(env.rte.type_error2_plain(
-    "Type error in x/y.","x","y",&stack[sp-2],&stack[sp-1]
-  ));
+  match replace(&mut stack[sp-1],Object::Null) {
+    Object::Interface(a) => {
+      let b = replace(&mut stack[sp-2],Object::Null);
+      match a.rdiv(&b,&mut Env{env: env, sp: sp, stack: stack}) {
+        Ok(y) => {stack[sp-2] = y; Ok(())},
+        Err(e) => Err(e)
+      }      
+    },
+    Object::Table(a) => {
+      match a.get(&env.rte.key_rdiv) {
+        Some(ref f) => {
+          let x = replace(&mut stack[sp-2],Object::Null);
+          match (Env{env,sp,stack}).call(f,&x,&[Object::Table(a)]) {
+            Ok(y) => {stack[sp-2] = y; Ok(())},
+            Err(e) => Err(e)
+          }
+        },
+        None => {
+          Err(env.rte.type_error2_plain(
+            "Type error in x/y.","x","y",&stack[sp-2],&Object::Table(a)
+          ))   
+        }
+      }
+    },
+    a => {
+      Err(env.rte.type_error2_plain(
+        "Type error in x/y.","x","y",&stack[sp-2],&a
+      ))
+    }
+  }
 }
 
 fn operator_idiv(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorResult {
@@ -1044,6 +1201,19 @@ fn operator_mod(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorR
     _ => {}
   }
   return match stack[sp-2].clone() {
+    Object::Table(a) => {
+      match a.get(&U32String::new_object_str("mod")) {
+        Some(ref f) => {
+          let x = replace(&mut stack[sp-2],Object::Null);
+          let y = replace(&mut stack[sp-1],Object::Null);
+          match (Env{env,sp,stack}).call(f,&x,&[y]) {
+            Ok(y) => {stack[sp-2] = y; Ok(())},
+            Err(e) => Err(e)
+          }
+        },
+        None => {break 'r;}
+      }
+    },
     Object::Interface(a) => {
       let b = replace(&mut stack[sp-1],Object::Null);
       match a.imod(&b,&mut Env{env: env, sp: sp, stack: stack}) {
@@ -1053,7 +1223,7 @@ fn operator_mod(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorR
     },
     Object::String(s) => {
       let a = replace(&mut stack[sp-1],Object::Null);
-      match u32string_format(&Env{env: env, sp: sp, stack: stack},&s,&a) {
+      match u32string_format(&mut Env{env: env, sp: sp, stack: stack},&s,&a) {
         Ok(y) => {stack[sp-2]=y; Ok(())},
         Err(e) => Err(e)
       }
@@ -1140,6 +1310,19 @@ fn operator_pow(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorR
     _ => {}
   }
   return match stack[sp-2].clone() {
+    Object::Table(a) => {
+      match a.get(&env.rte.key_pow) {
+        Some(ref f) => {
+          let x = replace(&mut stack[sp-2],Object::Null);
+          let y = replace(&mut stack[sp-1],Object::Null);
+          match (Env{env,sp,stack}).call(f,&x,&[y]) {
+            Ok(y) => {stack[sp-2] = y; Ok(())},
+            Err(e) => Err(e)
+          }
+        },
+        None => {break 'r;}
+      }
+    },
     Object::Interface(a) => {
       let b = replace(&mut stack[sp-1],Object::Null);
       match a.pow(&b,&mut Env{env: env, sp: sp, stack: stack}) {
@@ -1150,9 +1333,36 @@ fn operator_pow(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorR
     _ => {break 'r;}
   };
   } // 'r
-  return Err(env.rte.type_error2_plain(
-    "Type error in x^y.","x","y",&stack[sp-2],&stack[sp-1]
-  ));
+  match replace(&mut stack[sp-1],Object::Null) {
+    Object::Interface(a) => {
+      let b = replace(&mut stack[sp-2],Object::Null);
+      match a.rpow(&b,&mut Env{env: env, sp: sp, stack: stack}) {
+        Ok(y) => {stack[sp-2] = y; Ok(())},
+        Err(e) => Err(e)
+      }      
+    },
+    Object::Table(a) => {
+      match a.get(&env.rte.key_rpow) {
+        Some(ref f) => {
+          let x = replace(&mut stack[sp-2],Object::Null);
+          match (Env{env,sp,stack}).call(f,&x,&[Object::Table(a)]) {
+            Ok(y) => {stack[sp-2] = y; Ok(())},
+            Err(e) => Err(e)
+          }
+        },
+        None => {
+          Err(env.rte.type_error2_plain(
+            "Type error in x^y.","x","y",&stack[sp-2],&Object::Table(a)
+          ))   
+        }
+      }
+    },
+    a => {
+      Err(env.rte.type_error2_plain(
+        "Type error in x^y.","x","y",&stack[sp-2],&a
+      ))
+    }
+  }
 }
 
 fn operator_band(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorResult {
@@ -1892,13 +2102,22 @@ fn index_assignment(env: &EnvPart, sp: usize, stack: &mut [Object]) -> OperatorR
 fn operator_dot(sp: usize, stack: &mut [Object], module: &Module) -> OperatorResult {
   match stack[sp-2].clone() {
     Object::Table(t) => {
-      match t.map.borrow().m.get(&stack[sp-1]) {
-        Some(x) => {
-          stack[sp-2] = x.clone();
-          stack[sp-1] = Object::Null;
-          return Ok(());
-        },
-        None => {}
+      let mut p = &t;
+      loop{
+        match p.map.borrow().m.get(&stack[sp-1]) {
+          Some(x) => {
+            stack[sp-2] = x.clone();
+            stack[sp-1] = Object::Null;
+            return Ok(());
+          },
+          None => {
+            if let Object::Table(ref pt) = p.prototype {
+              p = pt;
+            }else{
+              break;
+            }
+          }
+        }
       }
     },
     Object::List(a) => {
@@ -1988,13 +2207,13 @@ fn operator_dot(sp: usize, stack: &mut [Object], module: &Module) -> OperatorRes
       }      
     },
     x => return Err(module.rte.type_error1_plain(
-      "Type error in x.m: x is not a table.",
+      "Type error in t.m: t is not a table.",
       "x",&x
     ))
   }
   let key = stack[sp-1].to_string();
   return Err(module.rte.index_error_plain(&format!(
-    "Index error in x.{0}: '{0}' not in property chain.", key
+    "Index error in t.{0}: '{0}' not in property chain.", key
   )));
 }
 
@@ -2225,7 +2444,20 @@ pub struct RTE{
   pub gtab: Rc<RefCell<Map>>,
   pub pgtab: RefCell<Rc<RefCell<Map>>>,
   pub delay: RefCell<Vec<Rc<RefCell<Map>>>>,
-  pub module_table: Rc<RefCell<Map>>
+  pub module_table: Rc<RefCell<Map>>,
+
+  pub key_string: Object,
+  pub key_neg: Object,
+  pub key_plus: Object,
+  pub key_rplus: Object,
+  pub key_minus: Object,
+  pub key_rminus: Object,
+  pub key_mpy: Object,
+  pub key_rmpy: Object,
+  pub key_div: Object,
+  pub key_rdiv: Object,
+  pub key_pow: Object,
+  pub key_rpow: Object
 }
 
 impl RTE{
@@ -2248,7 +2480,20 @@ impl RTE{
       gtab: Map::new(),
       pgtab: RefCell::new(Map::new()),
       delay: RefCell::new(Vec::new()),
-      module_table: Map::new()
+      module_table: Map::new(),
+
+      key_string: U32String::new_object_str("string"),
+      key_neg:    U32String::new_object_str("neg"),
+      key_plus:   U32String::new_object_str("plus"),
+      key_rplus:  U32String::new_object_str("rplus"),
+      key_minus:  U32String::new_object_str("minus"),
+      key_rminus: U32String::new_object_str("rminus"),
+      key_mpy:    U32String::new_object_str("mpy"),
+      key_rmpy:   U32String::new_object_str("rmpy"),
+      key_div:    U32String::new_object_str("div"),
+      key_rdiv:   U32String::new_object_str("rdiv"),
+      key_pow:    U32String::new_object_str("pow"),
+      key_rpow:   U32String::new_object_str("rpow")
     })
   }
   pub fn clear_at_exit(&self, gtab: Rc<RefCell<Map>>){
@@ -3107,11 +3352,19 @@ pub fn eval(env: &mut Env,
   let sp = env.sp;
 
   let y = if command_line {
+    let env = &mut Env{env: env.env, sp, stack};
     for i in bp..sp {
-      match stack[i] {
+      match env.stack[i].clone() {
         Object::Null => {},
-        ref x => {
-          println!("{}",x.repr());
+        x => {
+          if let Some(y) = call_str(env,&x) {
+            match y {
+              Ok(value) => {println!("{}",value);},
+              Err(e) => {println!("{}",e.value);}
+            }
+          }else{
+            println!("{}",x.repr());
+          }
         }
       }
     }

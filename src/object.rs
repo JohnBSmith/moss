@@ -239,6 +239,20 @@ impl Table{
   pub fn new(prototype: Object) -> Rc<Table> {
     Rc::new(Table{prototype: prototype, map: Map::new()})
   }
+  pub fn get(&self, key: &Object) -> Option<Object> {
+    let mut p = self;
+    loop{
+      match p.map.borrow_mut().m.get(key) {
+        Some(value) => {return Some(value.clone());},
+        None => {
+          p = match p.prototype {
+            Object::Table(ref t) => t,
+            _ => {return None;}
+          }
+        }
+      }
+    }
+  }
 }
 
 pub fn new_module(id: &str) -> Table{

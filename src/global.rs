@@ -3,7 +3,7 @@
 
 use std::rc::Rc;
 use std::cell::RefCell;
-use vm::{object_to_string, object_to_repr, RTE, Env};
+use vm::{object_to_string, object_to_repr, call_str, RTE, Env};
 use object::{Object, Map, Table, List, Range,
   FnResult, U32String, Function, EnumFunction,
   VARIADIC, new_module, Exception,
@@ -45,7 +45,15 @@ pub fn fpanic(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
 
 pub fn print(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
   for i in 0..argv.len() {
-    print!("{}",object_to_string(&argv[i]));
+    if let Some(y) = call_str(env,&argv[i]) {
+      if let Ok(value) = y {
+        print!("{}",value);
+      }else{
+        return y;
+      }
+    }else{
+      print!("{}",&argv[i]);
+    }
   }
   println!();
   return Ok(Object::Null);
@@ -53,7 +61,15 @@ pub fn print(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
 
 pub fn put(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
   for i in 0..argv.len() {
-    print!("{}",object_to_string(&argv[0]));
+    if let Some(y) = call_str(env,&argv[i]) {
+      if let Ok(value) = y {
+        print!("{}",value);
+      }else{
+        return y;
+      }
+    }else{
+      print!("{}",&argv[i]);
+    }
   }
   return Ok(Object::Null);
 }
@@ -76,9 +92,22 @@ fn float_to_string(env: &Env, x: &Object, fmt: &Object, precision: &Object) -> F
     return env.value_error("Value error in str(x,fmt,precision): size(fmt)!=1.");
   }
   let s = match fmt[0] {
-    'f' => {format!("{:.*}",n,x)},
-    'e' => {format!("{:.*e}",n,x)},
-    'E' => {format!("{:.*E}",n,x)},
+    'f' => {format!("{:.*}",n,x)},  // fixed point
+    'e' => {format!("{:.*e}",n,x)}, // lower exponential
+    'E' => {format!("{:.*E}",n,x)}, // upper exponential
+    't' => { // fixed point, trimmed zeroes
+      let mut v: Vec<char> = format!("{:.*}",n,x).chars().collect();
+      loop{
+        let n = v.len();
+        if n<2 {break;}
+        if v[n-1]=='0' || v[n-1]=='.' {
+          v.pop();
+        }else{
+          break;
+        }
+      }
+      return Ok(U32String::new_object(v));
+    },
     _ => {
       return env.value_error("Value error in str(x,fmt,precision): fmt should be one of 'f', 'e', 'E'.");
     }
@@ -89,8 +118,12 @@ fn float_to_string(env: &Env, x: &Object, fmt: &Object, precision: &Object) -> F
 fn fstr(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
   match argv.len() {
     1 => {
-      let s = object_to_string(&argv[0]);
-      return Ok(U32String::new_object_str(&s));
+      if let Some(value) = call_str(env,&argv[0]) {
+        return value;
+      }else{
+        let s = object_to_string(&argv[0]);
+        return Ok(U32String::new_object_str(&s));
+      }
     },
     3 => {
       return float_to_string(env,&argv[0],&argv[1],&argv[2]);

@@ -1,0 +1,36 @@
+
+fstr = |x| str(x,"f",2)
+
+Graphics = table{
+  sub rect(x,y,h,w)
+    self.a.push('\n<rect x="{}" y="{}" width="{}" height="{}" stroke-width="0.01"/>' %
+      [x,y,h,w].map(fstr))
+  end,
+  sub line(x1,y1,x2,y2)
+    self.a.push('\n<line x1="{}" y1="{}" x2="{}" y2="{}" stroke="black" stroke-width="0.01"/>' %
+      [x1,y1,x2,y2].map(fstr))
+  end,
+  sub flush
+    self.a.join("",head%[self.w,self.h],foot)
+  end
+}
+
+sub system(d={})
+  {w=100, h=100} = d
+  return table Graphics{a=[], w=w, h=h}
+end
+
+
+head = """\
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" height="{}" width="{}">\
+<g transform="translate(0,100) scale(100,-100)">\
+"""
+
+foot = """
+</g>
+</svg>
+"""
+
+
+
