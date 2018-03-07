@@ -9,7 +9,7 @@ use vm::Env;
 use global::list;
 use std::cmp::Ordering;
 
-pub fn iter(env: &Env, x: &Object) -> FnResult{
+pub fn iter(env: &mut Env, x: &Object) -> FnResult{
   match *x {
     Object::Function(ref f) => {
       Ok(Object::Function(f.clone()))

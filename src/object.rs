@@ -31,11 +31,20 @@ pub enum Object{
 }
 
 impl Object{
-  pub fn to_string(&self) -> String {
-    ::vm::object_to_string(self)
+  pub fn string(&self, env: &mut Env) -> Result<String,Box<Exception>> {
+    ::vm::object_to_string(env,self)
   }
-  pub fn repr(&self) -> String {
-    ::vm::object_to_repr(self)
+  pub fn repr(&self, env: &mut Env) -> Result<String,Box<Exception>> {
+    ::vm::object_to_repr(env,self)
+  }
+  pub fn to_repr(&self) -> String {
+    ::vm::object_to_repr_plain(self)
+  }
+}
+
+impl ToString for Object{
+  fn to_string(&self) -> String {
+    return ::vm::object_to_string_plain(self);
   }
 }
 
@@ -57,12 +66,6 @@ impl Clone for Object{
       Object::Empty => {Object::Empty},
       Object::Interface(ref x) => {Object::Interface(x.clone())}
     }
-  }
-}
-
-impl fmt::Display for Object {
-  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-    write!(f, "{}", ::vm::object_to_string(self))
   }
 }
 
@@ -261,32 +264,32 @@ pub fn new_module(id: &str) -> Table{
 
 pub trait Interface{
   fn as_any(&self) -> &Any;
-  fn to_string(&self) -> String {
-    "interface object".to_string()
+  fn to_string(&self, env: &mut Env) -> Result<String,Box<Exception>> {
+    Ok("interface object".to_string())
   }
   fn add(&self, b: &Object, env: &mut Env) -> FnResult {
-    env.std_exception("Error: a+b is not implemented for objects of this type.")
+    Ok(Object::Table(env.rte().unimplemented.clone()))
   }
   fn radd(&self, a: &Object, env: &mut Env) -> FnResult {
-    env.std_exception("Error: a+b is not implemented for objects of this type.")
+    Ok(Object::Table(env.rte().unimplemented.clone()))
   }
   fn sub(&self, b: &Object, env: &mut Env) -> FnResult {
-    env.std_exception("Error: a-b is not implemented for objects of this type.")
+    Ok(Object::Table(env.rte().unimplemented.clone()))
   }
   fn rsub(&self, a: &Object, env: &mut Env) -> FnResult {
-    env.std_exception("Error: a-b is not implemented for objects of this type.")
+    Ok(Object::Table(env.rte().unimplemented.clone()))
   }
   fn mpy(&self, b: &Object, env: &mut Env) -> FnResult {
-    env.std_exception("Error: a*b is not implemented for objects of this type.")
+    Ok(Object::Table(env.rte().unimplemented.clone()))
   }
   fn rmpy(&self, a: &Object, env: &mut Env) -> FnResult {
-    env.std_exception("Error: a*b is not implemented for objects of this type.")
+    Ok(Object::Table(env.rte().unimplemented.clone()))
   }
   fn div(&self, b: &Object, env: &mut Env) -> FnResult {
-    env.std_exception("Error: a/b is not implemented for objects of this type.")
+    Ok(Object::Table(env.rte().unimplemented.clone()))
   }
   fn rdiv(&self, a: &Object, env: &mut Env) -> FnResult {
-    env.std_exception("Error: a/b is not implemented for objects of this type.")
+    Ok(Object::Table(env.rte().unimplemented.clone()))
   }
   fn idiv(&self, b: &Object, env: &mut Env) -> FnResult {
     env.std_exception("Error: a//b is not implemented for objects of this type.")
@@ -337,7 +340,7 @@ pub trait Interface{
   }
   
   fn neg(&self, env: &mut Env) -> FnResult {
-    env.std_exception("Error: -a is not implemented for objects of this type.")
+    Ok(Object::Table(env.rte().unimplemented.clone()))
   }
   
   fn abs(&self, env: &mut Env) -> FnResult {

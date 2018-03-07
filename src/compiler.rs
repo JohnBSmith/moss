@@ -3676,7 +3676,7 @@ fn print_asm_listing(a: &[u32]){
 fn print_data(a: &[Object]){
   println!("Data");
   for i in 0..a.len() {
-    println!("[{}]: {}",i,::vm::object_to_repr(&a[i]));
+    println!("[{}]: {}",i,a[i].to_repr());
   }
   if a.len()==0 {
     println!("empty\n");

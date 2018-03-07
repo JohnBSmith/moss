@@ -11,7 +11,7 @@ use std::ptr::null;
 
 use std::rc::Rc;
 use std::any::Any;
-use object::{Object, FnResult, Function, Interface};
+use object::{Object, FnResult, Function, Interface, Exception};
 use vm::{Env, op_add, op_sub, op_mpy, op_div};
 
 #[repr(C)]
@@ -265,8 +265,8 @@ impl Interface for Long {
   fn type_name(&self) -> String {
     "Long".to_string()
   }
-  fn to_string(&self) -> String {
-    self.value.to_string()
+  fn to_string(&self, env: &mut Env) -> Result<String,Box<Exception>> {
+    Ok(self.value.to_string())
   }
 
   fn add(&self, b: &Object, env: &mut Env) -> FnResult {

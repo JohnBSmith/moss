@@ -60,7 +60,7 @@ use std::cell::RefCell;
 // use std::fs::File;
 // use std::io::Read;
 use object::{Object, List, Map, U32String, FnResult};
-use vm::{RTE,State,EnvPart,Frame, get_env};
+use vm::{RTE,State,EnvPart,Frame, get_env, print_exception};
 
 pub struct Interpreter{
   pub rte: Rc<RTE>,
@@ -118,6 +118,18 @@ impl Interpreter{
     let mut state = &mut *self.state.borrow_mut();
     let mut env = get_env(&mut state);
     return env.call(f,pself,argv);
+  }
+  
+  pub fn repr(&self, x: &Object) -> String {
+    let mut state = &mut *self.state.borrow_mut();
+    let mut env = get_env(&mut state);
+    match x.repr(&mut env) {
+      Ok(s)=>s,
+      Err(e)=>{
+        print_exception(&mut env,&e);
+        "[exception in Interpreter::repr, see stdout]".to_string()
+      }
+    }
   }
 }
 

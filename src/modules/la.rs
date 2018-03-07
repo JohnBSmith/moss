@@ -5,7 +5,7 @@
 
 use std::rc::Rc;
 use std::any::Any;
-use object::{Object, FnResult, Function, Interface, new_module};
+use object::{Object, FnResult, Function, Interface, Exception, new_module};
 use vm::{Env, op_add, op_sub, op_mpy, op_div};
 
 struct ShapeStride{
@@ -43,7 +43,7 @@ impl Interface for Array {
   fn type_name(&self) -> String {
     "Array".to_string()
   }
-  fn to_string(&self) -> String {
+  fn to_string(&self, env: &mut Env) -> Result<String,Box<Exception>> {
     if self.n==1 {
       let mut s = "vector(".to_string();
       let mut first = true;
@@ -52,12 +52,11 @@ impl Interface for Array {
       for i in 0..self.s[0].shape {
         if first {first = false;}
         else {s.push_str(", ");}
-        s.push_str(&self.a[
-          (base as isize+i as isize*stride) as usize
-        ].repr());
+        let x = &self.a[(base as isize+i as isize*stride) as usize];
+        s.push_str(&try!(x.repr(env)));
       }
       s.push_str(")");
-      return s;
+      return Ok(s);
     }else{
       panic!();
     }
@@ -139,6 +138,9 @@ impl Interface for Array {
     }else{
       panic!();
     }
+  }
+  fn mpy(&self, b: &Object, env: &mut Env) -> FnResult {
+    return self.rmpy(b,env);
   }
 }
 

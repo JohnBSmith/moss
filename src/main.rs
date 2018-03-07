@@ -120,7 +120,7 @@ fn main(){
   }else if let Some(ref cmd) = info.cmd {
     let x = i.eval_env(cmd,gtab);
     if x != Object::Null {
-      println!("{}",x);
+      println!("{}",i.repr(&x));
     }
   }else{
     i.command_line_session(gtab);

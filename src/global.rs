@@ -3,7 +3,7 @@
 
 use std::rc::Rc;
 use std::cell::RefCell;
-use vm::{object_to_string, object_to_repr, call_str, RTE, Env};
+use vm::{object_to_string, object_to_repr, RTE, Env};
 use object::{Object, Map, Table, List, Range,
   FnResult, U32String, Function, EnumFunction,
   VARIADIC, new_module, Exception,
@@ -45,15 +45,7 @@ pub fn fpanic(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
 
 pub fn print(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
   for i in 0..argv.len() {
-    if let Some(y) = call_str(env,&argv[i]) {
-      if let Ok(value) = y {
-        print!("{}",value);
-      }else{
-        return y;
-      }
-    }else{
-      print!("{}",&argv[i]);
-    }
+    print!("{}",try!(argv[i].string(env)));
   }
   println!();
   return Ok(Object::Null);
@@ -61,15 +53,7 @@ pub fn print(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
 
 pub fn put(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
   for i in 0..argv.len() {
-    if let Some(y) = call_str(env,&argv[i]) {
-      if let Ok(value) = y {
-        print!("{}",value);
-      }else{
-        return y;
-      }
-    }else{
-      print!("{}",&argv[i]);
-    }
+    print!("{}",try!(argv[i].string(env)));
   }
   return Ok(Object::Null);
 }
@@ -118,12 +102,8 @@ fn float_to_string(env: &Env, x: &Object, fmt: &Object, precision: &Object) -> F
 fn fstr(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
   match argv.len() {
     1 => {
-      if let Some(value) = call_str(env,&argv[0]) {
-        return value;
-      }else{
-        let s = object_to_string(&argv[0]);
-        return Ok(U32String::new_object_str(&s));
-      }
+      let s = try!(argv[0].string(env));
+      return Ok(U32String::new_object_str(&s));
     },
     3 => {
       return float_to_string(env,&argv[0],&argv[1],&argv[2]);
@@ -135,10 +115,10 @@ fn fstr(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
 }
 
 fn repr(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
-  if argv.len() != 1 {
-    return env.argc_error(argv.len(),1,1,"repr");
+  match argv.len() {
+    1=>{}, n=>{return env.argc_error(n,1,1,"repr");}
   }
-  let s = object_to_repr(&argv[0]);
+  let s = try!(argv[0].repr(env));
   return Ok(U32String::new_object_str(&s));
 }
 
@@ -580,7 +560,7 @@ fn input(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
         if let Object::List(ref a) = argv[1] {
           let mut h = History::new();
           for x in &a.borrow().v {
-            h.append(&x.to_string());
+            h.append(&try!(x.string(env)));
           }
           match ::system::getline_history(&prompt,&h) {
             Ok(s)=>s, Err(e) => return env.std_exception("Error in input(): could not obtain input.")

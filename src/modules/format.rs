@@ -2,7 +2,7 @@
 #![allow(unused_imports)]
 
 use object::{Object, FnResult, U32String, Exception};
-use vm::{Env, call_str};
+use vm::Env;
 
 fn get(env: &Env, a: &Object, i: usize) -> FnResult {
   match *a {
@@ -85,8 +85,11 @@ fn obtain_fmt(fmt: &mut Fmt, v: &[char], mut i: usize) -> Result<usize,Box<Excep
   return Ok(i);
 }
 
-fn apply_fmt(buffer: &mut String, fmt: &Fmt, x: &Object) {
-  let s = x.to_string();
+fn apply_fmt(env: &mut Env, buffer: &mut String,
+  fmt: &Fmt, x: &Object
+) -> Result<(),Box<Exception>>
+{
+  let s = try!(x.string(env));
   match fmt.space {
     Space::Left(value) => {
       buffer.push_str(&s);
@@ -104,6 +107,7 @@ fn apply_fmt(buffer: &mut String, fmt: &Fmt, x: &Object) {
       buffer.push_str(&s);
     }
   }
+  return Ok(());
 }
 
 pub fn u32string_format(env: &mut Env, s: &U32String, a: &Object) -> FnResult {
@@ -143,15 +147,7 @@ pub fn u32string_format(env: &mut Env, s: &U32String, a: &Object) -> FnResult {
         while i<n && v[i]==' ' {i+=1;}
         if i<n && v[i]==':' {i+=1;}
         i = try!(obtain_fmt(&mut fmt,v,i));
-        if let Some(y) = call_str(env,&x) {
-          if let Ok(value) = y {
-            apply_fmt(&mut buffer,&fmt,&value);
-          }else{
-            return y;
-          }
-        }else{
-          apply_fmt(&mut buffer,&fmt,&x);
-        }
+        try!(apply_fmt(env,&mut buffer,&fmt,&x));
         while i<n && v[i]==' ' {i+=1;}
         if i<n && v[i]=='}' {i+=1;}
       }
