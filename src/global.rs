@@ -230,7 +230,7 @@ fn load(env: &mut Env, id: Rc<U32String>, hot_plug: bool) -> FnResult{
     "math"  => ::math::load_math(),
     "cmath" => ::math::load_cmath(),
     "sys"   => ::sys::load_sys(env.rte()),
-    "la"    => ::la::load_la(),
+    "la"    => ::la::load_la(env),
     "sf"    => ::sf::load_sf(),    
     _ => {
       try!(load_file(env,&s))

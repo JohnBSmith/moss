@@ -346,6 +346,12 @@ pub trait Interface{
   fn abs(&self, env: &mut Env) -> FnResult {
     env.std_exception("Error: abs(x) is not implemented for objects of this type.")
   }
+  fn get(&self, key: &Object, env: &mut Env) -> FnResult {
+    env.std_exception("Type error in t.x: getter is not implemented for objects of this type.")
+  }
+  fn index(&self, indices: &[Object], env: &mut Env) -> FnResult {
+    env.std_exception("Type error in a[i]: indexing is not implemented for objects of this type.")  
+  }
   fn type_name(&self) -> String {
     "Interface object".to_string()
   }

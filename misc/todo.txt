@@ -1,8 +1,6 @@
 
 = TODO LIST =
 == Interpreter kernel ==
-* compare trait method pointer
-* str() in Interface::to_string
 * delete temporary variables after use
 * coroutines
 * continuations
@@ -23,9 +21,7 @@
 
 === Linear algebra ===
 * polymorphic arrays
-  * matrix multiplication
-  * scalar product
-  * absolute value of a vector
+  * array to list
 * homogeneous arrays
   * BLAS compatible interface
 
@@ -58,6 +54,13 @@
 * load a module only once, then Rc::clone
 * floating point range to list
 * operator overloading
+* multiple dispatch in operator overloading
+* env-pointer in Interface::to_string
 
+== Linear Algebra ==
+* polymorphic arrays
+  * scalar product
+  * absolute value of a vector
+  * matrix multiplication
 
 

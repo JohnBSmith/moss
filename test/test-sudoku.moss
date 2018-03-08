@@ -99,7 +99,7 @@ end
 
 sub bmain(s,L)
   a = bsolve(str_to_list(s))
-  if size(a)!=1 or list_to_str(a[0])!=L1
+  if size(a)!=1 or list_to_str(a[0])!=L
     error("#sudoku-backtracking")
   end
 end

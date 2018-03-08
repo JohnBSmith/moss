@@ -2167,6 +2167,16 @@ fn operator_index(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> Operato
         None => Err(env.index_error_plain("Index error in m[key]: key not found."))
       }
     },
+    Object::Interface(x) => {
+      let key = replace(&mut stack[sp-1],Object::Null);
+      match x.index(&[key],&mut Env{env,sp,stack}) {
+        Ok(value) => {
+          stack[sp-2] = value;
+          Ok(())
+        },
+        Err(e) => Err(e)
+      }
+    },
     a => Err(env.type_error1_plain(sp,stack,
       "Type error in a[i]: a is not index-able.",
       "a",&a))
@@ -2334,6 +2344,18 @@ fn operator_dot(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorR
         },
         None => {}
       }      
+    },
+    Object::Interface(x) => {
+      let key = replace(&mut stack[sp-1],Object::Null);
+      match x.get(&key,&mut Env{env, sp, stack}) {
+        Ok(value) => {
+          stack[sp-2] = value;
+          return Ok(());
+        },
+        Err(e) => {
+          return Err(e);
+        }
+      }
     },
     x => return Err(env.type_error1_plain(sp,stack,
       "Type error in t.m: t is not a table.",
@@ -2584,6 +2606,7 @@ pub struct RTE{
   pub pgtab: RefCell<Rc<RefCell<Map>>>,
   pub delay: RefCell<Vec<Rc<RefCell<Map>>>>,
   pub module_table: Rc<RefCell<Map>>,
+  pub interface_types: RefCell<Vec<Rc<Table>>>,
 
   pub key_string: Object,
   pub key_neg: Object,
@@ -2621,6 +2644,7 @@ impl RTE{
       pgtab: RefCell::new(Map::new()),
       delay: RefCell::new(Vec::new()),
       module_table: Map::new(),
+      interface_types: RefCell::new(Vec::new()),
 
       key_string: U32String::new_object_str("string"),
       key_neg:    U32String::new_object_str("neg"),
