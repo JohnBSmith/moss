@@ -11,8 +11,10 @@ use object::{Object, Map, Table, List, Range,
 use rand::Rand;
 use iterable::iter;
 use std::collections::HashMap;
+use std::str::FromStr;
 use system::{History};
 use compiler::Value;
+use long::Long;
 
 pub fn type_name(x: &Object) -> String {
   loop{
@@ -535,8 +537,31 @@ fn fint(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     Object::String(ref s) => Ok(Object::Int(stoi(&s.v))),
     _ => env.type_error1(
       "Type error in int(x): cannot convert x to int.",
-      "x",&argv[0])
+      "x", &argv[0])
   }
+}
+
+fn float(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+  match argv.len() {
+    1 => {}, n => return env.argc_error(n,1,1,"float")
+  }
+  match argv[0] {
+    Object::Int(n) => return Ok(Object::Float(n as f64)),
+    Object::Float(x) => return Ok(Object::Float(x)),
+    Object::String(ref s) => {
+      return match f64::from_str(&s.v.iter().collect::<String>()) {
+        Ok(value) => Ok(Object::Float(value)),
+        Err(_) => env.value_error("Value error: parse error in float(s).")
+      }
+    },
+    _ => {}
+  }
+  if let Some(b) = Long::downcast(&argv[0]) {
+    return Ok(Object::Float(b.as_f64()));
+  }
+  env.type_error1(
+    "Type error in float(x): cannot convert x to float.",
+    "x", &argv[0])
 }
 
 fn input(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
@@ -611,6 +636,7 @@ pub fn init_rte(rte: &RTE){
   gtab.insert_fn_plain("put",put,0,VARIADIC);
   gtab.insert_fn_plain("str",fstr,1,1);
   gtab.insert_fn_plain("int",fint,1,1);
+  gtab.insert_fn_plain("float",float,1,1);
   gtab.insert_fn_plain("repr",repr,1,1);
   gtab.insert_fn_plain("input",input,0,2);
   gtab.insert_fn_plain("abs",abs,1,1);

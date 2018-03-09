@@ -425,6 +425,37 @@ fn table_to_string(env: &mut Env, t: &Rc<Table>) -> Result<String,Box<Exception>
   }
 }
 
+fn list_to_string_plain(a: &[Object]) -> String {
+  let mut s = "[".to_string();
+  for i in 0..a.len() {
+    if i != 0 {s.push_str(", ");}
+    s.push_str(&object_to_repr_plain(&a[i]));
+  }
+  s.push_str("]");
+  return s;
+}
+
+fn map_to_string_plain(a: &HashMap<Object,Object>,
+  left: &str, right: &str
+) -> String
+{
+  let mut s = left.to_string();
+  let mut first=true;
+  for (key,value) in a {
+    if first {first=false;} else{s.push_str(", ");}
+    s.push_str(&object_to_repr_plain(&key));
+    match value {
+      &Object::Null => {},
+      _ => {
+        s.push_str(": ");
+        s.push_str(&object_to_repr_plain(&value));
+      }
+    }
+  }
+  s.push_str(right);
+  return s;
+}
+
 pub fn object_to_string_plain(x: &Object) -> String {
   match *x {
     Object::Null => "null".to_string(),
@@ -432,15 +463,28 @@ pub fn object_to_string_plain(x: &Object) -> String {
     Object::Int(x) => x.to_string(),
     Object::Float(x) => float_to_string_explicit(x),
     Object::Complex(x) => complex_to_string(x),
-    Object::List(ref a) => "list".to_string(),
-    Object::Map(ref a) => "map".to_string(),
-    Object::String(ref a) => {
-      a.v.iter().cloned().collect::<String>()
+    Object::String(ref a) => a.v.iter().collect(),
+    Object::List(ref a) => {
+      match a.try_borrow_mut() {
+        Ok(a) => list_to_string_plain(&a.v),
+        Err(_) => "[...]".to_string()
+      }    
+    },
+    Object::Map(ref a) => {
+      match a.try_borrow_mut() {
+        Ok(a) => map_to_string_plain(&a.m,"{","}"),
+        Err(_) => "{...}".to_string()
+      }
     },
     Object::Function(_) => "function".to_string(),
     Object::Range(_) => "range".to_string(),
     Object::Tuple(_) => "tuple".to_string(),
-    Object::Table(_) => "object".to_string(),
+    Object::Table(ref t) => {
+      match t.map.try_borrow_mut() {
+        Ok(m) => map_to_string_plain(&m.m,"table{","}"),
+        Err(_) => "table{...}".to_string()
+      }
+    },
     Object::Empty => "empty".to_string(),
     Object::Interface(_) => "interface object".to_string()
   }
@@ -456,26 +500,23 @@ pub fn object_to_repr_plain(x: &Object) -> String {
 
 pub fn object_to_string(env: &mut Env, x: &Object) -> Result<String,Box<Exception>> {
   Ok(match *x {
-    Object::Null => String::from("null"),
-    Object::Bool(b) => String::from(if b {"true"} else {"false"}),
+    Object::Null => "null".to_string(),
+    Object::Bool(b) => (if b {"true"} else {"false"}).to_string(),
     Object::Int(i) => format!("{}",i),
     Object::Float(x) => float_to_string_explicit(x),
     Object::Complex(z) => complex_to_string(z),
+    Object::String(ref a) => a.v.iter().collect(),
     Object::List(ref a) => {
       match a.try_borrow_mut() {
         Ok(a) => {return list_to_string(env,&a.v);},
-        Err(_) => String::from("[...]")
+        Err(_) => "[...]".to_string()
       }
     },
     Object::Map(ref a) => {
       match a.try_borrow_mut() {
         Ok(a) => {return map_to_string(env,&a.m,"{","}");},
-        Err(_) => String::from("{...}")
+        Err(_) => "{...}".to_string()
       }
-    },
-    Object::String(ref a) => {
-      let s: String = a.v.iter().cloned().collect();
-      format!("{}",s)
     },
     Object::Function(ref f) => {
       match f.id {
@@ -513,7 +554,7 @@ pub fn object_to_string(env: &mut Env, x: &Object) -> Result<String,Box<Exceptio
       return table_to_string(env,&t);
     },
     Object::Empty => {
-      String::from("empty")
+      "empty".to_string()
     },
     Object::Interface(ref t) => {
       return t.to_string(env);
@@ -566,6 +607,12 @@ fn function_id_to_string(env: &mut Env, f: &Function) -> String {
       Err(e) => "[could not show: Exception in str(f.id)]".to_string()
     })
   }
+}
+
+pub fn op_neg(env: &mut Env, x: &Object) -> FnResult {
+  env.stack[env.sp] = x.clone();
+  try!(::vm::operator_neg(env.env,env.sp+1,env.stack));
+  return Ok(replace(&mut env.stack[env.sp],Object::Null));
 }
 
 pub fn op_add(env: &mut Env, x: &Object, y: &Object) -> FnResult {

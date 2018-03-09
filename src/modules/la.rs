@@ -5,9 +5,9 @@
 
 use std::rc::Rc;
 use std::any::Any;
-use object::{Object, FnResult, Function, Interface, Exception,
-  new_module, VARIADIC};
-use vm::{Env, op_add, op_sub, op_mpy, op_div};
+use object::{Object, FnResult, Function, List, Interface,
+  Exception, new_module, VARIADIC};
+use vm::{Env, op_neg, op_add, op_sub, op_mpy, op_div};
 use complex::Complex64;
 
 struct ShapeStride{
@@ -100,12 +100,24 @@ impl Interface for Array {
   }
   fn get(&self, key: &Object, env: &mut Env) -> FnResult {
     if let Object::String(ref s) = *key {
-      match s.v.len() {
-        1 => if s.v[0]=='T' {
-          return Ok(Object::Interface(transpose(self)));
+      let v = &s.v;
+      match v.len() {
+        1 => {
+          if v[0]=='T' {
+            return Ok(Object::Interface(transpose(self)));
+          }else if v[0]=='H' {
+            return Ok(Object::Interface(transpose(&conj(self))));
+          }
         },
-        4 => if s.v[0..4]==['c','o','n','j'] {
-          return Ok(Object::Interface(conj(self)));
+        3 => if v[0..3]==['a','b','s'] {
+          return abs(env,self);
+        },
+        4 => {
+          if v[0..4]==['c','o','n','j'] {
+            return Ok(Object::Interface(conj(self)));
+          }else if v[0..4]==['l','i','s','t'] {
+            return Ok(List::new_object(list(self)));
+          }
         },
         _ => {}
       }
@@ -133,83 +145,17 @@ impl Interface for Array {
       return env.index_error("Index error in a[...]: shape does not fit.");
     }
   }
+  fn neg(&self, env: &mut Env) -> FnResult {
+    map_unary_operator(self,&op_neg,'-',env)
+  }
   fn add(&self, b: &Object, env: &mut Env) -> FnResult {
-    if self.n==1 {
-      let stride = self.s[0].stride;
-      let base = self.base;
-      let mut v: Vec<Object> = Vec::with_capacity(self.s[0].shape);
-      if let Some(b) = Array::downcast(b) {
-        if b.n != 1 {
-          return env.type_error(&format!("Type error in v+w: v is a vector, but w is of order {}.",b.n));
-        }
-        if self.s[0].shape != b.s[0].shape {
-          return env.type_error("Type error in v+w: v is not of the same size as w.");
-        }
-        let stride2 = b.s[0].stride;
-        let base2 = b.base;
-        for i in 0..self.s[0].shape {
-          let y = try!(op_add(env,
-            &self.a[(base as isize+i as isize*stride) as usize],
-            &b.a[(base2 as isize+i as isize*stride2) as usize]
-          ));
-          v.push(y);
-        }
-      }else{
-        for i in 0..self.s[0].shape {
-          let y = try!(op_add(env,&self.a[(base as isize+i as isize*stride) as usize],b));
-          v.push(y);
-        }
-      }
-      return Ok(Object::Interface(Array::vector(Rc::new(v))));
-    }else{
-      panic!();
-    }
+    map_binary_operator(self,b,op_add,'+',env)
   }
   fn sub(&self, b: &Object, env: &mut Env) -> FnResult {
-    if self.n==1 {
-      let stride = self.s[0].stride;
-      let base = self.base;
-      let mut v: Vec<Object> = Vec::with_capacity(self.s[0].shape);
-      if let Some(b) = Array::downcast(b) {
-        if b.n != 1 {
-          return env.type_error(&format!("Type error in v-w: v is a vector, but w is of order {}.",b.n));
-        }
-        if self.s[0].shape != b.s[0].shape {
-          return env.type_error("Type error in v-w: v is not of the same size as w.");
-        }
-        let stride2 = b.s[0].stride;
-        let base2 = b.base;
-        for i in 0..self.s[0].shape {
-          let y = try!(op_sub(env,
-            &self.a[(base as isize+i as isize*stride) as usize],
-            &b.a[(base2 as isize+i as isize*stride2) as usize]
-          ));
-          v.push(y);
-        }
-      }else{
-        for i in 0..self.s[0].shape {
-          let y = try!(op_sub(env,&self.a[(base as isize+i as isize*stride) as usize],b));
-          v.push(y);
-        }
-      }
-      return Ok(Object::Interface(Array::vector(Rc::new(v))));
-    }else{
-      panic!();
-    }
+    map_binary_operator(self,b,op_sub,'-',env)
   }
   fn rmpy(&self, a: &Object, env: &mut Env) -> FnResult {
-    if self.n==1 {
-      let stride = self.s[0].stride;
-      let base = self.base;
-      let mut v: Vec<Object> = Vec::with_capacity(self.s[0].shape);
-      for i in 0..self.s[0].shape {
-        let y = try!(op_mpy(env,a,&self.a[(base as isize+i as isize*stride) as usize]));
-        v.push(y);
-      }
-      return Ok(Object::Interface(Array::vector(Rc::new(v))));
-    }else{
-      panic!();
-    }
+    scalar_multiplication(env,a,self)
   }
   fn mpy(&self, b: &Object, env: &mut Env) -> FnResult {
     if self.n==1 {
@@ -222,7 +168,7 @@ impl Interface for Array {
           );
         }
       }
-      return self.rmpy(b,env);
+      return scalar_multiplication(env,b,self);
     }else if self.n==2 {
       if let Some(b) = Array::downcast(b) {
         if b.n==1 {
@@ -234,13 +180,190 @@ impl Interface for Array {
               "Value error in matrix multiplication A*B:\n  A.shape[0] != B.shape[1]."
             );
           }
-          return mpy_matrix_matrix(env,self.s[0].shape,self,b);
+          let y = try!(mpy_matrix_matrix(env,self.s[0].shape,self,b));
+          if y.a.len()==1 {
+            return Ok(y.a[0].clone());
+          }else{
+            return Ok(Object::Interface(y));
+          }
         }
       }
-      return self.rmpy(b,env);
+      return scalar_multiplication(env,b,self);
     }else{
-      return self.rmpy(b,env);
+      return scalar_multiplication(env,b,self);
     }
+  }
+  fn div(&self, b: &Object, env: &mut Env) -> FnResult {
+    return scalar_division(env,self,b);
+  }
+  fn pow(&self, n: &Object, env: &mut Env) -> FnResult {
+    if self.n==2 {
+      if let Object::Int(n) = *n {
+        let n = if n>=0 {n as u32} else {
+          panic!()
+        };    
+        if self.s[0].shape != self.s[1].shape {
+          panic!();
+        }
+        let y = try!(matrix_power(env,self,n,self.s[0].shape));
+        return Ok(Object::Interface(y));
+      }else{
+        env.type_error1("Type error in A^n: n is not an integer.","n",&n)
+      }
+    }else{
+      env.type_error("Type error in A^n: A is not a matrix.")
+    }
+  }
+}
+
+fn copy_from_ref(a: &Array) -> Rc<Array> {
+  Rc::new(Array{
+    n: a.n, base: a.base,
+    s: Box::new([
+      ShapeStride{shape: a.s[0].shape, stride: a.s[0].stride},
+      ShapeStride{shape: a.s[1].shape, stride: a.s[1].stride}
+    ]),
+    a: a.a.clone()
+  })
+}
+
+fn scalar_matrix(n: usize, x: &Object, zero: &Object) -> Rc<Array> {
+  let mut v: Vec<Object> = Vec::with_capacity(n*n);
+  for i in 0..n {
+    for j in 0..n {
+      v.push(if i==j {x.clone()} else {zero.clone()});
+    }
+  }
+  return Array::matrix(n,n,Rc::new(v));
+}
+
+fn matrix_power(env: &mut Env, a: &Array, mut n: u32, size: usize) -> Result<Rc<Array>,Box<Exception>> {
+  let mut y = if n==0 {
+    return Ok(scalar_matrix(size,&Object::Int(1),&Object::Int(0)));
+  }else{
+    n-=1;
+    copy_from_ref(a)
+  };
+  let mut base = y.clone();
+  loop {
+    if n&1 == 1 {
+      y = try!(mpy_matrix_matrix(env,size,&y,&base));
+    }
+    n /= 2;
+    if n==0 {break;}
+    base = try!(mpy_matrix_matrix(env,size,&base,&base));
+  }
+  return Ok(y);
+}
+
+fn map_unary_operator(a: &Array,
+  operator: &Fn(&mut Env,&Object) -> FnResult,
+  operator_symbol: char, env: &mut Env
+) -> FnResult
+{
+  if a.n==1 {
+    let mut v: Vec<Object> = Vec::with_capacity(a.s[0].shape);
+    let stride = a.s[0].stride;
+    let base = a.base as isize;
+    for i in 0..a.s[0].shape {
+      let x = &a.a[(base+i as isize*stride) as usize];
+      v.push(try!(operator(env,x)));
+    }
+    return Ok(Object::Interface(Array::vector(Rc::new(v))));
+  }else if a.n==2 {
+    let m = a.s[1].shape;
+    let n = a.s[0].shape;
+    let istride = a.s[1].stride;
+    let jstride = a.s[0].stride;
+
+    let mut v: Vec<Object> = Vec::with_capacity(m*n);
+    let base = a.base as isize;
+    for i in 0..m {
+      let jbase = base+i as isize*istride;
+      for j in 0..n {
+        let x = &a.a[(jbase+j as isize*jstride) as usize];
+        v.push(try!(operator(env,x)));
+      }
+    }
+    return Ok(Object::Interface(Array::matrix(m,n,Rc::new(v))));
+  }else{
+    panic!();
+  }
+}
+
+fn map_binary_operator(a: &Array, b: &Object,
+  operator: fn(&mut Env,&Object,&Object)->FnResult,
+  operator_symbol: char, env: &mut Env
+) -> FnResult
+{
+  if a.n==1 {
+    let stride = a.s[0].stride;
+    let base = a.base;
+    let mut v: Vec<Object> = Vec::with_capacity(a.s[0].shape);
+    if let Some(b) = Array::downcast(b) {
+      if b.n != 1 {
+        return env.type_error(&format!(
+          "Type error in v{}w: v is a vector, but w is of order {}.",
+          operator_symbol, b.n
+        ));
+      }
+      if a.s[0].shape != b.s[0].shape {
+        return env.type_error(&format!(
+          "Type error in v{}w: v is not of the same size as w.",
+          operator_symbol
+        ));
+      }
+      let stride2 = b.s[0].stride;
+      let base2 = b.base;
+      for i in 0..a.s[0].shape {
+        let y = try!(operator(env,
+          &a.a[(base as isize+i as isize*stride) as usize],
+          &b.a[(base2 as isize+i as isize*stride2) as usize]
+        ));
+        v.push(y);
+      }
+    }else{
+      for i in 0..a.s[0].shape {
+        let y = try!(operator(env,&a.a[(base as isize+i as isize*stride) as usize],b));
+        v.push(y);
+      }
+    }
+    return Ok(Object::Interface(Array::vector(Rc::new(v))));
+  }else if a.n==2 {
+    if let Some(b) = Array::downcast(b) {
+      if b.n != 2 {
+        return env.type_error(&format!(
+          "Type error in A{}B: A is a matrix, but B is of order {}.",
+          operator_symbol, b.n
+        ));
+      }
+      if a.s[0].shape != b.s[0].shape || a.s[1].shape != b.s[1].shape {
+        return env.type_error(&format!(
+          "Type error in A{}B: A is not of the same shape as B.",
+          operator_symbol
+        ));
+      }
+      let m = a.s[1].shape;
+      let n = a.s[0].shape;
+      let istride = a.s[1].stride;
+      let jstride = a.s[0].stride;
+      let mut v: Vec<Object> = Vec::with_capacity(m*n);
+      for i in 0..m {
+        let aibase = a.base as isize+i as isize*istride;
+        let bibase = b.base as isize+i as isize*istride;
+        for j in 0..n {
+          let aindex = (aibase+j as isize*jstride) as usize;
+          let bindex = (bibase+j as isize*jstride) as usize;
+          let y = try!(operator(env,&a.a[aindex],&b.a[bindex]));
+          v.push(y);
+        }
+      }
+      return Ok(Object::Interface(Array::matrix(m,n,Rc::new(v))));
+    }else{
+      panic!();
+    }
+  }else{
+    panic!();
   }
 }
 
@@ -284,6 +407,14 @@ fn conj_element(x: &Object) -> Object {
   }
 }
 
+fn abs_square_element(env: &mut Env, x: &Object) -> FnResult {
+  match *x {
+    Object::Complex(z) => Ok(Object::Float(z.re*z.re+z.im*z.im)),
+    Object::Float(x) => Ok(Object::Float(x*x)),
+    ref x => op_mpy(env,x,x)
+  }
+}
+
 fn conj(a: &Array) -> Rc<Array> {
   map_plain(a,conj_element)
 }
@@ -304,6 +435,61 @@ fn transpose(a: &Array) -> Rc<Array> {
   }else{
     panic!();
   }
+}
+
+fn abs(env: &mut Env, a: &Array) -> FnResult {
+  if a.n==1 {
+    let base = a.base;
+    let stride = a.s[0].stride;
+    let mut sum = try!(abs_square_element(env,&a.a[base]));
+    for i in 1..a.s[0].shape {
+      let index = (base as isize+i as isize*stride) as usize;
+      let p = try!(abs_square_element(env,&a.a[index]));
+      sum = try!(op_add(env,&sum,&p));
+    }
+    return match sum {
+      Object::Int(x) => Ok(Object::Float((x as f64).sqrt())),
+      Object::Float(x) => Ok(Object::Float(x.sqrt())),
+      _ => env.type_error("Type error in sqrt(v.abs).")
+    };
+  }else{
+    panic!();
+  }
+}
+
+fn list(a: &Array) -> Vec<Object> {
+  if a.n==1 {
+    let mut v: Vec<Object> = Vec::with_capacity(a.s[0].shape);
+    let stride = a.s[0].stride;
+    let base = a.base as isize;
+    for i in 0..a.s[0].shape {
+      let x = &a.a[(base+i as isize*stride) as usize];
+      v.push(x.clone());
+    }
+    return v;
+  }else{
+    panic!();
+  }
+}
+
+fn scalar_multiplication(env: &mut Env,
+  r: &Object, a: &Array
+) -> FnResult
+{
+  let op = |env: &mut Env, x: &Object| -> FnResult {
+    return op_mpy(env,r,x);
+  };
+  return map_unary_operator(a,&op,'_',env);
+}
+
+fn scalar_division(env: &mut Env,
+  a: &Array, r: &Object
+) -> FnResult
+{
+  let op = |env: &mut Env, x: &Object| -> FnResult {
+    return op_div(env,x,r);
+  };
+  return map_unary_operator(a,&op,'_',env);
 }
 
 fn scalar_product(env: &mut Env, n: usize,
@@ -337,7 +523,7 @@ fn mpy_matrix_vector(env: &mut Env, n: usize,
 
 fn mpy_matrix_matrix(env: &mut Env, size: usize,
   a: &Array, b: &Array
-) -> FnResult {
+) -> Result<Rc<Array>,Box<Exception>> {
   let m = a.s[1].shape;
   let n = b.s[0].shape;
   let mut y: Vec<Object> = Vec::with_capacity(m*n);
@@ -352,11 +538,7 @@ fn mpy_matrix_matrix(env: &mut Env, size: usize,
       y.push(p);
     }
   }
-  if y.len()==1 {
-    return Ok(y[0].clone());
-  }else{
-    return Ok(Object::Interface(Array::matrix(m,n,Rc::new(y))));
-  }
+  return Ok(Array::matrix(m,n,Rc::new(y)));
 }
 
 fn vector(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {

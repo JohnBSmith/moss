@@ -3,7 +3,7 @@
 #![allow(non_camel_case_types)]
 
 extern crate libc;
-use std::os::raw::{c_int, c_ulong, c_long, c_void, c_char};
+use std::os::raw::{c_int, c_ulong, c_long, c_void, c_char, c_double};
 use std::mem::uninitialized;
 use std::cmp::Ordering;
 use std::io::{stdout, BufWriter, Write};
@@ -45,6 +45,7 @@ extern "C" {
 
   fn __gmpz_get_str(s: *mut c_char, base: c_int, op: mpz_srcptr) -> *mut c_char;
   fn __gmpz_get_ui(op: mpz_srcptr) -> c_ulong;
+  fn __gmpz_get_d(op: mpz_srcptr) -> c_double;
   fn __gmpz_neg(rop: mpz_ptr, op: mpz_srcptr);
   fn __gmpz_abs(rop: mpz_ptr, op: mpz_srcptr);
 }
@@ -179,7 +180,11 @@ impl Mpz {
   }
 
   fn as_ui(&self) -> c_ulong {
-    unsafe { __gmpz_get_ui(&self.mpz) }
+    unsafe {__gmpz_get_ui(&self.mpz)}
+  }
+  
+  fn as_f64(&self) -> f64 {
+    unsafe {__gmpz_get_d(&self.mpz)}
   }
 
   fn to_string(&self) -> String {
@@ -233,6 +238,9 @@ impl Long {
   pub fn object_from_int(x: i32) -> Object {
     Object::Interface(Rc::new(Long{value: Mpz::from_int(x)}))
   }
+  pub fn as_f64(&self) -> f64 {
+    Mpz::as_f64(&self.value)
+  }
   pub fn downcast(x: &Object) -> Option<&Long> {
     if let Object::Interface(ref a) = *x {
       a.as_any().downcast_ref::<Long>()
@@ -278,6 +286,9 @@ impl Interface for Long {
       let mut y = Mpz::new();
       y.add(&self.value,&b.value);
       return Ok(Object::Interface(Rc::new(Long{value: y})));
+    }else if let Object::Float(b) = *b {
+      let a = Mpz::as_f64(&self.value);
+      return Ok(Object::Float(a+b));
     }else{
       return env.type_error("Type error in a+b: cannot add a: long and b.");
     }
@@ -292,6 +303,9 @@ impl Interface for Long {
       let mut y = Mpz::new();
       y.sub(&self.value,&b.value);
       return Ok(Object::Interface(Rc::new(Long{value: y})));
+    }else if let Object::Float(b) = *b {
+      let a = Mpz::as_f64(&self.value);
+      return Ok(Object::Float(a-b));
     }else{
       return env.type_error("Type error in a+b: cannot add a: long and b.");
     }
@@ -306,6 +320,9 @@ impl Interface for Long {
       let mut y = Mpz::new();
       y.mul(&self.value,&b.value);
       return Ok(Object::Interface(Rc::new(Long{value: y})));
+    }else if let Object::Float(b) = *b {
+      let a = Mpz::as_f64(&self.value);
+      return Ok(Object::Float(a*b));
     }else{
       return env.type_error("Type error in a+b: cannot add a: long and b.");
     }
@@ -316,6 +333,9 @@ impl Interface for Long {
       let mut y = Mpz::new();
       y.add_int(&self.value,a);
       return Ok(Object::Interface(Rc::new(Long{value: y})));
+    }else if let Object::Float(a) = *a {
+      let b = Mpz::as_f64(&self.value);
+      return Ok(Object::Float(a+b));
     }else{
       return env.type_error("Type error in a+b: cannot add a and b: long.");
     }
@@ -326,6 +346,9 @@ impl Interface for Long {
       let mut y = Mpz::new();
       y.int_sub(a,&self.value);
       return Ok(Object::Interface(Rc::new(Long{value: y})));
+    }else if let Object::Float(a) = *a {
+      let b = Mpz::as_f64(&self.value);
+      return Ok(Object::Float(a-b));
     }else{
       return env.type_error("Type error in a-b: cannot add a and b: long.");
     }
@@ -336,9 +359,35 @@ impl Interface for Long {
       let mut y = Mpz::new();
       y.mul_int(&self.value,a);
       return Ok(Object::Interface(Rc::new(Long{value: y})));
+    }else if let Object::Float(a) = *a {
+      let b = Mpz::as_f64(&self.value);
+      return Ok(Object::Float(a*b));
     }else{
-      return env.type_error("Type error in a*b: cannot multiply a and b: long.");
+      return env.type_error("Type error in x*y: cannot multiply x and y: long.");
     }
+  }
+
+  fn div(&self, b: &Object, env: &mut Env) -> FnResult {
+    let a = Mpz::as_f64(&self.value);
+    match *b {
+      Object::Int(b) => return Ok(Object::Float(a/(b as f64))),
+      Object::Float(b) => return Ok(Object::Float(a/b)),
+      _ => {}
+    }
+    if let Some(b) = Long::downcast(b) {
+      let b = Mpz::as_f64(&b.value);
+      return Ok(Object::Float(a/b));
+    }
+    env.type_error1("Type error in x/y: cannot divide long integer x by y.","y",&b)
+  }
+  
+  fn rdiv(&self, a: &Object, env: &mut Env) -> FnResult {
+    let b = Mpz::as_f64(&self.value);
+    return match *a {
+      Object::Int(a) => Ok(Object::Float((a as f64)/b)),
+      Object::Float(a) => Ok(Object::Float(a/b)),
+      ref x => env.type_error1("Type error in x/y: cannot divide x by long integer y.","x",x)
+    };
   }
 
   fn idiv(&self, b: &Object, env: &mut Env) -> FnResult {

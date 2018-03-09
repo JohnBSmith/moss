@@ -5,7 +5,7 @@ use object::{
   Object, Table, List, U32String,
   FnResult, Function, EnumFunction
 };
-use vm::Env;
+use vm::{Env, op_add, op_mpy};
 use global::list;
 use std::cmp::Ordering;
 
@@ -374,6 +374,74 @@ fn reduce(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
   }
 }
 
+fn sum(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+  let i = try!(iter(env,pself));
+  match argv.len() {
+    0 => {
+      let mut y = try!(env.call(&i,&Object::Null,&[]));
+      if y == Object::Empty {
+        return Ok(Object::Int(0));
+      }
+      loop{
+        let x = try!(env.call(&i,&Object::Null,&[]));
+        if x == Object::Empty {break;}
+        y = try!(op_add(env,&y,&x));
+      }
+      return Ok(y);
+    },
+    1 => {
+      let x = try!(env.call(&i,&Object::Null,&[]));
+      if x == Object::Empty {
+        return Ok(Object::Int(0));
+      }
+      let f = &argv[0];
+      let mut y = try!(env.call(f,&Object::Null,&[x]));
+      loop{
+        let x = try!(env.call(&i,&Object::Null,&[]));
+        if x == Object::Empty {break;}
+        let u = try!(env.call(f,&Object::Null,&[x]));
+        y = try!(op_add(env,&y,&u));
+      }
+      return Ok(y);
+    },
+    n => env.argc_error(n,1,2,"sum")
+  }
+}
+
+fn prod(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+  let i = try!(iter(env,pself));
+  match argv.len() {
+    0 => {
+      let mut y = try!(env.call(&i,&Object::Null,&[]));
+      if y == Object::Empty {
+        return Ok(Object::Int(1));
+      }
+      loop{
+        let x = try!(env.call(&i,&Object::Null,&[]));
+        if x == Object::Empty {break;}
+        y = try!(op_mpy(env,&y,&x));
+      }
+      return Ok(y);
+    },
+    1 => {
+      let x = try!(env.call(&i,&Object::Null,&[]));
+      if x == Object::Empty {
+        return Ok(Object::Int(1));
+      }
+      let f = &argv[0];
+      let mut y = try!(env.call(f,&Object::Null,&[x]));
+      loop{
+        let x = try!(env.call(&i,&Object::Null,&[]));
+        if x == Object::Empty {break;}
+        let u = try!(env.call(f,&Object::Null,&[x]));
+        y = try!(op_mpy(env,&y,&u));
+      }
+      return Ok(y);
+    },
+    n => env.argc_error(n,1,2,"sum")
+  }
+}
+
 fn compare(a: &Object, b: &Object) -> Ordering {
   match *a {
     Object::Int(x) => {
@@ -438,6 +506,8 @@ pub fn init(t: &Table){
   m.insert_fn_plain("all",all,1,1);
   m.insert_fn_plain("count",count,1,1);
   m.insert_fn_plain("reduce",reduce,1,2);
+  m.insert_fn_plain("sum",sum,1,2);
+  m.insert_fn_plain("prod",prod,1,2);
   m.insert_fn_plain("sort",sort,0,1);
   m.insert_fn_plain("map",map,1,1);
   m.insert_fn_plain("filter",filter,1,1);
