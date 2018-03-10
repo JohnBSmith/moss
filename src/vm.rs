@@ -2087,7 +2087,31 @@ fn operator_map(sp: usize, stack: &mut [Object], size: usize) -> usize{
   return sp;
 }
 
-fn operator_index(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorResult {
+fn operator_index(env: &mut EnvPart, argc: usize,
+  sp: usize, stack: &mut [Object]
+) -> OperatorResult
+{
+  if argc != 1 {
+    return match stack[sp-1-argc].clone() {
+      Object::Interface(x) => {
+        let (s1,s2) = stack.split_at_mut(sp);
+        let mut env = Env{sp: 0, stack: s2, env: env};
+        match x.index(&s1[sp-argc..sp],&mut env) {
+          Ok(value) => {
+            s1[sp-1-argc] = value;
+            for x in &mut s1[sp-argc..sp] {
+              *x = Object::Null;
+            }
+            Ok(())
+          },
+          Err(e) => Err(e)
+        }
+      },
+      _ => {
+        return Err(env.type_error_plain("Type error in a[...]: got more than one index."));
+      }
+    }
+  }
   match stack[sp-2].clone() {
     Object::List(a) => {
       let a = a.borrow();
@@ -2479,7 +2503,7 @@ fn compound_assignment(key_op: u32, op: u32,
 ) -> OperatorResult
 {
   match key_op as u8 {
-    bc::GET_INDEX => {
+    bc::SET_INDEX => {
       match replace(&mut stack[sp-3],Object::Null) {
         Object::List(a) => {
           let i = match stack[sp-2] {
@@ -3264,11 +3288,12 @@ fn vm_loop(
         },id,argc_min,argc_max);
       },
       bc::GET_INDEX => {
-        match operator_index(env, sp, &mut stack) {
+        let argc = load_u32(&a,ip+BCSIZE) as usize;
+        match operator_index(env, argc, sp, &mut stack) {
           Ok(())=>{}, Err(e)=>{exception=Err(e); break;}
         }
-        sp-=1;
-        ip+=BCSIZE;
+        sp-=argc;
+        ip+=BCASIZE;
       },
       bc::SET_INDEX => {
         match index_assignment(env, sp, &mut stack) {

@@ -3022,7 +3022,7 @@ fn compile_compound_assignment(
 
     push_bc(bv,bc::AOP,a[0].line,a[0].col);
     if a[0].value == Symbol::Index {
-      push_bc(bv,bc::GET_INDEX,a[0].line,a[0].col);
+      push_bc(bv,bc::SET_INDEX,a[0].line,a[0].col);
     }else if a[0].value == Symbol::Dot {
       push_bc(bv,bc::DOT,a[0].line,a[0].col);
     }else{
@@ -3126,6 +3126,7 @@ fn compile_left_hand_side(&mut self, bv: &mut Vec<u32>, t: &AST)
         try!(self.compile_ast(bv,&id));
         try!(self.compile_string(bv,&a[i]));
         push_bc(bv,bc::GET_INDEX,t.line,t.col);
+        push_u32(bv,1);
       }else{
         let app = apply(t.line,t.col,Box::new([id.clone(),a[i].clone()]));
         let null_coalescing = operator(t.line,t.col,Symbol::Else,Box::new([app,a[i+1].clone()]));
@@ -3211,6 +3212,8 @@ fn compile_ast(&mut self, bv: &mut Vec<u32>, t: &Rc<AST>)
       try!(self.compile_operator(bv,t,bc::OF));
     }else if value == Symbol::Index {
       try!(self.compile_operator(bv,t,bc::GET_INDEX));
+      let a = ast_argv(t);
+      push_u32(bv,(a.len()-1) as u32);
     }else if value == Symbol::Not {
       try!(self.compile_operator(bv,t,bc::NOT));
     }else if value == Symbol::Range {
@@ -3629,7 +3632,16 @@ fn asm_listing(a: &[u32]) -> String {
         s.push_str(&u);
         i+=BCSIZE+4;
       },
-      bc::GET_INDEX => {s.push_str("get index\n"); i+=BCSIZE;},
+      bc::GET_INDEX => {
+        let x = load_u32(&a[BCSIZE+i..BCSIZE+i+1]);
+        if x>1 {
+          let u = format!("get index ({} args)\n",x);
+          s.push_str(&u);
+        }else{
+          s.push_str("get index\n");
+        }
+        i+=BCASIZE;
+      },
       bc::SET_INDEX => {s.push_str("set index\n"); i+=BCSIZE;},
       bc::DOT => {s.push_str("dot\n"); i+=BCSIZE;},
       bc::DOT_SET => {s.push_str("dot set\n"); i+=BCSIZE;},

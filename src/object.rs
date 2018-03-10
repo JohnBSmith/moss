@@ -342,7 +342,7 @@ pub trait Interface{
   fn neg(&self, env: &mut Env) -> FnResult {
     Ok(Object::Table(env.rte().unimplemented.clone()))
   }
-  
+
   fn abs(&self, env: &mut Env) -> FnResult {
     env.std_exception("Error: abs(x) is not implemented for objects of this type.")
   }
