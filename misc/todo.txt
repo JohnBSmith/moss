@@ -1,6 +1,7 @@
 
 = TODO LIST =
 == Interpreter kernel ==
+* interface objects in hash tables
 * delete temporary variables after use
 * coroutines
 * continuations

@@ -101,6 +101,7 @@ fn main(){
   i.rte.clear_at_exit(gtab.clone());
 
   if info.exit {return;}
+
   {
     let mut argv = i.rte.argv.borrow_mut();
     *argv = Some(moss::new_list_str(&info.argv));
@@ -116,7 +117,11 @@ fn main(){
     }
   }
   if let Some(ref id) = info.argv.first() {
-    i.eval_file(id,gtab);
+    if id.len()==0 {
+      i.command_line_session(gtab);
+    }else{
+      i.eval_file(id,gtab);
+    }
   }else if let Some(ref cmd) = info.cmd {
     let x = i.eval_env(cmd,gtab);
     if x != Object::Null {

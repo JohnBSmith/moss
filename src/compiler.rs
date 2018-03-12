@@ -1901,7 +1901,9 @@ fn if_statement(&mut self, i: &mut TokenIterator, t0: &Token) -> Result<Rc<AST>,
     }else if t.value == Symbol::End {
       break;
     }else{
-      panic!();
+      return Err(self.syntax_error(t.line,t.col,
+        "expected 'elif, 'else' or 'end'.".to_string()
+      ));
     }
   }
   return Ok(Rc::new(AST{line: t0.line, col: t0.col, symbol_type: SymbolType::Keyword,
@@ -3022,7 +3024,7 @@ fn compile_compound_assignment(
 
     push_bc(bv,bc::AOP,a[0].line,a[0].col);
     if a[0].value == Symbol::Index {
-      push_bc(bv,bc::SET_INDEX,a[0].line,a[0].col);
+      push_bc(bv,bc::AOP_INDEX,a[0].line,a[0].col);
     }else if a[0].value == Symbol::Dot {
       push_bc(bv,bc::DOT,a[0].line,a[0].col);
     }else{
@@ -3105,9 +3107,11 @@ fn compile_left_hand_side(&mut self, bv: &mut Vec<u32>, t: &AST)
     self.compile_assignment(bv,&t,t.line,t.col);
   }else if t.value == Symbol::Index {
     let b = ast_argv(&t);
-    try!(self.compile_ast(bv,&b[0]));
-    try!(self.compile_ast(bv,&b[1]));
+    for i in 0..b.len() {
+      try!(self.compile_ast(bv,&b[i]));
+    }
     push_bc(bv,bc::SET_INDEX,t.line,t.col);
+    push_u32(bv,(b.len()-1) as u32);
   }else if t.value == Symbol::Dot {
     let b = ast_argv(&t);
     try!(self.compile_ast(bv,&b[0]));
@@ -3633,16 +3637,23 @@ fn asm_listing(a: &[u32]) -> String {
         i+=BCSIZE+4;
       },
       bc::GET_INDEX => {
-        let x = load_u32(&a[BCSIZE+i..BCSIZE+i+1]);
-        if x>1 {
-          let u = format!("get index ({} args)\n",x);
-          s.push_str(&u);
+        let argc = load_u32(&a[BCSIZE+i..BCSIZE+i+1]);
+        if argc>1 {
+          s.push_str(&format!("get index ({} args)\n",argc));
         }else{
           s.push_str("get index\n");
         }
         i+=BCASIZE;
       },
-      bc::SET_INDEX => {s.push_str("set index\n"); i+=BCSIZE;},
+      bc::SET_INDEX => {
+        let argc = load_u32(&a[BCSIZE+i..BCSIZE+i+1]);
+        if argc>1 {
+          s.push_str(&format!("set index ({} args)\n",argc));
+        }else{
+          s.push_str("set index\n");
+        }
+        i+=BCASIZE;
+      },
       bc::DOT => {s.push_str("dot\n"); i+=BCSIZE;},
       bc::DOT_SET => {s.push_str("dot set\n"); i+=BCSIZE;},
       bc::SWAP => {s.push_str("swap\n"); i+=BCSIZE;},
@@ -3651,6 +3662,7 @@ fn asm_listing(a: &[u32]) -> String {
       bc::POP => {s.push_str("pop\n"); i+=BCSIZE;},
       bc::EMPTY => {s.push_str("empty\n"); i+=BCSIZE;},
       bc::AOP => {s.push_str("aop\n"); i+=BCSIZE;},
+      bc::AOP_INDEX => {s.push_str("aop index\n"); i+=BCSIZE;},
       bc::OP => {
         s.push_str("op ");
         i+=BCSIZE;

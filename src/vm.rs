@@ -98,12 +98,13 @@ pub mod bc{
   pub const BOR:  u8 = 63;
   pub const AOP:  u8 = 64;
   pub const RAISE:u8 = 65;
-  pub const OP:  u8 = 66;
-  pub const TRY:  u8 = 67;
-  pub const TRYEND:u8 = 68;
-  pub const GETEXC:u8 = 69;
-  pub const CRAISE:u8 = 70;
-  pub const HALT: u8 = 71;
+  pub const AOP_INDEX:u8 = 66;
+  pub const OP:  u8 = 67;
+  pub const TRY:  u8 = 68;
+  pub const TRYEND:u8 = 69;
+  pub const GETEXC:u8 = 70;
+  pub const CRAISE:u8 = 71;
+  pub const HALT: u8 = 72;
 
   pub fn op_to_str(x: u8) -> &'static str {
     match x {
@@ -170,7 +171,9 @@ pub mod bc{
       GET => "GET",
       BAND => "BAND",
       BOR => "BOR",
+      AOP => "AOP",
       RAISE => "RAISE",
+      AOP_INDEX => "AOP_INDEX",
       OP => "OP",
       TRY => "TRY",
       TRYEND => "TRYEND",
@@ -279,14 +282,14 @@ impl PartialEq for Object{
     }
     return match *self {
       Object::Interface(ref x) => {
-        return x.eq(b);
+        return x.eq_plain(b);
       },
       _ => false
     };
     } // 'r
     return match *b {
       Object::Interface(ref x) => {
-        return x.req(self);
+        return x.req_plain(self);
       },
       _ => false
     }
@@ -641,6 +644,16 @@ pub fn op_div(env: &mut Env, x: &Object, y: &Object) -> FnResult {
   env.stack[env.sp+1] = y.clone();
   try!(::vm::operator_div(env.env,env.sp+2,env.stack));
   return Ok(replace(&mut env.stack[env.sp],Object::Null));
+}
+
+pub fn op_eq(env: &mut Env, x: &Object, y: &Object) -> FnResult {
+  /*
+  env.stack[env.sp] = x.clone();
+  env.stack[env.sp+1] = y.clone();
+  try!(::vm::operator_eq(env.env,env.sp+2,env.stack));
+  return Ok(replace(&mut env.stack[env.sp],Object::Null));
+  */
+  return Ok(Object::Bool(x==y));
 }
 
 fn operator_neg(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorResult {
@@ -1585,6 +1598,254 @@ fn operator_bor(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorR
   ));
 }
 
+
+/****
+impl PartialEq for Object{
+  fn eq(&self, b: &Object) -> bool{
+    'r: loop{
+    match *self {
+      Object::Null => {
+        return match *b {
+          Object::Null => true,
+          _ => false
+        };
+      },
+      Object::Bool(x) => {
+        return match *b {
+          Object::Bool(y) => x==y,
+          _ => false
+        };
+      },
+      Object::Int(x) => {
+        return match *b {
+          Object::Int(y) => x==y,
+          Object::Float(y) => (x as f64)==y,
+          Object::Complex(y) => (x as f64)==y.re && y.im==0.0,
+          _ => {break 'r;}
+        };
+      },
+      Object::Float(x) => {
+        return match *b {
+          Object::Int(y) => x==(y as f64),
+          Object::Float(y) => x==y,
+          Object::Complex(y) => x==y.re && y.im==0.0,
+          _ => {break 'r;}
+        };
+      },
+      Object::Complex(x) => {
+        return match *b {
+          Object::Int(y) => x.re==(y as f64) && x.im==0.0,
+          Object::Float(y) => x.re==y && x.im==0.0,
+          Object::Complex(y) => x==y,
+          _ => {break 'r;}
+        };
+      },
+      Object::String(ref x) => {
+        return match *b {
+          Object::String(ref y) => x.v==y.v,
+          _ => false
+        };
+      },
+      Object::List(ref x) => {
+        return match *b {
+          Object::List(ref y) => {
+            x.borrow().v == y.borrow().v
+          },
+          _ => false
+        };
+      },
+      Object::Map(ref x) => {
+        return match *b {
+          Object::Map(ref y) => {
+            x.borrow().m == y.borrow().m
+          },
+          _ => false
+        };
+      },
+      Object::Function(ref f) => {
+        return match *b {
+          Object::Function(ref g) => {
+            Rc::ptr_eq(f,g)
+          },
+          _ => false
+        };
+      },
+      Object::Range(ref x) => {
+        return match *b {
+          Object::Range(ref y) => {
+            x.a==y.a && x.b==y.b && x.step==y.step
+          },
+          _ => false
+        };
+      },
+      Object::Empty => {
+        return match *b {
+          Object::Empty => true,
+          _ => false
+        };
+      },
+      _ => {}
+    }
+    return match *self {
+      Object::Interface(ref x) => {
+        return x.eq_plain(b);
+      },
+      _ => false
+    };
+    } // 'r
+    return match *b {
+      Object::Interface(ref x) => {
+        return x.req_plain(self);
+      },
+      _ => false
+    }
+  }
+}
+****/
+
+
+fn operator_eq(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorResult {
+  'r: loop{
+  match stack[sp-2] {
+    Object::Null => {
+      return match stack[sp-1] {
+        Object::Null => {
+          stack[sp-2] = Object::Bool(true);
+          Ok(())
+        },
+        _ => {break 'r;}
+      };
+    },
+    Object::Bool(x) => {
+      return match stack[sp-1] {
+        Object::Bool(y) => {
+          stack[sp-2] = Object::Bool(x==y);
+          Ok(())
+        },
+        _ => {break 'r;}
+      };
+    },
+    Object::Int(x) => {
+      return match stack[sp-1] {
+        Object::Int(y) => {
+          stack[sp-2] = Object::Bool(x==y);
+          Ok(())
+        },
+        Object::Float(y) => {
+          stack[sp-2] = Object::Bool((x as f64)==y);
+          Ok(())
+        },
+        Object::Complex(y) => {
+          stack[sp-2] = Object::Bool((x as f64)==y.re && y.im==0.0);
+          Ok(())
+        },
+        _ => {break 'r;}
+      };
+    },
+    Object::Float(x) => {
+      return match stack[sp-1] {
+        Object::Int(y) => {
+          stack[sp-2] = Object::Bool(x==(y as f64));
+          Ok(())
+        },
+        Object::Float(y) => {
+          stack[sp-2] = Object::Bool(x==y);
+          Ok(())
+        },
+        Object::Complex(y) => {
+          stack[sp-2] = Object::Bool(x==y.re && y.im==0.0);
+          Ok(())
+        },
+        _ => {break 'r;}
+      };
+    },
+    Object::Empty => {
+      return match stack[sp-1] {
+        Object::Empty => {
+          stack[sp-2] = Object::Bool(true);
+          Ok(())
+        },
+        _ => {break 'r;}
+      };
+    },
+    _ => {}
+  }
+  return match stack[sp-2].clone() {
+    Object::String(x) => {
+      match stack[sp-1].clone() {
+        Object::String(y) => {
+          stack[sp-1] = Object::Null;
+          stack[sp-2] = Object::Bool(x.v==y.v);
+          Ok(())
+        },
+        _ => {break 'r;}
+      }
+    },
+    Object::List(x) => {
+      match stack[sp-1].clone() {
+        Object::List(y) => {
+          stack[sp-1] = Object::Null;
+          stack[sp-2] = Object::Bool(x.borrow().v == y.borrow().v);
+          Ok(())
+        },
+        _ => {break 'r;}
+      }
+    },
+    Object::Map(x) => {
+      match stack[sp-1].clone() {
+        Object::Map(y) => {
+          stack[sp-1] = Object::Null;
+          stack[sp-2] = Object::Bool(x.borrow().m == y.borrow().m);
+          Ok(())
+        },
+        _ => {break 'r;}
+      }
+    },
+    Object::Function(ref f) => {
+      match stack[sp-1].clone() {
+        Object::Function(ref g) => {
+          stack[sp-1] = Object::Null;
+          stack[sp-2] = Object::Bool(Rc::ptr_eq(f,g));
+          Ok(())
+        },
+        _ => {break 'r;}
+      }
+    },
+    Object::Range(x) => {
+      match stack[sp-1].clone() {
+        Object::Range(y) => {
+          stack[sp-1] = Object::Null;
+          stack[sp-2] = Object::Bool(x.a==y.a && x.b==y.b && x.step==y.step);
+          Ok(())
+        },
+        _ => {break 'r;}
+      }
+    },
+    Object::Interface(x) => {
+      let b = replace(&mut stack[sp-1],Object::Null);
+      match x.eq(&b,&mut Env{env: env, sp: sp, stack: stack}) {
+        Ok(value) => {stack[sp-2] = value; Ok(())},
+        Err(e) => Err(e)
+      }
+    },
+    _ => {break 'r;}
+  };
+  } // 'r
+  return match replace(&mut stack[sp-1],Object::Null) {
+    Object::Interface(x) => {
+      let a = replace(&mut stack[sp-2],Object::Null);
+      match x.req(&a,&mut Env{env: env, sp: sp, stack: stack}) {
+        Ok(value) => {stack[sp-2] = value; Ok(())},
+        Err(e) => Err(e)
+      }
+    },
+    a => {
+      stack[sp-2] = Object::Bool(false);
+      return Ok(());
+    }
+  };
+}
+
 fn operator_lt(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorResult {
   'r: loop{
   match stack[sp-2] {
@@ -2254,7 +2515,30 @@ fn operator_index(env: &mut EnvPart, argc: usize,
   }
 }
 
-fn index_assignment(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorResult {
+fn index_assignment(env: &mut EnvPart, argc: usize,
+  sp: usize, stack: &mut [Object]
+) -> OperatorResult
+{
+  if argc != 1 {
+    return match stack[sp-1-argc].clone() {
+      Object::Interface(x) => {
+        let (s1,s2) = stack.split_at_mut(sp);
+        let mut env = Env{sp: 0, stack: s2, env: env};
+        match x.set_index(&s1[sp-argc..sp],&s1[sp-argc-2],&mut env) {
+          Ok(value) => {
+            for x in &mut s1[sp-argc-2..sp] {
+              *x = Object::Null;
+            }
+            Ok(())
+          },
+          Err(e) => Err(e)
+        }
+      },
+      _ => {
+        return Err(env.type_error_plain("Type error in a[...]=x: got more than one index."));
+      }
+    }
+  }
   match stack[sp-2].clone() {
     Object::List(a) => {
       match stack[sp-1] {
@@ -2301,6 +2585,17 @@ fn index_assignment(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> Opera
         None => {}
       }
       Ok(())
+    },
+    Object::Interface(x) => {
+      let key = replace(&mut stack[sp-1],Object::Null);
+      let value = replace(&mut stack[sp-3],Object::Null);
+      return match x.set_index(&[key],&value,&mut Env{env,sp,stack}) {
+        Ok(y) => {
+          stack[sp-2] = Object::Null;
+          Ok(())
+        },
+        Err(e) => Err(e)
+      };
     },
     a => Err(env.type_error1_plain(sp,stack,
       "Type error in a[i]=value: a is not index-able.",
@@ -2503,7 +2798,7 @@ fn compound_assignment(key_op: u32, op: u32,
 ) -> OperatorResult
 {
   match key_op as u8 {
-    bc::SET_INDEX => {
+    bc::AOP_INDEX => {
       match replace(&mut stack[sp-3],Object::Null) {
         Object::List(a) => {
           let i = match stack[sp-2] {
@@ -2932,17 +3227,20 @@ fn vm_loop(
         ip+=BCSIZE;
       },
       bc::EQ => {
-        let value = stack[sp-2]==stack[sp-1];
+        match operator_eq(env, sp, &mut stack) {
+          Ok(())=>{}, Err(e)=>{exception=Err(e); break;}
+        }
         sp-=1;
-        stack[sp] = Object::Null;
-        stack[sp-1] = Object::Bool(value);
         ip+=BCSIZE;
       },
       bc::NE => {
-        let value = stack[sp-2]!=stack[sp-1];
+        match operator_eq(env, sp, &mut stack) {
+          Ok(())=>{}, Err(e)=>{exception=Err(e); break;}
+        }
+        if let Object::Bool(value) = stack[sp-2] {
+          stack[sp-2] = Object::Bool(!value);
+        }
         sp-=1;
-        stack[sp] = Object::Null;
-        stack[sp-1] = Object::Bool(value);
         ip+=BCSIZE;
       },
       bc::LT => {
@@ -3296,11 +3594,12 @@ fn vm_loop(
         ip+=BCASIZE;
       },
       bc::SET_INDEX => {
-        match index_assignment(env, sp, &mut stack) {
+        let argc = load_u32(&a,ip+BCSIZE) as usize;
+        match index_assignment(env, argc, sp, &mut stack) {
           Ok(())=>{}, Err(e)=>{exception=Err(e); break;}
         }
-        sp-=3;
-        ip+=BCSIZE;
+        sp-=argc+2;
+        ip+=BCASIZE;
       },
       bc::DOT => {
         match operator_dot(env, sp, &mut stack) {

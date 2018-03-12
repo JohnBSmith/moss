@@ -307,11 +307,18 @@ pub trait Interface{
     env.std_exception("Error: a^b is not implemented for objects of this type.")
   }
 
-  fn eq(&self, b: &Object) -> bool {
+  fn eq_plain(&self, b: &Object) -> bool {
     false
   }
-  fn req(&self, a: &Object) -> bool {
+  fn req_plain(&self, a: &Object) -> bool {
     false
+  }
+
+  fn eq(&self, b: &Object, env: &mut Env) -> FnResult {
+    Ok(Object::Table(env.rte().unimplemented.clone()))
+  }
+  fn req(&self, a: &Object, env: &mut Env) -> FnResult {
+    Ok(Object::Table(env.rte().unimplemented.clone()))
   }
   fn lt(&self, b: &Object, env: &mut Env) -> FnResult {
     env.std_exception("Error: a<b is not implemented for objects of this type.")
@@ -350,7 +357,10 @@ pub trait Interface{
     env.std_exception("Type error in t.x: getter is not implemented for objects of this type.")
   }
   fn index(&self, indices: &[Object], env: &mut Env) -> FnResult {
-    env.std_exception("Type error in a[i]: indexing is not implemented for objects of this type.")  
+    env.std_exception("Type error in a[i]: indexing is not implemented for objects of this type.")
+  }
+  fn set_index(&self, indices: &[Object], value: &Object, env: &mut Env) -> FnResult {
+    env.std_exception("Type error in a[i]=value: indexing is not implemented for objects of this type.")
   }
   fn type_name(&self) -> String {
     "Interface object".to_string()

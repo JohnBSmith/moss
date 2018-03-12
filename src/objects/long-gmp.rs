@@ -437,7 +437,7 @@ impl Interface for Long {
     }
   }
 
-  fn eq(&self, b: &Object) -> bool {
+  fn eq_plain(&self, b: &Object) -> bool {
     if let Object::Int(b) = *b {
       return self.value==b;
     }else if let Some(b) = Long::downcast(b) {
@@ -446,8 +446,8 @@ impl Interface for Long {
       return false;
     }
   }
-  
-  fn req(&self, a: &Object) -> bool {
+
+  fn req_plain(&self, a: &Object) -> bool {
     if let Object::Int(a) = *a {
       return self.value==a;
     }else if let Some(a) = Long::downcast(a) {
@@ -455,6 +455,14 @@ impl Interface for Long {
     }else{
       return false;
     }  
+  }
+  
+  fn eq(&self, b: &Object, env: &mut Env) -> FnResult {
+    return Ok(Object::Bool(self.eq_plain(b)));
+  }
+
+  fn req(&self, a: &Object, env: &mut Env) -> FnResult {
+    return Ok(Object::Bool(self.req_plain(a)));
   }
 
   fn lt(&self, b: &Object, env: &mut Env) -> FnResult {

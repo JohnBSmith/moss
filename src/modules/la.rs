@@ -8,7 +8,7 @@ use std::cell::RefCell;
 use std::any::Any;
 use object::{Object, FnResult, Function, List, Interface,
   Exception, new_module, VARIADIC};
-use vm::{Env, op_neg, op_add, op_sub, op_mpy, op_div};
+use vm::{Env, op_neg, op_add, op_sub, op_mpy, op_div, op_eq};
 use complex::Complex64;
 
 struct ShapeStride{
@@ -113,12 +113,19 @@ impl Interface for Array {
             return Ok(Object::Interface(transpose(&conj(self))));
           }
         },
+        2 => if v[0..2] == ['t','r'] {
+          return trace(env,self);
+        },
         3 => if v[0..3] == ['a','b','s'] {
           return abs(env,self);
         },
         4 => {
           if v[0..4] == ['c','o','n','j'] {
             return Ok(Object::Interface(conj(self)));
+          }else if v[0..4] == ['c','o','p','y'] {
+            return Ok(Object::Interface(copy(self)));
+          }else if v[0..4] == ['d','i','a','g'] {
+            return diag_slice(env,self);
           }else if v[0..4] == ['l','i','s','t'] {
             return Ok(List::new_object(list(self)));
           }
@@ -181,6 +188,81 @@ impl Interface for Array {
         {
           let index = (self.base as isize+self.s[1].stride*i+self.s[0].stride*j) as usize;
           return Ok(self.data.borrow()[index].clone());
+        }else{
+          return env.index_error("Index error in a[i,j]: out of bounds.");
+        }
+      }else{
+        return env.index_error("Index error in a[...]: shape does not fit.");     
+      }
+    }else{
+      return env.index_error("Index error in a[...]: shape does not fit.");
+    }
+  }
+  fn set_index(&self, indices: &[Object], value: &Object, env: &mut Env) -> FnResult {
+    if self.n==1 && indices.len()==1 {
+      match indices[0] {
+        Object::Int(i) => {
+          let i = i as isize;
+          let mut data = self.data.borrow_mut();
+          if i>=0 && (i as usize)<self.s[0].shape {
+            let index = (self.base as isize+self.s[0].stride*i) as usize;
+            data[index] = value.clone();
+            return Ok(Object::Null);
+          }else{
+            return env.index_error("Index error in a[i]=x: out of bounds.");
+          }
+        },
+        ref i => {
+          return env.type_error1("Type error in a[i]=x: i is not an integer.","i",i);
+        }
+      }
+    }else if self.n==2 {
+      if indices.len()==1 {
+        let i = match indices[0] {
+          Object::Int(i) => i as isize,
+          ref i => return env.type_error1("Type error in a[i]=v: i is not an integer.","i",i)
+        };
+        let v = if let Some(x) = Array::downcast(value) {x}
+        else{
+          return env.type_error("Type error in a[i]=v: v is not an array.");
+        };
+        if v.n != 1 || v.s[0].shape != self.s[0].shape {
+          return env.type_error("Type error in a[i]=v: shapes of a[i] and v do not match.");
+        }
+        let vbase = v.base as isize;
+        let vstride = v.s[0].stride;
+        let vdata = v.data.borrow();
+        if i>=0 && (i as usize)<self.s[1].shape {
+          let base = self.base as isize+i*self.s[1].stride;
+          let stride = self.s[0].stride;
+          let n = self.s[0].shape;
+          let mut data = self.data.borrow_mut();
+
+          for j in 0..n {
+            let index = (base+j as isize*stride) as usize;
+            let vindex = (vbase+j as isize*vstride) as usize;
+            data[index] = vdata[vindex].clone();
+          }
+          return Ok(Object::Null);
+        }else{
+          return env.index_error("Index error in a[i]: i is out of bounds.");
+        }
+      }else if indices.len()==2 {
+        let i = match indices[0] {
+          Object::Int(i) => i as isize,
+          ref i => return env.type_error1("Type error in a[i,j]: i is not an integer.","i",i)
+        };
+        let j = match indices[1] {
+          Object::Int(j) => j as isize,
+          ref j => return env.type_error1("Type error in a[i,j]: j is not an integer.","j",j)
+        };
+        if i>=0 && (i as usize)<self.s[1].shape &&
+           j>=0 && (j as usize)<self.s[0].shape
+        {
+          let index = (self.base as isize+self.s[1].stride*i+self.s[0].stride*j) as usize;
+          let mut data = self.data.borrow_mut();
+          data[index] = value.clone();
+          return Ok(Object::Null);
         }else{
           return env.index_error("Index error in a[i,j]: out of bounds.");
         }
@@ -264,6 +346,74 @@ impl Interface for Array {
       env.type_error("Type error in A^n: A is not a matrix.")
     }
   }
+  fn eq(&self, b: &Object, env: &mut Env) -> FnResult {
+    if let Some(b) = Array::downcast(b) {
+      return compare(env,self,b,"==",op_eq);
+    }else{
+      return Ok(Object::Bool(false));
+    }
+  }
+}
+
+fn compare(env: &mut Env, a: &Array, b: &Array,
+  rs: &str,
+  relation: fn(&mut Env, &Object, &Object)->FnResult
+) -> FnResult
+{
+  if a.n == b.n {
+    if a.n == 1 {
+      if a.s[0].shape == b.s[0].shape {
+        let adata = a.data.borrow();
+        let bdata = b.data.borrow();
+        let astride = a.s[0].stride;
+        let bstride = b.s[0].stride;
+        for i in 0..a.s[0].shape {
+          let aindex = (a.base as isize+i as isize*astride) as usize;
+          let bindex = (b.base as isize+i as isize*bstride) as usize;
+          let y = try!(relation(env,&adata[aindex],&bdata[bindex]));
+          match y {
+            Object::Bool(y) => {
+              if !y {return Ok(Object::Bool(false));}
+            },
+            _ => return env.type_error(
+              &format!("Type error in A{0}B: expected return value of '{0}' of type bool.",rs)
+            )
+          }
+        }
+        return Ok(Object::Bool(true));
+      }
+    }else if a.n == 2 {
+      if a.s[0].shape == b.s[0].shape && a.s[1].shape == b.s[1].shape {
+        let adata = a.data.borrow();
+        let bdata = b.data.borrow();
+        let aistride = a.s[1].stride;
+        let bistride = b.s[1].stride;
+        let ajstride = a.s[0].stride;
+        let bjstride = b.s[0].stride;
+        for i in 0..a.s[1].shape {
+          let aibase = a.base as isize+i as isize*aistride;
+          let bibase = b.base as isize+i as isize*bistride;
+          for j in 0..a.s[0].shape {
+            let aindex = (aibase+j as isize*ajstride) as usize;
+            let bindex = (bibase+j as isize*bjstride) as usize;
+            let y = try!(relation(env,&adata[aindex],&bdata[bindex]));
+            match y {
+              Object::Bool(y) => {
+                if !y {return Ok(Object::Bool(false));}
+              },
+              _ => return env.type_error(
+                &format!("Type error in A{0}B: expected return value of '{0}' of type bool.",rs)
+              )
+            }
+          }
+        }
+        return Ok(Object::Bool(true));      
+      }
+    }else{
+      panic!();
+    }
+  }
+  return Ok(Object::Bool(false));
 }
 
 fn copy_from_ref(a: &Array) -> Rc<Array> {
@@ -459,6 +609,10 @@ fn map_plain(a: &Array, f: fn(&Object)->Object) -> Rc<Array> {
   }
 }
 
+fn copy(a: &Array) -> Rc<Array> {
+  map_plain(a,|x| x.clone())
+}
+
 fn conj_element(x: &Object) -> Object {
   match *x {
     Object::Complex(z) => Object::Complex(Complex64{
@@ -487,8 +641,8 @@ fn transpose(a: &Array) -> Rc<Array> {
     Rc::new(Array{
       n: 2,
       s: Box::new([
-        ShapeStride{shape: m, stride: n as isize},
-        ShapeStride{shape: n, stride: 1}
+        ShapeStride{shape: m, stride: a.s[1].stride},
+        ShapeStride{shape: n, stride: a.s[0].stride}
       ]),
       base: 0,
       data: a.data.clone(),
@@ -661,6 +815,73 @@ fn array(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
   }
 }
 
+fn scalar(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+  match argv.len() {
+    3 => {}, argc => return env.argc_error(argc,3,3,"scalar")
+  }
+  let n = match argv[0] {
+    Object::Int(x) => if x<0 {0 as usize} else {x as usize},
+    _ => return env.type_error1(
+      "Type error in scalar(n,e,z): n is not an integer.","n",&argv[0])
+  };
+  let e = &argv[1];
+  let z = &argv[2];
+  return Ok(Object::Interface(scalar_matrix(n,e,z)));
+}
+
+fn diag(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+  let n = argv.len();
+  let mut v: Vec<Object> = Vec::with_capacity(n*n);
+  let mut k = 0;
+  for i in 0..n {
+    for j in 0..n {
+      if i==j {
+        v.push(argv[k].clone());
+        k+=1;
+      }else{
+        v.push(Object::Int(0));
+      }
+    }
+  }
+  return Ok(Object::Interface(Array::matrix(n,n,v)));
+}
+
+fn diag_slice(env: &mut Env, a: &Array) -> FnResult {
+  if a.n==2 && a.s[0].shape == a.s[1].shape {
+    let n = a.s[0].shape;
+    let mut v: Vec<Object> = Vec::with_capacity(n);
+    let base = a.base as isize;
+    let istride = a.s[1].stride;
+    let jstride = a.s[0].stride;
+    let data = a.data.borrow();
+    for i in 0..n {
+      let index = (base+i as isize*istride+i as isize*jstride) as usize;
+      v.push(data[index].clone());
+    }
+    return Ok(List::new_object(v));
+  }else{
+    return env.type_error("Type error in A.diag: A is not a square matrix.");
+  }
+}
+
+fn trace(env: &mut Env, a: &Array) -> FnResult {
+  if a.n==2 && a.s[0].shape == a.s[1].shape {
+    let n = a.s[0].shape;
+    let base = a.base as isize;
+    let istride = a.s[1].stride;
+    let jstride = a.s[0].stride;
+    let data = a.data.borrow();
+    let mut y = data[a.base].clone();
+    for i in 1..n {
+      let index = (base+i as isize*istride+i as isize*jstride) as usize;
+      y = try!(op_add(env,&y,&data[index]));
+    }
+    return Ok(y);
+  }else{
+    return env.type_error("Type error in A.diag: A is not a square matrix.");
+  }
+}
+
 pub fn load_la(env: &mut Env) -> Object {
   let la = new_module("la");
   {
@@ -668,8 +889,9 @@ pub fn load_la(env: &mut Env) -> Object {
     m.insert_fn_plain("vector",vector,0,VARIADIC);
     m.insert_fn_plain("matrix",matrix,0,VARIADIC);
     m.insert_fn_plain("array",array,2,2);
+    m.insert_fn_plain("scalar",scalar,3,3);
+    m.insert_fn_plain("diag",diag,0,VARIADIC);
   }
-  // let array_type = Table::new(Object::Null);
   
   return Object::Table(Rc::new(la));
 }

@@ -1,0 +1,139 @@
+
+use la: vector, matrix
+use sys: exit
+
+sub error(s)
+  print("Error in la-test: test ", s, " failed.")
+  exit(1)
+end
+
+if 2*vector(1,2) != vector(2,4)
+  error("#1.1")
+end
+
+if vector(1,2)+vector(3,4) != vector(4,6)
+  error("#1.2")
+end
+
+if vector(1,2)*vector(3,4) != 11
+  error("#1.3")
+end
+
+A = matrix(
+  [1,2],
+  [3,4]
+)
+
+B = matrix(
+  [5,6],
+  [7,8]
+)
+
+if 2*A != matrix([2,4],[6,8])
+  error("#2.1")
+end
+
+if 2*A != A+A or 3*A != A+A+A or 4*A != A+A+A+A
+  error("#2.2")
+end
+
+if A.T.T != A
+  error("#2.3")
+end
+
+if A*B != matrix([19,22],[43,50])
+  error("#2.4")
+end
+
+if A*B != (B.T*A.T).T
+  error("#2.5")
+end
+
+if A*B-(B.T*A.T).T != matrix([0,0],[0,0])
+  error("#2.6")
+end
+
+A = matrix(
+  [1,2,3],
+  [4,5,6]
+)
+
+B = matrix(
+  [7,8,9],
+  [10,11,12]
+)
+
+Z2 = matrix([0,0],[0,0])
+Z3 = matrix([0,0,0],[0,0,0],[0,0,0])
+
+if A*B.T != matrix([50,68],[122,167])
+  error("#3.1")
+end
+
+if A.T*B != matrix([47,52,57],[64,71,78],[81,90,99])
+  error("#3.2")
+end
+
+if (A*B.T).T != B*A.T
+  error("#3.3")
+end
+
+if (A*B.T).T-B*A.T != Z2 or B*A.T-(A*B.T).T != Z2
+  error("#3.4")
+end
+
+if A*B.T != (B*A.T).T
+  error("#3.5")
+end
+
+if A*B.T-(B*A.T).T != Z2 or (B*A.T).T-A*B.T != Z2
+  error("#3.6")
+end
+
+if (A.T*B).T != B.T*A
+  error("#3.7")
+end
+
+if (A.T*B).T-B.T*A != Z3 or B.T*A-(A.T*B).T != Z3
+  error("#3.8")
+end
+
+A = matrix(
+  [1,2,3],
+  [4,5,6]
+)
+
+B = matrix(
+  [7,10],
+  [8,11],
+  [9,12]
+)
+
+if A*B != matrix([50,68],[122,167])
+  error("#4.1")
+end
+
+if (A*B).T != B.T*A.T
+  error("#4.2")
+end
+
+if (A*B).T-B.T*A.T != Z2 or B.T*A.T-(A*B).T != Z2
+  error("#4.3")
+end
+
+if B*A != matrix([47,64,81],[52,71,90],[57,78,99])
+  error("#4.4")
+end
+
+if (B*A).T != A.T*B.T or A.T*B.T != (B*A).T
+  error("#4.5")
+end
+
+if (B*A).T-A.T*B.T != Z3 or A.T*B.T-(B*A).T != Z3
+  error("#4.6")
+end
+
+
+
+
+
