@@ -7,7 +7,7 @@
 use std::ascii::AsciiExt;
 use std::rc::Rc;
 use std::collections::HashMap;
-use std::mem::{transmute,replace};
+use std::mem::replace;
 use system;
 use vm::{bc, BCSIZE, BCASIZE, BCAASIZE, Module, RTE};
 use object::{Object, U32String, VARIADIC};
@@ -3282,11 +3282,11 @@ fn compile_ast(&mut self, bv: &mut Vec<u32>, t: &Rc<AST>)
   }else if t.symbol_type == SymbolType::Float {
     push_bc(bv, bc::FLOAT, t.line, t.col);
     let x: f64 = match t.s {Some(ref x)=>x.parse().unwrap(), None=>panic!()};
-    push_u64(bv,transmute_f64_to_u64(x));
+    push_u64(bv,x.to_bits());
   }else if t.symbol_type == SymbolType::Imag {
     push_bc(bv, bc::IMAG, t.line, t.col);
     let x: f64 = match t.s {Some(ref x)=>x.parse().unwrap(), None=>panic!()};
-    push_u64(bv,transmute_f64_to_u64(x));
+    push_u64(bv,x.to_bits());
   }else if t.symbol_type == SymbolType::Keyword {
     let value = t.value;
     if value == Symbol::If {
@@ -3390,14 +3390,6 @@ fn ast_argv(t: &AST) -> &Box<[Rc<AST>]>{
   match t.a {Some(ref x)=> x, None=>panic!()}
 }
 
-fn transmute_f64_to_u64(x: f64) -> u64 {
-  unsafe{transmute::<f64,u64>(x)}
-}
-
-fn transmute_u64_to_f64(x: u64) -> f64 {
-  unsafe{transmute::<u64,f64>(x)}
-}
-
 fn push_u32(bv: &mut Vec<u32>, x: u32){
   bv.push(x);
 }
@@ -3456,7 +3448,7 @@ fn asm_listing(a: &[u32]) -> String {
         i+=BCASIZE;
       },
       bc::FLOAT => {
-        let x = transmute_u64_to_f64(
+        let x = f64::from_bits(
           load_u64(&a[BCSIZE+i..BCSIZE+i+2])
         );
         let u = format!("push float {:e}\n",x);
@@ -3464,7 +3456,7 @@ fn asm_listing(a: &[u32]) -> String {
         i+=BCAASIZE;
       },
       bc::IMAG => {
-        let x = transmute_u64_to_f64(
+        let x = f64::from_bits(
           load_u64(&a[BCSIZE+i..BCSIZE+i+2])
         );
         let u = format!("push imag {:e}\n",x);

@@ -1,6 +1,8 @@
 
 #![allow(unused_imports)]
 
+use std::rc::Rc;
+use std::cell::RefCell;
 use object::{Object, FnResult, U32String, Function, Table, List,
   VARIADIC, MutableFn, Exception
 };
@@ -316,6 +318,18 @@ fn list_swap(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     n => env.argc_error(n,2,2,"swap")
   }
 }
+
+pub fn duplicate(a: &Rc<RefCell<List>>, n: usize) -> Object {
+  let a = a.borrow();
+  let size = a.v.len()*n;
+  let mut v: Vec<Object> = Vec::with_capacity(size);
+  for _ in 0..n {
+    for x in &a.v {
+      v.push(x.clone());
+    }
+  }
+  return List::new_object(v);
+} 
 
 pub fn init(t: &Table){
   let mut m = t.map.borrow_mut();

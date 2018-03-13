@@ -1,11 +1,12 @@
 [package]
 name = "moss"
-version = "0.0.1"
+version = "0.0.2"
 authors = ["Finn <finn.bcd@gmail.com>"]
+license = "CC0-1.0"
 
 description = "Experimental Moss interpreter"
 homepage = "https://johnbsmith.github.io/moss/home.htm"
-license = "CC0-1.0"
+repository = "https://github.com/JohnBSmith/moss"
 
 [lib]
 name = "moss"

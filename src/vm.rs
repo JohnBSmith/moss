@@ -2,7 +2,6 @@
 use std::rc::Rc;
 use std::cell::{Cell,RefCell};
 use std::mem::replace;
-use std::mem::transmute;
 use std::collections::HashMap;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
@@ -1026,6 +1025,7 @@ fn operator_minus(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> Operato
 }
 
 fn operator_mpy(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorResult {
+  'list: loop{
   'string: loop{
   'r: loop{
   match stack[sp-2] {
@@ -1048,6 +1048,9 @@ fn operator_mpy(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorR
         },
         Object::String(_) => {
           break 'string;
+        },
+        Object::List(_) => {
+          break 'list;
         },
         _ => {break 'r;}
       };
@@ -1095,6 +1098,14 @@ fn operator_mpy(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorR
         _ => {break 'r;}
       };
       stack[sp-2] = ::string::duplicate(&s.v,n);
+      Ok(())
+    },
+    Object::List(a) => {
+      let n = match stack[sp-1] {
+        Object::Int(x) => if x<0 {0 as usize} else {x as usize},
+        _ => {break 'r;}
+      };
+      stack[sp-2] = ::list::duplicate(&a,n);
       Ok(())
     },
     Object::Table(a) => {
@@ -1168,16 +1179,29 @@ fn operator_mpy(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorR
       ))
     }
   };
+
   } // 'string
   let n = match stack[sp-2] {
     Object::Int(i) => i,
-    _ => panic!()
+    _ => unreachable!()
   };
   let s = match replace(&mut stack[sp-1],Object::Null) {
     Object::String(s) => s,
-    _ => panic!()
+    _ => unreachable!()
   };
   stack[sp-2] = ::string::duplicate(&s.v,n);
+  return Ok(());
+
+  } // 'list
+  let n = match stack[sp-2] {
+    Object::Int(x) => if x<0 {0 as usize} else {x as usize},
+    _ => unreachable!()
+  };
+  let a = match replace(&mut stack[sp-1],Object::Null) {
+    Object::List(a) => a,
+    _ => unreachable!()
+  };
+  stack[sp-2] = ::list::duplicate(&a,n);
   return Ok(());
 }
 
@@ -2937,11 +2961,6 @@ fn load_u64(a: &[u32], ip: usize) -> u64{
   (a[ip+1] as u64)<<32 | (a[ip] as u64)
 }
 
-#[inline(always)]
-fn transmute_u64_to_f64(x: u64) -> f64 {
-  unsafe{transmute::<u64,f64>(x)}
-}
-
 fn new_table(prototype: Object, map: Object) -> Object {
   match map {
     Object::Map(map) => {
@@ -3115,7 +3134,7 @@ fn vm_loop(
         ip+=BCASIZE;
       },
       bc::FLOAT => {
-        stack[sp] = Object::Float(transmute_u64_to_f64(
+        stack[sp] = Object::Float(f64::from_bits(
           load_u64(&a,ip+BCSIZE)
         ));
         sp+=1;
@@ -3123,7 +3142,7 @@ fn vm_loop(
       },
       bc::IMAG => {
         stack[sp] = Object::Complex(Complex64{re: 0.0,
-          im: transmute_u64_to_f64(load_u64(&a,ip+BCSIZE))
+          im: f64::from_bits(load_u64(&a,ip+BCSIZE))
         });
         sp+=1;
         ip+=BCAASIZE;
