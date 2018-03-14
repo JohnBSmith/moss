@@ -16,7 +16,7 @@ extern crate moss;
 fn main(){
     let i = moss::Interpreter::new();
     i.eval(r#"
-        print("Hello, World!")
+        print("Hello, world!")
     "#);
 }
 ```
@@ -36,7 +36,7 @@ fn main(){
     let y: i32 = match y {
         Object::Int(y) => y,
         ref y => {
-            println!("{}",i.string(y));
+            i.print_type_and_value(y);
             unreachable!();
         }
     };
