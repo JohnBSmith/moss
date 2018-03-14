@@ -16,7 +16,6 @@ Example of calling Moss code from Rust:
 
 ```rust
 extern crate moss;
-use moss::object::Object;
 
 fn main(){
     let i = moss::Interpreter::new();
@@ -24,9 +23,7 @@ fn main(){
         f = |n| 1 if n==0 else n*f(n-1)
         f(4)
     "#);
-    if let Object::Int(x) = x {
-        println!("{}",x);
-    }
+    println!("{}",x);
 }
 ```
 

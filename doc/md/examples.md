@@ -3,10 +3,25 @@
 
 **Table of contents**
 1. [Minimal working example](#minimal-working-example)
-2. [Calling a Rust function from Moss](#calling-a-rust-function-from-moss)
-3. [Calling a Moss function from Rust](#calling-a-moss-function-from-rust)
+2. [Using a return value](#using-a-return-value)
+3. [Calling a Rust function from Moss](#calling-a-rust-function-from-moss)
+4. [Calling a Moss function from Rust](#calling-a-moss-function-from-rust)
+5. [Error handling](#error-handling)
 
 ## Minimal working example
+
+```rust
+extern crate moss;
+
+fn main(){
+  let i = moss::Interpreter::new();
+  i.eval(r#"
+    print("Hello, World!")
+  "#);
+}
+```
+
+## Using a return value
 
 ```rust
 extern crate moss;
@@ -81,5 +96,40 @@ fn main(){
     let i = Rc::new(moss::Interpreter::new());
     let fac = i.i32_to_i32("|n| (1..n).reduce(1,|x,y| x*y)");
     println!("{}",fac(4));
+}
+```
+
+## Error handling
+
+```rust
+extern crate moss;
+use moss::object::{Object, Map};
+
+fn main(){
+    let i = moss::Interpreter::new();
+    let module_name = "";
+
+    let gtab = Map::new();
+    // table of global variables
+
+    let y = match i.eval_string(r#"
+        []+1
+    "#, module_name, gtab, moss::Value::Optional) {
+        Ok(y) => y,
+        Err(e) => {
+            panic!(format!("{}",i.exception_to_string(&e)));
+        }
+    };
+
+    let value: i32 = match y {
+        Object::Int(x) => x,
+        x => {
+            panic!(format!(
+                "Type error: expected an integer, but got {}.", i.string(&x)
+            ));
+        }
+    };
+
+    println!("{}",value);
 }
 ```

@@ -59,8 +59,9 @@ use std::rc::Rc;
 use std::cell::RefCell;
 // use std::fs::File;
 // use std::io::Read;
-use object::{Object, List, Map, U32String, FnResult};
-use vm::{RTE,State,EnvPart,Frame, get_env, print_exception};
+use object::{Object, List, Map, U32String, FnResult, Exception};
+use vm::{RTE,State,EnvPart,Frame, get_env};
+pub use compiler::Value;
 
 pub struct Interpreter{
   pub rte: Rc<RTE>,
@@ -89,19 +90,28 @@ impl Interpreter{
   pub fn new() -> Self {
     Interpreter::new_config(STACK_SIZE)
   }
+  
+  pub fn eval_string(&self, s: &str, id: &str,
+    gtab: Rc<RefCell<Map>>, value: compiler::Value
+  ) -> Result<Object,Box<Exception>>
+  {
+    let mut state = &mut *self.state.borrow_mut();
+    let mut env = get_env(&mut state);
+    return env.eval_string(s,id,gtab,value);
+  }
 
   pub fn eval_env(&self, s: &str, gtab: Rc<RefCell<Map>>) -> Object {
     let mut state = &mut *self.state.borrow_mut();
     let mut env = get_env(&mut state);
     return env.eval_env(s,gtab);
   }
-  
+
   pub fn eval_file(&self, id: &str, gtab: Rc<RefCell<Map>>){
     let mut state = &mut *self.state.borrow_mut();
     let mut env = get_env(&mut state);
     return env.eval_file(id,gtab);
   }
-  
+
   pub fn eval(&self, s: &str) -> Object {
     let mut state = &mut *self.state.borrow_mut();
     let mut env = get_env(&mut state);
@@ -119,17 +129,35 @@ impl Interpreter{
     let mut env = get_env(&mut state);
     return env.call(f,pself,argv);
   }
-  
+
   pub fn repr(&self, x: &Object) -> String {
     let mut state = &mut *self.state.borrow_mut();
     let mut env = get_env(&mut state);
     match x.repr(&mut env) {
       Ok(s)=>s,
       Err(e)=>{
-        print_exception(&mut env,&e);
+        println!("{}",env.exception_to_string(&e));
         "[exception in Interpreter::repr, see stdout]".to_string()
       }
     }
+  }
+
+  pub fn string(&self, x: &Object) -> String {
+    let mut state = &mut *self.state.borrow_mut();
+    let mut env = get_env(&mut state);
+    match x.string(&mut env) {
+      Ok(s) => return s,
+      Err(e) => {
+        println!("{}",env.exception_to_string(&e));
+        panic!();
+      }
+    }
+  }
+
+  pub fn exception_to_string(&self, e: &Exception) -> String {
+    let mut state = &mut *self.state.borrow_mut();
+    let mut env = get_env(&mut state);
+    return env.exception_to_string(e);
   }
 }
 

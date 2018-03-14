@@ -42,9 +42,9 @@ impl Object{
   }
 }
 
-impl ToString for Object{
-  fn to_string(&self) -> String {
-    return ::vm::object_to_string_plain(self);
+impl fmt::Display for Object {
+  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    write!(f, "{}", ::vm::object_to_string_plain(self))
   }
 }
 
@@ -174,6 +174,12 @@ impl Exception{
       a.v.push(s);
       self.traceback = Some(a);
     }
+  }
+}
+
+impl fmt::Debug for Exception {
+  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    write!(f, "{}", ::vm::object_to_string_plain(&self.value))
   }
 }
 

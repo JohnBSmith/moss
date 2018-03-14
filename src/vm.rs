@@ -3931,28 +3931,30 @@ fn exception_value_to_string(env: &mut Env, x: &Object) -> String {
   }else{x.clone()};
   return match value.string(env) {
     Ok(s) => {s}, Err(e) => {
-      print_exception(env,&e);
-      "[^Another exception occured in str(exception.value).]".to_string()
+      format!("{}\n[^Another exception occured in str(exception.value).]",
+        exception_to_string(env,&e))
     }
   }
 }
 
-pub fn print_exception(env: &mut Env, e: &Exception) {
+fn exception_to_string(env: &mut Env, e: &Exception) -> String {
+  let mut s = String::new();
   if let Some(ref traceback) = e.traceback {
     for x in traceback.v.iter().rev() {
       match x.string(env) {
-        Ok(s) => {println!("  in {}",s);},
+        Ok(x) => {writeln!(&mut s,"  in {}",x).unwrap();},
         Err(e) => {
-          print_exception(env,&e);
-          println!("[^Another exception occured in str(exception.traceback[k]).]");
+          write!(&mut s,"{}",exception_to_string(env,&e)).unwrap();
+          writeln!(&mut s,"[^Another exception occured in str(exception.traceback[k]).]").unwrap();
         }
       };
     }
   }
   if let Some(ref spot) = e.spot {
-    println!("Line {}, col {} ({}):",spot.line,spot.col,&spot.module);
+    writeln!(&mut s,"Line {}, col {} ({}):",spot.line,spot.col,&spot.module).unwrap();
   }
-  println!("{}",exception_value_to_string(env,&e.value));
+  write!(&mut s,"{}",exception_value_to_string(env,&e.value)).unwrap();
+  return s;
 }
 
 pub fn get_env(state: &mut State) -> Env {
@@ -4173,7 +4175,9 @@ impl<'a> Env<'a>{
           ){
             Ok(module) => {
               match eval(self,module.clone(),gtab.clone(),true) {
-                Ok(x) => {}, Err(e) => {print_exception(self,&e);}
+                Ok(x) => {}, Err(e) => {
+                  println!("{}",exception_to_string(self,&e));
+                }
               }
             },
             Err(e) => {compiler::print_error(&e);}
@@ -4190,7 +4194,10 @@ impl<'a> Env<'a>{
     let gtab = Map::new();
     return match self.eval_string(s,"",gtab,compiler::Value::Optional) {
       Ok(x) => x,
-      Err(e) => e.value
+      Err(e) => {
+        println!("{}",self.exception_to_string(&e));
+        panic!();
+      }
     };
   }
 
@@ -4220,7 +4227,9 @@ impl<'a> Env<'a>{
     f.read_to_string(&mut s).expect("something went wrong reading the file");
 
     match self.eval_string(&s,id,gtab,compiler::Value::Optional) {
-      Ok(x) => {}, Err(e) => {print_exception(self,&e);}
+      Ok(x) => {}, Err(e) => {
+        println!("{}",exception_to_string(self,&e));
+      }
     }
   }
 
@@ -4262,6 +4271,10 @@ impl<'a> Env<'a>{
   ) -> FnResult
   {
     return Err(self.env.type_error2_plain(self.sp,self.stack,s,sx,sy,x,y));
+  }
+  
+  pub fn exception_to_string(&mut self, e: &Exception) -> String {
+    exception_to_string(self,e)
   }
 }
 
