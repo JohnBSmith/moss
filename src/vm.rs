@@ -4276,6 +4276,16 @@ impl<'a> Env<'a>{
   pub fn exception_to_string(&mut self, e: &Exception) -> String {
     exception_to_string(self,e)
   }
+  
+  pub fn print_type_and_value(&mut self, x: &Object) {
+    let svalue = match x.string(self) {
+      Ok(s) => s, Err(e) => {
+        panic!(self.exception_to_string(&e));
+      }
+    };
+    let stype = type_name(x);
+    println!("Type: {}, value: {}",stype,svalue);
+  }
 }
 
 pub fn sys_call(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {

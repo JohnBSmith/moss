@@ -159,6 +159,16 @@ impl Interpreter{
     let mut env = get_env(&mut state);
     return env.exception_to_string(e);
   }
+
+  pub fn print_exception(&self, e: &Exception) {
+    println!("{}",self.exception_to_string(e));
+  }
+
+  pub fn print_type_and_value(&self, x: &Object) {
+    let mut state = &mut *self.state.borrow_mut();
+    let mut env = get_env(&mut state);
+    env.print_type_and_value(x);
+  }
 }
 
 pub fn new_list_str(a: &[String]) -> Rc<RefCell<List>> {

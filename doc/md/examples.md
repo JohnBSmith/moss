@@ -14,10 +14,10 @@
 extern crate moss;
 
 fn main(){
-  let i = moss::Interpreter::new();
-  i.eval(r#"
-    print("Hello, World!")
-  "#);
+    let i = moss::Interpreter::new();
+    i.eval(r#"
+        print("Hello, World!")
+    "#);
 }
 ```
 
@@ -29,13 +29,18 @@ use moss::object::Object;
 
 fn main(){
     let i = moss::Interpreter::new();
-    let x = i.eval(r#"
+    let y = i.eval(r#"
         f = |n| 1 if n==0 else n*f(n-1)
         f(4)
     "#);
-    if let Object::Int(x) = x {
-        println!("{}",x);
-    }
+    let y: i32 = match y {
+        Object::Int(y) => y,
+        ref y => {
+            println!("{}",i.string(y));
+            unreachable!();
+        }
+    };
+    println!("{}",y);
 }
 ```
 
@@ -45,11 +50,12 @@ fn main(){
 extern crate moss;
 use moss::object::{Object,Function,FnResult,Env};
 
-fn new_i32_to_i32(f: fn(i32)->i32) -> Object {
-    let fp = move |_env: &mut Env, _pself: &Object, argv: &[Object]| -> FnResult {
+fn new_i32_to_i32(f: fn(i32)->i32, id: &str) -> Object {
+    let err = format!("Type error in {}(n): n is not an intger.",id);
+    let fp = move |env: &mut Env, _pself: &Object, argv: &[Object]| -> FnResult {
         match argv[0] {
             Object::Int(n) => Ok(Object::Int(f(n))),
-            _ => panic!()
+            ref n => env.type_error1(&err,"n",&n)
         }
     };
     return Function::mutable(Box::new(fp),1,1);
@@ -61,7 +67,7 @@ fn fac(n: i32) -> i32 {
 
 fn main(){
     let i = moss::Interpreter::new();
-    i.rte.gtab.borrow_mut().insert("fac",new_i32_to_i32(fac));
+    i.rte.gtab.borrow_mut().insert("fac",new_i32_to_i32(fac,"fac"));
     i.eval(r#"
         print(fac(4))
     "#);
@@ -85,8 +91,11 @@ impl I32TOI32 for Rc<moss::Interpreter> {
         let fobj = i.eval(f);
         return Box::new(move |x: i32| -> i32 {
             match i.call(&fobj,&Object::Null,&[Object::Int(x)]) {
-                Ok(y) => match y {Object::Int(y) => y, _ => panic!()},
-                Err(_) => panic!()
+                Ok(y) => match y {
+                    Object::Int(y) => y,
+                    ref y => {i.print_type_and_value(y); unreachable!();}
+                },
+                Err(e) => {i.print_exception(&e); unreachable!();}
             }
         });
     }
