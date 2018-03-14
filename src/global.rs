@@ -203,9 +203,14 @@ fn size(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
 }
 
 fn load_file(env: &mut Env, id: &str) -> FnResult {
-  let s = match ::system::read_file(id) {
+  if !env.rte().read_access(id) {
+    return env.std_exception(&format!(
+      "Error in load(id): Could not open file id=='{}': permission denied.",id
+    ));
+  }
+  let s = match ::system::read_module_file(id) {
     Ok(s)=>s,
-    Err(()) => return env.std_exception(&format!("Error: Could not load file '{}.moss'.",id))
+    Err(e) => return env.std_exception(&e)
   };
   let module = new_module(id);
   env.rte().clear_at_exit(module.map.clone());
@@ -630,6 +635,31 @@ fn fconst(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
   return Ok(argv[0].clone());
 }
 
+fn read(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+  match argv.len() {
+    1 => {}, n => {return env.argc_error(n,1,1,"read");}
+  }
+  match argv[0] {
+    Object::String(ref id) => {
+      let id: String = id.v.iter().collect();
+
+      if !env.rte().read_access(&id) {
+        return env.std_exception(&format!(
+          "Error in read(id): Could not open file id=='{}': permission denied.",id
+        ));
+      }
+      
+      return match ::system::read_file(&id) {
+        Ok(s) => Ok(U32String::new_object_str(&s)),
+        Err(e) => env.std_exception(&e)
+      }
+    },
+    ref x => env.type_error1(
+      "Type error in read(id): id is not a string.",
+      "id", x)
+  }
+}
+
 pub fn init_rte(rte: &RTE){
   let mut gtab = rte.gtab.borrow_mut();
   gtab.insert_fn_plain("print",print,0,VARIADIC);
@@ -653,6 +683,7 @@ pub fn init_rte(rte: &RTE){
   gtab.insert_fn_plain("rand",frand,1,1);
   gtab.insert_fn_plain("gtab",fgtab,0,0);
   gtab.insert_fn_plain("const",fconst,1,1);
+  gtab.insert_fn_plain("read",read,1,1);
   gtab.insert("empty", Object::Empty);
 
   let type_bool = rte.type_bool.clone();

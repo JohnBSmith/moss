@@ -3051,6 +3051,9 @@ impl RTE{
     // function). The gtab may also contain itself.
     self.delay.borrow_mut().push(gtab);
   }
+  pub fn read_access(&self, id: &str) -> bool {
+    return true;
+  }
 }
 
 pub struct Module{

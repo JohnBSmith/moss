@@ -2,7 +2,7 @@
 [Home](https://johnbsmith.github.io/moss/home.htm)
 | [Language](https://johnbsmith.github.io/moss/doc/Tutorial/Tutorial.htm)
 | [Library](https://johnbsmith.github.io/moss/doc/Library.htm)
-| [Rust-Moss examples](doc/md/examples.md)
+| [Rust-Moss examples](doc/md/rust-moss-examples.md)
 
 # Experimental Moss interpreter in Rust
 

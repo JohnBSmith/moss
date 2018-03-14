@@ -1,5 +1,5 @@
 
-# Examples
+# Rust-Moss examples
 
 **Table of contents**
 1. [Minimal working example](#minimal-working-example)

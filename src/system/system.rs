@@ -233,25 +233,45 @@ pub fn getline(prompt: &str) -> io::Result<String>{
 }
 */
 
-pub fn read_file(id: &str) -> Result<String,()> {
+pub fn read_module_file(id: &str) -> Result<String,String> {
   let mut path = id.to_string();
   path.push_str(".moss");
   let mut f = match File::open(&path) {
     Ok(f) => f,
     Err(e) => {
-      let mut path = home_dir().expect("unable to get the home directory");
+      let mut path = match home_dir() {
+        Some(path) => path,
+        None => {
+          return Err("Error in load: unable to get the home directory.".to_string());
+        }
+      };
       path.push(".moss");
       path.push(id);
       path.set_extension("moss");
       // println!("path: '{}'",path.to_str().unwrap());
       match File::open(&path) {
         Ok(f) => f,
-        Err(e) => return Err(())
+        Err(e) => {
+          return Err(format!("Error in load: Could not open file '{}.moss'.",id));
+        }
       }
     }
   };
   let mut s = String::new();
-  f.read_to_string(&mut s).expect("something went wrong reading the file");
+  if let Err(_) = f.read_to_string(&mut s) {
+    return Err(format!("Error in load: Could not read file '{}.moss'.",id));
+  }
   return Ok(s);
 }
 
+pub fn read_file(id: &str) -> Result<String,String> {
+  let mut f = match File::open(id) {
+    Ok(f) => f,
+    Err(_) => return Err(format!("Could not open file '{}'.",id))
+  };
+  let mut s = String::new();
+  if let Err(_) = f.read_to_string(&mut s) {
+    return Err(format!("Could not read file '{}'.",id));
+  }
+  return Ok(s);
+}
