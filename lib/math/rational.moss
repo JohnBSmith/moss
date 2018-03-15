@@ -1,0 +1,102 @@
+
+
+sub gcd(a,b)
+  while b!=0 do a,b=b,a%b end
+  return a
+end
+
+sub rat(n,d)
+  t = gcd(n,d)
+  return table Rat{n=n//t, d=d//t}
+end
+
+sub rat_int(n)
+  return rat(n,1)
+end
+
+Rat = table{
+  sub string
+    s = "-" if sgn(self.n)*sgn(self.d)<0 else ""
+    if abs(self.d)==1
+      return "{}{}" % [s,abs(self.n)]
+    else
+      return "{}{}/{}" % [s,abs(self.n),abs(self.d)]
+    end
+  end,
+  sub neg(a;)
+    return table Rat{n=-a.n,d=a.d}
+  end,
+  sub plus(a;b)
+    if b: Rat
+      n = a.n*b.d+b.n*a.d
+      d = a.d*b.d
+      return rat(n,d)
+    # elif b: Int or b: Long
+    #   return rat(a.n+b*a.d,a.d)
+    else
+      return b+a
+    end
+  end,
+  sub rplus(a;b)
+    return rat(a*b.d+b.n,b.d)
+  end,
+  sub minus(a;b)
+    if b: Rat
+      n = a.n*b.d-b.n*a.d
+      d = a.d*b.d
+      return rat(n,d)
+    #elif b: Int or b: Long
+    #  return rat(a.n-b*a.d,a.d)
+    else
+      return -(b-a)
+    end
+  end,
+  sub rminus(a;b)
+    return rat(a*b.d-b.n,b.d)
+  end,
+  sub mpy(a;b)
+    if b: Rat
+      n = a.n*b.n
+      d = a.d*b.d
+      return rat(n,d)
+    #elif b: Int or b: Long
+    #  return rat(a.n*b,a.d)
+    else
+      return b*a
+    end
+  end,
+  sub rmpy(a;b)
+    return rat(a*b.n,b.d)
+  end,
+  sub div(a;b)
+    if b: Rat
+      return rat(a.n*b.d,a.d*b.n)
+    elif b: Int or b: Long
+      return rat(a.n,a.d*b)
+    else
+      return b.rdiv(a;b)
+    end
+  end,
+  sub rdiv(b)
+    return rat(self*b.d,b.n)
+  end,
+  sub pow(b)
+    if b>0
+      return rat(self.n^b, self.d^b)
+    elif b<0
+      return rat(self.d^(-b), self.n^(-b))
+    else
+      return rat(1,1)
+    end
+  end,
+  sub lt(a;b)
+    if b: Rat
+      return sgn(a.d)*a.n*abs(b.d) < sgn(b.d)*b.n*abs(a.d)
+    else
+      return sgn(a.d)*a.n < b*abs(a.d)
+    end
+  end
+}
+
+
+

@@ -137,7 +137,7 @@ impl Interface for Array {
         },
         _ => {}
       }
-      env.index_error("Index error in t.x: x not found.")
+      env.index_error(&format!("Index error in t.{0}: {0} not found.",key))
     }else{
       env.type_error("Type error in t.x: x is not a string.")
     }
@@ -609,6 +609,52 @@ fn map_plain(a: &Array, f: fn(&Object)->Object) -> Rc<Array> {
   }
 }
 
+fn array_map(env: &mut Env, a: &Array, f: &Object) -> FnResult {
+  if a.n==1 {
+    let mut v: Vec<Object> = Vec::with_capacity(a.s[0].shape);
+    let stride = a.s[0].stride;
+    let base = a.base as isize;
+    let data = a.data.borrow();
+    for i in 0..a.s[0].shape {
+      let x = data[(base+i as isize*stride) as usize].clone();
+      let y = try!(env.call(f,&Object::Null,&[x]));
+      v.push(y);
+    }
+    return Ok(Object::Interface(Array::vector(v)));
+  }else if a.n==2 {
+    let m = a.s[1].shape;
+    let n = a.s[0].shape;
+    let istride = a.s[1].stride;
+    let jstride = a.s[0].stride;
+
+    let mut v: Vec<Object> = Vec::with_capacity(m*n);
+    let base = a.base as isize;
+    let data = a.data.borrow();
+    for i in 0..m {
+      let jbase = base+i as isize*istride;
+      for j in 0..n {
+        let x = data[(jbase+j as isize*jstride) as usize].clone();
+        let y = try!(env.call(f,&Object::Null,&[x]));
+        v.push(y);
+      }
+    }
+    return Ok(Object::Interface(Array::matrix(m,n,v)));
+  }else{
+    panic!();
+  }
+}
+
+fn map(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+  match argv.len() {
+    2 => {}, n => return env.argc_error(n,2,2,"map")
+  }
+  if let Some(a) = Array::downcast(&argv[0]) {
+    return array_map(env,a,&argv[1]);
+  }else{
+    panic!();
+  }
+}
+
 fn copy(a: &Array) -> Rc<Array> {
   map_plain(a,|x| x.clone())
 }
@@ -891,6 +937,7 @@ pub fn load_la(env: &mut Env) -> Object {
     m.insert_fn_plain("array",array,2,2);
     m.insert_fn_plain("scalar",scalar,3,3);
     m.insert_fn_plain("diag",diag,0,VARIADIC);
+    m.insert_fn_plain("map",map,2,2);
   }
   
   return Object::Table(Rc::new(la));

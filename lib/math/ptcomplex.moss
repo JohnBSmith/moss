@@ -1,0 +1,74 @@
+
+# Polymorphic type complex
+
+complex = sub|x,y|
+  return table Complex{re=x, im=y}
+end
+
+Complex = table{
+  sub string
+    im = str(self.im)
+    s = "" if size(im)>0 and im[0]=='-' else "+"
+    return "{}{}{}*i" % [self.re, s, im]
+  end,
+  sub neg(a;)
+    return table Complex{re = -a.re, im = -a.im}
+  end,
+  sub plus(a;b)
+    if b: Complex
+      return table Complex{re=a.re+b.re, im=a.im+b.im}
+    else
+      return table Complex{re=a.re+b, im=a.im}
+    end
+  end,
+  sub rplus(a;b)
+    return table Complex{re=a+b.re, im=b.im}
+  end,
+  sub minus(a;b)
+    if b: Complex
+      return table Complex{re=a.re-b.re, im=a.im-b.im}
+    else
+      return table Complex{re=a.re-b, im=a.im}
+    end
+  end,
+  sub rminus(a;b)
+    return table Complex{re=a-b.re, im=-b.im}
+  end,
+  sub mpy(a;b)
+    if b: Complex
+      return table Complex{
+        re = a.re*b.re-a.im*b.im,
+        im = a.re*b.im+a.im*b.re
+      }
+    else
+      return table Complex{re = a.re*b, im = a.im*b}
+    end
+  end,
+  sub rmpy(a;b)
+    return table Complex{re = a*b.re, im = a*b.im}
+  end,
+  sub div(a;b)
+    if b: Complex
+      r2 = b.re*b.re+b.im*b.im
+      return table Complex{
+        re = (a.re*b.re+a.im*b.im)/r2,
+        im = (a.im*b.re-a.re*b.im)/r2
+      }
+    else
+      return table Complex{re = a.re/b, im = a.im/b}
+    end
+  end,
+  sub rdiv(a;b)
+    r2 = b.re*b.re+b.im*b.im
+    return table Complex{
+      re = a*b.re/r2,
+      im = -a*b.im/r2
+    }
+  end,
+  sub pow(a;n)
+    return (1..n).prod(|k| a)
+  end
+}
+
+
+

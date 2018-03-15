@@ -9,7 +9,7 @@ use std::any::Any;
 use std::ops;
 
 use complex::Complex64;
-use vm::Module;
+use vm::{Module,RTE};
 pub use vm::Env;
 
 pub enum Object{
@@ -359,6 +359,9 @@ pub trait Interface{
   fn abs(&self, env: &mut Env) -> FnResult {
     env.std_exception("Error: abs(x) is not implemented for objects of this type.")
   }
+  fn sgn(&self, env: &mut Env) -> FnResult {
+    env.std_exception("Error: sgn(x) is not implemented for objects of this type.")
+  }
   fn get(&self, key: &Object, env: &mut Env) -> FnResult {
     env.std_exception("Type error in t.x: getter is not implemented for objects of this type.")
   }
@@ -370,6 +373,9 @@ pub trait Interface{
   }
   fn type_name(&self) -> String {
     "Interface object".to_string()
+  }
+  fn is_instance_of(&self, type_obj: &Object, rte: &RTE) -> bool {
+    false
   }
 }
 

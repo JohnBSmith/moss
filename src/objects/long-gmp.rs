@@ -12,7 +12,7 @@ use std::ptr::null;
 use std::rc::Rc;
 use std::any::Any;
 use object::{Object, FnResult, Function, Interface, Exception};
-use vm::{Env, op_add, op_sub, op_mpy, op_div};
+use vm::{Env, RTE, op_add, op_sub, op_mpy, op_div};
 
 #[repr(C)]
 struct mpz_struct {
@@ -555,6 +555,14 @@ impl Interface for Long {
     let mut y = Mpz::new();
     y.neg(&self.value);
     return Ok(Object::Interface(Rc::new(Long{value: y})));
+  }
+  
+  fn is_instance_of(&self, type_obj: &Object, rte: &RTE) -> bool {
+    if let Object::Table(ref t) = *type_obj {
+      return Rc::ptr_eq(t,&rte.type_long);
+    }else{
+      return false;
+    }
   }
 }
 

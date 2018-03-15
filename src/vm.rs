@@ -1622,112 +1622,6 @@ fn operator_bor(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorR
   ));
 }
 
-
-/****
-impl PartialEq for Object{
-  fn eq(&self, b: &Object) -> bool{
-    'r: loop{
-    match *self {
-      Object::Null => {
-        return match *b {
-          Object::Null => true,
-          _ => false
-        };
-      },
-      Object::Bool(x) => {
-        return match *b {
-          Object::Bool(y) => x==y,
-          _ => false
-        };
-      },
-      Object::Int(x) => {
-        return match *b {
-          Object::Int(y) => x==y,
-          Object::Float(y) => (x as f64)==y,
-          Object::Complex(y) => (x as f64)==y.re && y.im==0.0,
-          _ => {break 'r;}
-        };
-      },
-      Object::Float(x) => {
-        return match *b {
-          Object::Int(y) => x==(y as f64),
-          Object::Float(y) => x==y,
-          Object::Complex(y) => x==y.re && y.im==0.0,
-          _ => {break 'r;}
-        };
-      },
-      Object::Complex(x) => {
-        return match *b {
-          Object::Int(y) => x.re==(y as f64) && x.im==0.0,
-          Object::Float(y) => x.re==y && x.im==0.0,
-          Object::Complex(y) => x==y,
-          _ => {break 'r;}
-        };
-      },
-      Object::String(ref x) => {
-        return match *b {
-          Object::String(ref y) => x.v==y.v,
-          _ => false
-        };
-      },
-      Object::List(ref x) => {
-        return match *b {
-          Object::List(ref y) => {
-            x.borrow().v == y.borrow().v
-          },
-          _ => false
-        };
-      },
-      Object::Map(ref x) => {
-        return match *b {
-          Object::Map(ref y) => {
-            x.borrow().m == y.borrow().m
-          },
-          _ => false
-        };
-      },
-      Object::Function(ref f) => {
-        return match *b {
-          Object::Function(ref g) => {
-            Rc::ptr_eq(f,g)
-          },
-          _ => false
-        };
-      },
-      Object::Range(ref x) => {
-        return match *b {
-          Object::Range(ref y) => {
-            x.a==y.a && x.b==y.b && x.step==y.step
-          },
-          _ => false
-        };
-      },
-      Object::Empty => {
-        return match *b {
-          Object::Empty => true,
-          _ => false
-        };
-      },
-      _ => {}
-    }
-    return match *self {
-      Object::Interface(ref x) => {
-        return x.eq_plain(b);
-      },
-      _ => false
-    };
-    } // 'r
-    return match *b {
-      Object::Interface(ref x) => {
-        return x.req_plain(self);
-      },
-      _ => false
-    }
-  }
-}
-****/
-
-
 fn operator_eq(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorResult {
   'r: loop{
   match stack[sp-2] {
@@ -1909,6 +1803,19 @@ fn operator_lt(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorRe
         Err(e) => Err(e)
       }
     },
+    Object::Table(a) => {
+      match a.get(&env.rte.key_lt) {
+        Some(ref f) => {
+          let x = replace(&mut stack[sp-2],Object::Null);
+          let y = replace(&mut stack[sp-1],Object::Null);
+          match (Env{env,sp,stack}).call(f,&x,&[y]) {
+            Ok(y) => {stack[sp-2] = y; Ok(())},
+            Err(e) => Err(e)
+          }
+        },
+        None => {break 'r;}
+      }
+    },
     _ => {break 'r;}
   };
   } // 'r
@@ -1918,6 +1825,23 @@ fn operator_lt(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorRe
       match x.rlt(&a,&mut Env{env: env, sp: sp, stack: stack}) {
         Ok(value) => {stack[sp-2] = value; Ok(())},
         Err(e) => Err(e)
+      }
+    },
+    Object::Table(a) => {
+      match a.get(&env.rte.key_rlt) {
+        Some(ref f) => {
+          let x = replace(&mut stack[sp-2],Object::Null);
+          match (Env{env,sp,stack}).call(f,&x,&[Object::Table(a)]) {
+            Ok(y) => {stack[sp-2] = y; Ok(())},
+            Err(e) => Err(e)
+          }
+        },
+        None => {
+          let x = stack[sp-2].clone();
+          Err(env.type_error2_plain(sp,stack,
+            "Type error in x<y.","x","y",&x,&Object::Table(a)
+          ))   
+        }
       }
     },
     a => {
@@ -2274,6 +2198,9 @@ fn operator_of(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorRe
           }
         }
       }
+    },
+    Object::Interface(x) => {
+      value = x.is_instance_of(&type_obj,&env.rte);
     },
     _ => {value = false;}
   }
@@ -2747,10 +2674,13 @@ fn operator_dot(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorR
         }
       }
     },
-    x => return Err(env.type_error1_plain(sp,stack,
-      "Type error in t.m: t is not a table.",
-      "x",&x
-    ))
+    x => {
+      let key = stack[sp-1].clone();
+      return Err(env.type_error1_plain(sp,stack,
+        &format!("Type error in t.{}: t is not a table.",key),
+        "x",&x
+      ))
+    }
   }
   let key = try!(stack[sp-1].clone().string(&mut Env{env,stack,sp}));
   return Err(env.index_error_plain(&format!(
@@ -2976,6 +2906,7 @@ pub struct RTE{
   pub type_int: Rc<Table>,
   pub type_float: Rc<Table>,
   pub type_complex: Rc<Table>,
+  pub type_long: Rc<Table>,
   pub type_string: Rc<Table>,
   pub type_list: Rc<Table>,
   pub type_map: Rc<Table>,
@@ -3004,7 +2935,11 @@ pub struct RTE{
   pub key_div: Object,
   pub key_rdiv: Object,
   pub key_pow: Object,
-  pub key_rpow: Object
+  pub key_rpow: Object,
+  pub key_lt: Object,
+  pub key_rlt: Object,
+  pub key_le: Object,
+  pub key_rle: Object
 }
 
 impl RTE{
@@ -3019,6 +2954,7 @@ impl RTE{
       type_map:  Table::new(Object::Null),
       type_function: Table::new(Object::Null),
       type_iterable: Table::new(Object::Null),
+      type_long: Table::new(Object::Null),
       type_std_exception: Table::new(Object::Null),
       type_type_error: Table::new(Object::Null),
       type_value_error: Table::new(Object::Null),
@@ -3042,7 +2978,11 @@ impl RTE{
       key_div:    U32String::new_object_str("div"),
       key_rdiv:   U32String::new_object_str("rdiv"),
       key_pow:    U32String::new_object_str("pow"),
-      key_rpow:   U32String::new_object_str("rpow")
+      key_rpow:   U32String::new_object_str("rpow"),
+      key_lt:     U32String::new_object_str("lt"),
+      key_rlt:     U32String::new_object_str("rlt"),
+      key_le:     U32String::new_object_str("le"),
+      key_rle:     U32String::new_object_str("rle")
     })
   }
   pub fn clear_at_exit(&self, gtab: Rc<RefCell<Map>>){

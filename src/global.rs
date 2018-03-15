@@ -124,6 +124,32 @@ fn repr(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
   return Ok(U32String::new_object_str(&s));
 }
 
+fn sgn(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
+  if argv.len() != 1 {
+    return env.argc_error(argv.len(),1,1,"sgn");
+  }
+  match argv[0] {
+    Object::Int(x) => {
+      return Ok(Object::Int(if x<0 {-1} else {1}));
+    },
+    Object::Float(x) => {
+      return Ok(Object::Float(if x<0.0 {-1.0} else {1.0}));
+    },
+    Object::Complex(z) => {
+      return Ok(Object::Float(z.abs()));
+    },
+    Object::Interface(ref x) => {
+      return x.sgn(env);
+    },
+    _ => {
+      return env.type_error1(
+        "Type error in sgn(x): x should be of type Int, Long, Float.",
+        "x",&argv[0]
+      );
+    }
+  }
+}
+
 fn abs(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
   if argv.len() != 1 {
     return env.argc_error(argv.len(),1,1,"abs");
@@ -669,6 +695,7 @@ pub fn init_rte(rte: &RTE){
   gtab.insert_fn_plain("float",float,1,1);
   gtab.insert_fn_plain("repr",repr,1,1);
   gtab.insert_fn_plain("input",input,0,2);
+  gtab.insert_fn_plain("sgn",sgn,1,1);
   gtab.insert_fn_plain("abs",abs,1,1);
   gtab.insert_fn_plain("eval",eval,1,1);
   gtab.insert_fn_plain("size",size,1,1);
@@ -717,6 +744,9 @@ pub fn init_rte(rte: &RTE){
   let type_iterable = rte.type_iterable.clone();
   ::iterable::init(&type_iterable);
   gtab.insert("Iterable", Object::Table(type_iterable));
+
+  let type_long = rte.type_long.clone();
+  gtab.insert("Long", Object::Table(type_long));
   
   let type_type_error = rte.type_type_error.clone();
   gtab.insert("TypeError", Object::Table(type_type_error));

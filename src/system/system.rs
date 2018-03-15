@@ -252,14 +252,14 @@ pub fn read_module_file(id: &str) -> Result<String,String> {
       match File::open(&path) {
         Ok(f) => f,
         Err(e) => {
-          return Err(format!("Error in load: Could not open file '{}.moss'.",id));
+          return Err(format!("Error in load: could not open file '{}.moss'.",id));
         }
       }
     }
   };
   let mut s = String::new();
   if let Err(_) = f.read_to_string(&mut s) {
-    return Err(format!("Error in load: Could not read file '{}.moss'.",id));
+    return Err(format!("Error in load: could not read file '{}.moss'.",id));
   }
   return Ok(s);
 }
@@ -267,11 +267,11 @@ pub fn read_module_file(id: &str) -> Result<String,String> {
 pub fn read_file(id: &str) -> Result<String,String> {
   let mut f = match File::open(id) {
     Ok(f) => f,
-    Err(_) => return Err(format!("Could not open file '{}'.",id))
+    Err(_) => return Err(format!("Error in read: could not open file '{}'.",id))
   };
   let mut s = String::new();
   if let Err(_) = f.read_to_string(&mut s) {
-    return Err(format!("Could not read file '{}'.",id));
+    return Err(format!("Error in read: could not read file '{}'.",id));
   }
   return Ok(s);
 }

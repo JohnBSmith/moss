@@ -779,7 +779,10 @@ impl VarTab{
       }
     }
     if let Some(ref mut context) = self.context {
-      if let Some(_) = context.index_type(id) {
+      if let Some((_,var_type)) = context.index_type(id) {
+        if var_type == VarType::Global {
+          return None;
+        }
         self.v.push(VarInfo{index: self.count_context,
           s: id.to_string(), var_type: VarType::Context
         });
