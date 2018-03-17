@@ -1,0 +1,26 @@
+
+# This panics by popping from empty frame stack.
+# It seems to have something to do with Function.apply.
+
+Callcc = object()
+
+callcc = sub|f,*a|
+  a = [null]
+  callback = sub|x|
+    a[0] = x
+    raise Callcc
+  end
+  try
+    return f.apply([callback]+a)
+  catch e if e is Callcc
+    return a[0]
+  end
+end
+
+sub f(ret,x)
+  ret(12)
+end
+
+print(callcc(f))
+
+

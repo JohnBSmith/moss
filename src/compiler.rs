@@ -2034,6 +2034,20 @@ fn qualification(&mut self, v: &mut Vec<Rc<AST>>, id: Rc<AST>,
     let t = &p[i.index];
     let s = if t.token_type == SymbolType::Identifier {
       match t.item {Item::String(ref s) => s, _ => panic!()}
+    }else if t.value == Symbol::Ast {
+      i.index+=1;
+      // gtab().update(record(id))
+      let line = t0.line;
+      let col = t0.col;
+      let gtab = identifier("gtab",line,col);
+      let call_gtab = apply(line,col,Box::new([gtab]));
+      let update = string("update".to_string(),line,col);
+      let dot = binary_operator(line,col,Symbol::Dot,call_gtab,update);
+      let record = identifier("record",line,col);
+      let call_record_id = apply(line,col,Box::new([record,id]));
+      let y = apply(line,col,Box::new([dot,call_record_id]));
+      v.push(y);
+      return Ok(());
     }else{
       return Err(self.syntax_error(t.line, t.col, String::from("unexpected token.")));
     };

@@ -8,6 +8,7 @@ use object::{Object, FnResult, U32String, Function, Table, List,
 };
 use vm::Env;
 use rand::Rand;
+use global::list;
 
 fn push(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
   match *pself {
@@ -330,6 +331,43 @@ pub fn duplicate(a: &Rc<RefCell<List>>, n: usize) -> Object {
   }
   return List::new_object(v);
 } 
+
+pub fn map_fn(env: &mut Env, f: &Object, argv: &[Object]) -> FnResult {
+  let argc = argv.len();
+  if argc==0 {
+    return Ok(List::new_object(Vec::new()));
+  }
+  let mut v: Vec<Rc<RefCell<List>>> = Vec::with_capacity(argc); 
+  for i in 0..argc {
+    
+    match argv[i] {
+      Object::List(ref a) => v.push(a.clone()),
+      ref a => {
+        let y = try!(list(env,a));
+        // todo: traceback
+        v.push(match y {Object::List(a) => a, _ => unreachable!()});
+      }
+    }
+  }
+  let n = v[0].borrow().v.len();
+  for i in 0..argc {
+    if n != v[i].borrow().v.len() {
+      return env.type_error("Type error in f[a1,...,an]: all lists must have the same size.");
+    }
+  }
+  
+  let null = &Object::Null;
+  let mut vy: Vec<Object> = Vec::with_capacity(argc);
+  let mut args: Vec<Object> = vec![Object::Null; argc];
+  for k in 0..n {
+    for i in 0..argc {
+      args[i] = v[i].borrow().v[k].clone();
+    }
+    let y = try!(env.call(f,null,&args));
+    vy.push(y);
+  }
+  return Ok(List::new_object(vy));
+}
 
 pub fn init(t: &Table){
   let mut m = t.map.borrow_mut();

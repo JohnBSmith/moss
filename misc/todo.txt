@@ -1,13 +1,14 @@
 
 = TODO LIST =
 == Interpreter kernel ==
-* interface objects in hash tables
 * delete temporary variables after use
 * coroutines
-* continuations
+* continuations, call/cc
 * custom detstructors
+* sandbox security model for file access
 
 == Library ==
+* zip, unzip
 * reverse iterator
 * cycling iterator
 * iterator: tee
@@ -57,6 +58,7 @@
 * operator overloading
 * multiple dispatch in operator overloading
 * env-pointer in Interface::to_string
+* interface objects in hash tables
 
 == Linear Algebra ==
 * polymorphic arrays

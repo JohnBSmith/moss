@@ -48,6 +48,7 @@ extern "C" {
   fn __gmpz_get_d(op: mpz_srcptr) -> c_double;
   fn __gmpz_neg(rop: mpz_ptr, op: mpz_srcptr);
   fn __gmpz_abs(rop: mpz_ptr, op: mpz_srcptr);
+  fn __gmpz_sizeinbase (op: mpz_srcptr, base: c_int) -> libc::size_t;
 }
 
 extern "C" {
@@ -182,7 +183,7 @@ impl Mpz {
   fn as_ui(&self) -> c_ulong {
     unsafe {__gmpz_get_ui(&self.mpz)}
   }
-  
+
   fn as_f64(&self) -> f64 {
     unsafe {__gmpz_get_d(&self.mpz)}
   }
@@ -212,6 +213,10 @@ impl Mpz {
   }
   fn abs(&mut self, x: &Mpz) {
     unsafe{__gmpz_abs(&mut self.mpz, &x.mpz)}
+  }
+
+  fn size_in_base2(&self) -> usize {
+    unsafe{__gmpz_sizeinbase(&self.mpz,2)}
   }
 }
 
@@ -406,7 +411,21 @@ impl Interface for Long {
       y.fdiv(&self.value,&b.value);
       return Ok(Object::Interface(Rc::new(Long{value: y})));
     }else{
-      return env.type_error("Type error in a+b: cannot add a: long and b.");
+      return env.type_error("Type error in a//b.");
+    }
+  }
+
+  fn ridiv(&self, a: &Object, env: &mut Env) -> FnResult {
+    if let Object::Int(a) = *a {
+      if self.value.cmp_int(0)==0 {
+        return env.value_error("Value error in a//b: b==0.");
+      }
+      let a = Mpz::from_int(a);
+      let mut y = Mpz::new();
+      y.fdiv(&a,&self.value);
+      return Ok(Object::Interface(Rc::new(Long{value: y})));
+    }else{
+      return env.type_error("Type error in a//b.");
     }
   }
   
@@ -418,6 +437,17 @@ impl Interface for Long {
     }else if let Some(b) = Long::downcast(b) {
       let mut y = Mpz::new();
       y.fdiv_rem(&self.value,&b.value);
+      return Ok(Object::Interface(Rc::new(Long{value: y})));
+    }else{
+      return env.type_error("Type error in a+b: cannot add a: long and b.");
+    }
+  }
+  
+  fn rimod(&self, a: &Object, env: &mut Env) -> FnResult {
+    if let Object::Int(a) = *a {
+      let mut a = Mpz::from_int(a);
+      let mut y = Mpz::new();
+      y.fdiv_rem(&a,&self.value);
       return Ok(Object::Interface(Rc::new(Long{value: y})));
     }else{
       return env.type_error("Type error in a+b: cannot add a: long and b.");
@@ -551,18 +581,27 @@ impl Interface for Long {
     return Ok(Object::Interface(Rc::new(Long{value: y})));
   }
 
+  fn sgn(&self, env: &mut Env) -> FnResult {
+    let s = self.value.cmp_int(0);
+    return Ok(Object::Int(if s>0 {1} else if s<0 {-1} else {0}));
+  }
+
   fn neg(&self, env: &mut Env) -> FnResult {
     let mut y = Mpz::new();
     y.neg(&self.value);
     return Ok(Object::Interface(Rc::new(Long{value: y})));
   }
-  
+
   fn is_instance_of(&self, type_obj: &Object, rte: &RTE) -> bool {
     if let Object::Table(ref t) = *type_obj {
       return Rc::ptr_eq(t,&rte.type_long);
     }else{
       return false;
     }
+  }
+
+  fn hash(&self) -> u64 {
+    return self.value.as_ui() as u64 ^ self.value.size_in_base2() as u64;
   }
 }
 

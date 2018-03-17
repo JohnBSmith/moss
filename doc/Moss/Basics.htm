@@ -1,0 +1,1010 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Basics</title>
+  <link rel="stylesheet" href="../css/main.css">
+  <script src = "../js/moss-syntax.js">
+  </script>
+</head>
+<body>
+
+<table class="navigation">
+<tr><td><b>&uarr;</b> <a href="Table-of-contents.htm">Up</a>
+</table>
+<h1>Basics</h1>
+
+<div class="toc">
+<h2 id="toc">Table of contents</h2>
+<ol>
+<li><a href="#calc">Moss as a calculator</a>
+<li><a href="#types">Basic data types</a>
+  <ol>
+  <li><a href="#functions">Functions</a>
+  <li><a href="#strings">Strings</a>
+  <li><a href="#lists">Lists</a>
+  <li><a href="#maps">Maps</a>
+  <li><a href="#sets">Sets</a>
+  </ol>
+<li><a href="#cf">Control flow</a>
+  <ol>
+  <li><a href="#loops">Unconditional loops</a>
+  <li><a href="#while">Conditional loops</a>
+  <li><a href="#for">For-loops</a>
+  <li><a href="#if">Conditional statements</a>
+  <li><a href="#cond">Conditional expressions</a>
+  <li><a href="#sub">Subprograms</a>
+  </ol>
+<li><a href="#import">Module import</a>
+<li><a href="#comments">Comments</a>
+</ol>
+</div>
+
+
+<h2 id="calc">Moss as a calculator</h2>
+
+<p>The first thing one can basically do is to use Moss as a
+calculator. Just type in some mathematical expression and then
+press the return-key.
+
+<pre class="moss cmd-box">
+&gt; 1+2
+3
+</pre>
+
+<p>There is no invisible times, the multiplication
+operator <code>(*)</code> has always to be stated explicitly, wich is
+a good thing. This allows us to have multiple letter identifiers and
+an invisible function application operator.
+These concepts will be explained later.
+The division operator is the slash <code>(/)</code>.
+
+<p>Only round brackets can be used to undermine the order of
+operations. Square brackets and curly brackets have another purpose.
+The expression "10 to the power of two" is written
+<code>"10^2"</code>.
+
+<pre class="moss cmd-box">
+&gt; (2+4)*(4-2)
+12
+
+&gt; 10^2
+100
+</pre>
+
+<p>For integer division, use the the operator "<code>//</code>"
+instead of "<code>/</code>". The remainder of the division is
+calculated by the modulo operator <code>"%"</code>.
+
+<pre class="moss cmd-box">
+&gt; 14/5
+2.8
+
+&gt; 14//5
+2
+
+&gt; 14%5
+4
+</pre>
+
+<p>It is possible to store the value of an expression in a variable.
+The statement <code>"a=12"</code> means that the value 12 is assigned
+to the variable <code>a</code>. If <code>a</code> afterwards occurs
+itself in an expression, it has this value. So the variable contains
+this value until some other value is assigned to it.
+
+<pre class="moss cmd-box">
+&gt; a=12
+&gt; 2*a
+24
+&gt; a=10*a
+&gt; 4*a
+480
+</pre>
+
+<p>A variable is represented via an identifier, in this case
+<code>"a"</code>. An identifer can consist of more than one letter.
+Some or all of the letters can be capital letters, but
+<code>Omega</code> is different from <code>omega</code>. That means,
+in Moss identifiers are <i>case sensitive</i>.
+
+
+<p>We can test, whether two numbers are equal or not. The expression
+"a is equal to b" is written "<code>a==b</code>".
+
+<pre class="moss cmd-box">
+&gt; a=360
+&gt; a==360, a==240, a!=360, a!=240
+[true, false, false, true]
+</pre>
+
+<p>And we can compare two numbers with respect to their order.
+<pre class="moss cmd-box">
+&gt; 1&lt;2, 1&gt;2, 1&lt;=2, 1&gt;=2
+[true, false, true, false]
+</pre>
+
+<p>To get the minimum and maximum of two numbers,
+use the functions <code>min(x,y)</code> and <code>max(x,y)</code>.
+
+<p>Calculations with complex numbers are possible.
+
+<pre class="moss cmd-box">
+&gt; (4+2i)*(2+1i)
+6+8i
+</pre>
+
+<p>Moss can calculate really big numbers.
+
+<pre class="moss cmd-box">
+&gt; 2^10
+1024
+
+&gt; 2^1000
+1071508607186267320948425049060001810561404811705533607443750388370351
+0511249361224931983788156958581275946729175531468251871452856923140435
+9845775746985748039345677748242309854210746050623711418779541821530464
+7498358194126739876755916554394607706291457119647768654216766042983165
+2624386837205668069376
+</pre>
+
+
+<h2 id="types">Basic data types</h2>
+
+<table class="bt">
+<tr>
+  <th>Typename
+  <th>Example data
+  <th>Meaning
+<tr>
+  <td><code>Bool</code>
+  <td><code>false, true</code>
+  <td>logical values
+<tr>
+  <td><code>Int</code>
+  <td><code>0, 1, 2, -1</code>
+  <td>integer numbers
+<tr>
+  <td><code>Float</code>
+  <td><code>0.0, 4.2, 1/3</code>
+  <td>floating point numbers
+<tr>
+  <td><code>Complex</code>
+  <td><code>1i, 2+4i, -3.2i</code>
+  <td>complex numbers
+<tr>
+  <td><code>String</code>
+  <td><code>"", "ab"</code>
+  <td>strings of characters
+<tr>
+  <td><code>List</code>
+  <td><code>[], [1,2]</code>
+  <td>lists of elements
+<tr>
+  <td><code>Map</code>
+  <td><code>{}, {a=1, b=2}</code>
+  <td>maps of key-value pairs
+<tr>
+  <td><code>Range</code>
+  <td><code>1..10, (1..)</code>
+  <td>ranges of elements
+<tr>
+  <td><code>Function</code>
+  <td><code>|x| 2*x</code>
+  <td>functions, subprograms
+</table>
+
+<h3 id="functions">Functions</h3>
+
+<p>Think of the expressions <code>4+2*1, 4+2*2, 4+2*3, 4+2*4</code>.
+We want to abstract the pattern <code>4+2*x</code>
+from these expressions. To achive this, we create a <i>function</i>
+and store it in the variable <code>f</code>.
+
+<pre class="moss cmd-box">
+&gt; f = |x| 4+2*x
+</pre>
+
+<p>This is a function wich takes the value of the variable
+<code>x</code> as its input and returns the value of <code>4+2*x</code>
+as output. The <code>x</code> is a variable,
+but it is bound to the function because it appears between
+the vertical bars. Because of this the variable <code>x</code>
+is called <em>formal argument</em> of the function.
+
+<p>Now, if <code>a</code> is some
+number, we can write <code>f(a)</code> to calculate the value
+of <code>4+2*a</code>. The number <code>a</code> is called <em>actual
+argument</em> of the function. This makes us able to compute the
+values without typing in the same pattern again and again.
+Think of much longer patterns.
+
+<pre class="moss cmd-box">
+&gt; f(1),f(2),f(3),f(4)
+[6, 8, 10, 12]
+</pre>
+
+<p>It is possible to abstract this further.
+
+<pre class="moss cmd-box">
+&gt; [1,2,3,4].map(f)
+[6, 8, 10, 12]
+
+&gt; list(1..4).map(f)
+[6, 8, 10, 12]
+</pre>
+
+<p>A function may have more than one argument. We will state a
+function that has two arguments. There is more than one way to
+achieve this. The first one uses two formal arguments.
+Formal arguments appear between the vertical bars and
+are separated there by commata.
+
+<pre class="moss cmd-box">
+&gt; g = |x,y| x*y
+&gt; g(3,4)
+12
+</pre>
+
+<p>The next way is a technique known as currying.
+
+<pre class="moss cmd-box">
+&gt; g = |x| |y| x*y
+&gt; g(3)(4)
+12
+</pre>
+
+<p>The next way is to have a list as an argument instead.
+
+<pre class="moss cmd-box">
+&gt; g = |t| t[0]*t[1]
+&gt; g([3,4])
+12
+</pre>
+
+<p>If a function not only consists of a single expression, but of
+a sequence of statements, a longer syntax has to be used.
+<pre class="moss indent">
+# (1) Short syntax
+f = |x| 2*x
+
+# (2) Longer syntax
+f = sub|x| 2*x end
+
+# (3) Full syntax
+f = sub|x| return 2*x end
+
+# (4) Function with private name "f"
+f = sub f|x| return 2*x end
+
+# (5) Equivalent to (4)
+sub f(x) return 2*x end
+</pre>
+
+<p>A function can contain statements and local variables.
+Here is an example, an approximation of the natural exponential
+function:
+<pre class="moss indent">
+sub exp(x)
+  u = x/64
+  y = 1 + u + u^2/2 + u^3/6 + u^4/24
+  return y^64
+end
+</pre>
+
+<h3 id="strings">Strings</h3>
+
+<p>In Moss, all kinds of objects can be stored in variables.
+A <i>string of characters</i> is also an object, and thus can
+be stored in a variable. The function <code>print</code> writes
+an object to the output.
+
+<pre class="cmd-box">
+<span class="moss">&gt; s = "London"
+&gt; s
+"London"
+&gt; print(s)
+</span>London
+</pre>
+
+<p>The function <code>str</code> transforms an integer into a string.
+The function <code>int</code> does the reverse.
+
+<pre class="moss cmd-box">
+&gt; str(360)
+"360"
+&gt; int("360")
+360
+</pre>
+<p>Called on a string, <code>str</code> does not change anything.
+To <code>int</code> applies the same.
+
+<pre class="moss cmd-box">
+&gt; str("Flower")
+"Flower"
+&gt; int(12)
+12
+</pre>
+
+<p>Two strings can be added, this will glue both strings together.
+Therefore addition of strings is associative.
+
+<pre class="moss cmd-box">
+&gt; s = "Night"
+&gt; s+"fall"
+"Nightfall"
+</pre>
+
+<p>The empty string <code>""</code> is to strings like the number zero
+is to numbers.
+
+<pre class="moss cmd-box">
+&gt; "Elm tree"+""
+"Elm tree"
+</pre>
+
+<p>We can test, whether two strings are equal or not.
+
+<pre class="moss cmd-box">
+&gt; s = "Mouse"
+&gt; [s=="Mouse", s=="Mice", s!="Mouse", s!="Mice"}
+[true, false, false, true]
+</pre>
+
+<p>The function <code>size</code> takes a string and returns
+the number of characters.
+
+<pre class="moss cmd-box">
+&gt; size("Bee")
+3
+&gt; size("")
+0
+</pre>
+
+<p>The result of the expression <code>s[i]</code> is the character at
+index <code>i</code>. Furthermore the result of the expression
+<code>s[i..j]</code> is the substring <code>
+s[i]+s[i+1]+...+s[j-1]+s[j]</code>.
+
+<pre class="moss cmd-box">
+&gt; s = "Elm tree"
+&gt; [s[0], s[2], s[-4], s[-1]]
+["E", "m", "t", "e"]
+
+&gt; s[0..2]
+"Elm"
+&gt; s[..2]
+"Elm"
+
+&gt; s[4..]
+"tree"
+&gt; s[-2..]
+"ee"
+&gt; s[4..-3]
+"tr"
+</pre>
+
+<p>Note that <code>s[i..-1]</code> is a special case:
+an empty slice for every index <code>i</code>. You can bypass this
+behavior by writing <code>s[i..]</code> or
+<code>s[i..size(s)-1]</code>.
+
+<p>There are some escape sequences that provide the notation of
+arbitrary Unicode characters inside of a string literal.
+
+<table class="bt">
+<tr><th>Sequence</th><th>Meaning</th>
+<tr><td><code>\n</code><td>new line
+<tr><td><code>\s</code><td>space
+<tr><td><code>\t</code><td>tabulator
+<tr><td><code>\b</code><td>backslash
+<tr><td><code>\d</code><td>double quote
+<tr><td><code>\q</code><td>single quote
+<tr><td><code>\xhh</code><td>character with Unicode value <code>0xhh</code>
+<tr><td><code>\uhhhh</code><td>character with Unicode value <code>0xhhhh</code>
+</table>
+
+<p>The number <code>0xhh</code> is a hexadecimal number consisting of two
+hexadecimal digits, a number in the range <code>0x00..0xff</code>.
+An example:
+
+<pre class="moss indent">
+print("\b\b\b\b\na\s\sb\n\d\q\q\d\n\x41\u0041\u0042")
+# Output:
+# \\\\
+# a  b
+# "''"
+# AAB
+</pre>
+
+<p>A triple quoted string literal can span over more than
+one line.
+
+<pre class="moss indent">
+s = """
+Multi
+line
+string
+"""
+</pre>
+
+<p>If space is placed directly behind a backslash, this space is
+overlooked until some non spacing character is found.
+
+<pre class="moss indent">
+print("a\    b")
+# output:
+# ab
+
+s = """\
+Multi\s\
+line\s\
+string\
+"""
+print(s)
+# output:
+# Multi line string
+</pre>
+
+<h3 id="lists">Lists</h3>
+
+<p>In Moss, <i>lists</i> are dynamic arrays (not doubly linked lists).
+This is a fundamental, albeit easy to understand, data structure.
+
+<pre class="moss cmd-box">
+# Construction of a list with elements 4,9,2,6.
+&gt; [4,9,2,6]
+[4, 9, 2, 6]
+
+# A list can be empty.
+&gt; []
+[]
+
+# We can assign a list to a variable.
+&gt; a = [1,2,3,4]
+&gt; a
+[1, 2, 3, 4]
+
+# Every element of a list can be of a different type.
+# A list can contain lists as elements.
+&gt; ["abc",12,[1,2]]
+["abc", 12, [1, 2]]
+</pre>
+
+<p>The expression <code>list(a..b)</code> constructs a list of
+integers from <code>a</code> to <code>b</code>.
+
+<pre class="moss cmd-box">
+&gt; list(1..10)
+[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+</pre>
+<p>We can transform a string into a list of characters. The inverse
+transform is also possible.
+
+<pre class="moss cmd-box">
+&gt; list("abc")
+["a", "b", "c"]
+
+&gt; ["a","b","c"].join()
+"abc"
+</pre>
+
+<p>A list can be used as a dynamic stack.
+
+<pre class="moss cmd-box">
+&gt; a=[]
+&gt; a.push(2)
+&gt; a.push(3)
+&gt; a
+[2, 3]
+&gt; a.pop()
+3
+&gt; a
+[2]
+</pre>
+
+<p>Lists can be added. The result is a concatenation.
+
+<pre class="moss cmd-box">
+&gt; [1,2]+[3,4]
+[1, 2, 3, 4]
+
+&gt; [1,2]+[]
+[1, 2]
+</pre>
+<p>Lists are indexed like strings. The function <code>"size"</code>
+takes a list and returns the number of its elements.
+
+<pre class="moss cmd-box">
+&gt; a = [4,5,6,7,8]
+&gt; size(a)
+5
+&gt; [a[0], a[1], a[-1], a[-2]]
+[4, 5, 8, 7]
+&gt; a[2..3]
+[6, 7]
+</pre>
+
+
+<h3 id="maps">Maps</h3>
+
+<p>A <i>map</i> (also called <i>dictionary</i>) can be seen as a
+generalisation of a list. Like in a list an element of a map belongs
+to an index, called <em>key</em>. But such a key is not restricted to
+integers.
+
+<pre class="moss cmd-box">
+&gt; m = {}
+# empty map
+
+&gt; m = {0: "a", 1: "b", "alpha": "c"}
+&gt; m[0]
+"a"
+&gt; m["alpha"]
+"c"
+</pre>
+
+<p>The operation <code>"k in m"</code> is used to test whether the key
+<code>k</code> is contained in the map <code>m</code> or not.
+
+<pre class="moss cmd-box">
+&gt; 0 in m, "alpha" in m, "beta" in m
+[true, true, false]
+
+&gt; 0 not in m, "alpha" not in m, "beta" not in m
+[false, false, true]
+</pre>
+
+<p>The function call <code>list(m)</code> returns the list
+of keys contained in <code>m</code>.
+The keys can be in any order, because a map
+is not (explicitly) ordered.
+
+<pre class="moss cmd-box">
+&gt; list(m)
+[0, 1, "alpha"]
+</pre>
+
+<p>If you are interested in the values or key-value pairs, simply
+express this by methods.
+
+<pre class="moss cmd-box">
+&gt; list(m.values())
+["a", "b", "c"]
+
+&gt; list(m.items())
+[[0, "a"], [1, "b"], ["alpha", "c"]]
+</pre>
+
+<p>If the key is an identifier, there is a shorthand notation.
+Instead of
+<pre class="moss indent">
+{"x": 4, "y": 3}
+</pre>
+
+<p>one may write:
+<pre class="moss indent">
+{x=4,y=3}
+</pre>
+
+<p>But note that this is not the same as <code>{x:4,y:3}.</code>
+Before a colon, <code>x,y</code> are itself variables that should
+contain keys.
+<pre class="moss cmd-box">
+&gt; x="u"; y="v"
+&gt; {x:4,y:3} == {u=4,v=3}
+true
+</pre>
+
+<h3 id="sets">Sets</h3>
+<p>If the value of some key is omitted, <code>null</code> is
+taken as value. 
+A map with all values omitted can be used as a set.
+All set operations are supported (e.g. union, intersection,
+subset relation, universal quantifier).
+<pre class="moss cmd-box">
+&gt; {1,2} == {1:null, 2:null}
+true
+
+&gt; A = {1,2,3}
+&gt; B = {2,3,4}
+&gt; A|B, A&amp;B, A-B, A$B
+[{1, 2, 3, 4}, {2, 3}, {1}, {1, 4}]
+# union, intersection, difference, symmetric difference
+</pre>
+
+<p>One can use <code>set(a)</code> to convert an iterable
+object <code>a</code> into a set. A set is itself iterable.
+For any iterable object, things like <code>map</code>
+and universal quantifier <code>all</code> are defined.
+<pre class="moss cmd-box">
+&gt; set(1..4)
+{1, 2, 3, 4}
+
+&gt; set((1..4).map(|x| 2*x))
+{2, 4, 6, 8}
+
+&gt; {2,4,6,8}.all(|x| x%2==0)
+true
+</pre>
+
+<p>But note that the elements of a set can be in any order.
+If you wish to pretty print a set, it should be converted into
+a list, so that it can be sorted.
+<pre class="moss cmd-box">
+&gt; A = set(1..4)
+&gt; list(A).sort()
+[1, 2, 3, 4]
+</pre>
+
+
+<h2 id="cf">Control flow</h2>
+
+<h3 id="loops">Unconditional loops</h3>
+<p>Suppose we want to write a program that asks a character from the
+user and prints the Unicode-value of this character. And this program
+should be repeated endlessly. In a loop, if all statements are
+executed, we jump to the beginning of the loop to execute them again.
+
+<pre class="moss indent">
+while true
+  c = input()
+  print(ord(c))
+end
+</pre>
+<p>This program is so short that it can be written as an one liner.
+
+<pre class="moss indent">
+while true do print(ord(input())) end
+</pre>
+<p>Maybe you already know about the nesting problem.
+That is the question to which opening keyword or bracket
+a closing "end" or bracket belongs if there are many of them.
+Have a look at the programming language Lisp and you will understand.
+
+
+<p>A control flow statement can also be written in a
+longer form, stating explicitly what shall end.
+This is useful if the body of the loop is longer than one page.
+
+<pre class="moss indent">
+while true
+  c = input()
+  print(ord(c))
+end of while
+</pre>
+
+<p>The user might input more than one character.
+We can take this into account in the following way.
+
+<pre class="moss indent">
+while true
+  a = list(input())
+  print(a.map(ord))
+end
+</pre>
+
+<h3 id="while">Conditional loops</h3>
+<p>A standard task is to print the numbers from one to ten.
+
+<pre class="moss indent">
+i=1
+while i&lt;=10
+  print(i)
+  i=i+1
+end
+</pre>
+<p>One can write <code>i++</code> or <code>i+=1</code> instead
+of <code>i=i+1</code>.
+
+
+<h3 id="for">For-loops</h3>
+<p>The numbers in a given range are printed better by a for-loop
+than by a while-loop.
+
+<pre class="moss indent">
+for i in 1..10
+  print(i)
+end
+</pre>
+
+<p>By step two.
+<pre class="moss indent">
+for i in 1..10: 2
+  print(i)
+end
+</pre>
+
+<p>In reverse.
+<pre class="moss indent">
+for i in 10..1: -1
+  print(i)
+end
+</pre>
+
+<p>A range of characters.
+<pre class="moss indent">
+for i in 'a'..'d'
+  print(i)
+end
+</pre>
+
+<p>A list instead of a range.
+<pre class="moss indent">
+for i in [4,2,1,9]
+  print(i)
+end
+</pre>
+
+<p>It is also possible to iterate over the characters of a string.
+
+<pre class="moss indent">
+for i in "abc"
+  print(i)
+end
+# Output:
+# a
+# b
+# c
+</pre>
+<p>Maps are iterable.
+
+<pre class="moss indent">
+for key in {a=1,b=2}
+  print(key)
+end
+
+for value in {a=1,b=2}.values()
+  print(value)
+end
+
+for t in {a=1,b=2}.items()
+  print(t)
+end
+# Output:
+# ["a", 1]
+# ["b", 2]
+# or
+# ["b", 2]
+# ["a", 1]
+
+for key,value in {a=1,b=2}.items()
+  print(key,"|",value)
+end
+# Output:
+# a|1
+# b|2
+# or
+# b|2
+# a|1
+</pre>
+
+<p>One can iterate over cartesian products.
+
+<pre class="moss indent">
+for i,j in ["a","b"]*[0,1]
+  print(i,j)
+end
+# vs.
+for i in ["a","b"]
+  for j in [0,1]
+    print(i,j)
+  end
+end
+# Output:
+# a0
+# a1
+# b0
+# b1
+</pre>
+
+<p>The following program produces the 9&times;9 multiplication table.
+
+<pre class="moss indent">
+for i in 1..9
+  for j in 1..9
+    put(str(i*j).rjust(3))
+  end
+  print()
+end
+# Output:
+#  1  2  3  4  5  6  7  8  9
+#  2  4  6  8 10 12 14 16 18
+#  3  6  9 12 15 18 21 24 27
+#  4  8 12 16 20 24 28 32 36
+#  5 10 15 20 25 30 35 40 45
+#  6 12 18 24 30 36 42 48 54
+#  7 14 21 28 35 42 49 56 63
+#  8 16 24 32 40 48 56 64 72
+#  9 18 27 36 45 54 63 72 81
+</pre>
+
+<p>A for-loop can include the index for each element.
+Let <code>i</code> be the index, and <code>x</code> the element.
+
+<pre class="moss indent">
+for i,x in "abc".enum()
+  print(i,"|",x)
+end
+# Output:
+# 0|a
+# 1|b
+# 2|c
+
+a = [1,2,3,4]
+for i,x in a.enum()
+  for y in a[i+1..]
+    print([x,y])
+  end
+end
+# Output:
+# [1, 2]
+# [1, 3]
+# [1, 4]
+# [2, 3]
+# [2, 4]
+# [3, 4]
+</pre>
+
+<h3 id="if">Conditional statements</h3>
+<p>In a program we often have to make a branch. Depending on a
+condition the program has to perform either in one way or in
+another.
+
+<pre class="moss indent">
+x = int(input("A number: "))
+if x%2==0
+  print("This number is even.")
+else
+  print("This number is odd.")
+end
+</pre>
+
+<h3 id="cond">Conditional expressions</h3>
+<p>Conditional expressions are similar to conditional statements.
+
+<p>Let us take <code>x</code> to the power
+of <code>n</code> as an example. Powers with natural exponents
+can be defined recursively:
+<pre class="indent">
+x<sup>0</sup> := 1,
+x<sup>n</sup> := x*x<sup>n-1</sup> (n&gt;0).
+</pre>
+
+<p>In this case the definition can be implemented without further
+ado:
+<pre class="moss indent">
+pow = |x,n| 1 if n==0 else x*pow(x,n-1)
+</pre>
+
+<p>A more complicated example:
+<pre class="moss indent">
+theta = int(input("A temperature: "))
+print(
+  "freezing" if theta&lt; 1 else 
+  "cold"     if theta&lt; 6 else
+  "fresh"    if theta&lt;17 else
+  "warm"     if theta&lt;24 else
+  "hot"
+)
+
+# By means of an if-statement
+if theta&lt;1
+  print("freezing")
+elif theta&lt;6
+  print("cold")
+elif theta&lt;17
+  print("fresh")
+elif theta&lt;24
+  print("warm")
+else
+  print("hot")
+end
+</pre>
+
+
+<h3 id="sub">Subprograms</h3>
+<p>As our programs are getting bigger, there is the need of using
+some piece of functionality multiple times.
+
+<pre class="moss indent">
+sub count(s,c)
+  k=0
+  for x in s
+    if x==c then k=k+1
+    end
+  end
+  return k
+end
+
+while true
+  s = input()
+  print("Number of left brackets: ", count(s,"(")+count(s,"["))
+  print("Number of right brackets: ", count(s,")")+count(s,"]"))
+end
+</pre>
+<p>It is complicated to solve such a task without
+subprograms.
+
+<p>We can give a function a private name. Then the assignment
+statement has an alternative syntatic form.
+
+<pre class="moss indent">
+# (1) A function without a private name,
+# called anonymous.
+f = sub|x| 2*x end
+
+# (2) The same function, but with private name "f".
+f = sub f|x| 2*x end
+
+# (3) Syntactic sugar for statement (2).
+# This is an assignment to the variable f,
+# but the assignment operation is invisible.
+sub f(x) 2*x end
+</pre>
+
+<p>So we could have written <code>count = sub|s,c|</code> or
+<code>count = sub count|s,c|</code> instead
+of <code>sub count(s,c)</code>.
+
+
+<h2 id="import">Module import</h2>
+<p>Additional functionality is provided by importing modules.
+For example, there is a module called <code>math</code>, that
+provides the elementary functions.
+
+<pre class="moss">
+# ordinary import
+use math
+f = |x| math.sin(math.pi*x)
+
+# qualified import
+use math: pi, sin, cos
+f = |x| sin(pi*x)
+
+# alias import
+use m=math
+f = |x| m.sin(m.pi*x)
+
+# qualified alias import
+use math: pi, s=sin, c=cos
+f = |x| s(pi*x)
+
+# qualification of everything
+# (should be avoided)
+use math:*
+f = |x| sin(pi*x)
+
+# load and qualify in separate steps
+math = load("math")
+use(math): pi, sin, cos
+
+# show what is contained in math
+expose = |m| print(list(record(m)).sort().join(", "))
+expose(math)
+</pre>
+
+<h2 id="comments">Comments</h2>
+
+<pre class="moss">
+# Single line comment
+
+/*
+Multi
+line
+comment
+*/
+
+/*
+s = "Phantom text"
+print(s)
+#*/
+
+/*01*/ stoi = sub|s| /*string to integer*/
+/*02*/   s.reduce(0,|x,c| 10*x+ord(c)-48)
+/*03*/ end
+</pre>
+
+</body>
+</html>
+

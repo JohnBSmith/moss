@@ -304,7 +304,10 @@ pub trait Interface{
     env.std_exception("Error: a//b is not implemented for objects of this type.")
   }
   fn imod(&self, b: &Object, env: &mut Env) -> FnResult {
-    env.std_exception("Error: a%b is not implemented for objects of this type.")
+    Ok(Object::Table(env.rte().unimplemented.clone()))
+  }
+  fn rimod(&self, b: &Object, env: &mut Env) -> FnResult {
+    Ok(Object::Table(env.rte().unimplemented.clone()))
   }
   fn pow(&self, b: &Object, env: &mut Env) -> FnResult {
     env.std_exception("Error: a^b is not implemented for objects of this type.")
@@ -376,6 +379,9 @@ pub trait Interface{
   }
   fn is_instance_of(&self, type_obj: &Object, rte: &RTE) -> bool {
     false
+  }
+  fn hash(&self) -> u64 {
+    self as *const _ as *const u8 as usize as u64
   }
 }
 

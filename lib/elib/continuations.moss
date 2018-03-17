@@ -1,0 +1,27 @@
+
+Callcc = object()
+
+callcc = sub|f,x=null|
+  a = [null]
+  callback = sub|y|
+    a[0] = y
+    raise Callcc
+  end
+  try
+    return f(callback,x)
+  catch e if e is Callcc
+    return a[0]
+  end
+end
+
+/*
+sub message(cc,x)
+  cc("Some people like {}."%[x])
+  print("Phantom")
+end
+
+print(callcc(message))
+print(callcc(message,"peppermint tea"))
+#*/
+
+
