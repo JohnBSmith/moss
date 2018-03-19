@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Exceptions</title>
+  <link href="../css/main.css" rel="stylesheet">
+  <script src = "../js/moss-syntax.js">
+  </script>
+</head>
+<body>
+
+<table class="navigation">
+<tr><td><b>&uarr;</b> <a href="Table-of-contents.htm">Up</a>
+</table>
+<h1>Exception handling</h1>
+<div class="toc">
+<h2>Table of contents</h2>
+<ol>
+<li><a href="#formalism">Raising and catching</a>
+</ol>
+</div>
+
+<h2 id="formalism">Raising and catching</h2>
+<p>In the following an exception of type <code>E</code>
+is thrown an then catched.
+
+<pre class="moss indent">
+E = object()
+
+try
+  raise table E{value = "Some message"}
+catch e if e: E
+  print(e.value)
+end
+</pre>
+<p>The catch-part is only reached if the exception is of
+type <code>E</code>. It can also be stated by means of
+an unconditional catch.
+
+<pre class="moss indent">
+try
+  raise table E{value = "Some message"}
+catch e
+  if e: E
+    print(e.value)
+  else
+    raise e
+  end
+end
+</pre>
+
+<p>But in case of an unconditional catch, the traceback so far
+will be clipped off.
+
+
+</body>
+</html>
+

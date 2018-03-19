@@ -2991,7 +2991,7 @@ fn load_u64(a: &[u32], ip: usize) -> u64{
 fn new_table(prototype: Object, map: Object) -> Object {
   match map {
     Object::Map(map) => {
-      Object::Table(Rc::new(Table{prototype, map}))
+      Object::Table(Rc::new(Table{prototype, map, extra: None}))
     },
     _ => panic!()
   }

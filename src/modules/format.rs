@@ -69,15 +69,15 @@ fn obtain_fmt(fmt: &mut Fmt, v: &[char], mut i: usize) -> Result<usize,Box<Excep
   while i<n && v[i]==' ' {i+=1;}
   if i>=n {return Ok(i);}
   let mut value: usize = 0;
-  if v[i]=='<' {
+  if v[i]=='l' {
     i+=1;
     i = number(v,i,&mut value);
     fmt.space = Space::Left(value);
-  }else if v[i]=='>' {
+  }else if v[i]=='r' {
     i+=1;
     i = number(v,i,&mut value);
     fmt.space = Space::Right(value);
-  }else if v[i]=='^' {
+  }else if v[i]=='c' {
     i+=1;
     i = number(v,i,&mut value);
     fmt.space = Space::Center(value);

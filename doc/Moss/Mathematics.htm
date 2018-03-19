@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Mathematics</title>
+  <link rel="stylesheet" href="../css/main.css">
+  <script src = "../js/moss-syntax.js">
+  </script>
+  <style>
+table.bt td {
+  padding-top: 0.8em;
+  padding-bottom: 0.8em;
+}
+  </style>
+</head>
+<body>
+
+<table class="navigation">
+<tr><td><b>&uarr;</b> <a href="Table-of-contents.htm">Up</a>
+</table>
+<h1>Mathematics</h1>
+
+<div class="toc">
+<h2 id="toc">Table of contents</h2>
+<ol>
+<li><a href="#notations">Notations</a>
+<li><a href="#rational">Rational numbers</a>
+<li><a href="#la">Linear algebra</a>
+</ol>
+</div>
+
+<h2 id="notations">Notations
+</h2>
+
+<p>There are a number of notations similar to mathematical notation.
+</p>
+
+<table class="bt">
+<tr>
+<th>Math
+<th>Moss
+<th>Notes
+
+<tr>
+<td><span class="math"><var>x</var>&nbsp;:=&nbsp;<var>a</var></span>
+<td><code class="moss">x=a</code>
+<td>assignment
+
+<tr>
+<td><span class="math"><var>a</var>&nbsp;=&nbsp;<var>b</var></span>
+<td><code class="moss">a==b</code>
+<td>comparison
+
+<tr>
+<td><span class="math"><var>x</var><sup><var>n</var></sup></span>
+<td><code class="moss">x^n</code>
+<td>to the power of
+
+<tr>
+<td><span class="math"><var>a</vaR><sub><var>i</var></sub></span>
+<td><code class="moss">a[i]</code>
+<td>index
+
+<tr>
+<td><span class="math"><var>a</var>&nbsp;mod&nbsp;<var>m</var></span>
+<td><code class="moss">a%m</code>
+<td>modulo
+
+<tr>
+<td><span class="math">&not;<var>a</var></span>
+<td><code class="moss">not a</code>
+<td>logical negation
+
+<tr>
+<td><span class="math"><var>a</var>&and;<var>b</var>,
+  <var>a</var>&or;<var>b</var></span>
+<td><code class="moss">a and b, a or b</code>
+<td>logical and, or
+
+<tr>
+<td><span class="math"><var>x</var>&nbsp;&isin;&nbsp;<var>A</var></span>
+<td><code class="moss">x in A</code>
+<td>is an element of
+
+<tr>
+<td><span class="math"><var>A</var>&sube;<var>B</var>,
+  <var>A</var>&sub;<var>B</var></span>
+<td><code class="moss">A&lt;=B, A&lt;B</code>
+<td>subset, proper subset
+
+<tr>
+<td><span class="math"><var>A</var>&cap;<var>B</var>,
+  <var>A</var>&cup;<var>B</var></span>
+<td><code class="moss">A&amp;B, A|B</code>
+<td>intersection, union
+
+<tr>
+<td><span class="math"><var>A</var>\<var>B</var>,
+  <var>A</var>&Delta;<var>B</var></span>
+<td><code class="moss">A-B, A$B</code>
+<td>difference, symmetric difference
+
+<tr>
+<td><span class="math"><b>N</b><sub>0</sub>, <b>N</b><sup>*</sup></span>
+<td><code class="moss">(0..), (1..)</code>
+<td>non-negative integers, positive integers
+
+<tr>
+<td><img src="img/case.png">
+<td><pre class="moss">
+a if c else b
+</pre>
+<td>distinction of cases
+
+<tr>
+<td><span class="math"><var>x</var>&nbsp;&#8614;&nbsp;2</var>x</var></span>
+<td><code class="moss">|x| 2*x</code>
+<td>anonymous function
+
+<tr>
+<td><span class="math"><var>f</var><sup><var>n</var></sup>(<var>x</var>)</span>
+<td><code class="moss">(f^n)(x)</code>
+<td>iterated function
+
+<tr>
+<td><span class="math">{<var>a</var>,&nbsp;<var>b</var>,&nbsp;<var>c</var>}</span>
+<td><code class="moss">{a,b,c}</code>
+<td>sets
+
+<tr>
+<td><span class="math">(<var>a</var>,&nbsp;<var>b</var>,&nbsp;<var>c</var>)</span>
+<td><code class="moss">[a,b,c]</code>
+<td>tuples
+
+<tr>
+<td><span class="math"><var>A</var>&times;<var>B</var>,
+  <var>A</var><sup><var>n</var></sup></span>
+<td><code class="moss">A*B, A^n</code>
+<td>cartesian product, power
+</table>
+
+<p>Furthermore:
+</p>
+<table class="bt">
+<tr>
+<th>Math
+<th>Moss
+<th>Notes
+
+<tr>
+<td><img src="img/sum.png">
+<td><pre class="moss">
+(m..n).sum(|k| f(k))
+</pre>
+<td>summation over a range
+
+<tr>
+<td><img src="img/sumM.png">
+<td><pre class="moss">
+M.sum(|k| f(k))
+</pre>
+<td>summation over an iterable object
+
+<tr>
+<td><img src="img/suma.png">
+<td><pre class="moss">
+a.sum()
+</pre>
+<td>summation
+
+<tr>
+<td><img src="img/prod.png">
+<td><pre class="moss">
+(m..n).prod(|k| f(k))
+</pre>
+<td>product over a range
+
+<tr>
+<td><span class="math">&forall;<var>x</var>&isin;<var>M</var>(<var>p</var>(<var>x</var>))</span>
+<td><code class="moss">M.all(|x| p(x))</code>
+<td>universal quantifier
+
+<tr>
+<td><span class="math">&exist;<var>x</var>&isin;<var>M</var>(<var>p</var>(<var>x</var>))</span>
+<td><code class="moss">M.any(|x| p(x))</code>
+<td>existential quantifier
+
+<tr>
+<td><span class="math">{<var>x</var>&isin;<var>M</var>&nbsp;|&nbsp;<var>p</var>(<var>x</var>)}</span>
+<td><code class="moss">M.filter(|x| p(x))</code>
+<td>set builder notation
+
+<tr>
+<td>#<span class="math">{<var>x</var>&isin;<var>M</var>&nbsp;|&nbsp;<var>p</var>(<var>x</var>)}</span>
+<td><code class="moss">M.count(|x| p(x))</code>
+<td>counting
+
+<tr>
+<td><span class="math"><var>f</var>(<var>A</var>)</span>
+<td><code class="moss">f[A]</code>
+<td>image of a function
+</table>
+
+<pre class="moss">
+use math: sqrt, root
+use na: diff, integral, inv
+use cmath: conj, re, im
+</pre>
+
+<table class="bt">
+<tr>
+<th>Math
+<th>Moss
+<th>Notes
+
+<tr>
+<td><img src="img/root.png">
+<td><code class="moss">sqrt(x), root(n,x)</code>
+<td>square root and general root
+
+<tr>
+<td><img src="img/diff.png">
+<td><pre class="moss">
+diff(f,a)
+</pre>
+<td>derivative
+
+<tr>
+<td><img src="img/diffn.png">
+<td><pre class="moss">
+diff(f,a,n)
+</pre>
+<td>derivative of order n
+
+<tr>
+<td><img src="img/int.png">
+<td><pre class="moss">
+integral(a,b,|x| f(x))
+</pre>
+<td>definite integral
+
+<tr>
+<td><img src="img/inv.png">
+<td><code class="moss">inv(f,x,a,b)</code>
+<td>inverse function
+
+<tr>
+<td><span class="math"><var>a</var>+<var>b</var>i</span>
+<td><code class="moss">a+b*1i</code>
+<td>complex numbers
+
+<tr>
+<td><img src="img/absconj.png">
+<td><code class="moss">abs(z), conj(z)</code>
+<td>absolute value, conjugation
+
+<tr>
+<td><span class="math">Re&nbsp;<var>z</var>, Im&nbsp;<var>z</var></span>
+<td><code class="moss">re(z), im(z)</code>
+<td>real part, imaginary part
+</table>
+
+<h2 id="rational">Rational numbers</h2>
+<p>Module <code>math.rational</code> provides rational numbers.
+A rational number <var>a</var>/<var>b</var> is denoted as
+<code>rat(a,b)</code>.
+
+<pre class="moss cmd-box">
+&gt; use math.rational: rat
+&gt; rat(1,2)+2
+5/2
+
+&gt; rat(4,5)^40+rat(2,3)^20
+13752006853860928837764998235160576/
+31712119389339932240545749664306640625
+</pre>
+<p>You can check this with the computer algebra system Maxima:
+<pre class="cmd-box">
+(%i1) (4/5)^40+(2/3)^20;
+
+             13752006853860928837764998235160576
+(%o1)       --------------------------------------
+            31712119389339932240545749664306640625
+</pre>
+
+<h2 id="la">Linear algebra</h2>
+
+<p>Module <code>la</code> provides an array data type which can be
+used to calculate with coordinate vectors and matrices.
+
+<pre class="moss indent">
+use la: vector, matrix
+
+v = vector(1,2)
+
+A = matrix(
+  [1,2],
+  [3,4]
+)
+
+print(A*v)
+</pre>
+
+Module <code>math.la</code> provides the polymorphic version
+of this array data type.
+
+<pre class="moss indent">
+use math.la: matrix
+
+A = matrix(
+  [1,2],
+  [3,4]
+)
+
+print(A^40)
+
+# Output (long integers instead of floating point numbers):
+# matrix(
+#   [38418114959269691024862069751, 55991602170538933080248818850],
+#   [83987403255808399620373228275, 122405518215078090645235298026]
+# )
+</pre>
+
+<p>It is possible to combine this with rational numbers.
+A rational number <var>a</var>/<var>b</var> is denoted as
+<code>rat(a,b)</code>.
+
+<pre class="moss indent">
+use math.la: matrix
+use math.rational: rat
+
+A = matrix(
+  [rat(4,1),rat(2,3)],
+  [rat(9,5),rat(1,2)]
+)
+
+print(A^2)
+
+# Output:
+# matrix(
+#   [86/5, 3],
+#   [81/10, 29/20]
+# )
+</pre>
+
+</body>
+</html>

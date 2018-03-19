@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Object system</title>
+  <link rel="stylesheet" href="../css/main.css">
+  <script src = "../js/moss-syntax.js">
+  </script>
+</head>
+<body>
+
+<table class="navigation">
+<tr><td><b>&uarr;</b> <a href="Table-of-contents.htm">Up</a>
+</table>
+<h1>Object system</h1>
+
+<div class="toc">
+<h2 id="toc">Table of contents</h2>
+<ol>
+<li><a href="#construction">Construction</a>
+<li><a href="#literal">Object literal</a>
+<li><a href="#prototypes">Prototypes</a>
+<li><a href="#basic-data-types">Basic data types
+<li><a href="#inheritance">Multiple inheritance</a>
+<li><a href="#reflection">Reflection</a>
+<li><a href="#monkey">Monkey patching</a>
+<li><a href="#overloading">Operator overloading</a>
+<li><a href="#read-only">Read-only properties</a>
+<li><a href="#private">Private properties</a>
+</ol>
+</div>
+
+<h2 id="construction">Construction</h2>
+
+<p>We can take different approaches to construct an object. A simple
+object can be constructed in one of the following three ways or
+a mixture of them.
+
+<pre class="moss indent">
+# imperative construction
+# vmax in kn
+Bristol = object()
+Bristol.id = "HMS Bristol"
+Bristol.color = "gray blue"
+Bristol.engine = "diesel"
+Bristol.vmax = 25
+
+# via map literal
+Bristol = object(null,{
+  id="HMS Bristol",
+  color="gray blue",
+  engine="diesel",
+  vmax=25
+})
+
+# via object literal
+Bristol = table{
+  id = "HMS Bristol",
+  color = "gray blue",
+  engine = "diesel",
+  vmax = 25
+}
+</pre>
+
+<p>Such an object may have a method which operates on it.
+We will define one.
+
+<pre class="moss indent">
+Bristol.move = sub||
+  print(self.id, " moves at ", self.vmax//2, " kn.")
+end
+
+Bristol.move()
+# HMS Bristol moves at 12 kn.
+</pre>
+
+<p>If there shall be more than one ship, there are certain options
+now. Firstly we can simply delegate to HMS Bristol and shadow
+some of the member objects.
+
+<pre class="moss indent">
+Hermes = object(Bristol)
+Hermes.id = "HMS Hermes"
+Hermes.vmax = 25
+</pre>
+
+<p>But we might also clone HMS Hermes completely and then
+overwrite some of the member objects.
+
+<pre class="moss indent">
+Hermes = object()
+extend(Hermes,Bristol)
+Hermes.id = "HMS Hermes"
+Hermes.vmax = 25
+</pre>
+
+<p>Another way is to use a constructor <code>ship</code>
+and a type/class/metaobject <code>Ship</code>.
+
+<pre class="moss indent">
+ship = sub|id,vmax|
+  return table Ship{id=id, vmax=vmax}
+end
+
+Ship = table{
+  color = "gray blue",
+  engine = "diesel",
+  move = sub||
+    print(self.id, " moves at ", self.vmax//2 " kn.")
+  end
+}
+
+Bristol = ship("HMS Bristol",25)
+Hermes = ship("HMS Hermes",25)
+</pre>
+
+<p>Frankly speaking, the metaobject <code>Ship</code> can be
+regarded as a table of virtual methods and class variables.
+
+
+<h2 id="literal">Object literal</h2>
+
+<p>The following ways to construct Hermes have the same result.
+
+<pre class="moss indent">
+Hermes = object(Bristol)
+Hermes.id = "HMS Hermes"
+Hermes.vmax = 25
+
+Hermes = object(Bristol,{
+  id = "HMS Hermes",
+  vmax = 24
+})
+
+Hermes = object(Bristol,{
+  "id": "HMS Hermes",
+  "vmax": 24
+})
+
+Hermes = table Bristol{
+  id = "HMS Hermes",
+  vmax = 24
+}
+
+Hermes = table Bristol{
+  "id": "HMS Hermes",
+  "vmax": 24
+}
+</pre>
+
+
+<h2 id="prototypes">Prototypes</h2>
+
+<p>Every object <code>x</code> has a prototype.
+If some member object is not found in <code>x</code>, it will be
+looked up in the prototype of <code>x</code> and then in the
+prototype of the prototype of <code>x</code> and so on.
+
+<p>In Moss, the type of an object and its prototype coincide,
+because the type of an object is determined by its prototype.
+The prototype stores the propertys and operations, that objects
+of some kind have in common.
+
+<pre class="moss cmd-box">
+&gt; a = object(null,{time="14:12"})
+# a is a new object with prototype null
+
+&gt; b = object(a)
+# b is a new object with prototype a
+
+&gt; type(b) is a
+true
+
+&gt; type(null) is null
+true
+# null is its own prototype and is the only
+# object which shall have this property
+
+&gt; b.time
+"14:12"
+# b does not have 'time', but a has it
+</pre>
+
+<p>There are two ways to determine, whether some object is of some
+type or not.
+
+<pre class="moss cmd-box">
+&gt; T = object()
+&gt; S = object(T)
+&gt; a = object(S)
+
+# T is not the direct prototype of a.
+&gt; type(a) is T
+false
+&gt; type(a) is S
+true
+
+# But a is an ancestor of T.
+&gt; a: T
+true
+&gt; a: S
+true
+
+# S is a subtype of T.
+&gt; S: T
+true
+
+# S is a direct subtype of T.
+&gt; type(S) is T
+true
+</pre>
+
+<p>If <code>S</code> was extended by <code>T</code>, we must
+take a different approach.
+
+<pre class="moss cmd-box">
+&gt; T = table{a=1, b=2}
+&gt; S = table{c=3}
+&gt; extend(S,T)
+
+# This won't work anymore.
+&gt; S: T
+false
+
+# But one can test, whether all members of T
+# are contained in S.
+&gt; record(T) &lt; record(S)
+true
+</pre>
+
+<h2 id="basic-data-types">Basic data types</h2>
+
+<p>Variables of all basic data types as well as the data types
+itself are objects. Thus the object system applies
+to the basic data types too. Type checks are performed in one
+of two ways:
+<pre class="moss cmd-box">
+&gt; x = 1
+&gt; x: Int
+true
+
+&gt; type(x) is Int
+true
+</pre>
+
+<p>Here is a list of the basic data types:
+<pre>
+  Bool, Int, Long, Float, Complex,
+  Range, List, Map, String, Function.
+</pre>
+
+<p>A data type is written capitalized, the corresponding constructor
+function in lower case.
+<pre class="moss cmd-box">
+&gt; list(1..10): List
+true
+</pre>
+
+
+<h2 id="inheritance">Multiple inheritance</h2>
+
+<p>An object can have more than one prototype.
+
+<pre class="moss indent">
+Plane = table{
+  take_off = sub||
+    print(self.id, " is in the sky.")
+  end
+}
+
+sea_duck = table[Ship, Plane]{
+  id="Sea duck",
+  vmax = 40
+}
+
+sea_duck.move()
+# Sea duck moves at 20 kn.
+
+sea_duck.take_off()
+# Sea duck is in the sky.
+</pre>
+
+<p>A method is searched at first in <code>Ship</code>,
+and then, if not found, in <code>Plane</code>.
+
+<h2 id="reflection">Reflection</h2>
+
+<p>Reflection is the possibility to construct, obtain and modify the
+structure of a type at runtime.
+
+<pre class="moss indent">
+# direct construction
+Bristol = table{color = "gray blue", engine = "diesel"}
+
+# reflection
+x = "color"; y = "engine"
+Bristol = table{x: "gray blue", y: "diesel"}
+
+# direct access
+&gt; Bristol.engine
+"diesel"
+
+# reflection
+&gt; record(Bristol)["engine"]
+"diesel"
+
+# direct method call
+&gt; Bristol.move()
+
+# reflection
+&gt; record(Bristol)["move"](Bristol;)
+</pre>
+
+<p>That argument before the semicolon is the
+<a href="Functions.htm#methods">self</a> argument.
+
+<h2 id="monkey">Monkey patching</h2>
+
+<p>We are able to add methods to already existent types. This
+technique is called <i>monkey patching</i> and considered a bad
+practice, because it can result in name conflicts.
+
+<p>As an example, we will add a method to the list type, that
+splits the list into pairs.
+
+<pre class="moss cmd-box">
+&gt; List.pairs = || list(self.chunks(2))
+&gt; list(1..4).pairs()
+[[1,2], [3,4]]
+</pre>
+
+<h2 id="overloading">Operator overloading</h2>
+
+<p>Table of binary overloadable operators:
+
+<table class="bt">
+<tr>
+  <th>Op.
+  <th>left
+  <th>right
+<tr>
+  <td class="r"><code>a+b</code>
+  <td><code>plus</code>
+  <td><code>rplus</code>
+<tr>
+  <td class="r"><code>a-b</code>
+  <td><code>minus</code>
+  <td><code>rminus</code>
+<tr>
+  <td class="r"><code>a*b</code>
+  <td><code>mpy</code>
+  <td><code>rmpy</code>
+<tr>
+  <td class="r"><code>a/b</code>
+  <td><code>div</code>
+  <td><code>rdiv</code>
+<tr>
+  <td class="r"><code>a//b</code>
+  <td><code>idiv</code>
+  <td><code>ridiv</code>
+<tr>
+  <td class="r"><code>a^b</code>
+  <td><code>pow</code>
+  <td><code>rpow</code>
+<tr>
+  <td class="r"><code>a&amp;b</code>
+  <td><code>band</code>
+  <td><code>rband</code>
+<tr>
+  <td class="r"><code>a|b</code>
+  <td><code>bor</code>
+  <td><code>rbor</code>
+<tr>
+  <td class="r"><code>a==b</code>
+  <td><code>eq</code>
+  <td><code>req</code>
+<tr>
+  <td class="r"><code>a&lt;b</code>
+  <td><code>lt</code>
+  <td><code>rlt</code>
+<tr>
+  <td class="r"><code>a&lt;=b</code>
+  <td><code>le</code>
+  <td><code>rle</code>
+</table>
+
+<p>Table of unary overloadable operators:
+<table class="bt">
+<tr>
+  <th>Op.
+  <th>Method
+<tr>
+  <td class="r"><code>-a</code>
+  <td><code>neg</code>
+<tr>
+  <td class="r"><code>~a</code>
+  <td><code>comp</code>
+</table>
+
+<p>Here is an implementation of complex number arithmetic.
+Complex numbers are covered already by the Moss language,
+but this implementation allows also for arithmetic of
+complex integers.
+
+<pre class="moss indent">
+complex = sub|x,y|
+  return table Complex{re=x, im=y}
+end
+
+Complex = table{
+  sub string
+    return "({}|{})" % [self.re, self.im]
+  end,
+
+  sub neg
+    return table Complex{re = -self.re, im = -self.im}
+  end,
+
+  sub plus(a;b)
+    if b: Complex
+      return table Complex{re = a.re+b.re, im = a.im+b.im}
+    else
+      return table Complex{re = a.re+b, im = a.im}
+    end
+  end,
+
+  sub rplus(a;b)
+    return table Complex{re = a+b.re, im = b.im}
+  end,
+
+  sub minus(a;b)
+    if b: Complex
+      return table Complex{re = a.re-b.re, im = a.im-b.im}
+    else
+      return table Complex{re = a.re-b, im = a.im}
+    end
+  end,
+
+  sub rminus(a;b)
+    return table Complex{re = a-b.re, im = -b.im}
+  end,
+
+  sub mpy(a;b)
+    if b: Complex
+      return table Complex{
+        re = a.re*b.re-a.im*b.im,
+        im = a.re*b.im+a.im*b.re
+      }
+    else
+      return table Complex{re = a.re*b, im = a.im*b}
+    end
+  end,
+
+  sub rmpy(a;b)
+    return table Complex{re = a*b.re, im = a*b.im}
+  end,
+
+  sub div(a;b)
+    if b: Complex
+      r2 = b.re*b.re+b.im*b.im
+      return table Complex{
+        re = (a.re*b.re+a.im*b.im)/r2,
+        im = (a.im*b.re-a.re*b.im)/r2
+      }
+    else
+      return table Complex{re = a.re/b, im = a.im/b}
+    end
+  end,
+
+  sub rdiv(a;b)
+    r2 = b.re*b.re+b.im*b.im
+    return table Complex{
+      re = a*b.re/r2,
+      im = -a*b.im/r2
+    }
+  end,
+
+  sub pow(a;n)
+    return (1..n).prod(|k| a)
+  end
+}
+</pre>
+
+<p>Example of use:
+<pre class="moss cmd-box">
+&gt; i = complex(0,1)
+&gt; 4+2*i
+(4, 2)
+
+&gt; (4+2*i)*(5+3*i)
+(14, 22)
+
+&gt; (4+2*i)^60
+(-964275081903216557328422924784146317312,
+  472329409445772258729579365571477110784)
+
+&gt; (4+2i)^60
+-9.64275e+38+4.72329e+38i
+</pre>
+
+
+<h2 id="read-only">Read-only properties</h2>
+
+<p>Sometimes only methods that belong to the object should have write
+access to a property. Such a close relationship of the object
+to its methods can be achieved by a closure-binding of an interal
+private property table.
+
+<pre class="moss indent">
+Ship = object()
+
+sub ship
+  private_tab = {color = "blue"}
+  return table Ship{
+    sub get(property)
+      return private_tab[property]
+    end,
+    sub change_color
+      private_tab["color"] = "green"
+    end
+  }
+end
+
+Bristol = ship()
+print(Bristol.get("color"))
+Bristol.change_color()
+print(Birstol.get("color"))
+</pre>
+<p>Every method that has direct access to <code>private_tab</code>
+must belong to <code>ship</code> and not to its
+type <code>Ship</code>.
+
+<h2 id="private">Private properties</h2>
+
+<p>Private properties are constructed the same way as read-only
+properties. Only methods that belong to the object should be able
+to see the properties.
+
+<pre class="moss indent">
+Ship = object()
+
+sub ship
+  private_tab = {color = "blue"}
+  return table Ship{
+    sub info
+      return "A {} ship." % private_tab["color"]
+    end,
+    sub change_color
+      private_tab["color"] = "green"
+    end
+  }
+end
+
+Bristol = ship()
+print(Bristol.info())
+Bristol.change_color()
+print(Bristol.info())
+</pre>
+
+
+</body>
+</html>
+
+

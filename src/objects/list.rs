@@ -337,9 +337,8 @@ pub fn map_fn(env: &mut Env, f: &Object, argv: &[Object]) -> FnResult {
   if argc==0 {
     return Ok(List::new_object(Vec::new()));
   }
-  let mut v: Vec<Rc<RefCell<List>>> = Vec::with_capacity(argc); 
+  let mut v: Vec<Rc<RefCell<List>>> = Vec::with_capacity(argc);
   for i in 0..argc {
-    
     match argv[i] {
       Object::List(ref a) => v.push(a.clone()),
       ref a => {

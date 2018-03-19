@@ -148,7 +148,7 @@ pub struct Exception{
 
 impl Exception{
   pub fn new(s: &str, prototype: Object) -> Box<Exception> {
-    let mut t = Table{prototype, map: Map::new()};
+    let mut t = Table{prototype, map: Map::new(), extra: None};
     t.map.borrow_mut().insert("value", U32String::new_object_str(s));
     Box::new(Exception{
       value: Object::Table(Rc::new(t)),
@@ -240,13 +240,21 @@ impl Function{
   }
 }
 
+pub struct TableExtra{
+  pub get: Object,
+  pub set: Object
+  // pub drop: Object
+  // pub rte: Rc<RTE>
+}
+
 pub struct Table{
   pub prototype: Object,
-  pub map: Rc<RefCell<Map>>
+  pub map: Rc<RefCell<Map>>,
+  pub extra: Option<Box<TableExtra>>
 }
 impl Table{
   pub fn new(prototype: Object) -> Rc<Table> {
-    Rc::new(Table{prototype: prototype, map: Map::new()})
+    Rc::new(Table{prototype: prototype, map: Map::new(), extra: None})
   }
   pub fn get(&self, key: &Object) -> Option<Object> {
     let mut p = self;
@@ -265,7 +273,7 @@ impl Table{
 }
 
 pub fn new_module(id: &str) -> Table{
-  Table{prototype: Object::Null, map: Map::new()}
+  Table{prototype: Object::Null, map: Map::new(), extra: None}
 }
 
 pub trait Interface{
@@ -384,4 +392,3 @@ pub trait Interface{
     self as *const _ as *const u8 as usize as u64
   }
 }
-

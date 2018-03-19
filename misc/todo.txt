@@ -1,6 +1,7 @@
 
 = TODO LIST =
 == Interpreter kernel ==
+* tracebacks
 * delete temporary variables after use
 * coroutines
 * continuations, call/cc
@@ -8,7 +9,6 @@
 * sandbox security model for file access
 
 == Library ==
-* zip, unzip
 * reverse iterator
 * cycling iterator
 * iterator: tee
@@ -19,7 +19,6 @@
 * regular expressions
 * graphics
 * powmod
-* hash long
 
 === Linear algebra ===
 * polymorphic arrays
@@ -60,7 +59,11 @@
 * env-pointer in Interface::to_string
 * interface objects in hash tables
 
-== Linear Algebra ==
+== Library ==
+* zip
+* hash for Long
+
+=== Linear Algebra ===
 * polymorphic arrays
   * scalar product
   * absolute value of a vector

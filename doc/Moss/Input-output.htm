@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Input and output</title>
+  <link href="../css/main.css" rel="stylesheet">
+  <script src = "../js/moss-syntax.js">
+  </script>
+</head>
+<body>
+
+<table class="navigation">
+<tr><td><b>&uarr;</b> <a href="Table-of-contents.htm">Up</a>
+</table>
+<h1>Input and output</h1>
+
+<div class="toc">
+<h2 id="toc">Table of contents</h2>
+<ol>
+<li><a href="#command-line">Command-line</a>
+  <ol>
+  <li><a href="#input">Input</a>
+  <li><a href="#output">Output</a>
+  </ol>
+<li><a href="#string-formatting">String formatting</a>
+  <ol>
+  <li><a href="#first-examples">First examples</a>
+  <li><a href="#named-arguments">Named arguments</a>
+  </ol>
+</ol>
+</div>
+
+<h2 id="command-line">Command-line</h2>
+<h3 id="input">Input</h3>
+<p>For command-line input, a function called <code>input</code>
+is used. It takes an optional argument: the prompt, that is
+simply a text printed before one can type input into the input
+line. And it returns a string, containing the text that was
+typed. Here is a most basic example:
+<pre class="moss indent">
+s = input("Please type something and press return: ")
+print("Input was: '", s, "'".)
+</pre>
+<p>That input string can be converted into an integer or
+a floating point number:
+<pre class="moss indent">
+s = input("&gt; ")
+print([s,int(s),float(s)])
+</pre>
+
+<h3 id="output">Output</h3>
+<p>For command-line output, the function <code>print</code>
+is used. It takes any number of arguments, converts its arguments
+into strings and joins them together.
+<pre class="moss cmd-box">
+&gt; print("a",12,"|",3.4,[1,2])
+# Output:
+# a12|3.4[1, 2]
+</pre>
+<p>That is to say, the equation
+<pre class="moss indent">
+print(x,y,z) == print([x,y,z].join())
+== print([x,y,z].map(str).join())
+</pre>
+<p>holds. This allows us to express an alternative version
+of <code>print</code> that takes a separator.
+<pre class="moss indent">
+sub Print(a,sep)
+  print(a.join(sep))
+end
+
+Print([1,2,3],"|")
+# Output:
+# 1|2|3
+</pre>
+
+<h2 id="string-formatting">String formatting</h2>
+<h3 id="first-examples">First examples</h3>
+
+<p>Let us have a look on the following example.
+<pre class="moss indent">
+for x in 1..8
+  print([x,2^x])
+end
+</pre>
+<p>We would like it to be printed in tabular format.
+This is achieved as follows.
+<pre class="moss indent">
+for x in 1..8
+  print("{} | {:r4}" % [x,2^x])
+end
+</pre>
+<p>This <code>{}</code> is a placeholder for the value of <code>x</code>,
+and <code>{:r4}</code> is a placeholder for the value of <code>2^x</code>.
+That <code>r4</code> means "right align by four spaces padding".
+
+
+<pre class="moss indent">
+# Leading zeros
+for x in 1..8
+  print("{} | {:r(0)3}" % [x,2^x])
+end
+
+# Fill the space with dots
+for x in 1..8
+  print("{}{:r(.)5}" % [x,2^x])
+end
+</pre>
+
+<p>Alternatively:
+<pre class="moss indent">
+for x in 1..8
+  print("{} | {}" % [x,str(2^x).rjust(3,'0')])
+end
+</pre>
+
+<p>Note that <code>print(x,y,z)</code>
+is the same as <code>print([x,y,z].join())</code>.
+For oversight, have a look on the following table.
+
+<table class="bt">
+<tr>
+<th>
+<th>Print sth. to the command-line
+<th>Convert sth. into a string
+<tr>
+<th>basic
+<td><code>print(x,y,z)</code>
+<td><code>s = [x,y,z].join()</code>
+<tr>
+<th>formatted
+<td><code>print(template % [x,y,z])</code>
+<td><code>s = template % [x,y,z]</code>
+</table>
+
+<p>But if an integer <code>n</code> is to be converted into a string,
+<code>str(n)</code> can be used simply instead of
+<code>[n].join()</code>.
+
+
+<h3 id="named-arguments">Named arguments</h3>
+
+<p>If the template string is very large, it is better to use
+named arguments.
+<pre class="moss indent">
+print("{x} | {y}" % {x=360,y=240})
+</pre>
+
+<p>If an argument shall occur repeatedly, the arguments
+can be named or indexed.
+
+<pre class="moss indent">
+print("{x} | {y} | {x} | {x}" % {x=360,y=240})
+print("{0} | {1} | {0} | {0}" % [360,240])
+</pre>
+
+<p>Formatting is placed after a colon.
+<pre class="moss indent">
+print("{x:r4} | {y:r4}" % {x=360,y=240})
+print("{0:r4} | {1:r4}" % [360,240])
+</pre>
+
+</body>
+</html>
+

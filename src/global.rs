@@ -323,7 +323,7 @@ fn fobject(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
         Object::Map(ref m) => {
           Ok(Object::Table(Rc::new(Table{
             prototype: argv[0].clone(),
-            map: m.clone()
+            map: m.clone(), extra: None
           })))
         },
         _ => env.type_error1(
@@ -686,6 +686,40 @@ fn read(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
   }
 }
 
+fn zip(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+  let argc = argv.len();
+  if argc==0 {
+    return Ok(List::new_object(Vec::new()));
+  }
+  let mut v: Vec<Rc<RefCell<List>>> = Vec::with_capacity(argc);
+  for i in 0..argc {
+    match argv[i] {
+      Object::List(ref a) => v.push(a.clone()),
+      ref a => {
+        let y = try!(list(env,a));
+        // todo: traceback
+        v.push(match y {Object::List(a) => a, _ => unreachable!()});
+      }
+    }
+  }
+  let n = v[0].borrow().v.len();
+  for i in 0..argc {
+    if n != v[i].borrow().v.len() {
+      return env.type_error("Type error in f[a1,...,an]: all lists must have the same size.");
+    }
+  }
+  let null = &Object::Null;
+  let mut vy: Vec<Object> = Vec::with_capacity(argc);
+  for k in 0..n {
+    let mut t: Vec<Object> = Vec::with_capacity(argc);
+    for i in 0..argc {
+      t.push(v[i].borrow().v[k].clone());
+    }
+    vy.push(List::new_object(t));
+  }
+  return Ok(List::new_object(vy));
+}
+
 pub fn init_rte(rte: &RTE){
   let mut gtab = rte.gtab.borrow_mut();
   gtab.insert_fn_plain("print",print,0,VARIADIC);
@@ -711,6 +745,7 @@ pub fn init_rte(rte: &RTE){
   gtab.insert_fn_plain("gtab",fgtab,0,0);
   gtab.insert_fn_plain("const",fconst,1,1);
   gtab.insert_fn_plain("read",read,1,1);
+  gtab.insert_fn_plain("zip",zip,0,VARIADIC);
   gtab.insert("empty", Object::Empty);
 
   let type_bool = rte.type_bool.clone();

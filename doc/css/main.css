@@ -32,6 +32,9 @@ p{
 h1, h2, h3, h4{
   color: #403020;
 }
+p+h2, pre+h2 {
+  margin-top: 40px;
+}
 a{
   color: #104060;
   text-decoration: none;
@@ -129,5 +132,3 @@ table.navigation td {
   padding-left: 6px;
   padding-right: 20px;
 }
-
-
