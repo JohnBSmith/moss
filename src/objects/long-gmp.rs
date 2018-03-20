@@ -30,6 +30,8 @@ extern "C" {
   fn __gmpz_clear(x: mpz_ptr);
   fn __gmpz_cmp(op1: mpz_srcptr, op2: mpz_srcptr) -> c_int;
   fn __gmpz_cmp_si(op1: mpz_srcptr, op2: c_long) -> c_int;
+  fn __gmpz_set (rop: mpz_ptr, op: mpz_srcptr);
+  fn __gmpz_set_str (rop: mpz_ptr, s: *const c_char, base: c_int) -> c_int;
 
   fn __gmpz_add(rop: mpz_ptr, op1: mpz_srcptr, op2: mpz_srcptr);
   fn __gmpz_sub(rop: mpz_ptr, op1: mpz_srcptr, op2: mpz_srcptr);
@@ -42,6 +44,7 @@ extern "C" {
   fn __gmpz_ui_sub(rop: mpz_ptr, op1: c_ulong, op2: mpz_srcptr);
   fn __gmpz_mul_si(rop: mpz_ptr, op1: mpz_srcptr, op2: c_long);
   fn __gmpz_pow_ui(rop: mpz_ptr, base: mpz_srcptr, exp: c_ulong);
+  fn __gmpz_powm(rop: mpz_ptr, base: mpz_srcptr, exp: mpz_srcptr, m: mpz_srcptr);
 
   fn __gmpz_get_str(s: *mut c_char, base: c_int, op: mpz_srcptr) -> *mut c_char;
   fn __gmpz_get_ui(op: mpz_srcptr) -> c_ulong;
@@ -81,6 +84,23 @@ impl Mpz {
     }
   }
 
+  fn from_string(mut s: String) -> Result<Mpz,()> {
+    unsafe{
+      let mut mpz = Mpz::new();
+      s.push('\x00');
+      let p = s.as_bytes().as_ptr() as *const c_char;
+      if __gmpz_set_str(&mut mpz.mpz, p, 10) == 0 {
+        return Ok(mpz);
+      }else{
+        return Err(());
+      }
+    }
+  }
+
+  fn set(&mut self, x: &Mpz) {
+    unsafe{__gmpz_set(&mut self.mpz,&x.mpz);}
+  }
+
   fn mul_int(&mut self, a: &Mpz, b: c_long) {
     unsafe {
       __gmpz_mul_si(&mut self.mpz, &a.mpz, b);
@@ -118,7 +138,7 @@ impl Mpz {
        }
     }
   }
-  
+
   fn sub_int(&mut self, a: &Mpz, b: c_long) {
     unsafe {
        if b<0 {
@@ -154,12 +174,18 @@ impl Mpz {
     }
   }
 
+  fn pow_mod(&mut self, a: &Mpz, n: &Mpz, m: &Mpz) {
+    unsafe{
+      __gmpz_powm(&mut self.mpz, &a.mpz, &n.mpz, &m.mpz);
+    }
+  }
+
   fn fdiv(&mut self, a: &Mpz, b: &Mpz) {
     unsafe {
       __gmpz_fdiv_q(&mut self.mpz, &a.mpz, &b.mpz);
     }
   }
-  
+
   fn fdiv_int(&mut self, a: &Mpz, b: c_long) {
     let y = Mpz::from_int(b);
     unsafe{
@@ -199,7 +225,7 @@ impl Mpz {
       return y;
     }
   }
-  
+
   fn cmp(&self, b: &Mpz) -> c_int {
     unsafe{__gmpz_cmp(&self.mpz, &b.mpz)}
   }
@@ -242,6 +268,23 @@ impl Long {
   }
   pub fn object_from_int(x: i32) -> Object {
     Object::Interface(Rc::new(Long{value: Mpz::from_int(x)}))
+  }
+  pub fn to_long(x: &Object) -> Result<Object,()> {
+    return match *x {
+      Object::Int(x) => {
+        Ok(Long::object_from_int(x))
+      },
+      Object::String(ref s) => {
+        let s: String = s.v.iter().collect();
+        match Mpz::from_string(s) {
+          Ok(y) => {
+            Ok(Object::Interface(Rc::new(Long{value: y})))
+          },
+          Err(()) => Err(())
+        }
+      },
+      _ => Err(())
+    }
   }
   pub fn as_f64(&self) -> f64 {
     Mpz::as_f64(&self.value)
@@ -603,5 +646,38 @@ impl Interface for Long {
   fn hash(&self) -> u64 {
     return self.value.as_ui() as u64 ^ self.value.size_in_base2() as u64;
   }
+}
+
+fn to_mpz(x: &Object) -> Result<Mpz,()> {
+  if let Object::Int(x) = *x {
+    return Ok(Mpz::from_int(x));
+  }else if let Some(x) = Long::downcast(x) {
+    let mut y = Mpz::new();
+    y.set(&x.value);
+    return Ok(y);
+  }else{
+    return Err(());
+  }
+}
+
+pub fn pow_mod(env: &mut Env, a: &Object, n: &Object, m: &Object) -> FnResult {
+  let a = match to_mpz(a) {
+    Ok(x) => x,
+    Err(()) => return env.type_error("Type error in pow(a,n,m): expected a of type Int or Long.")
+  };
+  let n = match to_mpz(n) {
+    Ok(x) => x,
+    Err(()) => return env.type_error("Type error in pow(a,n,m): expected n of type Int or Long.")
+  };
+  let m = match to_mpz(m) {
+    Ok(x) => x,
+    Err(()) => return env.type_error("Type error in pow(a,n,m): expected m of type Int or Long.")
+  };
+  if n.cmp_int(0)<0 {
+    return env.value_error("Value error in pow(a,n,m): n<0.");
+  }
+  let mut y = Mpz::new();
+  y.pow_mod(&a,&n,&m);
+  return Ok(Object::Interface(Rc::new(Long{value: y})));
 }
 

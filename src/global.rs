@@ -261,9 +261,9 @@ fn load(env: &mut Env, id: Rc<U32String>, hot_plug: bool) -> FnResult{
   let s: String = id.v.iter().collect();
   let y = match &s[..] {
     "math"  => ::math::load_math(),
+    "math/la" => ::la::load_la(env),
     "cmath" => ::math::load_cmath(),
     "sys"   => ::sys::load_sys(env.rte()),
-    "la"    => ::la::load_la(env),
     "sf"    => ::sf::load_sf(),    
     _ => {
       try!(load_file(env,&s))
@@ -720,6 +720,13 @@ fn zip(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
   return Ok(List::new_object(vy));
 }
 
+fn pow(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+  match argv.len() {
+    3 => {}, n => return env.argc_error(n,3,3,"pow")
+  }
+  return ::long::pow_mod(env,&argv[0],&argv[1],&argv[2]);
+}
+
 pub fn init_rte(rte: &RTE){
   let mut gtab = rte.gtab.borrow_mut();
   gtab.insert_fn_plain("print",print,0,VARIADIC);
@@ -746,6 +753,7 @@ pub fn init_rte(rte: &RTE){
   gtab.insert_fn_plain("const",fconst,1,1);
   gtab.insert_fn_plain("read",read,1,1);
   gtab.insert_fn_plain("zip",zip,0,VARIADIC);
+  gtab.insert_fn_plain("pow",pow,3,3);
   gtab.insert("empty", Object::Empty);
 
   let type_bool = rte.type_bool.clone();

@@ -182,9 +182,16 @@ pub fn scan(s: &str, line_start: usize, file: &str, new_line_start: bool)
       }
       let number: &String = &a[j..i].iter().cloned().collect();
       if token_type == SymbolType::Int {
-        let x: i32 = number.parse().unwrap();
-        v.push(Token{token_type: token_type, value: Symbol::None,
-          line: line, col: hcol, item: Item::Int(x)});
+        match number.parse::<i32>() {
+          Ok(x) => {
+            v.push(Token{token_type: token_type, value: Symbol::None,
+              line: line, col: hcol, item: Item::Int(x)});
+          },
+          Err(e) => {
+            v.push(Token{token_type: token_type, value: Symbol::None,
+              line: line, col: hcol, item: Item::String(number.clone())});
+          }
+        };
       }else{
         if token_type == SymbolType::Imag {
           i+=1; col+=1;
@@ -678,7 +685,13 @@ fn print_ast(t: &AST, indent: usize){
   print!("{:1$}","",indent);
   match t.symbol_type {
     SymbolType::Int => {
-      println!("{}",match t.info {Info::Int(x)=>x, _ => compiler_error()});
+      match t.info {
+        Info::Int(x) => {println!("{}",x);},
+        Info::Long => {
+          println!("long {}",match t.s {Some(ref s) => s, None => compiler_error()});
+        },
+        _ => compiler_error()
+      };
     },
     SymbolType::Identifier | SymbolType::Float => {
       println!("{}",match t.s {Some(ref s) => s, None => compiler_error()});
@@ -726,7 +739,8 @@ enum ComplexInfoA{
 
 enum Info{
   None, Some(u8), SelfArg, Coroutine, A(Box<ComplexInfoA>),
-  Int(i32), ArgvInfo{variadic: bool, selfarg: bool}
+  Int(i32), ArgvInfo{variadic: bool, selfarg: bool},
+  Long
 }
 
 struct AST{
@@ -1365,9 +1379,19 @@ fn atom(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error> {
   let y;
   if t.token_type==SymbolType::Int {
     i.index+=1;
-    y = Rc::new(AST{line: t.line, col: t.col, symbol_type: t.token_type,
-      value: t.value, info: Info::Int(t.item.assert_int()),
-      s: None, a: None});
+    y = match t.item {
+      Item::Int(x) => Rc::new(AST{
+        line: t.line, col: t.col, symbol_type: t.token_type,
+        value: t.value, info: Info::Int(x),
+        s: None, a: None
+      }),
+      Item::String(ref x) => Rc::new(AST{
+        line: t.line, col: t.col, symbol_type: t.token_type,
+        value: t.value, info: Info::Long,
+        s: Some(x.clone()), a: None
+      }),
+      _ => panic!()
+    };
   }else if t.token_type==SymbolType::Identifier ||
      t.token_type==SymbolType::String || t.token_type==SymbolType::Float ||
      t.token_type==SymbolType::Imag
@@ -3174,6 +3198,17 @@ fn compile_string(&mut self, bv: &mut Vec<u32>, t: &AST)
   return Ok(());
 }
 
+fn compile_long(&mut self, bv: &mut Vec<u32>, t: &AST)
+  -> Result<(),Error>
+{
+  let s = match t.s {Some(ref x)=>x, None=>panic!()};
+  let key = try!(self.string_literal(s));
+  let index = self.get_index(&key);
+  push_bc(bv,bc::LONG,t.line,t.col);
+  push_u32(bv,index as u32);
+  return Ok(());
+}
+
 fn compile_ast(&mut self, bv: &mut Vec<u32>, t: &Rc<AST>)
   -> Result<(),Error>
 {
@@ -3291,9 +3326,14 @@ fn compile_ast(&mut self, bv: &mut Vec<u32>, t: &Rc<AST>)
       ));
     }
   }else if t.symbol_type == SymbolType::Int {
-    push_bc(bv, bc::INT, t.line, t.col);
     match t.info {
-      Info::Int(x) => push_i32(bv,x),
+      Info::Int(x) => {
+        push_bc(bv, bc::INT, t.line, t.col);
+        push_i32(bv,x);
+      },
+      Info::Long => {
+        try!(self.compile_long(bv,t));
+      },
       _ => panic!()
     };
   }else if t.symbol_type == SymbolType::Float {
@@ -3568,7 +3608,13 @@ fn asm_listing(a: &[u32]) -> String {
       },
       bc::STR => {
         let x = load_u32(&a[BCSIZE+i..BCSIZE+i+1]);
-        let u = format!("str literal [{}]\n",x);
+        let u = format!("string literal [{}]\n",x);
+        s.push_str(&u);
+        i+=BCASIZE;
+      },
+      bc::LONG => {
+        let x = load_u32(&a[BCSIZE+i..BCSIZE+i+1]);
+        let u = format!("long literal [{}]\n",x);
         s.push_str(&u);
         i+=BCASIZE;
       },

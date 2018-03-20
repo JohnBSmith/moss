@@ -6,10 +6,13 @@
 use std::rc::Rc;
 use std::cell::RefCell;
 use std::any::Any;
-use object::{Object, FnResult, Function, List, Interface,
+use object::{Object, FnResult, Function, List, Table, Interface,
   Exception, new_module, VARIADIC};
 use vm::{Env, op_neg, op_add, op_sub, op_mpy, op_div, op_eq};
 use complex::Complex64;
+
+use std::sync::atomic::{AtomicUsize, Ordering, ATOMIC_USIZE_INIT};
+static INDEX: AtomicUsize = ATOMIC_USIZE_INIT;
 
 struct ShapeStride{
   shape: usize,
@@ -116,8 +119,10 @@ impl Interface for Array {
         2 => if v[0..2] == ['t','r'] {
           return trace(env,self);
         },
-        3 => if v[0..3] == ['a','b','s'] {
-          return abs(env,self);
+        3 => {
+          if v[0..3] == ['a','b','s'] {
+            return abs(env,self);
+          }
         },
         4 => {
           if v[0..4] == ['c','o','n','j'] {
@@ -137,7 +142,13 @@ impl Interface for Array {
         },
         _ => {}
       }
-      env.index_error(&format!("Index error in t.{0}: {0} not found.",key))
+      let t = &env.rte().interface_types.borrow()[INDEX.load(Ordering::SeqCst)];
+      match t.get(key) {
+        Some(value) => return Ok(value),
+        None => {
+          env.index_error(&format!("Index error in t.{0}: {0} not found.",key))
+        }
+      }
     }else{
       env.type_error("Type error in t.x: x is not a string.")
     }
@@ -646,10 +657,10 @@ fn array_map(env: &mut Env, a: &Array, f: &Object) -> FnResult {
 
 fn map(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
   match argv.len() {
-    2 => {}, n => return env.argc_error(n,2,2,"map")
+    1 => {}, n => return env.argc_error(n,1,1,"map")
   }
-  if let Some(a) = Array::downcast(&argv[0]) {
-    return array_map(env,a,&argv[1]);
+  if let Some(a) = Array::downcast(pself) {
+    return array_map(env,a,&argv[0]);
   }else{
     panic!();
   }
@@ -929,6 +940,16 @@ fn trace(env: &mut Env, a: &Array) -> FnResult {
 }
 
 pub fn load_la(env: &mut Env) -> Object {
+
+  let type_array = Table::new(Object::Null);
+  {
+    let mut m = type_array.map.borrow_mut();
+    m.insert_fn_plain("map",map,1,1);
+  }
+  let mut v = env.rte().interface_types.borrow_mut();
+  INDEX.store(v.len(),Ordering::SeqCst);
+  v.push(type_array);
+
   let la = new_module("la");
   {
     let mut m = la.map.borrow_mut();
@@ -937,8 +958,7 @@ pub fn load_la(env: &mut Env) -> Object {
     m.insert_fn_plain("array",array,2,2);
     m.insert_fn_plain("scalar",scalar,3,3);
     m.insert_fn_plain("diag",diag,0,VARIADIC);
-    m.insert_fn_plain("map",map,2,2);
   }
-  
+
   return Object::Table(Rc::new(la));
 }

@@ -104,6 +104,7 @@ pub mod bc{
   pub const GETEXC:u8 = 70;
   pub const CRAISE:u8 = 71;
   pub const HALT: u8 = 72;
+  pub const LONG: u8 = 73;
 
   pub fn op_to_str(x: u8) -> &'static str {
     match x {
@@ -3817,6 +3818,15 @@ fn vm_loop(
         }else{
           panic!();
         }
+      },
+      bc::LONG => {
+        let index = load_u32(&a,ip+BCSIZE);
+        stack[sp] = match Long::to_long(&module.data[index as usize]) {
+          Ok(x) => x,
+          Err(()) => panic!()
+        };
+        sp+=1;
+        ip+=BCASIZE;
       },
       _ => {panic!()}
     }
