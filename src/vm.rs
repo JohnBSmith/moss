@@ -281,6 +281,12 @@ impl PartialEq for Object{
       _ => {}
     }
     return match *self {
+      Object::Table(ref x) => {
+        return match *b {
+          Object::Table(ref y) => Rc::ptr_eq(x,y),
+          _ => false
+        }
+      },
       Object::Interface(ref x) => {
         return x.eq_plain(b);
       },
@@ -323,6 +329,10 @@ impl Hash for Object{
           hash = hash.wrapping_add(hstate.finish());
         }
         state.write_u64(hash);
+      },
+      Object::Table(ref t) => {
+        let p: &Table = t;
+        (p as *const _).hash(state);
       },
       Object::Interface(ref x) => {
         state.write_u64(x.hash());
@@ -646,6 +656,13 @@ pub fn op_div(env: &mut Env, x: &Object, y: &Object) -> FnResult {
   env.stack[env.sp] = x.clone();
   env.stack[env.sp+1] = y.clone();
   try!(::vm::operator_div(env.env,env.sp+2,env.stack));
+  return Ok(replace(&mut env.stack[env.sp],Object::Null));
+}
+
+pub fn op_lt(env: &mut Env, x: &Object, y: &Object) -> FnResult {
+  env.stack[env.sp] = x.clone();
+  env.stack[env.sp+1] = y.clone();
+  try!(::vm::operator_lt(env.env,env.sp+2,env.stack));
   return Ok(replace(&mut env.stack[env.sp],Object::Null));
 }
 
@@ -2535,7 +2552,10 @@ fn operator_index(env: &mut EnvPart, argc: usize,
           stack[sp-2] = x.clone();
           Ok(())
         },
-        None => Err(env.index_error_plain("Index error in m[key]: key not found."))
+        None => {
+          let key = try!(stack[sp-1].clone().repr(&mut Env{env,sp,stack}));
+          Err(env.index_error_plain(&format!("Index error in m[{}]: not found.",key)))
+        }
       }
     },
     Object::Interface(x) => {

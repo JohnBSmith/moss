@@ -127,4 +127,31 @@ sub divisors(n)
   (1..n).filter(|k| n%k==0).list()
 end
 
+sub factor(n)
+  a=[]
+  if n<=0
+    if n==0
+      return [[0,1]]
+    else
+      a.push([-1,1])
+      n = -n
+    end
+  end
+  k=2
+  while true
+    e=0
+    while n%k==0
+      n = n//k
+      e+=1
+    end
+    if e!=0
+      a.push([k,e])
+    end
+    if n==1
+      return a
+    end
+    k+=1
+  end
+end
+
 

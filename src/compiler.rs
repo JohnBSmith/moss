@@ -2884,7 +2884,7 @@ fn arguments(&mut self, bv: &mut Vec<u32>, t: &AST, selfarg: bool)
   }
 
   for i in 0..a.len() {
-    if a[i].value == Symbol::List {
+    if a[i].value == Symbol::List || a[i].value == Symbol::Map {
       let ids = format!("_t{}_",i);
       let helper = identifier(&ids,a[i].line,a[i].col);
       self.vtab.v.push(VarInfo{
@@ -2894,7 +2894,7 @@ fn arguments(&mut self, bv: &mut Vec<u32>, t: &AST, selfarg: bool)
       });
       self.vtab.count_arg+=1;
       try!(self.compile_ast(bv,&helper));
-      try!(self.compile_unpack(bv,&a[i]));
+      try!(self.compile_left_hand_side(bv,&a[i]));
     }else if a[i].value == Symbol::Assignment {
       let u = ast_argv(&a[i]);
       if let Some(ref s) = u[0].s {

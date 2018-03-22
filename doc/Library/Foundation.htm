@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Foundation</title>
+  <link href="../css/main.css" rel="stylesheet">
+  <script src="../js/moss-syntax.js"></script>
+</head>
+<body>
+
+<table class="navigation">
+<tr><td><b>&uarr;</b> <a href="Table-of-contents.htm">Up</a>
+</table>
+<h1>Foundation</h1>
+
+<div class="toc">
+<h2 id="toc">Table of contents</h2>
+<ol>
+<li><a href="#global-objects">Global objects</a>
+<li><a href="#global-functions">Global functions</a>
+</ol>
+</div>
+
+<h2 id="global-objects">Global objects</h2>
+<dl class="code">
+<dt>Bool, Int, Long, Float, Complex, List, Map, String, Range,
+Function, Iterable
+<dd>The basic data types.
+</dl>
+
+<h2 id="global-functions">Global functions</h2>
+
+<dl class="code">
+<dt>print(x1,...,xn)
+<dd>Print the arguments to the command-line interface.
+The output representations of
+the arguments are joined together without any separating character
+or spacing. Does print a line break thereafter. If the function is
+called with no argument, it only prints a line break.
+
+<dt>put(x1,...,xn)
+<dd>Does the same as print, but does not print a line break.
+
+<dt>input(), input(prompt)
+<dd>Read a line of input from the command-line interface and return
+the input as a string. The line break at the end of the input line is
+not contained in the string.
+
+<dt>str(x)
+<dd>Convert <code>x</code> into a string.
+
+<dt>str(x,format,precision)
+<dd>Convert the floating point number <code>x</code> into
+a string.
+<pre class="moss">
+# format = "[+|-](f|e|E|g|G)"
+s = str(math.pi,"f",4)
+</pre>
+
+<dt>int(x)
+<dd>Convert <code>x</code> into an integer if possible.
+
+<dt>float(x)
+<dd>Convert <code>x</code> into a floating point number
+  if possible.
+
+<dt>ord(s)
+<dd>Take a string of length one and return the code point of the
+  Unicode character.
+
+<dt>chr(x)
+<dd>Take an integer value <code>x</code> and return the Unicode
+  character at code point&nbsp;<code>x</code>.
+
+<dt>list(x)
+<dd>Convert the iterable object <code>x</code> into a list.
+<pre class="moss">
+&gt; list(1..4)
+[1, 2, 3, 4]
+</pre>
+
+<dt>map(x)
+<dd>Convert the iterable object <code>x</code> of
+<code>[key,value]</code> pairs into a map.
+<pre class="moss">
+&gt; map([["a",1],["b",2]])
+{"a": 1, "b": 2}
+</pre>
+
+<dt>set(x)
+<dd>Turn an iterable object <code>x</code> into a set.
+<pre class="moss">
+&gt; set(1..4)
+{1, 2, 3, 4}
+</pre>
+
+<dt>iter(x)
+<dd>Take an iterable object and return an iterator.
+<pre class="moss">
+&gt; i = iter(1..)
+&gt; [i(),i(),i(),i()]
+[1, 2, 3, 4]
+</pre>
+
+<dt>size(a)
+<dd>Number of elements of <code>a</code>. The object <code>a</code>
+should be a data structure that has this property.
+
+<dt>rand(a..b), rand(a..b,seed)
+<dd>Return a random number generator that returns random integers
+from <code>a</code> inclusive to <code>b</code> inclusive.
+<pre class="moss">
+&gt; r = rand(1..4)
+&gt; [r(),r(),r(),r()]
+[2, 1, 3, 3]
+
+&gt; r.list(10)
+[1, 1, 4, 2, 3, 4, 1, 2, 1, 1]
+</pre>
+
+<dt>rand(a), rand(a,seed)
+<dd>Return a random number generator that chooses an element of
+the list <code>a</code> randomly.
+
+<dt>rand(), rand(seed)
+<dd>Return a random number generator that returns floats
+between zero and one.
+
+<dt>read(id), read(id,mode)
+<dd>Read the text file with filename <code>id</code> and encoding
+<code>UTF-8</code>. Return the contents as an
+<code>UTF32</code>-string. If <code>mode=='b'</code>,
+the file is read as a binary file.
+
+<dt>load(id)
+<dd>Load the module with filename <code>id</code> and
+  return the module object. The function <code>load</code>
+  can be used in a more general way than import statements
+  (keyword <code>use</code>). One can achieve dynamic loading
+  this way.
+<pre class="moss">
+&gt; math = load("math")
+&gt; math.floor(2.4)
+2.0
+</pre>
+
+<dt>abs(x)
+<dd>Absolute value of <code>x</code>. Returns an integer if
+<code>x</code> is an integer. Takes also complex numbers.
+
+<dt>sgn(x)
+<dd>Sign of <code>x</code>. Returns an integer if
+<code>x</code> is an integer.</dd>
+
+<dt>max(a,b)
+<dd>Return the maximum of <code>a</code> and <code>b</code>.
+
+<dt>min(a,b)
+<dd>Return the minimum of <code>a</code> and <code>b</code>.
+
+<dt>pow(a,n,m)
+<dd>Modular exponentiation: calculate <code>(a^n)%m</code> fast.
+
+<dt>const(x), const(n,x)
+<dd>Shallow freeze a mutable object <code>x</code> and return it.
+If <code>n</code> is given, deep freeze <code>x</code> by
+depth <code>n</code>.
+If <code>n</code> is <code>null</code>, freeze the complete
+tree. Note that <code>const(x)</code> is equivalent to
+<code>const(1,x)</code>.
+
+<dt>copy(x), copy(n,x)
+<dd>Construct a shallow copy of the object <code>x</code>
+and return it. If <code>n</code> is given, return a deep copy
+by depth <code>n</code>. If <code>n</code> is <code>null</code>,
+return a complete deep copy. Note that <code>copy(x)</code>
+is equivalent to <code>copy(1,x)</code>.
+
+<dt>object(), object(p), object(p,m)
+<dd>Construct a new object with <code>p</code> as its
+prototype and map <code>m</code> as its slot table.
+
+<dt>type(x)
+<dd>Prototype of <code>x</code>.
+
+<dt>record(x)
+<dd>Slot table of <code>x</code>.
+
+<dt>extend(a,b)
+<dd>Insert all slots of <code>b</code> into the slot
+table of <code>a</code>. Already existent slots
+of <code>a</code> will not be overwritten.
+
+<dt>zip(a1,...,an)
+<dd>Take the lists <code>a1,...,an</code> and return the list of
+lists <code>[a1[i],...,an[i]]</code>. Note that <code>zip</code>
+is an involution:
+<pre class="moss">
+a == zip.apply(zip.apply(a))
+</pre>
+
+<dt>eval(s), eval(s,m)
+<dd>Execute a string as a program. Free variables are from
+the current environment (only global variables).
+If the map <code>m</code>
+is given, use it as an environment for free/global variables.
+<pre class="moss">
+&gt; x=12
+&gt; eval("2*x")
+24
+
+&gt; eval("a=[1,2]")
+&gt; a
+[1, 2]
+
+&gt; eval("x*y",{x=360,y=240})
+86400
+</pre>
+</dl>
+
+
+
+</body>
+</html>
+

@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Blog</title>
+  <link rel="stylesheet" href="css/main.css">
+  <script src="js/moss-syntax.js"></script>
+  <script src="js/blog.js"></script>
+  <script>
+window.onload = function(){
+  toc();
+  main();
+}
+  </script>
+</head>
+<body>
+
+<table class="navigation">
+<tr><td><b>&uarr;</b> <a href="../home.htm">Home</a>
+</table>
+<h1>Development blog</h1>
+<h2>Table of contents</h2>
+<div id="toc" class="toc"></div>
+
+<h3 data-date="20160808" id="new-formatted-printing-policy"
+>New formatted printing policy</h3>
+<p>Separation between formatted printing to <code>stdout</code> and string
+buffers shall be resolved. Formatted printing to <code>stdout</code>
+shall be removed in favor of string buffers.
+
+
+<h3 data-date="20160808" id="new-formatted-printing-function"
+>New formatted printing function</h3>
+
+<p>Moss gets a function and syntax for formatted printing.
+I&nbsp;will compare it with equivalents from&nbsp;C.
+
+<pre class="indent">
+   C: printf("(%li,%li)",x,y)
+Moss: print("({},{})"%[x,y])
+
+   C: snprintf(s,N,"(%li,%li)",x,y)
+Moss: s = "({},{})" % [x,y]
+</pre>
+
+<p>The template syntax will be similar to <code>format</code>
+from Python but may differ more or less.
+
+<pre class="moss indent">
+# Here is an example of proper usage:
+a = list(0..10).map(|x| [x,x^2])
+buffer=[]
+for t in a
+  buffer.push("({},{})"%t)
+end
+s = buffer.join("\n")
+print(s)
+
+# More briefly:
+/*1*/ a = list(0..10).map(|x| [x,x^2])
+/*2*/ s = a.map(|t| "({},{})"%t).join("\n")
+/*3*/ print(s)
+</pre>
+<p>We see a practical pattern: a strict separation between actual
+information structure (1), formatting (2) and stdout (3).
+
+<p>Note: to have advanced output, libraries should be provided
+that return tables as HTML5, LaTeX2e and plots as PNG, SVG
+as automatically as possible. Whole documents or books (libraries?)
+could be generated automatically from data. But one must say
+to this, that HTML5 is more easy to use than LaTeX2e.
+
+
+<h3 data-date="20160920" id="set-dict-joined"
+>Joined datatypes map and set</h3>
+<p>As sets are a special case of maps (dictionaries) and set operations
+do not interfere with map operations, them can be joined.
+Maps with values absent can be considered as sets:
+
+<pre class="moss indent">
+{1, 2} == {1: null, 2: null}
+</pre>
+<p>Multisets cannot be included as well, because
+they introduce problems. For example, '<code>==</code>' behaves
+differently if there are keys with <code>m[key]==0</code>.
+But it is clear that maps may be used as internal data
+structures of multisets. An alternative is, to simpliy monkey patch
+the neccessary operations into <code>Map</code>
+(<code>Map</code> is the data type of maps).
+
+<h3 data-date="20160930" id="assignment-to-application"
+>Assignments to function applications</h3>
+<p>A syntactical sugar for assignments to function
+applications is added to the language.
+
+<pre>
+1. a.m()=y is equivalent to a.set_m(y)
+2. a.m(x1,...,xn)=y is equivalent to a.set_m(x1,...,xn,y)
+3. a.m(x) = y1,y2 the same as a.m(x)=[y1,y2]
+     and therefore equivalent to a.set_m(x,[y1,y2])
+4. a.m1(),a.m2() = t is not possilbe (t=[y1,y2])
+5. a[i]()=y is not possible
+</pre>
+<p>The point in (4) is that the language should be minimalistic
+and (4) would blow it up. It is definitely much harder to
+implement than (1,2,3) which required less than 40 lines of code.
+
+
+<h3 data-date="20161006" id="print-float"
+>Printing floating point numbers</h3>
+
+<p>There is a problem with standard printing of floating point
+numbers. For example, one can get
+<pre class="moss cmd-box">
+&gt; list(0..1:0.2)
+[0.0, 0.2, 0.4, 0.6000000000000001, 0.8, 1.0]
+</pre>
+
+<pre>
+So we can have output of the form 000000000...some digit
+and (under other circuumstances)  999999999...some digit.
+This is because of printf("%.16g\n",x).
+
+In most cases one has engineering tasks and does not suffer
+from slightly lower precision. So I think I will change that
+to %.14g to make output more stable. One can always get full
+precision by "{g16}"%[x] or even "{g17}"%[x].
+(#include &lt;float.h&gt;: DBL_DECIMAL_DIG==17)
+</pre>
+
+
+<h3 data-date="20161107" id="Rust"
+>Reimplementation in Rust</h3>
+
+<p>It is clear for me now, that the Moss interpreter must be
+rewritten in Rust. I&nbsp;have to struggle with segmentation faults
+too often. The security goals are:
+
+<p><b>Security (1).</b>
+Maybe it is possible to achieve a memory safe implementation.
+
+<p><b>Security (2).</b>
+Access to files will be realized by a mandatory access control
+system. In that system the main program obtains a <i>right</i> to
+access files in some path. This right is given explicitly to the
+subprograms that do the task. The difference to the flat model is,
+that in the flat model a third party library routine can do anything,
+once the main program got the right.
+
+<p><b>Security (3).</b>
+What makes the most headache is a general call of shell commands.
+Any call of an external program (e.g. in a scripting language)
+can undermine the access control system. Thus such a call is
+ill behaved and shall only be possible in the <i>unsafe mode</i>.
+Ideally, the unsafe mode is made forbidden outside of a
+sandbox environment.
+
+<p><b>Update (2018-03-22).</b>
+The interpreter kernel is ported to Rust, it's construction was
+successful and is is almost complete now.
+There were some pitfalls, interesting ones, but it was possible to
+take them into account. The most interesting pitfalls are:
+<ul>
+<li>The calling environment pointer <code>env</code> has to be given
+to every Rust function that needs to call a Moss function or needs to
+have access to the RTE (runtime environment). This is
+<i>much less obfuscated</i> than handling global variables.
+<li>A function has a pointer to the <code>gtab</code>
+(table of global variables) of its module. And the module has a
+pointer to this function. Therefore we have a cyclic data structure
+that turns out to be a memory leak.
+One could have used a weak pointer, but that would have made things
+complicated. The best solution was to add a destructor at the
+destruction of the interpreter that clears the gtabs.
+A small difficulty remains: If a module shall be unloaded properly
+<i>sooner</i> than at the ending of the main program,
+this destructor must be called explicitly.
+<li>The call stack is splitted in two parts: a frame stack and an
+object stack. The frame stack is dynamic, but the object stack cannot
+be made greater during runtime. One could use a
+dynamic vector directly and indices instead
+of slices. But the current design does not allow for that.
+Secondly, it might affect the performance.
+Giving the object stack's size to the interpreter in before is very
+unelegant. The solution I have found, is simply to create a new
+stack of the desired size and call a callback with this new stack.
+This can be achieved at any point at runtime.
+<li>The trait methods for <code>Drop</code>, <code>Eq</code>,
+<code>Hash</code> cannot take <code>env</code>,
+nor can they return error information. A solution I have found for
+<code>env</code> is to store a RTE pointer in a table object
+(the implementation is inside of <code>TableExtra</code>), and to
+store a stack of alternative calling environments in the RTE.
+This is my worst problem so far, but it only affects custom Moss
+destructors and hashables.
+</ul>
+<p>Security goal (1) is achieved, the interpreter is memory safe,
+provided Rust is sound, the Rust compiler produces safe code
+and each used FFI (foreign function interface) is safe.
+It is also possible to make it almost completely logically safe
+in terms of overflow checks (there is a compiler option for that).
+There are some remaining overflows from integer casts that should
+be audited. Inline functions can be used to abstract this, making
+the overflow checks optional.
+
+<p>Security goals (2) and (3), running untrusted code by a
+capability-based security model, are much harder to achieve,
+because this security model is deeply connected to privateness
+and immutability of data. For file access, a model with
+sandbox directories seems to be, albeit less fine grainded,
+easier to achieve without loopholes.
+
+<h3 data-date="20161107" id="self"
+>New syntax for a formal self-argument</h3>
+
+<p>The standard syntax for formal self-arguments
+has a problem. The following is not possible,
+bacause the inner self-argument shadows the outer one:
+<pre class="moss indent">
+Function.o = |f| |x| self(f(x))
+</pre>
+<p>One is forced to write instead:
+<pre class="moss indent">
+Function.o = sub|f|
+  g = self
+  return |x| g(f(x))
+end
+</pre>
+<p>This problem occurs often if one uses methods, because
+closures and higher order functions are frequently used.
+Now the idea is, to separate the self-argument via an semicolon
+from the other arguments. For actual arguments this syntax is
+already possible, but I will provide it also for formal
+arguments. Then we have:
+<pre class="moss indent">
+Function.o = |g;f| |x| g(f(x))
+</pre>
+
+<h3 data-date="20170509" id="about-modules"
+>About modules</h3>
+
+<p>What is the difference between what follows? Firstly:
+<pre class="moss indent">
+m = load("m")
+</pre>
+<p>And secondly:
+<pre class="moss indent">
+m = eval(read("m.moss"))
+</pre>
+<p>Behavior is different, because <code>eval</code>
+returns a value rather than a module object. But the question that
+comes into mind is: should they be equivalent? In order to achieve
+that, in a module a module object should be returned explicitely rather
+than implicitely. This would also solve another problem: How to
+state a module that consists only of a single class or a single
+function (e.g. to achieve advanced lazy loading and lazy
+evaluation)? The problem here is an oddly looking import statement:
+<pre class="moss indent">
+use class_name: class_name
+# vs.
+use class_name
+</pre>
+<p>Note that <code>eval</code> can be made quite powerful. It can
+take an additional argument that specifies information about
+the environment. For example, global variable of the environment
+are used by default by <code>eval</code>. If a module would be loaded,
+<code>eval</code> had to take an empty environment.
+
+<h3 data-date="20170509" id="default-arguments"
+>Default arguments</h3>
+
+<p>The interpreter already supports default arguments for
+build in functions. Now a function's argument count can simply be
+a range. Not given arguments will be filled out with
+<code>null</code>. Now
+<pre class="moss indent">
+sub f(x,y=expression)
+</pre>
+<p>is simply syntatic sugar for
+<pre class="moss indent">
+sub f(x,y=null)
+  if y is null then y=expression end
+</pre>
+<p>An implementation is straightforward:
+<ol>
+<li>Let argument count be a range.
+<li>Take the assignment AST and obtain that desired if-AST from it.
+<li>Insert or compile this if-AST before function body. To be more precise:
+At first, the function body is parsed, and then we have both:
+if-AST and body-AST.
+</ol>
+<p>Now construct (or compile in this order):
+<pre class="indent">
+* block-node
+  * if-node-1
+  * if-node-2
+    ...
+  * if-node-n
+  * body-node
+</pre>
+<p>Easy going. At next, default named arguments are stated as follows:
+<pre class="moss indent">
+sub f(x,m={})
+  a = m["a"] if "a" in m else a0
+  b = m["b"] if "b" in m else b0
+  # ...
+end
+</pre>
+<p>That's clumsy. I believe, default named arguments are very important
+for usability and thus should be supported by the language. Now let
+<pre class="moss indent">
+{a=a0, b=b0} = m
+</pre>
+<p>be syntactic sugar for
+<pre class="moss indent">
+a = m["a"] if "a" in m else a0
+b = m["b"] if "b" in m else b0
+</pre>
+<p>Without default arguments it should be more strict: Let
+<pre class="moss indent">
+{a,b} = m
+</pre>
+<p>be syntactic sugar for
+<pre class="moss indent">
+a = m["a"]; b = m["b"]
+</pre>
+<p>I call this the <em>map unpacking statement</em>.
+
+<p>It took me 100 lines of C&nbsp;code to implement map
+unpacking, including construction of a temporary variable if the right
+hand side is an expression. I think it was a worthwhile effort.
+
+<p>Finally it can be moved into the arguments list:
+<pre class="moss indent">
+sub f(x,{a=a0,b=b0})
+  # ...
+end
+</pre>
+as syntactic sugar for
+<pre class="moss indent">
+sub f(x,_m0_)
+  {a=a0,b=b0} = _m0_
+  # ...
+end
+</pre>
+
+<p>Furthermore,
+<pre class="moss indent">
+sub f([x,y])
+  # ...
+end
+</pre>
+<p>is syntactic sugar for
+<pre class="moss indent">
+sub f(_t0_)
+  x,y = _t0_
+  # ...
+end
+</pre>
+
+<p>In addition I achieved (by 30 lines of C&nbsp;code) syntactic sugar
+for named actual arguments:
+<pre class="moss indent">
+f(x,y,a=e1,b=e2) == f(x,y,{a=e1,b=e2})
+</pre>
+<p>They may appear in any order, independently from positional
+arguments. That is a little more welfare than simply omitting
+the curly brackets.
+
+<h3 data-date="20170525" id="private-variables"
+>Private variables</h3>
+
+<p>At first I recall that
+<pre class="moss indent">
+begin ... end
+</pre>
+<p>is syntatic sugar for:
+<pre class="moss indent">
+(sub|| ... end)()
+</pre>
+
+<p>Often we want to create a local variable, use it in one or
+more functions, and forget it afterwarts. Thus we want to have
+a <i>local scope</i>, so that the variable does not exist outside
+of this scope. In Moss I have used this ugly construction so far:
+<pre class="moss indent">
+f = begin
+  n = 42
+  return |x| n*x
+end
+</pre>
+<p>But if one wants to bind some value to more than one function,
+this construction becomes even more unpleasant:
+<pre class="moss indent">
+f,g = begin
+  n = 42
+  f = |x| n*x
+  g = |x| x+n
+  return f,g
+end
+</pre>
+
+<p>In Lua it is possible to restrict variables to a local scope:
+<pre class="indent">
+do
+  local n = 42
+  function f(x)
+    return n*x
+  end
+  function g(x)
+    return x+n
+  end
+end
+
+print(f(2))
+</pre>
+
+<p>I did not realize until now that this is perfectly possible in
+my own programming language too:
+<pre class="moss indent">
+begin
+  global f,g
+  n = 42
+  f = |x| n*x
+  g = |x| x+n
+end
+
+print(f(2))
+</pre>
+<p>Furthermore, this actually solves the problem of having variables
+that are restricted to a module.<sup>1</sup> And fortunately these
+variables can be accessed faster, since local variables are stored in
+a stack frame rather than the map of global variables.
+
+<p>A problem that remains is mutual recursion. In JavaScript this
+is solved by making it possible to use a local variable that
+is defined later on. For now, in Moss one would need to switch to
+global variables for this purpose.
+
+<p class="footnote">Footnote 1: It would be possible to achieve that
+a variable may be declared to be local to a module (<i>module scope</i>).
+In&nbsp;C known as a <i>static</i> variable. Such a variable would also
+be stored inside an array rather than a map. But to me
+<code>begin-end</code> is nicer and more powerful as it leads
+to more fine-grained constructions.
+
+<h3 data-date="20170924" id="use"
+>Definition of the import statement</h3>
+
+<p>In Moss, a module, for example <i>math</i>, is made available by
+the following statement:
+<pre class="moss indent">
+use math
+</pre>
+<p>The implementation so far was an internal import-function that
+added <i>math</i> to the map of global variables.
+A change to this behavior will be proposed now. The import-statement
+will be made syntactic sugar to:
+<pre class="moss indent">
+math = load("math")
+</pre>
+<p>This has the advantage that <i>math</i> can be a local variable
+now. We recapitulate that a private variable is a (can be modeled
+as a) local variable of a block (in Moss: <code>begin-end</code>).
+
+<p>The full syntax is as follows:
+<pre class="moss indent">
+# (A)
+use pathnode.pathnode.m: f,g
+
+# (B)
+use malias=pathnode.pathnode.m: falias=f, galias=g
+</pre>
+<p>This is defined to be syntactic sugar to:
+<pre class="moss indent">
+# (A)
+m = load("pathnode/pathnode/m")
+f = m.f
+g = m.g
+
+# (B)
+malias = load("pathnode/pathnode/m")
+falias = malias.f
+galias = malias.g
+</pre>
+<p>In Addition:
+<pre class="moss">
+  use m:*
+# is meant to be
+  m = load("m")
+  gtab().update(record(m))
+
+# and
+
+  use(m): f, g
+# is meant to be (without load)
+  f = m.f; g = m.g
+</pre>
+
+
+<h3 data-date="20170930" id="assert"
+>Assert statement</h3>
+
+<p>The assert statement was added to the language:
+<pre class="moss indent">
+assert condition, text
+</pre>
+<p>It is implemented as syntatic sugar, because <code>text</code>
+shall be lazily evaluated. So we have:
+<pre class="moss indent">
+if not condition
+  assertion_failed(text)
+end
+</pre>
+<p>Example of usage:
+<pre class="moss indent">
+sub pow(x,n)
+  assert n: Int and n&gt;=0, "pow(x,n), n: Int, n&gt;=0"
+  y=1
+  for k in 1..n
+    y=y*x
+  end
+  return y
+end
+
+print(pow(2,-2))
+# Assertion failed: pow(x,n), n: Int, n&gt;=0.
+</pre>
+
+<p>A failed assertion results in an ordinary exception
+that is shown together with a stack trace.
+
+<p><b>Update</b>. Maybe it is a good idea to enable compilation
+of assert statements only in debug mode. Debug mode will be
+switched on by "<code>moss -d</code>". So, if something goes
+wrong and a long strack trace is returned, debug mode could be
+turned on to inspect the situation further.
+
+<h3 data-date="20171024" id="embedded-slicing-ability"
+>Embedded slicing ability</h3>
+
+<p>If we have a string <code>s</code>, it is expensive to
+create a slice <code>s[i..j]</code>. But as <code>s</code> is
+immutable, a slice object could be returned, without copying data.
+Now we can make every string a slice object, if we say we have a
+immutable data array and a <code>(pointer,size)</code> to a part of it.
+
+<p>At first this contradicts with the string being a struct with
+a flexible array last member. We would need a double allocation.
+At next, the data array has to contain a reference counter.
+Ideally the data array is a struct with a flexible array last member.
+Not to forget that the string object itself needs an independet
+reference counter.
+
+<p>This sounds more complicated. So what have we won? Now we can
+take slices and slices of slices without the need of allocating
+and copying around data. Take into mind the basic algorithm that
+searches a substring in a string.
+
+<p>Interestingly this is an implementation detail that is
+transparent to the programming language because strings are
+chosen to be immutable.
+
+<p>Moving further, such a behavior is also interesting for
+dynamic arrays (type <code>List</code> in Moss). If a slice
+is obtained from an array, the arrays size should become immutable.
+The information about immutable size, immutable data and
+slicing can be modeled as an option type (extra behavior flag),
+to separate it from the standard behavior. A problem is again,
+that the data array needs an independent reference counter.
+
+<p>Alternatively, we could have a sum type (a tagged union)
+that chooses wether to point to data or to slice another array.
+
+<p>So, what have we won? Let's take a look on some naive algorithms:
+<pre class="moss indent">
+# Naive quicksort
+qsort = |a| ([] if size(a)==0 else
+  qsort(a[1..].filter(|x| x&lt;a[0]))+[a[0]]+
+  qsort(a[1..].filter(|x| x&gt;=a[0])))
+
+# Naive sieve of Eratosthenes
+sieve = |a| ([] if size(a)==0 else
+  [a[0]]+sieve(a[1..].filter(|x| x%a[0]!=0)))
+</pre>
+<p>Many huge copies are created by <code>a[1..]</code>.
+The algorithms could be made a bit more quick and memory
+friendly, but it hardly is worthwhile as these algorithms are
+terribly inefficient.
+
+<h3 data-date="20171120" id="null-coalescing"
+>Null coalescing operator</h3>
+
+<p>In Moss, the index operations <code>a[i]</code>, <code>m[key]</code>
+are strict. If <code>i</code> is out of bounds or <code>key</code>
+is not found, an exception will be thrown. Now we could introduce
+sloppy index operations <code>a(i)</code>, <code>a(key)</code>,
+that return <code>null</code> if <code>i</code> is out of bounds or
+<code>key</code> is not found. That's right, we simply overload the
+function call operator.
+
+<p>Furthermore we introduce the null coalescing operator as
+"<code>a else b</code>". Now these to statements are
+semantically equivalent:
+
+<pre class="moss indent">
+y = m[key] if key in m else x
+
+y = m(key) else x
+</pre>
+
+<p>In both statements, <code>x</code> is lazily evaluated.
+
+
+<h3 data-date="20171120" id="reflection"
+>Better reflection support</h3>
+
+<p>In Moss, there is the member access operation "<code>a.x</code>".
+One can have reflection this way:
+
+<pre class="moss indent">
+y = record(a)["x"]
+</pre>
+
+<p>Here the problem emerges, that the ordinary index operation
+does not respect the prototype chain. Now we find, that an
+expression "<code>a.x</code>" is parsed into an AST
+<code>(dot a "x")</code>. But the compiler
+ever since the beginning was able to compile the more general
+AST <code>(dot a x)</code> where <code>a</code> and <code>x</code>
+are arbitray expressions. The recursive desecent may simply take an
+atom after the dot. Thus I will introduce the general syntax
+"<code>a.(x)</code>". So, adding very few lines to the compiler allows
+us nice reflection with respect to the prototype chain. For clarity,
+we have:
+
+<pre class="moss indent">
+a.x == a.("x")
+</pre>
+
+</body>
+</html>
+

@@ -1,0 +1,51 @@
+
+sub supp(A)
+  set(A.filter(|x| A(x)>0))
+end
+
+Map.subeq = sub|A;B|
+  A.filter(|x| A(x)>0).all(|x| A(x)<=(B(x) else 0))
+end
+
+Map.card = sub|A;|
+  A.sum(A)
+end
+
+Map.cap = sub|A;B|
+  M = {}
+  for x in A|B
+    m = min(A(x) else 0, B(x) else 0)
+    if m>0 then
+      M[x] = m
+    end
+  end
+  return M
+end
+
+Map.cup = sub|A;B|
+  M = {}
+  for x in A|B
+    m = max(A(x) else 0, B(x) else 0)
+    if m>0
+      M[x] = m
+    end
+  end
+  return M
+end
+
+Map.plus = sub|A;B|
+  M = {}
+  for x in A|B
+    s = (A(x) else 0)+(B(x) else 0)
+    if s>0
+      M[x] = s
+    end
+  end
+  return M
+end
+
+Map.disjoint = sub|A;B|
+  (A|B).all(|x| min(A(x) else 0,B(x) else 0)==0)
+end
+
+

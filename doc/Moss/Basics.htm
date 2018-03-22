@@ -232,6 +232,9 @@ Think of much longer patterns.
 
 &gt; list(1..4).map(f)
 [6, 8, 10, 12]
+
+&gt; f[1..4]
+[6, 8, 10, 12]
 </pre>
 
 <p>A function may have more than one argument. We will state a
@@ -259,6 +262,25 @@ are separated there by commata.
 <pre class="moss cmd-box">
 &gt; g = |t| t[0]*t[1]
 &gt; g([3,4])
+12
+
+&gt; g = |[x,y]| x*y
+&gt; g([3,4])
+12
+</pre>
+
+<p>The next way is to have a map of two named arguments.
+
+<pre class="moss cmd-box">
+&gt; g = |m| m["x"]*m["y"]
+&gt; g({x=3,y=4})
+12
+
+&gt; g(x=3,y=4)
+12
+
+&gt; g = |{x,y}| x*y
+&gt; g(x=3,y=4)
 12
 </pre>
 
@@ -303,6 +325,7 @@ an object to the output.
 <span class="moss">&gt; s = "London"
 &gt; s
 "London"
+
 &gt; print(s)
 </span>London
 </pre>
@@ -313,6 +336,7 @@ The function <code>int</code> does the reverse.
 <pre class="moss cmd-box">
 &gt; str(360)
 "360"
+
 &gt; int("360")
 360
 </pre>
@@ -322,6 +346,7 @@ To <code>int</code> applies the same.
 <pre class="moss cmd-box">
 &gt; str("Flower")
 "Flower"
+
 &gt; int(12)
 12
 </pre>
@@ -347,7 +372,7 @@ is to numbers.
 
 <pre class="moss cmd-box">
 &gt; s = "Mouse"
-&gt; [s=="Mouse", s=="Mice", s!="Mouse", s!="Mice"}
+&gt; s=="Mouse", s=="Mice", s!="Mouse", s!="Mice"
 [true, false, false, true]
 </pre>
 
@@ -357,6 +382,7 @@ the number of characters.
 <pre class="moss cmd-box">
 &gt; size("Bee")
 3
+
 &gt; size("")
 0
 </pre>
@@ -368,18 +394,21 @@ s[i]+s[i+1]+...+s[j-1]+s[j]</code>.
 
 <pre class="moss cmd-box">
 &gt; s = "Elm tree"
-&gt; [s[0], s[2], s[-4], s[-1]]
+&gt; s[0], s[2], s[-4], s[-1]
 ["E", "m", "t", "e"]
 
 &gt; s[0..2]
 "Elm"
+
 &gt; s[..2]
 "Elm"
 
 &gt; s[4..]
 "tree"
+
 &gt; s[-2..]
 "ee"
+
 &gt; s[4..-3]
 "tr"
 </pre>
@@ -497,8 +526,10 @@ transform is also possible.
 &gt; a.push(3)
 &gt; a
 [2, 3]
+
 &gt; a.pop()
 3
+
 &gt; a
 [2]
 </pre>
@@ -517,12 +548,14 @@ takes a list and returns the number of its elements.
 
 <pre class="moss cmd-box">
 &gt; a = [4,5,6,7,8]
-&gt; size(a)
-5
-&gt; [a[0], a[1], a[-1], a[-2]]
+&gt; a[0], a[1], a[-1], a[-2]
 [4, 5, 8, 7]
+
 &gt; a[2..3]
 [6, 7]
+
+&gt; size(a)
+5
 </pre>
 
 
@@ -540,6 +573,7 @@ integers.
 &gt; m = {0: "a", 1: "b", "alpha": "c"}
 &gt; m[0]
 "a"
+
 &gt; m["alpha"]
 "c"
 </pre>
@@ -599,7 +633,7 @@ true
 <h3 id="sets">Sets</h3>
 <p>If the value of some key is omitted, <code>null</code> is
 taken as value. 
-A map with all values omitted can be used as a set.
+A map with all values omitted can be used as a <i>set</i>.
 All set operations are supported (e.g. union, intersection,
 subset relation, universal quantifier).
 <pre class="moss cmd-box">
@@ -615,8 +649,13 @@ true
 
 <p>One can use <code>set(a)</code> to convert an iterable
 object <code>a</code> into a set. A set is itself iterable.
-For any iterable object, things like <code>map</code>
-and universal quantifier <code>all</code> are defined.
+For any iterable object <code>A</code>, things like
+<ul>
+<li><code>A.map(f)</code> (image of <code>A</code> under <code>f</code>)
+<li><code>A.all(p)</code> (universal quantifier)
+<li><code>A.any(p)</code> (existential quantifier)
+</ul>
+are defined.
 <pre class="moss cmd-box">
 &gt; set(1..4)
 {1, 2, 3, 4}

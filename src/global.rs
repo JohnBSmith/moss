@@ -3,7 +3,7 @@
 
 use std::rc::Rc;
 use std::cell::RefCell;
-use vm::{object_to_string, object_to_repr, RTE, Env};
+use vm::{object_to_string, object_to_repr, RTE, Env, op_lt};
 use object::{Object, Map, Table, List, Range,
   FnResult, U32String, Function, EnumFunction,
   VARIADIC, new_module, Exception,
@@ -727,6 +727,30 @@ fn pow(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
   return ::long::pow_mod(env,&argv[0],&argv[1],&argv[2]);
 }
 
+fn min(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+  match argv.len() {
+    2 => {}, n => return env.argc_error(n,2,2,"min")
+  }
+  let cond = try!(op_lt(env,&argv[0],&argv[1]));
+  if let Object::Bool(cond) = cond {
+    return Ok(argv[if cond {0} else {1}].clone());
+  }else{
+    return env.type_error("Type error in min(x,y): value of x<y is not a boolean.")
+  }
+}
+
+fn max(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+  match argv.len() {
+    2 => {}, n => return env.argc_error(n,2,2,"max")
+  }
+  let cond = try!(op_lt(env,&argv[0],&argv[1]));
+  if let Object::Bool(cond) = cond {
+    return Ok(argv[if cond {1} else {0}].clone());
+  }else{
+    return env.type_error("Type error in max(x,y): value of x<y is not a boolean.")
+  }
+}
+
 pub fn init_rte(rte: &RTE){
   let mut gtab = rte.gtab.borrow_mut();
   gtab.insert_fn_plain("print",print,0,VARIADIC);
@@ -754,6 +778,8 @@ pub fn init_rte(rte: &RTE){
   gtab.insert_fn_plain("read",read,1,1);
   gtab.insert_fn_plain("zip",zip,0,VARIADIC);
   gtab.insert_fn_plain("pow",pow,3,3);
+  gtab.insert_fn_plain("min",min,2,2);
+  gtab.insert_fn_plain("max",max,2,2);
   gtab.insert("empty", Object::Empty);
 
   let type_bool = rte.type_bool.clone();

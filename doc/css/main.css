@@ -81,6 +81,8 @@ div.code{
 }
 .code dt{
   font-family: "FreeMono", "Courier New", "monospace";
+  font-weight: bold;
+  color: #204060;
 }
 dd{
   margin-bottom: 1em;
@@ -110,7 +112,7 @@ p.footnote {
   font-size: 80%;
 }
 
-pre.indent {
+.indent {
   margin-left: 1.6em;
 }
 

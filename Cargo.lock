@@ -1,15 +1,15 @@
-[root]
+[[package]]
+name = "libc"
+version = "0.2.32"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
 name = "moss"
 version = "0.0.2"
 dependencies = [
  "libc 0.2.32 (registry+https://github.com/rust-lang/crates.io-index)",
  "termios 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
-
-[[package]]
-name = "libc"
-version = "0.2.32"
-source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "termios"
