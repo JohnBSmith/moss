@@ -1272,7 +1272,7 @@ fn function_literal(&mut self, i: &mut TokenIterator, t0: &Token)
     info: info, s: id, a: Some(Box::new([args,x]))
   });
   if terminator == Symbol::PRight || terminator == Symbol::Newline {
-    let id = identifier(match y.s {Some(ref s) => s, None => panic!()},t.line,t.col);
+    let id = identifier(match y.s {Some(ref s) => s, None => unreachable!()},t.line,t.col);
     return Ok(binary_operator(t.line,t.col,Symbol::Assignment,id,y));
   }else{
     return Ok(y); 
@@ -1306,7 +1306,7 @@ fn application(&mut self, i: &mut TokenIterator, f: Rc<AST>, terminal: Symbol)
             v_named.push(string(s.clone(),t.line,t.col));
             v_named.push(y);
           }else{
-            panic!();
+            unreachable!();
           }
         }else{
           return Err(self.syntax_error(t.line, t.col,
@@ -1390,7 +1390,7 @@ fn atom(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error> {
         value: t.value, info: Info::Long,
         s: Some(x.clone()), a: None
       }),
-      _ => panic!()
+      _ => unreachable!()
     };
   }else if t.token_type==SymbolType::Identifier ||
      t.token_type==SymbolType::String || t.token_type==SymbolType::Float ||
@@ -1490,7 +1490,7 @@ fn power(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
   let t = &p[i.index];
   if t.value==Symbol::Pow {
     i.index+=1;
-    let y = try!(self.power(i));
+    let y = try!(self.signed_expression(i));
     return Ok(binary_operator(t.line,t.col,Symbol::Pow,x,y));
   }else{
     return Ok(x);
@@ -1514,7 +1514,7 @@ fn signed_expression(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
   }
 }
 
-fn factor(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
+fn multiplication(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
   let mut y = try!(self.signed_expression(i));
   let p = try!(i.next_token_optional(self));
   let t = &p[i.index];
@@ -1544,13 +1544,13 @@ fn factor(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
 }
 
 fn addition(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
-  let mut y = try!(self.factor(i));
+  let mut y = try!(self.multiplication(i));
   let p = try!(i.next_token_optional(self));
   let t = &p[i.index];
   let value=t.value;
   if value==Symbol::Plus || value==Symbol::Minus {
     i.index+=1;
-    let x = try!(self.factor(i));
+    let x = try!(self.multiplication(i));
     y = binary_operator(t.line,t.col,value,y,x);
     loop{
       let p = try!(i.next_token_optional(self));
@@ -1560,7 +1560,7 @@ fn addition(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
         return Ok(y);
       }
       i.index+=1;
-      let x = try!(self.factor(i));
+      let x = try!(self.multiplication(i));
       y = binary_operator(t.line,t.col,value,y,x);  
     }
   }else{
@@ -2033,7 +2033,7 @@ fn identifier(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error> {
   let p = try!(i.next_token(self));
   let t = &p[i.index];
   let s = if t.token_type == SymbolType::Identifier {
-    match t.item {Item::String(ref s) => s, _ => panic!()}
+    match t.item {Item::String(ref s) => s, _ => unreachable!()}
   }else{
     return Err(self.syntax_error(t.line, t.col, String::from("expected an identifer.")));
   };
@@ -2057,7 +2057,7 @@ fn qualification(&mut self, v: &mut Vec<Rc<AST>>, id: Rc<AST>,
     let p = try!(i.next_token(self));
     let t = &p[i.index];
     let s = if t.token_type == SymbolType::Identifier {
-      match t.item {Item::String(ref s) => s, _ => panic!()}
+      match t.item {Item::String(ref s) => s, _ => unreachable!()}
     }else if t.value == Symbol::Ast {
       i.index+=1;
       // gtab().update(record(id))
@@ -2084,7 +2084,7 @@ fn qualification(&mut self, v: &mut Vec<Rc<AST>>, id: Rc<AST>,
       let p2 = try!(i.next_token(self));
       let t2 = &p2[i.index];
       if t2.token_type == SymbolType::Identifier {
-        let s2 = match t2.item {Item::String(ref s) => s, _ => panic!()};
+        let s2 = match t2.item {Item::String(ref s) => s, _ => unreachable!()};
         let y = self.qualification_assignment(s,id.clone(),s2,t.line,t.col);
         v.push(y);
         i.index+=1;
@@ -2133,7 +2133,7 @@ fn use_path(&mut self, i: &mut TokenIterator, t0: &Token)
     let p = try!(i.next_token(self));
     let t = &p[i.index];
     let s = if t.token_type == SymbolType::Identifier {
-      match t.item {Item::String(ref s) => s, _ => panic!()}
+      match t.item {Item::String(ref s) => s, _ => unreachable!()}
     }else{
       return Err(self.syntax_error(t.line,t.col,"expected identifier.".to_string()));
     };
@@ -2160,7 +2160,7 @@ fn use_statement(&mut self, i: &mut TokenIterator, t0: &Token)
     let p = try!(i.next_token(self));
     let t = &p[i.index];
     let (id,path) = if t.token_type == SymbolType::Identifier {
-      let s = match t.item {Item::String(ref s) => s, _ => panic!()};
+      let s = match t.item {Item::String(ref s) => s, _ => unreachable!()};
       let id = identifier(s,t.line,t.col);
       i.index+=1;
       let p2 = try!(i.next_token_optional(self));
@@ -2171,7 +2171,7 @@ fn use_statement(&mut self, i: &mut TokenIterator, t0: &Token)
         let t3 = &p[i.index];
         if t3.token_type == SymbolType::Identifier {
           i.index+=1;
-          let s2 = match t3.item {Item::String(ref s) => s, _ => panic!()};
+          let s2 = match t3.item {Item::String(ref s) => s, _ => unreachable!()};
           let p4 = try!(i.next_token_optional(self));
           let t4 = &p4[i.index];
           if t4.value == Symbol::Dot {
@@ -2528,7 +2528,7 @@ fn compile_while(&mut self, v: &mut Vec<u32>, t: &Rc<AST>)
   }
 
   let info = match self.jmp_stack.pop() {
-    Some(info)=>info, None=>panic!()
+    Some(info)=>info, None=>unreachable!()
   };
   let len = v.len();
   for index in info.breaks {
@@ -2581,7 +2581,7 @@ fn compile_for(&mut self, bv: &mut Vec<u32>, t: &Rc<AST>)
   push_i32(bv,(BCSIZE+start) as i32-len as i32);
 
   let info = match self.jmp_stack.pop() {
-    Some(info)=>info, None=>panic!()
+    Some(info)=>info, None=>unreachable!()
   };
   let len = bv.len();
   for index in info.breaks {
@@ -2884,7 +2884,18 @@ fn arguments(&mut self, bv: &mut Vec<u32>, t: &AST, selfarg: bool)
   }
 
   for i in 0..a.len() {
-    if a[i].value == Symbol::List || a[i].value == Symbol::Map {
+    if a[i].symbol_type == SymbolType::Identifier {
+      if let Some(ref s) = a[i].s {
+        self.vtab.v.push(VarInfo{
+          s: s.clone(),
+          index: self.vtab.count_arg,
+          var_type: VarType::Argument
+        });
+        self.vtab.count_arg+=1;
+      }else{
+        unreachable!();
+      }
+    }else if a[i].value == Symbol::List || a[i].value == Symbol::Map {
       let ids = format!("_t{}_",i);
       let helper = identifier(&ids,a[i].line,a[i].col);
       self.vtab.v.push(VarInfo{
@@ -2897,31 +2908,28 @@ fn arguments(&mut self, bv: &mut Vec<u32>, t: &AST, selfarg: bool)
       try!(self.compile_left_hand_side(bv,&a[i]));
     }else if a[i].value == Symbol::Assignment {
       let u = ast_argv(&a[i]);
-      if let Some(ref s) = u[0].s {
-        self.vtab.v.push(VarInfo{
-          s: s.clone(),
-          index: self.vtab.count_arg,
-          var_type: VarType::Argument
-        });
-        self.vtab.count_arg+=1;
-        self.vtab.count_optional_arg+=1;
-        try!(self.compile_default_argument(bv,&a[i]));
+      if u[0].symbol_type == SymbolType::Identifier {
+        if let Some(ref s) = u[0].s {
+          self.vtab.v.push(VarInfo{
+            s: s.clone(),
+            index: self.vtab.count_arg,
+            var_type: VarType::Argument
+          });
+          self.vtab.count_arg+=1;
+          self.vtab.count_optional_arg+=1;
+          try!(self.compile_default_argument(bv,&a[i]));
+        }else{
+          unreachable!();
+        }
       }else{
-        // #(todo)
-        panic!();
+        return Err(self.syntax_error(a[i].line,a[i].col,
+          String::from("expected identifier before '='.")
+        ));
       }
     }else{
-      if let Some(ref s) = a[i].s {
-        self.vtab.v.push(VarInfo{
-          s: s.clone(),
-          index: self.vtab.count_arg,
-          var_type: VarType::Argument
-        });
-        self.vtab.count_arg+=1;
-      }else{
-        // #(todo)
-        panic!();
-      }
+      return Err(self.syntax_error(a[i].line,a[i].col,
+        String::from("expected identifier or [...] or {...} or assignment.")
+      ));
     }
   }
   return Ok(());
@@ -2930,7 +2938,7 @@ fn arguments(&mut self, bv: &mut Vec<u32>, t: &AST, selfarg: bool)
 fn compile_variable(&mut self, bv: &mut Vec<u32>, t: &AST)
   -> Result<(),Error>
 {
-  let key = match t.s {Some(ref x)=>x, None=>panic!()};
+  let key = match t.s {Some(ref x) => x, None => unreachable!()};
   match self.vtab.index_type(key) {
     Some((index,var_type)) => {
       match var_type {
@@ -3040,7 +3048,7 @@ fn compile_compound_assignment(
       Symbol::AAmp => Symbol::Amp,
       Symbol::AVline => Symbol::Vline,
       Symbol::ASvert => Symbol::Svert,
-      _ => panic!()
+      _ => unreachable!()
     };
     let op = binary_operator(t.line,t.col,value,a[0].clone(),a[1].clone());
     try!(self.compile_ast(bv,&op));
@@ -3060,7 +3068,7 @@ fn compile_compound_assignment(
       Symbol::AMod => bc::MOD,
       Symbol::AAmp => bc::BAND,
       Symbol::AVline => bc::BOR,
-      _ => panic!()
+      _ => unreachable!()
     };
 
     push_bc(bv,bc::AOP,a[0].line,a[0].col);
@@ -3106,7 +3114,7 @@ fn closure(&mut self, bv: &mut Vec<u32>, t: &AST){
           push_bc(bv,bc::NULL,t.line,t.col);
         }else{
           println!("Error in closure: id '{}' not in context.",&a[i].s);
-          panic!();
+          unreachable!();
         }
       }
     }
@@ -3117,13 +3125,19 @@ fn closure(&mut self, bv: &mut Vec<u32>, t: &AST){
 
 fn global_declaration(&mut self, a: &[Rc<AST>]) -> Result<(),Error> {
   for t in a {
-    let key = match t.s {Some(ref x)=>x, None=>panic!()};
-    self.vtab.v.push(VarInfo{
-      s: key.clone(),
-      index: self.vtab.count_global,
-      var_type: VarType::Global
-    });
-    self.vtab.count_global+=1;
+    if t.symbol_type == SymbolType::Identifier {
+      let key = match t.s {Some(ref x) => x, None => unreachable!()};
+      self.vtab.v.push(VarInfo{
+        s: key.clone(),
+        index: self.vtab.count_global,
+        var_type: VarType::Global
+      });
+      self.vtab.count_global+=1;
+    }else{
+      return Err(self.syntax_error(t.line,t.col,
+        String::from("expected identifier.")
+      ));
+    }
   }
   return Ok(());
 }
@@ -3169,7 +3183,13 @@ fn compile_left_hand_side(&mut self, bv: &mut Vec<u32>, t: &AST)
     while i<n {
       if a[i+1].value == Symbol::Null {
         try!(self.compile_ast(bv,&id));
-        try!(self.compile_string(bv,&a[i]));
+        if a[i].symbol_type == SymbolType::Identifier {
+          try!(self.compile_string(bv,&a[i]));
+        }else{
+          return Err(self.syntax_error(a[i].line,a[i].col,
+            String::from("expected identifier.")
+          ));
+        }
         push_bc(bv,bc::GET_INDEX,t.line,t.col);
         push_u32(bv,1);
       }else{
@@ -3190,7 +3210,7 @@ fn compile_left_hand_side(&mut self, bv: &mut Vec<u32>, t: &AST)
 fn compile_string(&mut self, bv: &mut Vec<u32>, t: &AST)
   -> Result<(),Error>
 {
-  let s = match t.s {Some(ref x)=>x, None=>panic!()};
+  let s = match t.s {Some(ref x) => x, None => unreachable!()};
   let key = try!(self.string_literal(s));
   let index = self.get_index(&key);
   push_bc(bv,bc::STR,t.line,t.col);
@@ -3201,7 +3221,7 @@ fn compile_string(&mut self, bv: &mut Vec<u32>, t: &AST)
 fn compile_long(&mut self, bv: &mut Vec<u32>, t: &AST)
   -> Result<(),Error>
 {
-  let s = match t.s {Some(ref x)=>x, None=>panic!()};
+  let s = match t.s {Some(ref x) => x, None => unreachable!()};
   let key = try!(self.string_literal(s));
   let index = self.get_index(&key);
   push_bc(bv,bc::LONG,t.line,t.col);
@@ -3276,11 +3296,11 @@ fn compile_ast(&mut self, bv: &mut Vec<u32>, t: &Rc<AST>)
       try!(self.compile_operator(bv,t,bc::RANGE));
     }else if value == Symbol::List {
       try!(self.compile_operator(bv,t,bc::LIST));
-      let size = match t.a {Some(ref a) => a.len() as u32, None => panic!()};
+      let size = match t.a {Some(ref a) => a.len() as u32, None => unreachable!()};
       push_u32(bv,size);
     }else if value == Symbol::Map {
       try!(self.compile_operator(bv,t,bc::MAP));
-      let size = match t.a {Some(ref a) => a.len() as u32, None => panic!()};
+      let size = match t.a {Some(ref a) => a.len() as u32, None => unreachable!()};
       push_u32(bv,size);
     }else if value == Symbol::Application {
       try!(self.compile_app(bv,t));
@@ -3334,15 +3354,15 @@ fn compile_ast(&mut self, bv: &mut Vec<u32>, t: &Rc<AST>)
       Info::Long => {
         try!(self.compile_long(bv,t));
       },
-      _ => panic!()
+      _ => unreachable!()
     };
   }else if t.symbol_type == SymbolType::Float {
     push_bc(bv, bc::FLOAT, t.line, t.col);
-    let x: f64 = match t.s {Some(ref x)=>x.parse().unwrap(), None=>panic!()};
+    let x: f64 = match t.s {Some(ref x) => x.parse().unwrap(), None => unreachable!()};
     push_u64(bv,x.to_bits());
   }else if t.symbol_type == SymbolType::Imag {
     push_bc(bv, bc::IMAG, t.line, t.col);
-    let x: f64 = match t.s {Some(ref x)=>x.parse().unwrap(), None=>panic!()};
+    let x: f64 = match t.s {Some(ref x) => x.parse().unwrap(), None => unreachable!()};
     push_u64(bv,x.to_bits());
   }else if t.symbol_type == SymbolType::Keyword {
     let value = t.value;
@@ -3429,14 +3449,14 @@ fn compile_ast(&mut self, bv: &mut Vec<u32>, t: &Rc<AST>)
     }else if value == Symbol::Try {
       try!(self.compile_try_catch(bv,t));
     }else{
-      panic!();
+      unreachable!();
     }
   }else if t.symbol_type == SymbolType::String {
     try!(self.compile_string(bv,t));
   }else if t.symbol_type == SymbolType::Assignment {
     try!(self.compile_compound_assignment(bv,t));
   }else{
-    panic!();
+    unreachable!();
   }
   return Ok(());
 }
@@ -3444,7 +3464,7 @@ fn compile_ast(&mut self, bv: &mut Vec<u32>, t: &Rc<AST>)
 }//impl Compilation
 
 fn ast_argv(t: &AST) -> &Box<[Rc<AST>]>{
-  match t.a {Some(ref x)=> x, None=>panic!()}
+  match t.a {Some(ref x) => x, None => unreachable!()}
 }
 
 fn push_u32(bv: &mut Vec<u32>, x: u32){
@@ -3737,11 +3757,11 @@ fn asm_listing(a: &[u32]) -> String {
           s.push_str("raise further\n");
           i+=BCSIZE;
         }else{
-          panic!("op ??");
+          unreachable!("op ??");
         }
       },
       bc::HALT => {s.push_str("halt\n"); i+=BCSIZE;},
-      _ => {unimplemented!();}
+      _ => {unreachable!();}
     }
   }
   return s;

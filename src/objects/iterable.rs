@@ -498,6 +498,22 @@ fn sort(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
   return Ok(Object::List(a));
 }
 
+fn omit(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+  match argv.len() {
+    1 => {}, n => return env.argc_error(n,1,1,"omit")
+  }
+  let i = try!(iter(env,pself));
+  match argv[0] {
+    Object::Int(n) => {
+      for _ in 0..n {
+        try!(env.call(&i,&Object::Null,&[]));
+      }
+      Ok(i)
+    },
+    ref n => env.type_error1("Type error in i.omit(n): n is not an integer.","n",n)
+  }
+}
+
 pub fn init(t: &Table){
   let mut m = t.map.borrow_mut();
   m.insert_fn_plain("list",to_list,0,1);
@@ -512,5 +528,6 @@ pub fn init(t: &Table){
   m.insert_fn_plain("map",map,1,1);
   m.insert_fn_plain("filter",filter,1,1);
   m.insert_fn_plain("chunks",chunks,1,1);
+  m.insert_fn_plain("omit", omit,1,1);
 }
 

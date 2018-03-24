@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Combinatorics</title>
+  <link href="../css/main.css" rel="stylesheet">
+  <script src = "../js/moss-syntax.js">
+  </script>
+</head>
+<body>
+
+<table class="navigation">
+<tr><td><b>&uarr;</b> <a href="toc.htm">Up</a>
+</table>
+<h1>Combinatorics</h1>
+
+<div class="toc">
+<h2 id="toc">Table of contents</h2>
+<ol>
+<li><a href="#factorial">Factorial function</a>
+</ol>
+</div>
+
+<h2 id="factorial">Factorial function</h2>
+
+<pre class="moss">
+# Iterative
+fac = sub|n|
+  p = 1
+  for i in 1..n
+    p = p*i
+  end
+  return p
+end
+
+# Recursive
+fac = |n| 1 if n==0 else n*fac(n-1)
+
+# Functional
+fac = |n| (1..n).reduce(1,|x,y| x*y)
+
+# As a dynamic system
+Fac = |[n,y]| [n+1,y*(n+1)]
+fac = |n| (Fac^n)([0,1])[1]
+fac = |n| Fac.orbit([0,1]).omit(n)()[1]
+
+# Tail-recursive
+sub call(f,n,y)
+  x = f(n,y)
+  while x: Function
+    x = x()
+  end
+  return x
+end
+
+Fac = |n,y| y if n==0 else || Fac(n-1,y*n)
+fac = |n| call(Fac,n,1)
+
+# By counting all permutations
+fac = |n| (list(n)^n).count(|t| (0..n-1).all(|x| x in t))
+
+# Print them to the terminal
+(0..10).map(|n| [n,fac(n)]).each(print)
+</pre>
+
+
+</body>
+</html>
+

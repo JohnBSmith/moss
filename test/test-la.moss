@@ -1,5 +1,5 @@
 
-use la: vector, matrix
+use math.la: vector, matrix
 use sys: exit
 
 sub error(s)

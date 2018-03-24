@@ -352,6 +352,7 @@ fn list_to_string(env: &mut Env, a: &[Object]) -> Result<String,Box<Exception>> 
   return Ok(s);
 }
 
+/*
 fn tuple_to_string(env: &mut Env, a: &[Object]) -> Result<String,Box<Exception>> {
   let mut s = String::from("(");
   for i in 0..a.len() {
@@ -361,6 +362,7 @@ fn tuple_to_string(env: &mut Env, a: &[Object]) -> Result<String,Box<Exception>>
   s.push_str(")");
   return Ok(s);
 }
+*/
 
 fn map_to_string(env: &mut Env, a: &HashMap<Object,Object>,
   left: &str, right: &str
@@ -494,7 +496,7 @@ pub fn object_to_string_plain(x: &Object) -> String {
     },
     Object::Function(_) => "function".to_string(),
     Object::Range(_) => "range".to_string(),
-    Object::Tuple(_) => "tuple".to_string(),
+    // Object::Tuple(_) => "tuple".to_string(),
     Object::Table(ref t) => {
       match t.map.try_borrow_mut() {
         Ok(m) => map_to_string_plain(&m.m,"table{","}"),
@@ -562,9 +564,6 @@ pub fn object_to_string(env: &mut Env, x: &Object) -> Result<String,Box<Exceptio
           )
         }
       }
-    },
-    Object::Tuple(ref t) => {
-      return tuple_to_string(env,&t);
     },
     Object::Table(ref t) => {
       return table_to_string(env,&t);
@@ -1536,14 +1535,23 @@ fn operator_pow(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorR
     Object::Int(x) => {
       return match stack[sp-1] {
         Object::Int(y) => {
-          stack[sp-2] = match checked_pow(x,y as u32) {
-            Some(z) => Object::Int(z),
-            None => Long::pow_int_uint(x,y as u32)
-          };
+          if y<0 {
+            stack[sp-2] = Object::Float((x as f64).powf(y as f64));
+          }else{
+            stack[sp-2] = match checked_pow(x,y as u32) {
+              Some(z) => Object::Int(z),
+              None => Long::pow_int_uint(x,y as u32)
+            };
+          }
           Ok(())
         },
         Object::Float(y) => {
-          stack[sp-2] = Object::Float((x as f64).powf(y));
+          let z = (x as f64).powf(y);
+          if z.is_nan() {
+            stack[sp-2] = Object::Complex(Complex64{re: x as f64, im: 0.0}.powf(y));
+          }else{
+            stack[sp-2] = Object::Float(z);
+          }
           Ok(())
         },
         Object::Complex(y) => {
@@ -1560,7 +1568,12 @@ fn operator_pow(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorR
           Ok(())
         },
         Object::Float(y) => {
-          stack[sp-2] = Object::Float(x.powf(y));
+          let z = x.powf(y);
+          if z.is_nan() {
+            stack[sp-2] = Object::Complex(Complex64{re: x, im: 0.0}.powf(y));          
+          }else{
+            stack[sp-2] = Object::Float(z);
+          }
           Ok(())
         },
         Object::Complex(y) => {
@@ -1590,6 +1603,13 @@ fn operator_pow(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorR
     _ => {}
   }
   return match stack[sp-2].clone() {
+    Object::Function(f) => {
+      let n = replace(&mut stack[sp-1],Object::Null);
+      match ::function::iterate(&mut Env{env,sp,stack},&Object::Function(f),&n) {
+        Ok(y) => {stack[sp-2] = y; Ok(())},
+        Err(e) => Err(e)
+      }
+    },
     Object::Table(a) => {
       match a.get(&env.rte.key_pow) {
         Some(ref f) => {
@@ -2673,25 +2693,37 @@ fn index_assignment(env: &mut EnvPart, argc: usize,
   }
 }
 
+fn table_get(t: &Table, key: &Object) -> Option<Object> {
+  let mut p = t;
+  loop{
+    if let Some(y) = p.map.borrow().m.get(key) {
+      return Some(y.clone());
+    }else{
+      match p.prototype {
+        Object::Table(ref pt) => {p = pt;},
+        Object::List(ref a) => {
+          for x in &a.borrow().v {
+            if let Object::Table(ref pt) = *x {
+              if let Some(y) = table_get(pt,key) {
+                return Some(y.clone());
+              }
+            }
+          }
+          return None;
+        },
+        _ => return None
+      }
+    }
+  }
+}
+
 fn operator_dot(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorResult {
   match stack[sp-2].clone() {
     Object::Table(t) => {
-      let mut p = &t;
-      loop{
-        match p.map.borrow().m.get(&stack[sp-1]) {
-          Some(x) => {
-            stack[sp-2] = x.clone();
-            stack[sp-1] = Object::Null;
-            return Ok(());
-          },
-          None => {
-            if let Object::Table(ref pt) = p.prototype {
-              p = pt;
-            }else{
-              break;
-            }
-          }
-        }
+      if let Some(x) = table_get(&t,&stack[sp-1]) {
+        stack[sp-2] = x;
+        stack[sp-1] = Object::Null;
+        return Ok(());
       }
     },
     Object::List(a) => {

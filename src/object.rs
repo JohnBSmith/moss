@@ -25,9 +25,8 @@ pub enum Object{
   Function(Rc<Function>),
   Range(Rc<Range>),
   Table(Rc<Table>),
-  Tuple(Rc<Vec<Object>>),
-  Empty,
-  Interface(Rc<Interface>)
+  Interface(Rc<Interface>),
+  Empty
 }
 
 impl Object{
@@ -61,7 +60,6 @@ impl Clone for Object{
       Object::Map(ref x) => {Object::Map(x.clone())},
       Object::Function(ref x) => {Object::Function(x.clone())},
       Object::Range(ref x) => {Object::Range(x.clone())},
-      Object::Tuple(ref x) => {Object::Tuple(x.clone())},
       Object::Table(ref x) => {Object::Table(x.clone())},
       Object::Empty => {Object::Empty},
       Object::Interface(ref x) => {Object::Interface(x.clone())}

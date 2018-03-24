@@ -76,9 +76,26 @@ fn argc(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
   }
 }
 
+pub fn iterate(env: &mut Env, f: &Object, n: &Object) -> FnResult {
+  match *n {
+    Object::Int(n) => {
+      let f = f.clone();
+      let g = move |env: &mut Env, pself: &Object, argv: &[Object]| -> FnResult {
+        let mut y = argv[0].clone();
+        for _ in 0..n {
+          y = try!(env.call(&f,&Object::Null,&[y]));
+        }
+        return Ok(y);
+      };
+      Ok(Function::mutable(Box::new(g),1,1))
+    },
+    ref n => env.type_error1("Type error in f^n: n is not an integer.","n",n)
+  }
+}
+
 pub fn init(t: &Table){
   let mut m = t.map.borrow_mut();
   m.insert_fn_plain("apply",apply,1,1);
   m.insert_fn_plain("orbit",orbit,1,1);
-  m.insert_fn_plain("argc",argc,0,0);
+  m.insert_fn_plain("argc", argc,0,0);
 }

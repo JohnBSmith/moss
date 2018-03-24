@@ -12,6 +12,7 @@ use rand::Rand;
 use iterable::iter;
 use std::collections::HashMap;
 use std::str::FromStr;
+use std::f64::NAN;
 use system::{History};
 use compiler::Value;
 use long::Long;
@@ -29,7 +30,6 @@ pub fn type_name(x: &Object) -> String {
     Object::Map(ref x) => "Map",
     Object::Function(ref x) => "Function",
     Object::Range(ref x) => "Range",
-    Object::Tuple(ref x) => "Tuple",
     Object::Empty => "Empty",
     _ => {break;}
   }.to_string();
@@ -579,6 +579,9 @@ fn float(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
   match argv[0] {
     Object::Int(n) => return Ok(Object::Float(n as f64)),
     Object::Float(x) => return Ok(Object::Float(x)),
+    Object::Complex(z) => return Ok(Object::Float(
+      if z.im==0.0 {z.re} else {NAN}
+    )),
     Object::String(ref s) => {
       return match f64::from_str(&s.v.iter().collect::<String>()) {
         Ok(value) => Ok(Object::Float(value)),
