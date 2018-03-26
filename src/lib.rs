@@ -34,6 +34,9 @@ mod string;
 #[path = "objects/long-gmp.rs"]
 mod long;
 
+#[path = "objects/tuple.rs"]
+mod tuple;
+
 #[path = "modules/complex.rs"]
 pub mod complex;
 

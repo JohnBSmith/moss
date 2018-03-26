@@ -638,6 +638,105 @@ we have:
 a.x == a.("x")
 </pre>
 
+<h3 data-date="20180326" id="the-metaclass-patch"
+>The metaclass patch</h3>
+
+<p>The basic idea for the object system of Moss is so far, that
+the type and prototype of an object coincide. A property
+(including methods) is searched in the object first,
+then in the object's prototype, and then in the prototype's
+prototype and so on until <code>null</code> is reached.
+This simple model is shown by this graph:
+
+<div class="img">
+<img src="img/prototype-chain.png" style="width: 100px">
+</div>
+
+<p>Now, the problem arises that a type should have an own
+object-to-string method. But placed somewhere in the prototype chain,
+it will conflict with the object-to-string method for the type's
+instances. A solution is to obtain the object-to-string method
+from the object's type. But in order to do that, the type-prototype
+coincidence must be removed.
+
+<p>Now, the idea is, not to change the object system, but to
+patch the coincidence breakage into it. A table object is constructed
+as follows:
+
+<pre class="moss indent">
+t = table prototype{x=value, y=value}
+ == object(prototype,{x=value, y=value})
+</pre>
+
+<p>We can have multiple inheritance:
+<pre class="moss indent">
+prototype = [prototype1, prototype2, ..., prototypeN]
+</pre>
+
+<p>Now, a tuple is used to differentiate between a type and
+a prototype:
+<pre class="moss indent">
+prototype = (type, prototype)
+</pre>
+<p>This leads to the following model:
+<div class="img">
+<img src="img/type-chain.png" style="width: 280px">
+</div>
+
+<p>The patched type system looks as follows:
+<div class="img">
+<img src="img/type-model.png" style="width: 320px">
+</div>
+
+<p>To make things easy, propterty access only searches the prototype
+chain. A complicated rule "one left then upwards" will not be used.
+
+<p>For object-to-string, the type name must be stored somewhere,
+and it should be easy to create a named class. For convenience
+the tuple is extended by optional elements. The complete signature
+is:
+<pre class="moss indent">
+prototype = (type, prototype, object_name, hidden_properties)
+</pre>
+
+<p>A simple example:
+<pre class="moss indent">
+sub class(name,prototype,properties)
+  object((Type,prototype,name),properties)
+end
+
+Bird = class("Bird",null,{
+  sub string
+    "{} is a bird." % [self.name]
+  end,
+  sub fly
+    "{} can fly!" % [self.name]
+  end
+})
+
+Duck = class("Duck",Bird,{
+  sub string
+    "{} is a duck." % [self.name]
+  end,
+  sub dive
+    "{} can dive!" % [self.name]
+  end
+})
+
+d = table Duck{name = "Donald"}
+
+print(d)
+print(d.fly())
+print(d.dive())
+print("type: ", type(d))
+
+# Output:
+# Donald is a duck.
+# Donald can fly!
+# Donald can dive!
+# type: Duck
+</pre>
+
 </body>
 </html>
 

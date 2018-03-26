@@ -134,3 +134,9 @@ table.navigation td {
   padding-left: 6px;
   padding-right: 20px;
 }
+
+div.img {
+  text-align: center;
+  margin-top: 2em;
+  margin-bottom: 2em;
+}

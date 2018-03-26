@@ -37,7 +37,7 @@ enum Symbol{
   Use, Yield, True, False, Null, Dot, Comma, Colon, Semicolon,
   List, Map, Application, Index, Block, Statement, Terminal,
   APlus, AMinus, AAst, ADiv, AIdiv, AMod, AAmp, AVline, ASvert,
-  Empty
+  Empty, Tuple
 }
 
 enum Item{
@@ -603,6 +603,7 @@ fn symbol_to_string(value: Symbol) -> &'static str {
     Symbol::Eq   => "==", Symbol::Ne => "!=",
     Symbol::List => "[]", Symbol::Application => "app",
     Symbol::Map  => "{}", Symbol::Index => "index",
+    Symbol::Tuple => "()",
     Symbol::APlus => "+=",
     Symbol::AMinus => "-=",
     Symbol::AAst => "*=",
@@ -1405,7 +1406,7 @@ fn atom(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error> {
     i.index+=1;
     self.parens+=1;
     self.syntax_nesting+=1;
-    y = try!(self.comma_expression(i));
+    y = try!(self.comma_expression(i,Symbol::Tuple));
     let p = try!(i.next_token(self));
     let t = &p[i.index];
     self.syntax_nesting-=1;
@@ -1784,7 +1785,7 @@ fn expression(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
   return self.if_expression(i);
 }
 
-fn comma_expression(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
+fn comma_expression(&mut self, i: &mut TokenIterator, value: Symbol) -> Result<Rc<AST>,Error>{
   let x = try!(self.expression(i));
   let p = try!(i.next_token_optional(self));
   let t = &p[i.index];
@@ -1804,19 +1805,19 @@ fn comma_expression(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
       }
     }
     return Ok(Rc::new(AST{line: t.line, col: t.col, symbol_type: SymbolType::Operator,
-      value: Symbol::List, info: Info::None, s: None, a: Some(v.into_boxed_slice())}));
+      value: value, info: Info::None, s: None, a: Some(v.into_boxed_slice())}));
   }else{
     return Ok(x);
   }
 }
 
 fn assignment(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
-  let x = try!(self.comma_expression(i));
+  let x = try!(self.comma_expression(i,Symbol::List));
   let p = try!(i.next_token_optional(self));
   let t = &p[i.index];
   if t.value==Symbol::Assignment {
     i.index+=1;
-    let y = try!(self.comma_expression(i));
+    let y = try!(self.comma_expression(i,Symbol::List));
     return Ok(binary_operator(t.line,t.col,Symbol::Assignment,x,y));
   }else if t.token_type == SymbolType::Assignment {
     i.index+=1;
@@ -1877,7 +1878,7 @@ fn for_statement(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error> {
     return Err(self.syntax_error(t.line, t.col, String::from("expected 'in'.")));
   }
   i.index+=1;
-  let a = try!(self.comma_expression(i));
+  let a = try!(self.comma_expression(i,Symbol::List));
   let p = try!(i.next_any_token(self));
   let t = &p[i.index];
   if t.value == Symbol::Do || t.value == Symbol::Newline {
@@ -2011,20 +2012,20 @@ fn return_statement(&mut self, i: &mut TokenIterator, t0: &Token) -> Result<Rc<A
     return Ok(Rc::new(AST{line: t0.line, col: t0.col, symbol_type: SymbolType::Keyword,
       value: Symbol::Return, info: Info::None, s: None, a: Some(Box::new([]))}));
   }else{
-    let x = try!(self.comma_expression(i));
+    let x = try!(self.comma_expression(i,Symbol::List));
     return Ok(Rc::new(AST{line: t0.line, col: t0.col, symbol_type: SymbolType::Keyword,
       value: Symbol::Return, info: Info::None, s: None, a: Some(Box::new([x]))}));
   }
 }
 
 fn yield_statement(&mut self, i: &mut TokenIterator, t0: &Token) -> Result<Rc<AST>,Error>{
-  let x = try!(self.comma_expression(i));
+  let x = try!(self.comma_expression(i,Symbol::List));
   return Ok(Rc::new(AST{line: t0.line, col: t0.col, symbol_type: SymbolType::Keyword,
     value: Symbol::Yield, info: Info::None, s: None, a: Some(Box::new([x]))}));
 }
 
 fn raise_statement(&mut self, i: &mut TokenIterator, t0: &Token) -> Result<Rc<AST>,Error>{
-  let x = try!(self.comma_expression(i));
+  let x = try!(self.comma_expression(i,Symbol::List));
   return Ok(Rc::new(AST{line: t0.line, col: t0.col, symbol_type: SymbolType::Keyword,
     value: Symbol::Raise, info: Info::None, s: None, a: Some(Box::new([x]))}));
 }
@@ -3339,7 +3340,11 @@ fn compile_ast(&mut self, bv: &mut Vec<u32>, t: &Rc<AST>)
       push_i32(bv,0xcafe);
       try!(self.compile_ast(bv,&a[1]));
       let len = bv.len();
-      write_i32(&mut bv[index..index+1], (BCSIZE+len) as i32-index as i32);      
+      write_i32(&mut bv[index..index+1], (BCSIZE+len) as i32-index as i32);
+    }else if value == Symbol::Tuple {
+      try!(self.compile_operator(bv,t,bc::TUPLE));
+      let size = match t.a {Some(ref a) => a.len() as u32, None => unreachable!()};
+      push_u32(bv,size);
     }else{
       return Err(self.syntax_error(t.line,t.col,
         format!("cannot compile Operator '{}'.",symbol_to_string(t.value))

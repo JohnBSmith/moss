@@ -16,6 +16,7 @@ use std::f64::NAN;
 use system::{History};
 use compiler::Value;
 use long::Long;
+use tuple::Tuple;
 
 pub fn type_name(x: &Object) -> String {
   loop{
@@ -339,20 +340,24 @@ fn ftype(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
   if argv.len()!=1 {
     return env.argc_error(argv.len(),1,1,"type");
   }
-  match argv[0] {
-    Object::Null => Ok(Object::Null),
-    Object::Bool(x) => Ok(Object::Table(env.rte().type_bool.clone())),
-    Object::Int(x) => Ok(Object::Table(env.rte().type_int.clone())),
-    Object::Float(x) => Ok(Object::Table(env.rte().type_float.clone())),
-    Object::Complex(x) => Ok(Object::Table(env.rte().type_complex.clone())),
-    Object::String(ref s) => Ok(Object::Table(env.rte().type_string.clone())),
-    Object::List(ref a) => Ok(Object::Table(env.rte().type_list.clone())),
-    Object::Map(ref m) => Ok(Object::Table(env.rte().type_map.clone())),
+  return Ok(match argv[0] {
+    Object::Null => Object::Null,
+    Object::Bool(x) => Object::Table(env.rte().type_bool.clone()),
+    Object::Int(x) => Object::Table(env.rte().type_int.clone()),
+    Object::Float(x) => Object::Table(env.rte().type_float.clone()),
+    Object::Complex(x) => Object::Table(env.rte().type_complex.clone()),
+    Object::String(ref s) => Object::Table(env.rte().type_string.clone()),
+    Object::List(ref a) => Object::Table(env.rte().type_list.clone()),
+    Object::Map(ref m) => Object::Table(env.rte().type_map.clone()),
     Object::Table(ref t) => {
-      Ok(t.prototype.clone())
+      if let Some(pt) = Tuple::downcast(&t.prototype) {
+        pt.v[0].clone()
+      }else{
+        t.prototype.clone()
+      }
     },
-    _ => Ok(Object::Null)
-  }
+    _ => Object::Null
+  });
 }
 
 fn float_range_to_list(env: &mut Env, r: &Range) -> FnResult {
@@ -754,6 +759,17 @@ fn max(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
   }
 }
 
+fn type_to_string(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+  if let Object::Table(ref pt) = *pself {
+    if let Some(t) = Tuple::downcast(&pt.prototype) {
+      if let Some(s) = t.v.get(2) {
+        return Ok(s.clone());
+      }
+    }
+  }
+  return Ok(Object::Null);
+}
+
 pub fn init_rte(rte: &RTE){
   let mut gtab = rte.gtab.borrow_mut();
   gtab.insert_fn_plain("print",print,0,VARIADIC);
@@ -828,5 +844,12 @@ pub fn init_rte(rte: &RTE){
   
   let type_index_error = rte.type_index_error.clone();
   gtab.insert("IndexError", Object::Table(type_index_error));
+  
+  let type_type = rte.type_type.clone();
+  {
+    let mut m = type_type.map.borrow_mut();
+    m.insert_fn_plain("string",type_to_string,0,0);
+  }
+  gtab.insert("Type", Object::Table(type_type));
 }
 

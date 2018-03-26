@@ -16,6 +16,7 @@ use object::{
 };
 use complex::Complex64;
 use long::Long;
+use tuple::Tuple;
 use format::u32string_format;
 use global::type_name;
 
@@ -105,6 +106,7 @@ pub mod bc{
   pub const CRAISE:u8 = 71;
   pub const HALT: u8 = 72;
   pub const LONG: u8 = 73;
+  pub const TUPLE:u8 = 74;
 
   pub fn op_to_str(x: u8) -> &'static str {
     match x {
@@ -179,6 +181,7 @@ pub mod bc{
       TRYEND => "TRYEND",
       GETEXC => "GETEXC",
       CRAISE => "CRAISE",
+      TUPLE => "TUPLE",
       HALT => "HALT",
       _ => "unknown"
     }
@@ -426,11 +429,9 @@ fn complex_to_string(z: Complex64) -> String {
 }
 
 fn table_to_string(env: &mut Env, t: &Rc<Table>) -> Result<String,Box<Exception>> {
-  if let Object::Table(ref pt) = t.prototype {
-    if let Some(f) = pt.get(&env.rte().key_string) {
-      let s = try!(env.call(&f,&Object::Table(t.clone()),&[]));
-      return s.string(env);
-    }
+  if let Some(f) = type_get(&t.prototype,&env.rte().key_string) {
+    let s = try!(env.call(&f,&Object::Table(t.clone()),&[]));
+    return s.string(env);
   }
   let left = if t.prototype == Object::Null {
     "table{"
@@ -1173,7 +1174,7 @@ fn operator_mpy(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorR
           }
         },
         Err(e) => Err(e)
-      }      
+      }
     },
     Object::Table(a) => {
       match a.get(&env.rte.key_rmpy) {
@@ -1327,7 +1328,7 @@ fn operator_div(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorR
           }
         },
         Err(e) => Err(e)
-      }      
+      }
     },
     Object::Table(a) => {
       match a.get(&env.rte.key_rdiv) {
@@ -1851,9 +1852,17 @@ fn operator_eq(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorRe
       }
     },
     Object::Interface(x) => {
-      let b = replace(&mut stack[sp-1],Object::Null);
-      match x.eq(&b,&mut Env{env: env, sp: sp, stack: stack}) {
-        Ok(value) => {stack[sp-2] = value; Ok(())},
+      let b = stack[sp-1].clone();
+      match x.eq(&b,&mut Env{env,sp,stack}) {
+        Ok(y) => {
+          if env.is_unimplemented(&y) {
+            break 'r;
+          }else{
+            stack[sp-1] = Object::Null;
+            stack[sp-2] = y;
+            Ok(())
+          }
+        },
         Err(e) => Err(e)
       }
     },
@@ -1863,8 +1872,15 @@ fn operator_eq(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorRe
   return match replace(&mut stack[sp-1],Object::Null) {
     Object::Interface(x) => {
       let a = replace(&mut stack[sp-2],Object::Null);
-      match x.req(&a,&mut Env{env: env, sp: sp, stack: stack}) {
-        Ok(value) => {stack[sp-2] = value; Ok(())},
+      match x.req(&a,&mut Env{env, sp, stack}) {
+        Ok(y) => {
+          if env.is_unimplemented(&y) {
+            stack[sp-2] = Object::Bool(false);
+          }else{
+            stack[sp-2] = y;
+          }
+          return Ok(());
+        },
         Err(e) => Err(e)
       }
     },
@@ -2393,6 +2409,18 @@ fn operator_list(sp: usize, stack: &mut [Object], size: usize) -> usize{
   return sp;
 }
 
+fn operator_tuple(sp: usize, stack: &mut [Object], size: usize) -> usize{
+  let mut sp = sp;
+  let mut v: Vec<Object> = Vec::new();
+  for i in 0..size {
+    v.push(replace(&mut stack[sp-size+i],Object::Null));
+  }
+  sp-=size;
+  stack[sp] = Tuple::new_object(v);
+  sp+=1;
+  return sp;
+}
+
 fn operator_map(sp: usize, stack: &mut [Object], size: usize) -> usize{
   let mut sp = sp;
   let mut m: HashMap<Object,Object> = HashMap::new();
@@ -2693,6 +2721,39 @@ fn index_assignment(env: &mut EnvPart, argc: usize,
   }
 }
 
+fn type_get(prototype: &Object, key: &Object) -> Option<Object> {
+  match *prototype {
+    Object::Table(ref pt) => table_get(pt,key),
+    Object::Interface(ref x) => {
+      if let Some(x) = x.as_any().downcast_ref::<Tuple>() {
+        object_get(&x.v[0],key)
+      }else{
+        None
+      }
+    },
+    _ => None
+  }
+}
+
+fn object_get(x: &Object, key: &Object) -> Option<Object> {
+  match *x {
+    Object::Table(ref pt) => table_get(pt,key),
+    Object::List(ref a) => list_get(a,key),
+    _ => None
+  }
+}
+
+fn list_get(a: &Rc<RefCell<List>>, key: &Object) -> Option<Object> {
+  for x in &a.borrow().v {
+    if let Object::Table(ref pt) = *x {
+      if let Some(y) = table_get(pt,key) {
+        return Some(y.clone());
+      }
+    }
+  }
+  return None;
+}
+
 fn table_get(t: &Table, key: &Object) -> Option<Object> {
   let mut p = t;
   loop{
@@ -2702,12 +2763,11 @@ fn table_get(t: &Table, key: &Object) -> Option<Object> {
       match p.prototype {
         Object::Table(ref pt) => {p = pt;},
         Object::List(ref a) => {
-          for x in &a.borrow().v {
-            if let Object::Table(ref pt) = *x {
-              if let Some(y) = table_get(pt,key) {
-                return Some(y.clone());
-              }
-            }
+          return list_get(a,key);
+        },
+        Object::Interface(ref x) => {
+          if let Some(x) = x.as_any().downcast_ref::<Tuple>() {
+            return object_get(&x.v[1],key);
           }
           return None;
         },
@@ -3050,6 +3110,15 @@ fn new_table(prototype: Object, map: Object) -> Object {
   }
 }
 
+fn new_stamp(ptype: &Rc<Table>, prototype: &Object, s: &str) -> Object {
+  let v = vec![
+    Object::Table(ptype.clone()),
+    prototype.clone(),
+    U32String::new_object_str(s)
+  ];
+  return Tuple::new_object(v);
+}
+
 // Runtime environment: globally accessible information.
 pub struct RTE{
   pub type_bool: Rc<Table>,
@@ -3066,6 +3135,7 @@ pub struct RTE{
   pub type_type_error: Rc<Table>,
   pub type_value_error: Rc<Table>,
   pub type_index_error: Rc<Table>,
+  pub type_type: Rc<Table>,
   pub unimplemented: Rc<Table>,
   pub argv: RefCell<Option<Rc<RefCell<List>>>>,
   pub gtab: Rc<RefCell<Map>>,
@@ -3098,21 +3168,24 @@ pub struct RTE{
 
 impl RTE{
   pub fn new() -> Rc<RTE>{
+    let type_type = Table::new(Object::Null);
+    let null = &Object::Null;
     Rc::new(RTE{
-      type_bool: Table::new(Object::Null),
-      type_int: Table::new(Object::Null),
-      type_float: Table::new(Object::Null),
-      type_complex: Table::new(Object::Null),
-      type_string: Table::new(Object::Null),
-      type_list: Table::new(Object::Null),
-      type_map:  Table::new(Object::Null),
-      type_function: Table::new(Object::Null),
-      type_iterable: Table::new(Object::Null),
-      type_long: Table::new(Object::Null),
+      type_bool: Table::new(new_stamp(&type_type,null,"Bool")),
+      type_int: Table::new(new_stamp(&type_type,null,"Int")),
+      type_float: Table::new(new_stamp(&type_type,null,"Float")),
+      type_complex: Table::new(new_stamp(&type_type,null,"Complex")),
+      type_string: Table::new(new_stamp(&type_type,null,"String")),
+      type_list: Table::new(new_stamp(&type_type,null,"List")),
+      type_map:  Table::new(new_stamp(&type_type,null,"Map")),
+      type_function: Table::new(new_stamp(&type_type,null,"Function")),
+      type_iterable: Table::new(new_stamp(&type_type,null,"Iterable")),
+      type_long: Table::new(new_stamp(&type_type,null,"Long")),
       type_std_exception: Table::new(Object::Null),
       type_type_error: Table::new(Object::Null),
       type_value_error: Table::new(Object::Null),
       type_index_error: Table::new(Object::Null),
+      type_type: type_type.clone(),
       unimplemented: Table::new(Object::Null),
       argv: RefCell::new(None),
       gtab: Map::new(),
@@ -3878,6 +3951,11 @@ fn vm_loop(
           Err(()) => panic!()
         };
         sp+=1;
+        ip+=BCASIZE;
+      },
+      bc::TUPLE => {
+        let size = load_u32(&a,ip+BCSIZE) as usize;
+        sp = operator_tuple(sp,&mut stack,size);
         ip+=BCASIZE;
       },
       _ => {panic!()}
