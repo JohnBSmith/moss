@@ -8,6 +8,8 @@ use std::ascii::AsciiExt;
 use std::rc::Rc;
 use std::collections::HashMap;
 use std::mem::replace;
+use std::str::Chars;
+use std::char;
 use system;
 use vm::{bc, BCSIZE, BCASIZE, BCAASIZE, Module, RTE};
 use object::{Object, U32String, VARIADIC};
@@ -2814,11 +2816,15 @@ fn offsets(&self, bv: &mut Vec<u32>, offset: i32){
   }
 }
 
-fn string_literal(&mut self, s: &str) -> Result<String,Error> {
+fn string_literal(&mut self, s: &str, line: usize, col: usize)
+  -> Result<String,Error>
+{
   let mut y = String::new();
   let mut escape = false;
   let mut skip = false;
-  for c in s.chars() {
+  let mut i = s.chars();
+  loop{
+    let c = match i.next() {Some(c) => c, None => break};
     if escape {
       if skip {
         if c==' ' || c=='\n' || c=='\t' {
@@ -2838,6 +2844,14 @@ fn string_literal(&mut self, s: &str) -> Result<String,Error> {
       else if c=='d' {y.push('"');}
       else if c=='q' {y.push('\'');}
       else if c=='b' {y.push('\\');}
+      else if c=='u' {
+        let x = match unicode_literal(&mut i) {
+          Ok(x) => x, Err(e) => {
+            return Err(self.syntax_error(line,col,e));
+          }
+        };
+        y.push(x);
+      }
       else if c=='r' {y.push('\r');}
       else if c=='e' {y.push('\x1b');}
       else if c=='f' {y.push('\x0c');}
@@ -3212,7 +3226,7 @@ fn compile_string(&mut self, bv: &mut Vec<u32>, t: &AST)
   -> Result<(),Error>
 {
   let s = match t.s {Some(ref x) => x, None => unreachable!()};
-  let key = try!(self.string_literal(s));
+  let key = try!(self.string_literal(s,t.line,t.col));
   let index = self.get_index(&key);
   push_bc(bv,bc::STR,t.line,t.col);
   push_u32(bv,index as u32);
@@ -3223,7 +3237,7 @@ fn compile_long(&mut self, bv: &mut Vec<u32>, t: &AST)
   -> Result<(),Error>
 {
   let s = match t.s {Some(ref x) => x, None => unreachable!()};
-  let key = try!(self.string_literal(s));
+  let key = try!(self.string_literal(s,t.line,t.col));
   let index = self.get_index(&key);
   push_bc(bv,bc::LONG,t.line,t.col);
   push_u32(bv,index as u32);
@@ -3467,6 +3481,33 @@ fn compile_ast(&mut self, bv: &mut Vec<u32>, t: &Rc<AST>)
 }
 
 }//impl Compilation
+
+fn expect_char(i: &mut Chars, c: char) -> Result<char,String> {
+  match i.next() {
+    Some(y) => {
+      if c=='*' || y==c {return Ok(y);} else {
+        return Err(format!("after \\u: unexpected character: '{}'.",y));
+      }
+    },
+    _ => return Err("in \\u{}: unexpected end of input.".to_string())
+  }
+}
+
+fn unicode_literal(i: &mut Chars) -> Result<char,String> {
+  try!(expect_char(i,'{'));
+  let mut x: u32 = 0;
+  loop{
+    let c = try!(expect_char(i,'*'));
+    if c=='}' {break;}
+    else{
+      x = 16*x+match c.to_digit(16) {
+        Some(digit) => digit,
+        None => return Err("in \\u{}: expected hexadecimal digits.".to_string())
+      };
+    }
+  }
+  return Ok(match char::from_u32(x) {Some(x) => x, None => '?'});
+}
 
 fn ast_argv(t: &AST) -> &Box<[Rc<AST>]>{
   match t.a {Some(ref x) => x, None => unreachable!()}

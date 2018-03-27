@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Libray</title>
+  <link rel="stylesheet" href="css/main.css">
+  <script src = "js/syntax.js">
+  </script>
+</head>
+<body>
+
+<h1>Library reference</h1>
+
+<h2 id="toc">Table of contents</h2>
+
+<ol>
+<li><a href="#sys">Module sys</a> &mdash; runtime system interface
+<li><a href="#time">Module time</a> &mdash; time measurement
+<li><a href="#os">Module os</a> &mdash; operating system interface
+<li><a href="#math">Module math</a> &mdash; mathematical functions
+<li><a href="#cmath">Module cmath</a> &mdash; complex functions
+<li><a href="#sf">Module sf</a> &mdash; special mathematical functions
+<li><a href="#na">Module na</a> &mdash; numerical analysis
+<li><a href="#nt">Module nt</a> &mdash; number theory
+<li><a href="#cf">Module cf</a> &mdash; combinatorical functions
+<li><a href="#gx">Module gx</a> &mdash; graphics
+</ol>
+
+<h2 id="global">Global functions</h2>
+
+<dl class="code">
+<dt>print(x1,...,xn)
+<dd>Prints its arguments to the command-line interface.
+The output representations of
+the arguments are joined together without any separating character
+or spacing. Does print a line break thereafter. If the function is
+called with no argument, it only prints a line break.
+
+<dt>put(x1,...,xn)
+<dd>Does the same as print, but does not print a line break.
+
+<dt>input(), input(prompt)
+<dd>Read a line of input from the command-line interface and return
+the input as a string. The line break at the end of the input line is
+not contained in the string.
+
+<dt>str(x)
+<dd>Convert <code>x</code> into a string.
+
+<dt>str(x,format,precision)
+<dd>Convert the floating point number <code>x</code> into
+a string.
+<pre class="moss">
+# format = "[+|-](f|e|E|g|G)"
+s = str(math.pi,"f",4)
+</pre>
+
+<dt>int(x)
+<dd>Convert <code>x</code> into an integer if possible.
+
+<dt>float(x)
+<dd>Convert <code>x</code> into a floating point number
+  if possible.
+
+<dt>ord(s)
+<dd>Take a string of length one and return the code point of the
+  Unicode character.
+
+<dt>chr(x)
+<dd>Take an integer value <code>x</code> and return the Unicode
+  character at code point&nbsp;<code>x</code>.
+
+<dt>list(x)
+<dd>Convert the iterable object <code>x</code> into a list.
+<pre class="moss">
+&gt; list(1..4)
+[1, 2, 3, 4]
+</pre>
+
+<dt>map(x)
+<dd>Convert the iterable object <code>x</code> of
+<code>[key,value]</code> pairs into a map.
+<pre class="moss">
+&gt; map([["a",1],["b",2]])
+{"a": 1, "b": 2}
+</pre>
+
+<dt>set(x)
+<dd>Turn an iterable object <code>x</code> into a set.
+<pre class="moss">
+&gt; set(1..4)
+{1, 2, 3, 4}
+</pre>
+
+<dt>iter(x)
+<dd>Take an iterable object and return an iterator.
+<pre class="moss">
+&gt; i = iter(1..)
+&gt; [i(),i(),i(),i()]
+[1, 2, 3, 4]
+</pre>
+
+<dt>size(a)
+<dd>Number of elements of <code>a</code>. The object <code>a</code>
+should be a data structure that has this property.
+
+<dt>rand(a..b), rand(a..b,seed)
+<dd>Return a random number generator that returns random integers
+from <code>a</code> inclusive to <code>b</code> inclusive.
+<pre class="moss">
+&gt; r = rand(1..4)
+&gt; [r(),r(),r(),r()]
+[2, 1, 3, 3]
+&gt; r.list(10)
+[1, 1, 4, 2, 3, 4, 1, 2, 1, 1]
+</pre>
+
+<dt>rand(a), rand(a,seed)
+<dd>Return a random number generator that chooses an element of
+the list <code>a</code> randomly.
+
+<dt>rand(), rand(seed)
+<dd>Return a random number generator that returns floats
+between zero and one.
+
+<dt>read(id), read(id,mode)
+<dd>Read the text file with filename <code>id</code> and encoding
+<code>UTF-8</code>. Return the contents as an
+<code>UTF32</code>-string. If <code>mode=='b'</code>,
+the file is read as a binary file.
+
+<dt>load(id)
+<dd>Load the module with filename <code>id</code> and
+  return the module object. The function <code>load</code>
+  can be used in a more general way than import statements
+  (keyword <code>use</code>). One can achieve dynamic loading
+  this way.
+<pre class="moss">
+&gt; math = load("math")
+&gt; math.floor(2.4)
+2.0
+</pre>
+
+<dt>abs(x)
+<dd>Absolute value of <code>x</code>. Returns an integer if
+<code>x</code> is an integer. Takes also complex numbers.
+
+<dt>sgn(x)
+<dd>Sign of <code>x</code>. Returns an integer if
+<code>x</code> is an integer. Takes also complex numbers.</dd>
+
+<dt>max(a,b)
+<dd>Return the maximum of <code>a</code> and <code>b</code>.
+
+<dt>min(a,b)
+<dd>Return the minimum of <code>a</code> and <code>b</code>.
+
+<dt>pow(a,n,m)
+<dd>Modular exponentiation: calculate <code>(a^n)%m</code> fast.
+
+<dt>const(x), const(n,x)
+<dd>Shallow freeze a mutable object <code>x</code> and return it.
+If <code>n</code> is given, deep freeze <code>x</code> by
+depth <code>n</code>.
+If <code>n</code> is <code>null</code>, freeze the complete
+tree. Note that <code>const(x)</code> is equivalent to
+<code>const(1,x)</code>.
+
+<dt>copy(x), copy(n,x)
+<dd>Construct a shallow copy of the object <code>x</code>
+and return it. If <code>n</code> is given, return a deep copy
+by depth <code>n</code>. If <code>n</code> is <code>null</code>,
+return a complete deep copy. Note that <code>copy(x)</code>
+is equivalent to <code>copy(1,x)</code>.
+
+<dt>object(), object(p), object(p,d)
+<dd>Construct a new object with <code>p</code> as its
+prototype and dictionary <code>d</code> as its slot table.
+
+<dt>type(x)
+<dd>Prototype of <code>x</code>.
+
+<dt>record(x)
+<dd>Slot table of <code>x</code>.
+
+<dt>extend(a,b)
+<dd>Insert all slots of <code>b</code> into the slot
+table of <code>a</code>. Already existent slots
+of <code>a</code> will not be overwritten.
+
+<dt>zip(a1,...,an)
+<dd>Take the lists <code>a1,...,an</code> and return the list of
+lists <code>[a1[i],...,an[i]]</code>.
+
+<dt>unzip(a)
+<dd>See what it does.
+<pre class="moss">
+&gt; unzip([["x1", "y1"], ["x2", "y2"], ["x3", "y3"]])
+[["x1", "x2", "x3"], ["y1", "y2", "y3"]]
+</pre>
+
+<dt>eval(s), evals(s,d)
+<dd>Execute a string as a program. Free variables are from
+the current environment (only global variables).
+If the dictionary <code>d</code>
+is given, use it as an environment for free variables.
+<pre class="moss">
+&gt; x=12
+&gt; eval("2*x")
+24
+&gt; eval("a=[1,2]")
+&gt; a
+[1, 2]
+&gt; eval("x*y",{x=360,y=240})
+86400
+</pre>
+
+<dt>Bool, Int, Float, Complex, List, Map, Str, Bstr, Range, Function
+<dd>Data types.
+</dl>
+
+
+<h2 id="sys">Module sys</h2>
+
+<p>Interface to the runtime system.
+</p>
+
+<dl class="code">
+<dt>argv
+<dd>List of command-line arguments.</dd>
+
+<dt>path
+<dd>List of search paths for module loading, analogous to
+the environment variable <code>PATH</code>.
+This list can be changed freely and can contain relative paths.
+But note, that relative paths are problematic, if the current
+working directory changes. That <code>path[0]</code> should be the
+absolute path of the directory where <code>argv[0]</code>
+is found.</dd>
+
+<dt>exit(n)
+<dd>Exit the program with integer return value <code>n</code>.
+Zero means success, other values indicate an error.
+</dl>
+
+<h2 id="time">Module time</h2>
+
+<dl class="code">
+<dt>sleep(x)
+<dd>Halt execution and continue after <code>x</code> seconds.
+The number <code>x</code> can be a float and thus fractional parts of
+a second are possible.
+
+<dt>clock()
+<dd>Start a new stop watch that returns time in seconds.
+<pre class="moss">
+c = time.clock()
+time.sleep(0.1)
+print(c())
+</pre>
+
+<dt>time()
+<dd>Obtain Gregorian calendar date and UTC time.
+<pre class="moss">
+# Format (each of type integer):
+  [year, month, day, hour, minute, second]
+# Example:
+template = "{4(0)}-{2(0)}-{2(0)}T{2(0)}:{2(0)}:{2(0)}"
+print(template % time.time())
+</pre>
+</dl>
+
+
+<h2 id="os">Module os</h2>
+<p>Interface to the operating system.
+</p>
+
+<dl class="code">
+<dt>wd()
+<dd>Working directory.</dd>
+
+<dt>cd(id)
+<dd>Change directory.</dd>
+
+<dt>ls(), ls(id)
+<dd>List all nodes in directory <code>id</code>. Does not list the
+nodes <code>"."</code> and <code>".."</code>. If there is no
+argument, the nodes in the working directory are listed.
+
+<dt>isdir(id)
+<dd>Return true if the node <code>id</code> is a directory.
+
+<dt>isfile(id)
+<dd>Return true if the node <code>id</code> is a file.
+
+<dt>not_found
+<dd>Type object of the exception that is raised if a file or
+directory was not found.
+<pre class="moss">
+try
+  a = os.ls("documents/computer/network/")
+catch e: os.not_found
+  print("oops: ",e.value)
+end
+</pre>
+</dl>
+
+
+<h2 id="math">Module math</h2>
+<p>Basic mathematical functions.
+</p>
+
+<dl class="code">
+<dt>e
+<dd>Euler's number <code>2.71828...</code></dd>
+
+<dt>pi
+<dd><code>3.14159...</code></dd>
+
+<dt>nan
+<dd>Not a number.</dd>
+
+<dt>inf
+<dd>Infinity.</dd>
+
+<dt>floor(x)
+<dd>Round down. Returns floating point numbers.</dd>
+
+<dt>ceil(x)
+<dd>Round up. Returns floating point numbers.</dd>
+
+<dt>sqrt(x)
+<dd>Square root of <code>x</code>.</dd>
+
+<dt>exp(x)
+<dd>Exponential function.</dd>
+
+<dt>log2(x)
+<dd>Logarithm to base 2.</dd>
+
+<dt>ln(x)
+<dd>Logarithm to base e.</dd>
+
+<dt>lg(x)
+<dd>Logarithm to base 10.</dd>
+
+<dt>lg(x,b)
+<dd>Logarithm to base <code>b</code>.</dd>
+
+<dt>sin(x), cos(x), tan(x)
+<dd>Sine, cosine and tangent.</dd>
+
+<dt>asin(x), acos(x), atan(x)
+<dd>Arc sine, arc cosine and arc tangent.</dd>
+
+<dt>sinh(x), cosh(x), tanh(x)
+<dd>Hyperbolic sine, hyperbolic cosine and hyperbolic tangent.
+
+<dt>asinh(x), acosh(x), atanh(x)
+<dd>Inverse functions of the hyperbolic functions.
+
+<dt>fac(x)
+<dd>Factorial function. Returns floating point numbers.</dd>
+
+<dt>gamma(x)
+<dd>Gamma function.</dd>
+
+<dt>lgamma(x)
+<dd>Return <code>ln(abs(gamma(x)))</code>.
+
+<dt>sgngamma(x)
+<dd>Return <code>sgn(gamma(x))</code>.
+
+<dt>erf(x)
+<dd>Error function.
+
+<dt>hypot(x1,...,xn)
+<dd>Return <code>sqrt(x1^2+...+xn^2)</code>.</dd>
+
+<dt>atan2(y,x)
+<dd>Return the phase angle of the coordinate vector
+<code>[x,y]</code>.
+
+<dt>expm1(x)
+<dd>Return <code>exp(x)-1</code>.</dd>
+
+<dt>ln1p(x)
+<dd>Return <code>ln(1+x)</code>.</dd>
+
+<dt>isfinite(x)
+<dd>Return true if <code>x</code> is not infinite and not a NaN.
+
+<dt>isnan(x)
+<dd>Return true if <code>x</code> is a NaN.
+
+<dt>isinf(x)
+<dd>Return true if <code>x</code> is infinite.
+
+<dt>frexp(x)
+<dd>Take <code>x==m*2^n</code> and return <code>[m,n]</code>.
+The type of <code>m</code> is float, the type of <code>n</code> is int.
+
+<dt>ldexp(m,n)
+<dd>Return <code>m*2^n</code>.</dd>
+</dl>
+
+
+<h2 id="cmath">Module cmath</h2>
+<p>Mathematical functions that can take or return complex numbers.
+</p>
+
+<dl class="code">
+<dt>re(z)
+<dd>Real part of <code>z</code>.
+
+<dt>im(z)
+<dd>Imaginary part of <code>z</code>.
+
+<dt>conj(z)
+<dd>Complex conjugate.</dd>
+
+<dt>sqrt(z)
+<dd>Square root.</dd>
+
+<dt>exp(z)
+<dd>Exponential function.</dd>
+
+<dt>ln(z)
+<dd>Natural logarithm.</dd>
+
+<dt>sin(z), cos(z), tan(z)
+<dd>Sine, cosine and tangent.
+
+<dt>sinh(z), cosh(z), tanh(z)
+<dd>Hyperbolic sine, hyperbolic cosine and hyperbolic tangent.
+
+<dt>asinh(z), acosh(z), atanh(z)
+<dd>Inverse functions of the hyperbolic functions.
+
+<dt>gamma(z)
+<dd>Gamma function.</dd>
+</dl>
+
+<h2 id="sf">Module sf</h2>
+
+<p>Special mathematical functions.
+</p>
+
+<h3>Basic functions</h3>
+<p>The combinatorical functions stated here are implemented
+for numercial purposes. For that reason, approximated floats are
+returned instead of exact long integers.
+</p>
+
+<dl class="code">
+<dt>bc(n,k)
+<dd>Binomial coefficient.</dd>
+
+<dt>B(n)
+<dd>Bernoulli number, <code>B(1)=+1/2</code>.
+</dl>
+
+<h3>Gamma and related functions</h3>
+<dl class="code">
+<dt>Beta(x,y)
+<dd>Beta function.</dd>
+
+<dt>Gamma(s,z)
+<dd>Upper incomplete gamma function.</dd>
+
+<dt>gamma(s,z)
+<dd>Lower incomplete gamma function.</dd>
+
+<dt>digamma(z)
+<dd>Digamma function.</dd>
+
+<dt>polygamma(n,z)
+<dd>Polygamma function.</dd>
+</dl>
+
+<h3>Antiderivatives</h3>
+<dl class="code">
+<dt>erf(z)
+<dd>Error function.</dd>
+</dl>
+
+<h3>Zeta and related functions</h3>
+<dl class="code">
+<dt>zeta(s)
+<dd>Zeta function.</dd>
+
+<dt>zeta(s,q)
+<dd>Hurwitz zeta function.</dd>
+</dl>
+
+<h3>Polynomial functions</h3>
+<dl class="code">
+<dt>PP(n,x), P(n,m,x)
+<dd>Legendre polynomial.</dd>
+
+<dt>PH(n,x), PH(n,m,x)
+<dd>Hermite polynomial and derivative of order <code>m</code>.</dd>
+
+<dt>PT(n,x), PU(n,x)
+<dd>Chebyshev polynomial of the first and second kind.
+
+<dt>PL(n,x), P(n,m,x)
+<dd>Laguerre Polynomial and generalized Laguerre polynomial.
+</dl>
+
+<h3>Elliptic integrals and related functions</h3>
+<dl class="code">
+<dt>eiK(m), m=k^2
+<dd>Complete elliptic integral of the first kind.
+
+<dt>eiE(m), m=k^2
+<dd>Complete elliptic integral of the second kind.
+
+<dt>agm(x,y)
+<dd>Arithmetic geometric mean of <code>x</code> and <code>y</code>.
+</dl>
+
+
+<h2 id="na">Module na</h2>
+<p>Numerical analysis.
+</p>
+
+<dl class="code">
+<dt>diff(f,x,n=1)
+<dd>Derivative of <code>f</code> at <code>x</code>.
+The <code>n</code>-th derivative of <code>f</code> at <code>x</code>.
+
+<dt>integral(a,b,f,N=2)
+<dd>Definite integral.
+<pre class="moss">
+ln = |x| integral(1,x,|t| 1/t)
+</pre>
+
+<dt>vint(c,f,N=2)
+<dd>Contour integral of a complex function <code>f</code>
+by vertex path <code>c</code>. Integral of a complex valued
+function <code>f</code> by <code>c=[a,b]</code>.
+<pre class="moss">
+ln = |z| vint([1, -1i if im(z)&lt;0 else 1i, z],|s| 1/s)
+
+cint = |gamma,f| vint([0,1],|t| f(gamma(t))*diff(gamma,t))
+</pre>
+
+<dt>inv(f,x,a,b,N=60)
+<dd>Value of the inverse function of <code>f</code> at <code>x</code> for
+<code>f</code> strictly monotonic on the interval <code>[a,b]</code>.
+The bisection method is used.
+
+<dt>interpolate(a)
+<dd>Linear piecewise interpolation: Take an ordered (by <code>x</code>)
+list of pairs <code>[x,y]</code> and return a function.
+
+<dt>interpolate(x..:d,ay)
+<dd>Linear piecewise interpolation, using equidistant nodes.
+That means:
+<pre class="moss">
+a = list(0..size(ay)-1).map(|k| [x+k*d,ay[k]])
+interpolate(x..:d,ay) == interpolate(a)
+</pre>
+</dl>
+
+<h2 id="nt">Module nt</h2>
+
+<p>Number theory.
+</p>
+
+<dl class="code">
+<dt>base(n,b)
+<dd>Transform the number <code>n</code> into positional notation
+with base <code>b</code>. The result is in little endian
+(least significant digit first).
+
+<dt>base(n,b).rev()
+<dd>Big endian (least significant digit last) of the
+positional notation above.
+
+<dt>isprime(n)
+<dd>Deterministic primality test.</dd>
+
+<dt>isprime(n,e)
+<dd>Probalistic primality test with false positive probability of less than
+<code>1/(2^e)</code>.
+
+<dt>gcd(x,y), gcd(a)
+<dd>Greatest common divisor of <code>x,y</code> (of the numbers
+in the list <code>a</code>).</dd>
+
+<dt>lcm(x,y), lcm(a)
+<dd>Least common multiple of <code>x,y</code>
+(of the numbers in the list <code>a</code>).
+
+<dt>factor(n)
+<dd>Prime factorization of <code>n</code>.
+
+<dt>divisors(n)
+<dd>List of divisors of <code>n</code>.
+
+<dt>phi(n)
+<dd>Euler's totient function.
+
+<dt>lambda(n)
+<dd>Carmichael function.
+</dl>
+
+
+<h2 id="cf">Module cf</h2>
+
+<p>Combinatorical functions.</p>
+<dl class="code">
+<dt>fac(n)
+<dd>Factorial.</dd>
+
+<dt>rf(n,k)
+<dd>Rising factorial.</dd>
+
+<dt>ff(n,k)
+<dd>Falling factorial.</dd>
+
+<dt>bc(n,k)
+<dd>Binomial coefficient.
+
+<dt>mc([k1,...,kn])
+<dd>Multinomial coefficient.
+
+<dt>pf(n), pf(n,k)
+<dd>Partition function: number of partitions of <code>n</code>.
+If <code>k</code> is given: number of partitions of <code>n</code>
+into <code>k</code> parts.</dd>
+
+<dt>Stirling1(n,k)
+<dd>Stirling numbers of the first kind.
+
+<dt>Stirling2(n,k)
+<dd>Stirling numbers of the second kind.
+
+<dt>Delta(n,f,x,h)
+<dd>Finite difference, iterated <code>n</code> times.
+<pre class="moss">
+Delta = |n,f,x,h| ((|x| f(x+h)-f(x))^n)(x)
+</pre>
+
+</dl>
+
+
+<h2 id="gx">Module gx</h2>
+
+<p>Computer graphics.
+</p>
+
+<dl class="code">
+<dt>gx.new(w,h,size)
+<dd>Return a new canvas that has a width of <code>w</code> pixels and
+a height of <code>h</code> pixels. The edge length of a pixel
+is <code>size</code> screen pixels.</dd>
+
+<dt>gx.HSL(h,s,l)
+<dd>Take a HSL color and return the corresponding RGB color.
+
+<dt>canvas.flush()
+<dd>Flush the canvas buffer to the screen.</dd>
+
+<dt>canvas.pset(x,y)
+<dd>Draw a pixel at position <code>[x,y]</code>.</dd>
+
+<dt>canvas.fill(x,y,w,h)
+<dd>Fill a rectangle of pixels.</dd>
+
+<dt>canvas.cset(r,g,b,a=1), canvas.cset([r,g,b],a=1)
+<dd>Set the color state by using the RGB color space. The values
+<code>r,g,b</code> are floating point numbers from the interval
+<code>[0,1]</code>. If a number is out of bounds, the
+extremal value is used. That <code>a</code> is the alpha value
+for alpha compositing.</dd>
+
+<dt>canvas.HSL(h,s,l)
+<dd>Set the color state by using the HSL color space. The value
+<code>h</code> is from the interval <code>[0,2pi]</code>, the values
+<code>s,l</code> are from the interval <code>[0,1]</code>.
+If <code>h</code> is out of bounds, <code>h</code> modulo 2pi is
+used. If <code>s,l</code> are out of bounds, the extremal value
+is used.
+<pre>
+red......h=000*pi/180
+green....h=120*pi/180
+blue.....h=240*pi/180
+
+cyan.....h=180*pi/180
+magenta..h=300*pi/180
+yellow...h=060*pi/180
+</pre>
+
+<dt>canvas.key()
+<dd>Return the next key from the queue of pressed
+keys. Returns <code>null</code> if the queue is empty.</dd>
+
+<dt>canvas.point(x,y)
+<dd>Draw a point at position <code>[x,y]</code>. The position
+<code>[0,0]</code> is in the middle of the canvas, the coordinate
+system is orthonormal. The value <code>x</code> is a float from
+the interval <code>[-1,1]</code>, otherwise the point won't be drawn.
+Anti-aliasing will be used.</dd>
+
+<dt>canvas.point()
+<dd>Draw a point at position state. The rules are as above.</dd>
+</dl>
+
+
+</body>
+</html>
+

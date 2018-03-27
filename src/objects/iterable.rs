@@ -514,6 +514,36 @@ fn omit(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
   }
 }
 
+fn until(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+  match argv.len() {
+    1 => {}, n => return env.argc_error(n,1,1,"until")
+  }
+  let i = try!(iter(env,pself));
+  let f = argv[0].clone();
+  let g = Box::new(move |env: &mut Env, pself: &Object, argv: &[Object]| -> FnResult {
+    let x = try!(env.call(&i,&Object::Null,&[]));
+    return match x {
+      Object::Empty => Ok(x),
+      x => {
+        let y = try!(env.call(&f,&Object::Null,&[x.clone()]));
+        match y {
+          Object::Bool(y) => {
+            if y {return Ok(Object::Empty);}
+            else {return Ok(x);}
+          },
+          ref y => return env.type_error1(
+            "Type error in i.until(p): p(x) is not a boolean.","p(x)",y)
+        }
+      }
+    };
+  });
+  Ok(Object::Function(Rc::new(Function{
+    f: EnumFunction::Mut(RefCell::new(g)),
+    argc: 0, argc_min: 0, argc_max: 0,
+    id: Object::Null
+  })))
+}
+
 pub fn init(t: &Table){
   let mut m = t.map.borrow_mut();
   m.insert_fn_plain("list",to_list,0,1);
@@ -528,6 +558,7 @@ pub fn init(t: &Table){
   m.insert_fn_plain("map",map,1,1);
   m.insert_fn_plain("filter",filter,1,1);
   m.insert_fn_plain("chunks",chunks,1,1);
-  m.insert_fn_plain("omit", omit,1,1);
+  m.insert_fn_plain("omit",omit,1,1);
+  m.insert_fn_plain("until",until,1,1);
 }
 
