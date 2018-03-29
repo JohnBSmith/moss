@@ -48,10 +48,12 @@ called with no argument, it only prints a line break.
 <dt>put(x1,...,xn)
 <dd>Does the same as print, but does not print a line break.
 
-<dt>input(), input(prompt)
+<dt>input(), input(prompt), input(prompt,history)
 <dd>Read a line of input from the command-line interface and return
 the input as a string. The line break at the end of the input line is
-not contained in the string.
+not contained in the string. If the POSIX terminal interface is
+accessible, use <code>history</code> (a list of strings) as a history
+to choose from.
 
 <dt>str(x)
 <dd>Convert <code>x</code> into a string.
@@ -199,11 +201,27 @@ table of <code>a</code>. Already existent slots
 of <code>a</code> will not be overwritten.
 
 <dt>zip(a1,...,an)
-<dd>Take the lists <code>a1,...,an</code> and return the list of
-lists <code>[a1[i],...,an[i]]</code>. Note that <code>zip</code>
-is an involution:
+<dd>Take the iterables <code>a1,...,an</code> and return an iterator
+that produces lists <code>[y1,...,yn]</code> for <code>yk</code>
+in <code>ak</code> until one of the iterators
+is exhausted.
 <pre class="moss">
-a == zip.apply(zip.apply(a))
+&gt; zip("abcd",[1,2,3,4]).list()
+[["a", 1], ["b", 2], ["c", 3], ["d", 4]]
+
+&gt; zip("abcd",1..).list()
+[["a", 1], ["b", 2], ["c", 3], ["d", 4]]
+
+&gt; zip(1..,1..).map(|[x,y]| x*y).list(10)
+[1, 4, 9, 16, 25, 36, 49, 64, 81, 100]
+
+&gt; (1..).map(|x| x*x).list(10)
+[1, 4, 9, 16, 25, 36, 49, 64, 81, 100]
+</pre>
+
+Note that, for a list of lists, <code>zip</code> is an involution:
+<pre class="moss">
+a == zip.apply(zip.apply(a).list()).list()
 </pre>
 
 <dt>eval(s), eval(s,m)
@@ -242,11 +260,15 @@ and return it. Thus, <code>a.pop(0)</code> removes the first element.
 
 <dt>a.insert(i,x)
 <dd>Insert the object <code>x</code> at index <code>i</code>.
-Beforehand all elements from index <code>i</code> inclusive onwards
+Beforehand, all elements from index <code>i</code> inclusive onwards
 are shiftet one position to the right.
 
-<dt>a.extend(b)
+<dt>a.append(b)
 <dd>Append all elements from <code>b</code> to <code>a</code>.
+
+<dt>a.clear(), a.clear(n)
+<dd>Remove all elements.
+Remove all elements, but keep the first <code>n</code>.
 
 <dt>a.map(f)
 <dd>Create a shallow copy of <code>a</code>, apply the
@@ -292,31 +314,6 @@ of <code>a</code> are lists or ranges, these will be unpacked.
 
 &gt; [[1,2],11..14,3,4].chain()
 [1, 2, 11, 12, 13, 14, 3, 4]
-</pre>
-
-<dt>a.chunks(n)
-<dd>Construct a new list with the same elements, but the elements
-are grouped to chunks of size <code>n</code>.
-<pre class="moss">
-&gt; [1,2,3,4,5,6].chunks(2)
-[[1, 2], [3, 4], [5, 6]]
-</pre>
-
-<dt>a.chunks(R)
-<dd>Construct a new list with the same elements, but the elements
-are grouped by equivalence relation <code>R</code> to equivalence
-classes.
-<pre class="moss">
-&gt; [1,2,3,4,5,6].chunks(|x,y| x%3==y%3)
-[[1, 4], [2, 5], [3, 6]]
-</pre>
-
-<dt>a.dict(f)
-<dd>Construct a dictionary with <code>f(x)[0]</code> as key and
-<code>f(x)[1]</code> as value for each <code>x</code> in <code>a</code>.
-<pre class="moss">
-&gt; [1,2,3,4].dict(|x| [x,x^2])
-{1: 1, 2: 4, 3: 9, 4: 16}
 </pre>
 
 <dt>a.sort(), a.sort(p), a.sort(p,cmp)
@@ -403,9 +400,6 @@ until a character is found, that is not contained in
 <h2 id="map">Type map  (<a href="#iterable">Iterable</a>)</h2>
 
 <dl class="code">
-<dt>m.list()
-<dd>Return the list of keys.</dd>
-
 <dt>m.values()
 <dd>Return an iterator of the values.</dd>
 
@@ -445,18 +439,18 @@ if the key is not found.</dd>
 [2, 4, 8, 16, 32, 64, 128, 256, 512, 1024]
 </pre>
 
-<dt>i.list(), i.list(n)
-<dd>Take the iterator <code>i</code> and return its elements
-as a list. If <code>n</code> is given, a maximum number of
-<code>n</code> elements will be taken.
+<dt>f.apply(a), f.apply(self_argument,a)
+<dd>Take a list as the function's arguments:
 <pre class="moss">
-&gt; iter(1..).list(4)
-[1, 2, 3, 4]
+f(a[0], ..., a[n-1]),
+f(self_argument; a[0], ..., a[n-1])
 </pre>
 
-<dt>i.omit(n)
-<dd>Leave out the next <code>n</code> elements of the iterator
-<code>i</code>.</dd>
+<dt>f.argc()
+<dd>Return the function's argument count. If the function is
+variadic, return <code>a..b</code> instead of a number.
+If the function is variadic without upper bound,
+return <code>(a..)</code>.
 </dl>
 
 
@@ -576,9 +570,6 @@ together with <code>sep</code> inserted between.
 "a#*b#*c"
 </pre>
 
-<dt>a.dict(f)
-<dd>Equivalent to <code>map(a.map(f))</code>.
-
 <dt>a.enum(), a.enum(start)
 <dd>Return an iterator that enumerates the elements of <code>a</code>.
 <pre class="moss">
@@ -588,6 +579,42 @@ together with <code>sep</code> inserted between.
 &gt; "abcd".enum(1).list()
 [[1, "a"], [2, "b"], [3, "c"], [4, "d"]]
 </pre>
+
+<dt>a.list(), a.list(n)
+<dd>Take the iterable <code>a</code> and return its elements
+as a list. If <code>n</code> is given, a maximum number of
+<code>n</code> elements will be taken. This is equivalent to
+<code>a.take(n).list()</code>.
+<pre class="moss">
+&gt; (1..).list(4)
+[1, 2, 3, 4]
+</pre>
+
+<dt>a.take(n)
+<dd>Return a new iterator that takes a maximum number of
+<code>n</code> elements from the iterable <code>a</code>.
+
+<dt>a.omit(n)
+<dd>Leave out the next <code>n</code> elements of the iterable
+<code>a</code>.
+
+<dt>a.chunks(n)
+<dd>Return a new iterator with the same elements, but the elements
+are grouped to chunks of size <code>n</code>.
+<pre class="moss">
+&gt; [1,2,3,4,5,6].chunks(2)
+[[1, 2], [3, 4], [5, 6]]
+</pre>
+
+<dt>a.chunks(R)
+<dd>Return a new iterator with the same elements, but the elements
+are grouped by equivalence relation <code>R</code> to equivalence
+classes.
+<pre class="moss">
+&gt; [1,2,3,4,5,6].chunks(|x,y| x%3==y%3)
+[[1, 4], [2, 5], [3, 6]]
+</pre>
+
 </dl>
 
 

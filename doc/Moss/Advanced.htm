@@ -114,7 +114,7 @@ fib = fix(|f,n| 1 if n==1 or n==2 else f(n-1)+f(n-2))
 <h2 id="uniq">Unique</h2>
 
 <p>Uniq(ue) is an operation that removes duplicates from a list.
-Sets and dictionarys provide a simple way to state this operation.
+Sets and maps provide a simple way to state this operation.
 The first way to achieve unique is to convert the list into a set and
 then back into a list.
 
@@ -123,19 +123,19 @@ then back into a list.
 uniq = |a| list(set(a))
 </pre>
 
-<p>If two non-equal elements have a different string representation
-we can use a dictionary construction instead of a set construction.
+<p>If two non-equal elements have a different string representation,
+we can use a map construction instead of a set construction.
 
 <pre class="moss indent">
 # (2)
-uniq = |a| list(a.dict(|x| [str(x),x]).values())
+uniq = |a| list(map(a.map(|x| [str(x),x])).values())
 </pre>
 
 <p>What should be equal and what not, may be abstracted by
 a projection function&nbsp;<code>p</code>:
 
 <pre class="moss indent">
-uniq = |a,p| list(a.dict(|x| [p(x),x]).values())
+uniq = |a,p| list(map(a.map(|x| [p(x),x])).values())
 </pre>
 
 <p>The last one is very general, with <code>uniq(a,|x| x)</code>
@@ -144,7 +144,7 @@ equivalent to (1) and <code>uniq(a,str)</code> equivalent to (2).
 <p>Floating point numbers need a version of unique that takes
 a desired precision:
 <pre class="moss indent">
-uniq = |a,prec| list(a.dict(|x| [int(x/prec),x]).values())
+uniq = |a,prec| list(map(a.map(|x| [int(x/prec),x])).values())
 </pre>
 
 <h2 id="Multiple-dispatch">Multiple dispatch</h2>

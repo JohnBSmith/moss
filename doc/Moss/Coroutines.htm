@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Coroutines</title>
+  <link rel="stylesheet" href="../css/main.css">
+  <script src = "../js/moss-syntax.js">
+  </script>
+</head>
+<body>
+
+<table class="navigation">
+<tr><td><b>&uarr;</b> <a href="toc.htm">Up</a>
+</table>
+<h1>Coroutines</h1>
+
+<div class="toc">
+<h2 id="toc">Table of contents</h2>
+<ol>
+<li><a href="#basic-concept">The basic concept</a>
+<li><a href="#generators">Generators</a>
+</ol>
+</div>
+
+<h2 id="basic-concept">The basic concept</h2>
+
+<p>A <i>coroutine</i> is function that can be stopped at some state
+and resumed later. At its stop it <i>yields</i> a value.
+
+<p>An easy example:
+<pre class="moss indent">
+g = || sub*||
+  yield 1
+  yield 2
+  yield 1
+  yield 4
+end
+</pre>
+
+<p>This is used as follows:
+<pre class="moss cmd-box">
+&gt; i = g()
+&gt; i(), i(), i(), i(), i()
+[1, 2, 1, 4, empty]
+
+&gt; g().list()
+[1, 2, 1, 4]
+</pre>
+
+
+<h2 id="generators">Generators</h2>
+
+<p>The following is a simple prime number test:
+<pre class="moss indent">
+isprime = |n| (1..n).count(|k| n%k==0)==2
+</pre>
+
+<p>We can make it a little bit faster:
+<pre class="moss indent">
+isprime = |n| n>1 and (2..).until(|k| k*k>n).all(|k| n%k!=0)
+</pre>
+
+<p>Now we want to state a function that filters elements from
+an iterable object by a given predicate <code>p</code>.
+
+<pre class="moss indent">
+Iterable.filter = sub|a;p|
+  y = []
+  for x in a
+    if p(x)
+      y.push(x)
+    end
+  end
+  return y
+end
+</pre>
+
+<p>Let us test it out:
+<pre class="moss cmd-box">
+&gt; (1..20).filter(isprime)
+[2, 3, 5, 7, 11, 13, 17, 19]
+</pre>
+
+<p>But what if we want to calculate the first 10 prime numbers?
+One could provide a test range with upper bound, large enough,
+and take 10 of them afterwards:
+<pre class="moss cmd-box">
+&gt; (1..100).filter(isprime).list(10)
+[2, 3, 5, 7, 11, 13, 17, 19, 23, 29]
+</pre>
+
+<p>But the more primes we want, the larger this upper bound
+has to be. The problem is, that we must know how large it is
+in before. For prime numbers there are mathematical
+results. To be more precise, we would need to invert
+the prime number counting function &pi;(<var>n</var>).
+This means we want to solve the equation &pi;(<var>n</var>)=10.
+A known mathematical result in case of <var>n</var>&ge;17 is
+
+<p class="indent">
+<var>n</var>/ln(<var>n</var>) &lt; &pi;(<var>n</var>).
+
+<p>By transitivity of inequalities we have
+<p class="indent">
+<var>a</var> &lt; &pi;(<var>n</var>) and 10 &le; a implies 10 &lt; &pi;(<var>n</var>)
+<p>for all <var>a</var>. We place in
+<var>a</var>:=<var>n</var>/ln(<var>n</var>)
+and obtain
+<p class="indent">
+10 &le; <var>n</var>/ln(<var>n</var>) implies 10 &lt; &pi;(<var>n</var>).
+
+
+<p>The first such <var>n</var> is 36 with &pi;(36)=11.
+
+<p>This was somewhat complicated, and there are mathematical
+problems that are much more complicated. In general, we
+simply don't know how large such a range has to be.
+
+<p>The solution is, not to know the range in before.
+In order to do that, we use a coroutine.
+
+<pre class="moss indent">
+Iterable.filter = |a;p| sub*||
+  for x in a
+    if p(x)
+      yield x
+    end
+  end
+end
+</pre>
+
+<p>Let us test it out:
+<pre class="moss cmd-box">
+&gt; (1..).filter(isprime).list(10)
+[2, 3, 5, 7, 11, 13, 17, 19, 23, 29]
+</pre>
+
+<p>The prime numbers will be printed instantly:
+<pre class="moss indent">
+for p in (1..).filter(isprime)
+  print(p)
+end
+</pre>
+<p>Or for convenience:
+<pre class="moss indent">
+(1..).filter(isprime).each(print)
+</pre>
+
+
+</body>
+
+
+
+</html>
+

@@ -4375,6 +4375,14 @@ impl<'a> Env<'a>{
         Err(error) => {println!("Error: {}", error);},
       };
       if input=="quit" {break}
+      else if input.starts_with("/") {
+        if input=="/q" {
+          break;
+        }else if input=="/c" {
+          print!("\x1b[H\x1b[J");
+          continue;
+        }
+      }
       match compiler::scan(&input,1,"command line",false) {
         Ok(v) => {
           // compiler::print_vtoken(&v);

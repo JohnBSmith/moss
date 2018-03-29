@@ -3,6 +3,7 @@
 
 use std::rc::Rc;
 use std::cell::RefCell;
+
 use object::{Object, FnResult, U32String, Function, Table, List,
   VARIADIC, MutableFn, Exception
 };
@@ -15,6 +16,9 @@ fn push(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
     Object::List(ref a) => {
       match a.try_borrow_mut() {
         Ok(mut a) => {
+          if a.frozen {
+            return env.value_error("Value error in a.pop(): a is frozen.");
+          }
           for i in 0..argv.len() {
             a.v.push(argv[i].clone());
           }
@@ -26,7 +30,7 @@ fn push(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
         )}
       }
     },
-    _ => env.type_error("Type error in a.push(x): a is not a list.")
+    ref a => env.type_error1("Type error in a.push(x): a is not a list.","a",a)
   }
 }
 
@@ -48,6 +52,89 @@ fn append(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
       Ok(Object::Null)
     },
     _ => env.type_error("Type error in a.append(b): a is not a list.")
+  }
+}
+
+fn pop_at_index(env: &mut Env, v: &mut Vec<Object>, index: &Object) -> FnResult {
+  let len = v.len();
+  let i = match *index {
+    Object::Int(i) => if i<0 {
+      let i = i as isize+len as isize;
+      if i<0 {
+        return env.index_error("Index error in a.pop(i): i is out of lower bound.");
+      } else {i as usize}
+    } else {i as usize},
+    ref i => return env.type_error1("Type error in a.pop(i): is not an integer.","i",i)
+  };
+  if i<v.len() {
+    return Ok(v.remove(i));
+  }else{
+    return env.index_error("Index error in a.pop(i): i is is out of upper bound.");
+  }
+}
+
+fn pop(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
+  match *pself {
+    Object::List(ref a) => {
+      match a.try_borrow_mut() {
+        Ok(mut a) => {
+          if a.frozen {
+            return env.value_error("Value error in a.pop(): a is frozen.");
+          }
+          if argv.len()>0 {
+            return pop_at_index(env,&mut a.v,&argv[0]);
+          }else{
+            match a.v.pop() {
+              Some(x) => Ok(x),
+              None => {
+                env.value_error("Value error in a.pop(): a is empty.")
+              }
+            }
+          }
+        },
+        Err(_) => {env.std_exception(
+          "Memory error in a.pop(): internal buffer of a is aliased.\n\
+           Try to replace a by copy(a) at some place."
+        )}
+      }
+    },
+    ref a => env.type_error1("Type error in a.pop(): a is not a list.","a",a)
+  }
+}
+
+fn insert(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
+  match argv.len() {
+    2 => {}, n => return env.argc_error(n,0,0,"insert")
+  }
+  match *pself {
+    Object::List(ref a) => {
+      match a.try_borrow_mut() {
+        Ok(mut a) => {
+          let index = match argv[0] {
+            Object::Int(i) => if i<0 {
+              let i = i as isize+a.v.len() as isize;
+              if i<0 {
+                return env.index_error("Index error in a.insert(i,x): i is out of lower bound.");
+              } else {i as usize}
+            } else {i as usize},
+            ref i => return env.type_error1("Type error in a.insert(i,x): i is not an integer.","i",i)
+          };
+          if a.frozen {
+            return env.value_error("Value error in a.pop(): a is frozen.");
+          }
+          if index < a.v.len() {
+            a.v.insert(index,argv[1].clone());
+          }else{
+            return env.index_error("Index error in a.insert(i,x): i is out of upper bound.");
+          }
+          return Ok(Object::Null);
+        },
+        Err(_) => {
+          return env.std_exception("Memory error in a.insert(i,x): internal buffer of a is aliased.")
+        }
+      }
+    },
+    ref a => return env.type_error1("Type error in a.insert(i,x): a is not a list.","a",a)
   }
 }
 
@@ -368,10 +455,43 @@ pub fn map_fn(env: &mut Env, f: &Object, argv: &[Object]) -> FnResult {
   return Ok(List::new_object(vy));
 }
 
+fn clear(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
+  match *pself {
+    Object::List(ref a) => {
+      match a.try_borrow_mut() {
+        Ok(mut a) => {
+          if a.frozen {
+            return env.value_error("Value error in a.clear(): a is frozen.");
+          }
+          match argv.len() {
+            0 => {a.v.clear();},
+            1 => {
+              let n = match argv[0] {
+                Object::Int(n) => if n<0 {0} else {n as usize},
+                _ => return env.type_error("Type error in a.clear(n): n is not an integer.")
+              };
+              a.v.truncate(n);
+            },
+            n => return env.argc_error(n,0,1,"clear")
+          }
+          Ok(Object::Null)        
+        },
+        Err(_) => {env.std_exception(
+          "Memory error in a.clear(x): internal buffer of a was aliased."
+        )}
+      }
+    },
+    ref a => env.type_error1("Type error in a.clear(): a is not a list.","a",a)
+  }
+}
+
+
 pub fn init(t: &Table){
   let mut m = t.map.borrow_mut();
   m.insert_fn_plain("push",push,0,VARIADIC);
   m.insert_fn_plain("append",append,0,VARIADIC);
+  m.insert_fn_plain("pop",pop,0,0);
+  m.insert_fn_plain("insert",insert,2,2);
   m.insert_fn_plain("size",size,0,0);
   m.insert_fn_plain("map",map,1,1);
   m.insert_fn_plain("filter",filter,1,1);
@@ -382,5 +502,6 @@ pub fn init(t: &Table){
   m.insert_fn_plain("chain",list_chain,0,0);
   m.insert_fn_plain("rev",list_rev,0,0);
   m.insert_fn_plain("swap",list_swap,2,2);
+  m.insert_fn_plain("clear",clear,0,1);
   m.insert("shuffle",Function::mutable(new_shuffle(),0,0));
 }

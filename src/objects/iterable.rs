@@ -506,7 +506,11 @@ fn omit(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
   match argv[0] {
     Object::Int(n) => {
       for _ in 0..n {
-        try!(env.call(&i,&Object::Null,&[]));
+        let x = try!(env.call(&i,&Object::Null,&[]));
+        match x {
+          Object::Empty => return Ok(i),
+          _ => {}
+        }
       }
       Ok(i)
     },
@@ -544,6 +548,62 @@ fn until(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
   })))
 }
 
+fn enumerate(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+  let mut k: i32 = match argv.len() {
+    0 => 0,
+    1 => {
+      match argv[0] {
+        Object::Int(k) => k,
+        _ => 0
+      }
+    },
+    n => return env.argc_error(n,0,1,"enum")
+  };
+  let i = try!(iter(env,pself));
+  let g = Box::new(move |env: &mut Env, pself: &Object, argv: &[Object]| -> FnResult {
+    let x = try!(env.call(&i,&Object::Null,&[]));
+    return match x {
+      Object::Empty => Ok(x),
+      x => {
+        k+=1;
+        Ok(List::new_object(vec![Object::Int(k-1),x]))
+      }
+    };
+  });
+  Ok(Object::Function(Rc::new(Function{
+    f: EnumFunction::Mut(RefCell::new(g)),
+    argc: 0, argc_min: 0, argc_max: 0,
+    id: Object::Null
+  })))
+}
+
+fn take(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+  let n: i32 = match argv.len() {
+    1 => {
+      match argv[0] {
+        Object::Int(n) => n,
+        ref n => return env.type_error1(
+          "Type error in i.take(n): n is not an integer.","n",n)
+      }
+    },
+    len => return env.argc_error(len,0,1,"enum")
+  };
+  let mut k: i32 = 0;
+  let i = try!(iter(env,pself));
+  let g = Box::new(move |env: &mut Env, pself: &Object, argv: &[Object]| -> FnResult {
+    let x = try!(env.call(&i,&Object::Null,&[]));
+    return Ok(match x {
+      Object::Empty => x,
+      x => if k<n {k+=1; x} else {Object::Empty}
+    });
+  });
+  Ok(Object::Function(Rc::new(Function{
+    f: EnumFunction::Mut(RefCell::new(g)),
+    argc: 0, argc_min: 0, argc_max: 0,
+    id: Object::Null
+  })))
+}
+
 pub fn init(t: &Table){
   let mut m = t.map.borrow_mut();
   m.insert_fn_plain("list",to_list,0,1);
@@ -560,5 +620,7 @@ pub fn init(t: &Table){
   m.insert_fn_plain("chunks",chunks,1,1);
   m.insert_fn_plain("omit",omit,1,1);
   m.insert_fn_plain("until",until,1,1);
+  m.insert_fn_plain("enum",enumerate,0,1);
+  m.insert_fn_plain("take",take,1,1);
 }
 

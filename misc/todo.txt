@@ -2,6 +2,9 @@
 = TODO LIST =
 == Interpreter kernel ==
 * tracebacks
+* in a coroutine let all exit paths
+  perform a loop as "yield; return empty"
+  (resume after a last yield and return empty immediately)
 * delete temporary variables after use
 * coroutines
 * continuations, call/cc

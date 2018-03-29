@@ -1,5 +1,4 @@
 
-
 sub gcd(a,b)
   while b!=0
     h = b; b = a%b; a = h
@@ -7,8 +6,12 @@ sub gcd(a,b)
   return a
 end
 
-sub lcm(a)
-  a.reduce(|x,y| x*y//gcd(x,y))
+sub lcm(a,b=null)
+  if b is null
+    return a.reduce(|x,y| x*y//gcd(x,y))
+  else
+    return a*b//gcd(a,b)
+  end
 end
 
 begin
@@ -152,6 +155,19 @@ sub factor(n)
     end
     k+=1
   end
+end
+
+sub phi(n)
+  0 if n<1 else factor(n).prod(|[p,e]| p^(e-1)*(p-1))
+end
+
+sub base(n,b)
+  a = []
+  while n!=0
+    a.push(n%b)
+    n = n//b
+  end
+  return a
 end
 
 

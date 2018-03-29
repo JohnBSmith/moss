@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Rust-Moss features</title>
+  <link rel="stylesheet" href="css/main.css">
+  <style>
+.yes {
+  background-color: #006000;
+  color: #ffffff;
+}
+.no {
+  background-color: #800000;
+  color: #ffffff;
+}
+.partial {
+  background-color: #a08020;
+  color: #ffffff;
+}
+  </style>
+</head>
+<body>
+
+<table class="navigation">
+<tr><td><b>&uarr;</b> <a href="../home.htm">Home</a>
+</table>
+<h1>Rust-Moss features</h1>
+
+<table class="bt">
+<tr>
+<th>Evaluation features
+<th>implemented?
+<th>Effort
+
+<tr>
+<td>free from memory leak bugs
+<td class="yes">yes
+<td>medium
+
+<tr>
+<td>unlimited number of local variables
+<td class="yes">yes
+<td>easy
+
+<tr>
+<td>calling a callback with a new call stack of unlimited size
+<td class="yes">yes
+<td>easy
+
+<tr>
+<td>dynamic loading
+<td class="yes">yes
+<td>easy
+
+<tr>
+<td>eval (evaluate a string as Moss code)
+<td class="yes">yes
+<td>easy
+
+<tr>
+<td>symbolic expressions
+<td class="no">no
+<td>easy
+
+<tr>
+<td>running multiple interpreter instances in parallel
+<td class="yes">yes, free of global variables
+<td>easy
+
+<tr>
+<td>custom destructors taking calling environment
+<td class="no">no
+<td>medium
+
+<tr>
+<td>custom hashables taking calling environment
+<td class="no">no
+<td>medium
+
+<tr>
+<td>coroutines
+<td class="partial">partial support
+<td>medium
+
+<tr>
+<td>closure capture by mutable reference instead of cloning
+<td class="no">no
+<td>medium
+
+<tr>
+<th>Usability features
+<th>implemented?
+<th>Effort
+
+<tr>
+<td>default arguments
+<td class="yes">yes
+<td>easy
+
+<tr>
+<td>named arguments
+<td class="yes">yes
+<td>easy
+
+<tr>
+<td>named default arguments
+<td class="yes">yes
+<td>easy
+
+<tr>
+<td>maps as named arguments
+<td class="yes">yes
+<td>easy
+
+<tr>
+<td>map unpacking, default values
+<td class="yes">yes
+<td>easy
+
+<tr>
+<td>list unpacking
+<td class="yes">yes
+<td>easy
+
+<tr>
+<td>list unpacking for arguments
+<td class="yes">yes
+<td>easy
+
+<tr>
+<th>Safety features
+<th>implemented?
+<th>Effort
+
+<tr>
+<td>memory safety
+<td class="yes">yes, shown by machine proof
+<td>hard
+
+<tr>
+<td>internal integer arithmetic overflow checks
+<td class="yes">automatic, optional
+<td>easy
+
+<tr>
+<td>internal integer cast overflow checks
+<td class="partial">partial cover
+<td>medium
+
+<tr>
+<td>a strict immutability model
+<td class="no">no
+<td>medium
+
+<tr>
+<td>a strict privacy model
+<td class="no">no
+<td>medium
+
+<tr>
+<td>sandbox based security model
+<td class="partial">partial support
+<td>easy
+
+<tr>
+<td>capability based security model
+<td class="no">no
+<td>hard
+
+<tr>
+<th>Non-goals
+<th>implemented?
+<th>Effort
+
+<tr>
+<td>static typing, hybrid typing
+<td class="no">no
+<td>hard
+
+<tr>
+<td>automatic call stack reallocation
+<td class="no">no
+<td>drawbacks
+
+<tr>
+<td>just-in-time compilation
+<td class="no">no
+<td>hard
+
+<tr>
+<td>native fine grained parallel programming
+<td class="no">no, global mutex locks
+<td>n/a
+
+<tr>
+<td>tracing garbage collection
+<td class="no">no
+<td>n/a
+
+</table>
+
+
+</body>
+</html>
+

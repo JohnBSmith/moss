@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Foundation</title>
+  <link href="../css/main.css" rel="stylesheet">
+  <script src="../js/moss-syntax.js"></script>
+</head>
+<body>
+
+<table class="navigation">
+<tr><td><b>&uarr;</b> <a href="toc.htm">Up</a>
+</table>
+<h1>Mathematics</h1>
+
+<div class="toc">
+<h2 id="toc">Table of contents</h2>
+<ol>
+<li><a href="#math">Module <code>math</code> &mdash; elementary functions</a>
+<li><a href="#cmath">Module <code>cmath</code> &mdash; complex numbers</a>
+<li><a href="#math-nt">Module <code>math.nt</code> &mdash; number theory</a>
+</ol>
+</div>
+
+<h2 id="math">Module math</h2>
+<p>Elementary mathematical functions.
+
+<dl class="code">
+<dt>e
+<dd>Euler's number <code>2.71828...</code></dd>
+
+<dt>pi
+<dd><code>3.14159...</code></dd>
+
+<dt>nan
+<dd>Not a number.</dd>
+
+<dt>inf
+<dd>Infinity.</dd>
+
+<dt>floor(x)
+<dd>Round down. Returns floating point numbers.</dd>
+
+<dt>ceil(x)
+<dd>Round up. Returns floating point numbers.</dd>
+
+<dt>sqrt(x)
+<dd>Square root of <code>x</code>.</dd>
+
+<dt>exp(x)
+<dd>Exponential function.</dd>
+
+<dt>log2(x)
+<dd>Logarithm to base 2.</dd>
+
+<dt>ln(x)
+<dd>Logarithm to base e.</dd>
+
+<dt>lg(x)
+<dd>Logarithm to base 10.</dd>
+
+<dt>lg(x,b)
+<dd>Logarithm to base <code>b</code>.</dd>
+
+<dt>sin(x), cos(x), tan(x)
+<dd>Sine, cosine and tangent.</dd>
+
+<dt>asin(x), acos(x), atan(x)
+<dd>Arc sine, arc cosine and arc tangent.</dd>
+
+<dt>sinh(x), cosh(x), tanh(x)
+<dd>Hyperbolic sine, hyperbolic cosine and hyperbolic tangent.
+
+<dt>asinh(x), acosh(x), atanh(x)
+<dd>Inverse functions of the hyperbolic functions.
+
+<dt>fac(x)
+<dd>Factorial function. Returns floating point numbers.</dd>
+
+<dt>gamma(x)
+<dd>Gamma function.</dd>
+
+<dt>lgamma(x)
+<dd>Return <code>ln(abs(gamma(x)))</code>.
+
+<dt>sgngamma(x)
+<dd>Return <code>sgn(gamma(x))</code>.
+
+<dt>erf(x)
+<dd>Error function.
+
+<dt>hypot(x1,...,xn)
+<dd>Return <code>sqrt(x1^2+...+xn^2)</code>.</dd>
+
+<dt>atan2(y,x)
+<dd>Return the phase angle of the coordinate vector
+<code>[x,y]</code>.
+
+<dt>expm1(x)
+<dd>Return <code>exp(x)-1</code>.</dd>
+
+<dt>ln1p(x)
+<dd>Return <code>ln(1+x)</code>.</dd>
+
+<dt>isfinite(x)
+<dd>Return true if <code>x</code> is not infinite and not a NaN.
+
+<dt>isnan(x)
+<dd>Return true if <code>x</code> is a NaN.
+
+<dt>isinf(x)
+<dd>Return true if <code>x</code> is infinite.
+
+<dt>frexp(x)
+<dd>Take <code>x==m*2^n</code> and return <code>[m,n]</code>.
+The type of <code>m</code> is float, the type of <code>n</code> is int.
+
+<dt>ldexp(m,n)
+<dd>Return <code>m*2^n</code>.</dd>
+</dl>
+
+
+<h2 id="cmath">Module cmath</h2>
+<p>Elementary mathematical functions that can take or return complex
+numbers.
+
+<dl class="code">
+<dt>re(z)
+<dd>Real part of <code>z</code>.
+
+<dt>im(z)
+<dd>Imaginary part of <code>z</code>.
+
+<dt>conj(z)
+<dd>Complex conjugate.</dd>
+
+<dt>sqrt(z)
+<dd>Square root.</dd>
+
+<dt>exp(z)
+<dd>Exponential function.</dd>
+
+<dt>ln(z)
+<dd>Natural logarithm.</dd>
+
+<dt>sin(z), cos(z), tan(z)
+<dd>Sine, cosine and tangent.
+
+<dt>sinh(z), cosh(z), tanh(z)
+<dd>Hyperbolic sine, hyperbolic cosine and hyperbolic tangent.
+
+<dt>asinh(z), acosh(z), atanh(z)
+<dd>Inverse functions of the hyperbolic functions.
+
+<dt>gamma(z)
+<dd>Gamma function.</dd>
+</dl>
+
+
+<h2 id="math-nt">Module math.nt</h2>
+
+<p>Number theory.
+
+<dl class="code">
+<dt>base(n,b)
+<dd>Transform the number <code>n</code> into positional notation
+by base <code>b</code>. The result is in little endian
+(least significant digit first).
+
+<dt>base(n,b).rev()
+<dd>Big endian (least significant digit last) of the
+positional notation above.
+
+<dt>isprime(n)
+<dd>Deterministic primality test.</dd>
+
+<dt>isprime(n,e)
+<dd>Probalistic primality test with false positive probability of less than
+<code>1/(4^e)</code>.
+
+<dt>gcd(a,b)
+<dd>Greatest common divisor of <code>a</code> and <code>b</code>.</dd>
+
+<dt>lcm(a,b)
+<dd>Least common multiple of <code>a</code> and <code>b</code>.
+
+<dt>lcm(a)
+<dd>Least common multiple of the numbers in the iterable <code>a</code>.
+
+<dt>factor(n)
+<dd>Prime factorization of <code>n</code>.
+
+<dt>divisors(n)
+<dd>The list of divisors of <code>n</code>.
+
+<dt>phi(n)
+<dd>Euler's totient function.
+
+<dt>lambda(n)
+<dd>Carmichael function.
+</dl>
+
+</body>
+</html>
+

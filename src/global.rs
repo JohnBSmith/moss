@@ -11,6 +11,7 @@ use object::{Object, Map, Table, List, Range,
 use rand::Rand;
 use iterable::iter;
 use std::collections::HashMap;
+use std::char;
 use std::str::FromStr;
 use std::f64::NAN;
 use system::{History};
@@ -694,7 +695,7 @@ fn read(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
   }
 }
 
-fn zip(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+fn _zip(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
   let argc = argv.len();
   if argc==0 {
     return Ok(List::new_object(Vec::new()));
@@ -728,6 +729,31 @@ fn zip(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
   return Ok(List::new_object(vy));
 }
 
+fn zip(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+  let argc = argv.len();
+  let mut v: Vec<Object> = Vec::with_capacity(argc);
+  for k in 0..argc {
+    let i = try!(iter(env,&argv[k]));
+    v.push(i);
+  }
+  let g = Box::new(move |env: &mut Env, pself: &Object, argv: &[Object]| -> FnResult {
+    let mut t: Vec<Object> = Vec::with_capacity(argc);
+    for i in &v {
+      let y = try!(env.call(i,&Object::Null,&[]));
+      match y {
+        Object::Empty => return Ok(Object::Empty),
+        y => {t.push(y);}
+      }
+    }
+    return Ok(List::new_object(t));
+  });
+  return Ok(Object::Function(Rc::new(Function{
+    f: EnumFunction::Mut(RefCell::new(g)),
+    argc: 0, argc_min: 0, argc_max: 0,
+    id: Object::Null
+  })));
+}
+
 fn pow(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
   match argv.len() {
     3 => {}, n => return env.argc_error(n,3,3,"pow")
@@ -757,6 +783,60 @@ fn max(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
   }else{
     return env.type_error("Type error in max(x,y): value of x<y is not a boolean.")
   }
+}
+
+fn ord(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+  match argv.len() {
+    1 => {}, n => return env.argc_error(n,1,1,"ord")
+  }
+  match argv[0] {
+    Object::String(ref s) => {
+      if s.v.len()==1 {
+        return Ok(Object::Int(s.v[0] as u32 as i32));
+      }else{
+        env.value_error("Value error in ord(c): size(c)!=1.")
+      }
+    },
+    ref c => env.type_error1("Type error in ord(c): c is not a string.","c",c)
+  }
+}
+
+fn chr(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+  match argv.len() {
+    1 => {}, n => return env.argc_error(n,1,1,"chr")
+  }
+  match argv[0] {
+    Object::Int(n) => {
+      let c = match char::from_u32(n as u32) {
+        Some(c) => c, None => '?'
+      };
+      Ok(U32String::new_object_char(c))
+    },
+    ref n => env.type_error1("Type error in chr(n): n is not an integer.","n",n)
+  }
+}
+
+fn map(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+  match argv.len() {
+    1 => {}, n => return env.argc_error(n,1,1,"map")
+  }
+  let i = try!(iter(env,&argv[0]));
+  let mut m: HashMap<Object,Object> = HashMap::new();
+  loop{
+    let y = try!(env.call(&i,&Object::Null,&[]));
+    match y {
+      Object::Empty => break,
+      Object::List(a) => {
+        let a = a.borrow_mut();
+        if a.v.len() != 2 {
+          return env.type_error("Type error in map(a): iter(a) is expected to return pairs.");
+        }
+        m.insert(a.v[0].clone(),a.v[1].clone());
+      },
+      _ => return env.type_error("Type error in map(a): iter(a) is expected to return lists.")
+    }
+  }
+  return Ok(Map::new_object(m));
 }
 
 fn type_to_string(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
@@ -799,6 +879,9 @@ pub fn init_rte(rte: &RTE){
   gtab.insert_fn_plain("pow",pow,3,3);
   gtab.insert_fn_plain("min",min,2,2);
   gtab.insert_fn_plain("max",max,2,2);
+  gtab.insert_fn_plain("ord",ord,1,1);
+  gtab.insert_fn_plain("chr",chr,1,1);
+  gtab.insert_fn_plain("map",map,1,1);
   gtab.insert("empty", Object::Empty);
 
   let type_bool = rte.type_bool.clone();

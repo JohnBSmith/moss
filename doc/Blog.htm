@@ -737,6 +737,120 @@ print("type: ", type(d))
 # type: Duck
 </pre>
 
+<h3 data-date="20180327" id="proper-lexical-scoping"
+>Proper lexical scoping</h3>
+
+<p>Not posssible in Moss so far is proper lexical scoping.
+<i>Proper lexical scoping</i> is a closure capture of an external local
+variable from lexical scope by mutable reference. The local variable's
+lifetime is increased from <code>'scope</code> to
+max(<code>'scope</code>,&nbsp;<code>'closure</code>).
+
+<p>In Moss, lexical scoped closures are possible, but by capture
+per cloning. Not possible so far is such a construct:
+<pre class="moss indent">
+sub main
+  s = 0
+  (1..4).each(sub|k|
+    s = s+k
+  end)
+  print(s)
+end
+</pre>
+
+<p>The outer and inner <code>s</code> are two different variables
+because of a cloning at closure creation. Thus, the outer
+<code>s</code> will not be modified. How to solve this problem?
+
+<p>At first let me explain how I implemented closures.
+I will use
+<pre class="moss indent">
+f = |x,y| |z| x+y+z
+</pre>
+
+<p>as an example to examine what is happening.
+This is transformed into the following pseudo-Moss:
+<pre class="moss indent">
+f = sub|x,y|
+  _t = [x,y]
+  return sub(_t)|z| t[0]+t[1]+z end
+end
+</pre>
+
+<p>After transformation one can see why nothing happens:
+<pre class="moss indent">
+sub main
+  s = 0
+  _t = [s]
+  (1..4).each(sub(_t)|k|
+    _t[0] = _t[0]+k
+  end)
+  print(s)
+end
+</pre>
+
+<p>Now, the idea is to regard the situation as a move of
+<code>s</code> into <code>_t</code>. Thus also in outer scope,
+we need to replace every occurence of a captured variable
+by <code>_t[i]</code>. In this case, <code>print(s)</code>
+is replaced by <code>print(_t[0])</code>.
+
+<p>Closure chains are not problematic:
+<pre class="moss indent">
+sub main
+  s = 0
+  _t = [s]
+  (1..4).each(sub(_t)|k|
+    _t[0] = _t[0]+k
+  end)
+  _t = [_t[0]]
+  (1..4).each(sub(_t)|k|
+    _t[0] = _t[0]+k
+  end)
+  print(_t[0])
+end
+</pre>
+
+<p>Closure nesting is more problematic:
+<pre class="moss indent">
+sub main
+  s = 0
+  _t1 = [s]
+  (1..4).each(sub(_t1)|i|
+    _t2 = [_t1[0]]
+    (1..4).each(sub(_t2)|j|
+      _t2[0] = _t2[0]+i*j
+    end)
+    # lifetime of _t2 ends here
+  end)
+  print(_t2[0])
+end
+</pre>
+
+<p>This is not possible, because the lifetime of <code>_t2</code>
+is not long enough. There is more than one possible solution
+to this problem. We have to take in mind that all of this
+is about lexical scoping. Because of this situation, we could
+simply move <code>_t2</code> into the outmost local scope:
+
+<pre class="moss indent">
+sub main
+  s = 0
+  _t1 = [s]
+  _t2 = []
+  (1..4).each(sub(_t1)|i|
+    _t2.push(_t1[0])
+    (1..4).each(sub(_t2)|j|
+      _t2[0] = _t2[0]+i*j
+    end)
+  end)
+  print(_t2[0])
+end
+</pre>
+
+<p>Again, difficulties arise when nesting and chaining are combined.
+
+
 </body>
 </html>
 

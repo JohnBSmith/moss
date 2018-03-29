@@ -939,9 +939,12 @@ fn apply(line: usize, col: usize, a: Box<[Rc<AST>]>) -> Rc<AST> {
     value: Symbol::Application, info: Info::None, s: None, a: Some(a)})
 }
 
-fn empty_list(line: usize, col: usize) -> Rc<AST> {
+fn empty_list(line: usize, col: usize,
+  symbol_type: SymbolType, symbol: Symbol
+) -> Rc<AST>
+{
   Rc::new(AST{line: line, col: col,
-    symbol_type: SymbolType::Operator, value: Symbol::List,
+    symbol_type: symbol_type, value: symbol,
     info: Info::None, s: None, a: Some(Box::new([]))
   })
 }
@@ -1371,7 +1374,9 @@ fn block(&mut self, i: &mut TokenIterator, t0: &Token) -> Result<Rc<AST>,Error> 
   i.index+=1;
   let y = Rc::new(AST{line: t0.line, col: t0.col,
     symbol_type: SymbolType::Keyword, value: Symbol::Sub,
-    info: Info::None, s: None, a: Some(Box::new([empty_list(t0.line,t0.col),x]))
+    info: Info::None, s: None, a: Some(Box::new([
+      empty_list(t0.line,t0.col,SymbolType::Operator,Symbol::List),
+    x]))
   });
   return Ok(apply(t0.line,t0.col,Box::new([y])));
 }
@@ -1638,18 +1643,20 @@ fn range(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
   let x = try!(self.union(i));
   let p = try!(i.next_token_optional(self));
   let t = &p[i.index];
-  if t.value==Symbol::Range {
+  if t.value == Symbol::Range {
     i.index+=1;
     let pb = try!(i.next_token_optional(self));
     let tb = &pb[i.index];
-    let y = if tb.value==Symbol::PRight || tb.value==Symbol::BRight || tb.value==Symbol::Colon {
+    let y = if tb.value == Symbol::PRight || tb.value == Symbol::BRight
+      || tb.value == Symbol::Colon || tb.value == Symbol::Comma
+    {
       atomic_literal(t.line,t.col,Symbol::Null)
     }else{
       try!(self.union(i))
     };
     let p2 = try!(i.next_token_optional(self));
     let t2 = &p2[i.index];
-    if t2.value==Symbol::Colon {
+    if t2.value == Symbol::Colon {
       i.index+=1;
       let d = try!(self.union(i));
       return Ok(operator(t.line,t.col,Symbol::Range,Box::new([x,y,d])));
@@ -2006,24 +2013,20 @@ fn try_catch_statement(
     value: Symbol::Try, info: Info::None, s: None, a: Some(v.into_boxed_slice())}));  
 }
 
-fn return_statement(&mut self, i: &mut TokenIterator, t0: &Token) -> Result<Rc<AST>,Error>{
+fn return_statement(&mut self, i: &mut TokenIterator, t0: &Token, symbol: Symbol
+)
+  -> Result<Rc<AST>,Error>
+{
   let p = try!(i.next_any_token(self));
   let t = &p[i.index];
   if t.value == Symbol::Newline {
-    i.index+=1;
     return Ok(Rc::new(AST{line: t0.line, col: t0.col, symbol_type: SymbolType::Keyword,
-      value: Symbol::Return, info: Info::None, s: None, a: Some(Box::new([]))}));
+      value: symbol, info: Info::None, s: None, a: Some(Box::new([]))}));
   }else{
     let x = try!(self.comma_expression(i,Symbol::List));
     return Ok(Rc::new(AST{line: t0.line, col: t0.col, symbol_type: SymbolType::Keyword,
-      value: Symbol::Return, info: Info::None, s: None, a: Some(Box::new([x]))}));
+      value: symbol, info: Info::None, s: None, a: Some(Box::new([x]))}));
   }
-}
-
-fn yield_statement(&mut self, i: &mut TokenIterator, t0: &Token) -> Result<Rc<AST>,Error>{
-  let x = try!(self.comma_expression(i,Symbol::List));
-  return Ok(Rc::new(AST{line: t0.line, col: t0.col, symbol_type: SymbolType::Keyword,
-    value: Symbol::Yield, info: Info::None, s: None, a: Some(Box::new([x]))}));
 }
 
 fn raise_statement(&mut self, i: &mut TokenIterator, t0: &Token) -> Result<Rc<AST>,Error>{
@@ -2342,7 +2345,7 @@ fn statements(&mut self, i: &mut TokenIterator, last_value: Value)
       break;
     }else if value == Symbol::Return {
       i.index+=1;
-      let x = try!(self.return_statement(i,t));
+      let x = try!(self.return_statement(i,t,Symbol::Return));
       v.push(x);
     }else if value == Symbol::Sub {
       i.index+=1;
@@ -2362,7 +2365,7 @@ fn statements(&mut self, i: &mut TokenIterator, last_value: Value)
       v.push(x);
     }else if value == Symbol::Yield {
       i.index+=1;
-      let x = try!(self.yield_statement(i,t));
+      let x = try!(self.return_statement(i,t,Symbol::Yield));
       v.push(x);
     }else if value == Symbol::Use {
       i.index+=1;
@@ -2408,8 +2411,13 @@ fn statements(&mut self, i: &mut TokenIterator, last_value: Value)
   if last_value != Value::None {
     let n = v.len();
     if n>0 && v[n-1].value == Symbol::Statement {
-      let x = ast_argv(&v[n-1])[0].clone();
-      v[n-1] = x;
+      if last_value == Value::Empty {
+        v.push(empty_list(t0.line,t0.col,SymbolType::Keyword,Symbol::Yield));
+        v.push(atomic_literal(t0.line,t0.col,Symbol::Empty));
+      }else{
+        let x = ast_argv(&v[n-1])[0].clone();
+        v[n-1] = x;
+      }
     }else if last_value == Value::Null {
       v.push(atomic_literal(t0.line,t0.col,Symbol::Null));
     }else if last_value == Value::Empty {
