@@ -11,10 +11,8 @@ pub struct Rand {
 }
 impl Rand{
   pub fn new(seed: u32) -> Rand {
-    let seed = seed.wrapping_add(1);
     Rand{
-      x: KX.wrapping_mul(seed),
-      y: KY.wrapping_mul(seed),
+      x: KX^seed, y: KY^seed,
       z: KZ, w: KW, c: KC
     }
   }

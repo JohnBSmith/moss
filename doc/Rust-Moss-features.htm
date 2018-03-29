@@ -28,13 +28,13 @@
 
 <table class="bt">
 <tr>
-<th>Evaluation features
+<th>Evaluation feature
 <th>implemented?
 <th>Effort
 
 <tr>
 <td>free from memory leak bugs
-<td class="yes">yes
+<td class="yes">yes, with help of<br>Rc+automatic drop
 <td>medium
 
 <tr>
@@ -128,7 +128,7 @@
 <td>easy
 
 <tr>
-<th>Safety features
+<th>Safety feature
 <th>implemented?
 <th>Effort
 
@@ -183,17 +183,22 @@
 <td>drawbacks
 
 <tr>
-<td>just-in-time compilation
-<td class="no">no
-<td>hard
-
-<tr>
 <td>native fine grained parallel programming
 <td class="no">no, global mutex locks
 <td>n/a
 
 <tr>
 <td>tracing garbage collection
+<td class="no">no
+<td>n/a
+
+<tr>
+<td>just-in-time compilation
+<td class="no">no
+<td>hard
+
+<tr>
+<td>tracing just-in-time compilation
 <td class="no">no
 <td>n/a
 

@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>System interfaces</title>
+  <link href="../css/main.css" rel="stylesheet">
+  <script src="../js/moss-syntax.js"></script>
+</head>
+<body>
+
+<table class="navigation">
+<tr><td><b>&uarr;</b> <a href="toc.htm">Up</a>
+</table>
+<h1>System interfaces</h1>
+
+<div class="toc">
+<h2 id="toc">Table of contents</h2>
+<ol>
+<li><a href="#time">Module <code>time</code> &mdash; time measurement</a>
+<li><a href="#sys">Module <code>sys</code> &mdash; runtime system interface</a>
+</ol>
+</div>
+
+<h2 id="time">Module time</h2>
+<p>Time measurement, pausing threads.
+
+<dl class="code">
+<dt>sleep(x)
+<dd>Halt execution and continue after <code>x</code> seconds.
+The number <code>x</code> can be a float and thus fractional parts of
+a second are possible.
+
+<dt>clock()
+<dd>Start a new stop watch that returns time in seconds.
+<pre class="moss">
+c = time.clock()
+time.sleep(0.1)
+print(c())
+</pre>
+
+<dt>time()
+<dd>Obtain Gregorian calendar date and UTC time.
+<pre class="moss">
+# Format (each of type integer):
+  [year, month, day, hour, minute, second]
+# Example:
+template = "{4(0)}-{2(0)}-{2(0)}T{2(0)}:{2(0)}:{2(0)}"
+print(template % time.time())
+</pre>
+</dl>
+
+
+<h2 id="sys">Module sys</h2>
+
+<p>Interface to the runtime system.
+</p>
+
+<dl class="code">
+<dt>argv
+<dd>List of command-line arguments.</dd>
+
+<dt>call(n,main,*argv)
+<dd>Call <code>main</code> with a new call stack of
+size <code>n</code>. This is used to have unlimited recursion
+depth.
+<pre class="moss">
+use sys
+
+f = |n| 0 if n==0 else f(n-1)+1
+
+sub main
+  print(f(100000))
+end
+
+sys.call(1000000,main)
+</pre>
+
+<dt>exit(n)
+<dd>Exit the program with integer return value <code>n</code>.
+Zero means success, other values indicate an error.
+
+<dt>path
+<dd>List of search paths for module loading, analogous to
+the environment variable <code>PATH</code>.
+This list can be changed freely and can contain relative paths.
+But note, that relative paths are problematic, if the current
+working directory changes. That <code>path[0]</code> should be the
+absolute path of the directory where <code>argv[0]</code>
+is found.</dd>
+</dl>
+
+</body>
+</html>
+

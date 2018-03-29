@@ -1,13 +1,24 @@
 
 use std::rc::Rc;
 use std::cell::RefCell;
+use std::cmp::Ordering;
+
 use object::{
   Object, Table, List, U32String,
-  FnResult, Function, EnumFunction
+  FnResult, Function, EnumFunction,
+  MutableFn
 };
 use vm::{Env, op_add, op_mpy};
 use global::list;
-use std::cmp::Ordering;
+
+
+pub fn new_iterator(f: MutableFn) -> Object {
+  Object::Function(Rc::new(Function{
+    f: EnumFunction::Mut(RefCell::new(f)),
+    argc: 0, argc_min: 0, argc_max: 0,
+    id: Object::Null
+  }))
+}
 
 pub fn iter(env: &mut Env, x: &Object) -> FnResult{
   match *x {
@@ -58,11 +69,7 @@ pub fn iter(env: &mut Env, x: &Object) -> FnResult{
         },
         _ => {return env.type_error("Type error in iter(a..b): b is not an integer.");}
       };
-      return Ok(Object::Function(Rc::new(Function{
-        f: EnumFunction::Mut(RefCell::new(f)),
-        argc: 0, argc_min: 0, argc_max: 0,
-        id: Object::Null
-      })));
+      return Ok(new_iterator(f));
     },
     Object::List(ref a) => {
       let mut index: usize = 0;
@@ -76,11 +83,7 @@ pub fn iter(env: &mut Env, x: &Object) -> FnResult{
           return Ok(a.v[index-1].clone());
         }
       });
-      Ok(Object::Function(Rc::new(Function{
-        f: EnumFunction::Mut(RefCell::new(f)),
-        argc: 0, argc_min: 0, argc_max: 0,
-        id: Object::Null
-      })))
+      Ok(new_iterator(f))
     },
     Object::Map(ref m) => {
       let mut index: usize = 0;
@@ -93,11 +96,7 @@ pub fn iter(env: &mut Env, x: &Object) -> FnResult{
           return Ok(v[index-1].clone());
         }
       });
-      Ok(Object::Function(Rc::new(Function{
-        f: EnumFunction::Mut(RefCell::new(f)),
-        argc: 0, argc_min: 0, argc_max: 0,
-        id: Object::Null
-      })))
+      Ok(new_iterator(f))
     },
     Object::String(ref s) => {
       let mut index: usize = 0;
@@ -112,11 +111,7 @@ pub fn iter(env: &mut Env, x: &Object) -> FnResult{
           })));
         }
       });
-      Ok(Object::Function(Rc::new(Function{
-        f: EnumFunction::Mut(RefCell::new(f)),
-        argc: 0, argc_min: 0, argc_max: 0,
-        id: Object::Null
-      })))
+      Ok(new_iterator(f))
     },
     _ => env.type_error("Type error in iter(x): x is not iterable.")
   }
@@ -191,11 +186,7 @@ fn map(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
       Ok(y)
     };
   });
-  Ok(Object::Function(Rc::new(Function{
-    f: EnumFunction::Mut(RefCell::new(g)),
-    argc: 0, argc_min: 0, argc_max: 0,
-    id: Object::Null
-  })))
+  Ok(new_iterator(g))
 }
 
 fn filter(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
@@ -220,11 +211,7 @@ fn filter(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
       }
     }
   });
-  Ok(Object::Function(Rc::new(Function{
-    f: EnumFunction::Mut(RefCell::new(g)),
-    argc: 0, argc_min: 0, argc_max: 0,
-    id: Object::Null
-  })))
+  Ok(new_iterator(g))
 }
 
 fn each(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
@@ -340,11 +327,7 @@ fn chunks(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
       Ok(List::new_object(v))
     }
   });
-  Ok(Object::Function(Rc::new(Function{
-    f: EnumFunction::Mut(RefCell::new(g)),
-    argc: 0, argc_min: 0, argc_max: 0,
-    id: Object::Null
-  })))
+  Ok(new_iterator(g))
 }
 
 fn reduce(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
@@ -541,11 +524,7 @@ fn until(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
       }
     };
   });
-  Ok(Object::Function(Rc::new(Function{
-    f: EnumFunction::Mut(RefCell::new(g)),
-    argc: 0, argc_min: 0, argc_max: 0,
-    id: Object::Null
-  })))
+  Ok(new_iterator(g))
 }
 
 fn enumerate(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
@@ -570,11 +549,7 @@ fn enumerate(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
       }
     };
   });
-  Ok(Object::Function(Rc::new(Function{
-    f: EnumFunction::Mut(RefCell::new(g)),
-    argc: 0, argc_min: 0, argc_max: 0,
-    id: Object::Null
-  })))
+  Ok(new_iterator(g))
 }
 
 fn take(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
@@ -597,11 +572,7 @@ fn take(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
       x => if k<n {k+=1; x} else {Object::Empty}
     });
   });
-  Ok(Object::Function(Rc::new(Function{
-    f: EnumFunction::Mut(RefCell::new(g)),
-    argc: 0, argc_min: 0, argc_max: 0,
-    id: Object::Null
-  })))
+  Ok(new_iterator(g))
 }
 
 pub fn init(t: &Table){

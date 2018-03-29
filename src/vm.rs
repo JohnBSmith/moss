@@ -19,6 +19,7 @@ use long::Long;
 use tuple::Tuple;
 use format::u32string_format;
 use global::type_name;
+use rand::Rand;
 
 // use ::Interpreter;
 use system;
@@ -3143,6 +3144,7 @@ pub struct RTE{
   pub delay: RefCell<Vec<Rc<RefCell<Map>>>>,
   pub module_table: Rc<RefCell<Map>>,
   pub interface_types: RefCell<Vec<Rc<Table>>>,
+  pub seed_rng: RefCell<Rand>,
 
   pub key_string: Object,
   pub key_neg: Object,
@@ -3193,6 +3195,7 @@ impl RTE{
       delay: RefCell::new(Vec::new()),
       module_table: Map::new(),
       interface_types: RefCell::new(Vec::new()),
+      seed_rng: RefCell::new(Rand::new(0)),
 
       key_string: U32String::new_object_str("string"),
       key_neg:    U32String::new_object_str("neg"),

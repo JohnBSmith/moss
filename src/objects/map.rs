@@ -3,18 +3,28 @@
 
 use std::rc::Rc;
 use std::cell::RefCell;
+
 use object::{Object, FnResult, U32String, Function, Table, List, Map,
   VARIADIC, MutableFn, EnumFunction
 };
 use vm::Env;
+use iterable::new_iterator;
 
-pub fn update(m: &mut Map, m2: &Map){
+fn map_update(m: &mut Map, m2: &Map){
   for (key,value) in &m2.m {
     m.m.insert(key.clone(),value.clone());
   }
 }
 
-fn fupdate(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+fn map_extend(m: &mut Map, m2: &Map) {
+  for (key,value) in &m2.m {
+    if !m.m.contains_key(key) {
+      m.m.insert(key.clone(),value.clone());
+    }
+  }
+}
+
+fn update(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
   if argv.len()!=1 {
     return env.argc_error(argv.len(),1,1,"update");
   }
@@ -26,13 +36,35 @@ fn fupdate(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
           if m.frozen {
             return env.value_error("Value error in m.update(m2): m is frozen.");
           }
-          update(m,&*m2.borrow());
+          map_update(m,&*m2.borrow());
           Ok(Object::Null)
         },
         _ => env.type_error("Type error in m.update(m2): m2 is not a map.")
       }
     },
     _ => env.type_error("Type error in m.update(m2): m is not a map.")
+  }
+}
+
+fn extend(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+  if argv.len()!=1 {
+    return env.argc_error(argv.len(),1,1,"extend");
+  }
+  match *pself {
+    Object::Map(ref m) => {
+      match argv[0] {
+        Object::Map(ref m2) => {
+          let m = &mut *m.borrow_mut();
+          if m.frozen {
+            return env.value_error("Value error in m.extend(m2): m is frozen.");
+          }
+          map_extend(m,&*m2.borrow());
+          Ok(Object::Null)
+        },
+        _ => env.type_error("Type error in m.extend(m2): m2 is not a map.")
+      }
+    },
+    _ => env.type_error("Type error in m.extend(m2): m is not a map.")
   }
 }
 
@@ -51,11 +83,7 @@ fn values(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
         return Ok(v[index-1].clone());
       }
     });
-    Ok(Object::Function(Rc::new(Function{
-      f: EnumFunction::Mut(RefCell::new(f)),
-      argc: 0, argc_min: 0, argc_max: 0,
-      id: Object::Null
-    })))
+    Ok(new_iterator(f))
   }else{
     env.type_error("Type error in m.values(): m is not a map.")
   }
@@ -83,11 +111,7 @@ fn items(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
         return Ok(List::new_object(t));
       }
     });
-    Ok(Object::Function(Rc::new(Function{
-      f: EnumFunction::Mut(RefCell::new(f)),
-      argc: 0, argc_min: 0, argc_max: 0,
-      id: Object::Null
-    })))
+    Ok(new_iterator(f))
   }else{
     env.type_error("Type error in m.items(): m is not a map.")
   }
@@ -129,11 +153,29 @@ fn remove(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
   }
 }
 
+fn add(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+  match *pself {
+    Object::Map(ref m) => {
+      let mut m = m.borrow_mut();
+      if m.frozen {
+        return env.value_error("Value error in m.add(key): m is frozen.");
+      }
+      for x in argv {
+        m.m.insert(x.clone(),Object::Null);
+      }
+      Ok(Object::Null)
+    },
+    ref m => env.type_error1("Type error in m.add(key): m is not a map.","m",m)
+  }
+}
+
 pub fn init(t: &Table){
   let mut m = t.map.borrow_mut();
-  m.insert_fn_plain("update",fupdate,1,1);
+  m.insert_fn_plain("update",update,1,1);
+  m.insert_fn_plain("extend",extend,1,1);
   m.insert_fn_plain("values",values,0,0);
   m.insert_fn_plain("items",items,0,0);
   m.insert_fn_plain("clear",clear,0,0);
   m.insert_fn_plain("remove",remove,0,0);
+  m.insert_fn_plain("add",add,0,VARIADIC);
 }

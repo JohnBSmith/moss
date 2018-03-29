@@ -3,6 +3,11 @@
 
 use std::rc::Rc;
 use std::cell::RefCell;
+use std::collections::HashMap;
+use std::char;
+use std::str::FromStr;
+use std::f64::NAN;
+
 use vm::{object_to_string, object_to_repr, RTE, Env, op_lt};
 use object::{Object, Map, Table, List, Range,
   FnResult, U32String, Function, EnumFunction,
@@ -10,14 +15,11 @@ use object::{Object, Map, Table, List, Range,
 };
 use rand::Rand;
 use iterable::iter;
-use std::collections::HashMap;
-use std::char;
-use std::str::FromStr;
-use std::f64::NAN;
 use system::{History};
 use compiler::Value;
-use long::Long;
+use long::{Long, pow_mod};
 use tuple::Tuple;
+use iterable::new_iterator;
 
 pub fn type_name(x: &Object) -> String {
   loop{
@@ -523,7 +525,8 @@ fn frand(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
             "Type error in rand(a..b): b is not an integer.",
             "b",&r.b)
         };
-        let mut rng = Rand::new(0);
+        let seed = env.rte().seed_rng.borrow_mut().rand();
+        let mut rng = Rand::new(seed);
         let f = Box::new(move |env: &mut Env, pself: &Object, argv: &[Object]| -> FnResult {
           Ok(Object::Int(rng.rand_range(a,b)))
         });
@@ -747,18 +750,14 @@ fn zip(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     }
     return Ok(List::new_object(t));
   });
-  return Ok(Object::Function(Rc::new(Function{
-    f: EnumFunction::Mut(RefCell::new(g)),
-    argc: 0, argc_min: 0, argc_max: 0,
-    id: Object::Null
-  })));
+  return Ok(new_iterator(g));
 }
 
 fn pow(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
   match argv.len() {
     3 => {}, n => return env.argc_error(n,3,3,"pow")
   }
-  return ::long::pow_mod(env,&argv[0],&argv[1],&argv[2]);
+  return pow_mod(env,&argv[0],&argv[1],&argv[2]);
 }
 
 fn min(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {

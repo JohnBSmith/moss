@@ -4,10 +4,12 @@
 use std::rc::Rc;
 use std::cell::RefCell;
 use std::i32;
+
 use object::{Object, FnResult, U32String, Function, Table, List,
   VARIADIC, MutableFn, EnumFunction, Range
 };
 use vm::Env;
+use iterable::new_iterator;
 
 fn apply(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
   if argv.len()==1 {
@@ -44,11 +46,7 @@ fn orbit(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
       return Ok(y);
     }
   );
-  return Ok(Object::Function(Rc::new(Function{
-    f: EnumFunction::Mut(RefCell::new(i)),
-    argc: 0, argc_min: 0, argc_max: 0,
-    id: Object::Null
-  })));
+  return Ok(new_iterator(i));
 }
 
 fn argc(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {

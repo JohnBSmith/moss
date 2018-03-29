@@ -3,7 +3,7 @@
 
 use std::rc::Rc;
 use std::process;
-use object::{Object, FnResult, Function, new_module};
+use object::{Object, FnResult, Function, VARIADIC, new_module};
 use vm::{RTE,Env};
 
 fn exit(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
@@ -32,7 +32,7 @@ pub fn load_sys(rte: &Rc<RTE>) -> Object {
       m.insert("argv", Object::List(argv.clone()));
     }
     m.insert_fn_plain("exit",exit,0,1);
-    m.insert_fn_plain("call",::vm::sys_call,1,1);
+    m.insert_fn_plain("call",::vm::sys_call,2,VARIADIC);
   }
   return Object::Table(Rc::new(sys));
 }
