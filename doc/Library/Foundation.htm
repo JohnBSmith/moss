@@ -111,6 +111,13 @@ s = str(math.pi,"f",4)
 [1, 2, 3, 4]
 </pre>
 
+<dt>cycle(x)
+<dd>Take an iterable object and return a cycling iterator.
+<pre class="moss">
+&gt; cycle(1..4).list(10)
+[1, 2, 3, 4, 1, 2, 3, 4, 1, 2]
+</pre>
+
 <dt>size(a)
 <dd>Number of elements of <code>a</code>. The object <code>a</code>
 should be a data structure that has this property.
@@ -594,7 +601,7 @@ as a list. If <code>n</code> is given, a maximum number of
 <dd>Return a new iterator that takes a maximum number of
 <code>n</code> elements from the iterable <code>a</code>.
 
-<dt>a.omit(n)
+<dt>a.skip(n)
 <dd>Leave out the next <code>n</code> elements of the iterable
 <code>a</code>.
 

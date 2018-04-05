@@ -1,0 +1,19 @@
+
+
+sub permutations(a)
+  a = list(a)
+  return sub* ||
+    if size(a)<=1
+      yield copy(a)
+    else
+      x = a[..0]
+      for p in permutations(a[1..])
+        for i in 0..size(a)-1
+          yield p[..i-1]+x+p[i..]
+        end
+      end
+    end
+  end
+end
+
+

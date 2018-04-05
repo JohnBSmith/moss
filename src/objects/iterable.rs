@@ -117,6 +117,57 @@ pub fn iter(env: &mut Env, x: &Object) -> FnResult{
   }
 }
 
+fn cycle_iterable(env: &mut Env, x: &Object) -> FnResult {
+  let a = match try!(list(env,x)) {
+    Object::List(a) => a,
+    _ => unreachable!()
+  };
+  let mut k: usize = 0;
+  let f = Box::new(move |env: &mut Env, pself: &Object, argv: &[Object]| -> FnResult {
+    let v = &a.borrow().v;
+    if k<v.len() {k+=1;} else {k=1;}
+    if v.len()==0 {
+      return env.value_error("Value error in iterator from cycle(a): a is empty.");
+    }else{
+      return Ok(v[k-1].clone());
+    }
+  });
+  return Ok(new_iterator(f));
+}
+
+fn cycle_range(env: &mut Env, a: i32, b: i32) -> FnResult {
+  if b<a {
+    return env.value_error("Value error in cycle(a..b): b<a.");
+  }
+  let mut k = a;
+  let f = Box::new(move |env: &mut Env, pself: &Object, argv: &[Object]| -> FnResult {
+    let y = k;
+    if k<b {k+=1;} else {k=a;}
+    return Ok(Object::Int(y));
+  });
+  return Ok(new_iterator(f));
+}
+
+pub fn cycle(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+  match argv.len() {
+    1 => {}, n => return env.argc_error(n,1,1,"cycle")
+  }
+  match argv[0] {
+    Object::Int(n) => cycle_range(env,0,n-1),
+    Object::Range(ref r) => {
+      if let Object::Int(a) = r.a {
+        if let Object::Int(b) = r.b {
+          if let Object::Null = r.step {
+            return cycle_range(env,a,b);
+          }
+        }
+      }
+      cycle_iterable(env,&argv[0])
+    },
+    ref x => cycle_iterable(env,x)
+  }
+}
+
 fn list_comprehension(env: &mut Env, i: &Object, f: &Object) -> FnResult {
   let mut v: Vec<Object> = Vec::new();
   loop{
@@ -182,7 +233,9 @@ fn map(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     return if x == Object::Empty {
       Ok(x)
     }else{
-      let y = try!(env.call(&f,&Object::Null,&[x]));
+      let y = trace_err_try!(env.call(&f,&Object::Null,&[x]),
+        "iterator created by map"
+      );
       Ok(y)
     };
   });
@@ -201,7 +254,9 @@ fn filter(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
       if x == Object::Empty {
         return Ok(x);
       }else{
-        let y = try!(env.call(&f,&Object::Null,&[x.clone()]));
+        let y = trace_err_try!(env.call(&f,&Object::Null,&[x.clone()]),
+          "iterator created by filter"
+        );
         match y {
           Object::Bool(u) => {
             if u {return Ok(x);}
@@ -275,9 +330,23 @@ fn all(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
   return Ok(Object::Bool(true));
 }
 
+fn count_all(env: &mut Env, a: &Object) -> FnResult {
+  let i = try!(iter(env,a));
+  let mut k: i32 = 0;
+  loop{
+    let x = try!(env.call(&i,&Object::Null,&[]));
+    match x {
+      Object::Empty => return Ok(Object::Int(k)),
+      _ => {k+=1;},
+    }
+  }
+}
+
 fn count(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
-  if argv.len()!=1 {
-    return env.argc_error(argv.len(),1,1,"count");  
+  match argv.len() {
+    0 => return count_all(env,pself),
+    1 => {},
+    n => return env.argc_error(n,0,1,"count")
   }
   let i = &try!(iter(env,pself));
   let p = &argv[0];
@@ -481,9 +550,9 @@ fn sort(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
   return Ok(Object::List(a));
 }
 
-fn omit(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+fn skip(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
   match argv.len() {
-    1 => {}, n => return env.argc_error(n,1,1,"omit")
+    1 => {}, n => return env.argc_error(n,1,1,"skip")
   }
   let i = try!(iter(env,pself));
   match argv[0] {
@@ -497,7 +566,7 @@ fn omit(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
       }
       Ok(i)
     },
-    ref n => env.type_error1("Type error in i.omit(n): n is not an integer.","n",n)
+    ref n => env.type_error1("Type error in i.skip(n): n is not an integer.","n",n)
   }
 }
 
@@ -581,7 +650,7 @@ pub fn init(t: &Table){
   m.insert_fn_plain("each",each,1,1);
   m.insert_fn_plain("any",any,1,1);
   m.insert_fn_plain("all",all,1,1);
-  m.insert_fn_plain("count",count,1,1);
+  m.insert_fn_plain("count",count,0,1);
   m.insert_fn_plain("reduce",reduce,1,2);
   m.insert_fn_plain("sum",sum,1,2);
   m.insert_fn_plain("prod",prod,1,2);
@@ -589,7 +658,7 @@ pub fn init(t: &Table){
   m.insert_fn_plain("map",map,1,1);
   m.insert_fn_plain("filter",filter,1,1);
   m.insert_fn_plain("chunks",chunks,1,1);
-  m.insert_fn_plain("omit",omit,1,1);
+  m.insert_fn_plain("skip",skip,1,1);
   m.insert_fn_plain("until",until,1,1);
   m.insert_fn_plain("enum",enumerate,0,1);
   m.insert_fn_plain("take",take,1,1);

@@ -11,7 +11,9 @@ pub const FRAME_STACK_SIZE: usize = 200;
 #[path = "system/system.rs"]
 mod system;
 
+#[macro_use]
 pub mod object;
+
 mod compiler;
 mod vm;
 mod global;
@@ -46,6 +48,9 @@ mod math;
 #[path = "modules/rand.rs"]
 pub mod rand;
 
+#[path = "modules/format.rs"]
+mod format;
+
 #[path = "modules/sys.rs"]
 mod sys;
 
@@ -55,8 +60,8 @@ mod la;
 #[path = "modules/sf.rs"]
 mod sf;
 
-#[path = "modules/format.rs"]
-mod format;
+#[path = "modules/regex.rs"]
+mod regex;
 
 use std::rc::Rc;
 use std::cell::RefCell;
@@ -64,7 +69,7 @@ use std::cell::RefCell;
 // use std::io::Read;
 use object::{Object, List, Map, U32String, FnResult, Exception};
 use vm::{RTE,State,EnvPart,Frame, get_env};
-pub use compiler::Value;
+pub use compiler::{Value, CompilerExtra};
 
 pub struct Interpreter{
   pub rte: Rc<RTE>,
@@ -171,6 +176,11 @@ impl Interpreter{
     let mut state = &mut *self.state.borrow_mut();
     let mut env = get_env(&mut state);
     env.print_type_and_value(x);
+  }
+  
+  pub fn set_config(&self, config: CompilerExtra) {
+    let mut conf = self.rte.compiler_config.borrow_mut();
+    *conf = Some(Box::new(config));
   }
 }
 

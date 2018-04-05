@@ -6,4 +6,6 @@ moss-test test
 moss-test test-sudoku
 moss-test test-json
 moss-test test-la
+moss-test test-generators
+moss-test test-exceptions
 

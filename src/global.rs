@@ -14,7 +14,7 @@ use object::{Object, Map, Table, List, Range,
   VARIADIC, new_module, Exception,
 };
 use rand::Rand;
-use iterable::iter;
+use iterable::{iter,cycle};
 use system::{History};
 use compiler::Value;
 use long::{Long, pow_mod};
@@ -268,7 +268,8 @@ fn load(env: &mut Env, id: Rc<U32String>, hot_plug: bool) -> FnResult{
     "math/la" => ::la::load_la(env),
     "cmath" => ::math::load_cmath(),
     "sys"   => ::sys::load_sys(env.rte()),
-    "sf"    => ::sf::load_sf(),    
+    "sf"    => ::sf::load_sf(),
+    "regex" => ::regex::load_regex(env),
     _ => {
       try!(load_file(env,&s))
       // return index_error(&format!("Could not load module '{}'.",s));
@@ -456,6 +457,13 @@ pub fn list(env: &mut Env, obj: &Object) -> FnResult {
     },
     Object::Map(ref m) => {
       let v: Vec<Object> = m.borrow().m.keys().cloned().collect();
+      Ok(List::new_object(v))
+    },
+    Object::String(ref s) => {
+      let mut v: Vec<Object> = Vec::with_capacity(s.v.len());
+      for x in &s.v {
+        v.push(U32String::new_object_char(*x));
+      }
       Ok(List::new_object(v))
     },
     Object::Function(ref f) => {
@@ -864,6 +872,7 @@ pub fn init_rte(rte: &RTE){
   gtab.insert_fn_plain("size",size,1,1);
   gtab.insert_fn_plain("load",fload,1,1);
   gtab.insert_fn_plain("iter",fiter,1,1);
+  gtab.insert_fn_plain("cycle",cycle,1,1);
   gtab.insert_fn_plain("record",record,1,1);
   gtab.insert_fn_plain("object",fobject,0,2);
   gtab.insert_fn_plain("type",ftype,1,1);

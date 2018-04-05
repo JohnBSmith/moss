@@ -1,8 +1,9 @@
 
-fix = sub|F|
+
+sub fix(F)
   m={}
-  return sub g|n|
-    if n not in m then m[n]=F(g,n) end
+  return sub f|n|
+    if n not in m then m[n]=F(f,n) end
     return m[n]
   end
 end

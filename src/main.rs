@@ -2,6 +2,7 @@
 extern crate moss;
 use std::env;
 use moss::object::{Object,Map};
+use moss::CompilerExtra;
 
 const HELP: &'static str = r#"
 Usage: moss [options] [file] [arguments]
@@ -9,8 +10,12 @@ Usage: moss [options] [file] [arguments]
 Options:
 -i file     Include and execute a file before normal execution.
             Multiple files are possible: '-i file1 -i file2'.
+
 -m          Math mode: use moss as a calculator.
+
 -e "1+2"    Evaluate some Moss code inline.
+
+-d          Debug mode: compile assert statements.
 "#;
 
 const MATH: &'static str = r#"
@@ -38,7 +43,8 @@ struct Info{
   argv: Vec<String>,
   cmd: Option<String>,
   exit: bool,
-  math: bool
+  math: bool,
+  debug_mode: bool
 }
 
 impl Info{
@@ -49,7 +55,8 @@ impl Info{
       argv: Vec::new(),
       cmd: None,
       exit: false,
-      math: false
+      math: false,
+      debug_mode: false
     };
     let mut first = true;
     let mut ifile = false;
@@ -75,6 +82,8 @@ impl Info{
           println!("{}",HELP);
           info.exit = true;
           return Box::new(info);
+        }else if s=="-d" {
+          info.debug_mode = true;
         }else{
           println!("Error: unknown option: {}.",&s);
         }
@@ -96,6 +105,9 @@ impl Info{
 fn main(){
   let info = Info::new();
   let i = moss::Interpreter::new();
+  i.set_config(CompilerExtra{
+    debug_mode: info.debug_mode
+  });
 
   let gtab = Map::new();
   i.rte.clear_at_exit(gtab.clone());

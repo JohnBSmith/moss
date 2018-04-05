@@ -190,74 +190,6 @@ fn filter(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
   return Ok(List::new_object(v));
 }
 
-fn count(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
-  if argv.len() != 1 {
-    return env.argc_error(argv.len(),1,1,"count");
-  }
-  let mut a = match *pself {
-    Object::List(ref a) => a.borrow_mut(),
-    _ => {return env.type_error("Type error in a.count(p): a is not a list.");}
-  };
-  let mut k: i32 = 0;
-  for x in &a.v {
-    let y = try!(env.call(&argv[0],&Object::Null,&[x.clone()]));
-    let condition = match y {
-      Object::Bool(u)=>u,
-      ref value => return env.type_error2(
-        "Type error in a.count(p): return value of p is not of boolean type.",
-        "x","p(x)",x,value)
-    };
-    if condition {k+=1;}
-  }
-  return Ok(Object::Int(k));
-}
-
-fn any(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
-  if argv.len() != 1 {
-    return env.argc_error(argv.len(),1,1,"any");
-  }
-  let mut a = match *pself {
-    Object::List(ref a) => a.borrow_mut(),
-    _ => {return env.type_error("Type error in a.any(p): a is not a list.");}
-  };
-  for x in &a.v {
-    let y = try!(env.call(&argv[0],&Object::Null,&[x.clone()]));
-    let condition = match y {
-      Object::Bool(u)=>u,
-      ref value => return env.type_error2(
-        "Type error in a.any(p): return value of p is not of boolean type.",
-        "x","p(x)",x,value)
-    };
-    if condition {
-      return Ok(Object::Bool(true));
-    }
-  }
-  return Ok(Object::Bool(false));
-}
-
-fn all(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
-  if argv.len() != 1 {
-    return env.argc_error(argv.len(),1,1,"all");
-  }
-  let mut a = match *pself {
-    Object::List(ref a) => a.borrow_mut(),
-    _ => {return env.type_error("Type error in a.all(p): a is not a list.");}
-  };
-  for x in &a.v {
-    let y = try!(env.call(&argv[0],&Object::Null,&[x.clone()]));
-    let condition = match y {
-      Object::Bool(u)=>u,
-      ref value => return env.type_error2(
-        "Type error in a.all(p): return value of p is not of boolean type.",
-        "x","p(x)",x,value)
-    };
-    if !condition {
-      return Ok(Object::Bool(false));
-    }
-  }
-  return Ok(Object::Bool(true));
-}
-
 fn new_shuffle() -> MutableFn {
   let mut rng = Rand::new(0);
   return Box::new(move |env: &mut Env, pself: &Object, argv: &[Object]| -> FnResult{
@@ -495,9 +427,6 @@ pub fn init(t: &Table){
   m.insert_fn_plain("size",size,0,0);
   m.insert_fn_plain("map",map,1,1);
   m.insert_fn_plain("filter",filter,1,1);
-  m.insert_fn_plain("count",count,1,1);
-  m.insert_fn_plain("any",any,1,1);
-  m.insert_fn_plain("all",all,1,1);
   m.insert_fn_plain("join",list_join,0,1);
   m.insert_fn_plain("chain",list_chain,0,0);
   m.insert_fn_plain("rev",list_rev,0,0);

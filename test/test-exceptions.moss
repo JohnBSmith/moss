@@ -1,0 +1,32 @@
+
+use sys: exit
+
+sub error(s)
+  print("Error: exceptions test ", s, " failed.")
+  exit(1)
+end
+
+Callcc = object()
+
+callcc = sub|f,*a|
+  a = [null]
+  callback = sub|x|
+    a[0] = x
+    raise Callcc
+  end
+  try
+    return f.apply([callback]+a)
+  catch e if e is Callcc
+    return a[0]
+  end
+end
+
+sub f(ret,x)
+  ret("fy")
+end
+
+if callcc(f)!="fy"
+  error("#1")
+end
+
+

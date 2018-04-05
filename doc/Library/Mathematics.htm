@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Foundation</title>
+  <title>Mathematics</title>
   <link href="../css/main.css" rel="stylesheet">
   <script src="../js/moss-syntax.js"></script>
 </head>
@@ -18,7 +18,10 @@
 <ol>
 <li><a href="#math">Module <code>math</code> &mdash; elementary functions</a>
 <li><a href="#cmath">Module <code>cmath</code> &mdash; complex numbers</a>
+<li><a href="#math-rational">Module <code>math.rational</code> &mdash; rational numbers</a>
 <li><a href="#math-nt">Module <code>math.nt</code> &mdash; number theory</a>
+<li><a href="#math-cf">Module <code>math.cf</code> &mdash; combinatorical functions</a>
+<li><a href="#math-la">Module <code>math.la</code> &mdash; linear algebra</a>
 </ol>
 </div>
 
@@ -157,6 +160,23 @@ numbers.
 </dl>
 
 
+<h2 id="math-rational">Module math.rational</h2>
+
+<dl class="code">
+<dt>Rat
+<dd>Rational numbers data type.
+
+<dt>rat(n,d)
+<dd>Rational number <code>n/d</code>.
+
+<dt>r.n
+<dd>Numerator.
+
+<dt>r.d
+<dd>Denominator.
+</dl>
+
+
 <h2 id="math-nt">Module math.nt</h2>
 
 <p>Number theory.
@@ -198,6 +218,113 @@ positional notation above.
 
 <dt>lambda(n)
 <dd>Carmichael function.
+</dl>
+
+<h2 id="math-cf">Module math.cf</h2>
+<p>Combinatorical functions.
+
+<dl class="code">
+<dt>fac(n)
+<dd>Factorial function.
+
+<dt>rf(n,k)
+<dd>Raising factorial.
+
+<dt>ff(n,k)
+<dd>Falling factorial.
+
+<dt>bc(n,k)
+<dd>Binomial coefficient.
+
+<dt>mc([k1,...,kn])
+<dd>Multinomial coefficient.
+
+<dt>stirling1(n,k)
+<dd>Stirling number of the first kind.
+
+<dt>stirling2(n,k)
+<dd>Stirling number of the second kind.
+
+<dt>euler1(n,k)
+<dd>Eulerian number.
+
+<dt>euler2(n,k)
+<dd>Eulerien number of the second order.
+
+<dt>bell(n)
+<dd>Bell numbers.
+
+<dt>pf(n)
+<dd>Partition function.
+
+<dt>pf(n,k)
+<dd>Number of partitions of <code>n</code> into exactly <code>k</code>
+parts.
+
+<dt>permutations(a)
+<dd>Permutations of the list <code>a</code>.
+
+<dt>combinations(k,s)
+<dd>Combinations of set/list/string <code>s</code> into
+  sets of <code>k</code> elements.
+
+<dt>partitions(n,k)
+<dd>Partitions of <code>n</code> into <code>k</code> parts.
+</dl>
+
+<h2 id="math-la">Module math.la</h2>
+
+<dl class="code">
+<dt>vector(a1,...,an)
+<dd>Return a coordinate vector.
+
+<dt>matrix([a11,...,a1n],...,[am1,...,amn])
+<dd>Return a matrix.
+
+<dt>array(N,data)
+<dd>Return a coordinate tensor of order <code>N</code>.
+Note that:
+<pre class="code">
+array(1,a) = vector.apply(a),
+array(2,a) = matrix.apply(a).
+</pre>
+
+<dt>diag(a1,...,an)
+<dd>Return a diagonal matrix.
+
+<dt>scalar(a)
+<dd>Return a scalar matrix.
+
+<dt>a.T
+<dd>Transposed matrix.
+
+<dt>a.H
+<dd>Conjugate transpose.
+
+<dt>a.conj
+<dd>Conjugated complex matrix.
+
+<dt>a.tr
+<dd>Trace.
+
+<dt>a.diag
+<dd>Main diagonal as a coordinate vector.
+
+<dt>a.shape
+<dd>Shape of the array.
+
+<dt>a.copy
+<dd>Shallow copy of the array.
+
+<dt>a.list
+<dd>Convert the array into a list.
+
+<dt>a.map(f)
+<dd>Return <code>(f(a[i,j]))</code>.
+
+<dt>a[k]
+<dd>Component of a vector (<code>k=0</code> upto <code>n-1</code>).
+Row of a matrix.
 </dl>
 
 </body>

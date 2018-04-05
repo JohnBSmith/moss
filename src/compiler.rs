@@ -50,10 +50,10 @@ enum Item{
 }
 impl Item{
   fn assert_string(&self) -> &String {
-    match *self {Item::String(ref s) => s, _ => panic!()}
+    match *self {Item::String(ref s) => s, _ => unreachable!()}
   }
   fn assert_int(&self) -> i32 {
-    match *self {Item::Int(x) => x, _ => panic!()}
+    match *self {Item::Int(x) => x, _ => unreachable!()}
   }
 }
 
@@ -130,7 +130,7 @@ pub fn print_error(e: &Error){
 }
 
 fn compiler_error() -> !{
-  panic!("compiler error");
+  unreachable!("compiler error");
 }
 
 fn is_keyword(id: &String) -> Option<&'static KeywordsElement> {
@@ -836,7 +836,8 @@ pub struct Compilation<'a>{
   function_nesting: usize,
   jmp_stack: Vec<JmpInfo>,
   coroutine: bool,
-  for_nesting: usize
+  for_nesting: usize,
+  debug_mode: bool
 }
 
 struct TokenIterator{
@@ -947,6 +948,22 @@ fn empty_list(line: usize, col: usize,
     symbol_type: symbol_type, value: symbol,
     info: Info::None, s: None, a: Some(Box::new([]))
   })
+}
+
+fn unary_node(line: usize, col: usize,
+  symbol_type: SymbolType, value: Symbol, x: Rc<AST>
+) -> Rc<AST>
+{
+  Rc::new(AST{line: line, col: col, symbol_type, value,
+    info: Info::None, s: None, a: Some(Box::new([x]))})
+}
+
+fn binary_node(line: usize, col: usize,
+  symbol_type: SymbolType, value: Symbol, x: Rc<AST>, y: Rc<AST>
+) -> Rc<AST>
+{
+  Rc::new(AST{line: line, col: col, symbol_type, value,
+    info: Info::None, s: None, a: Some(Box::new([x,y]))})
 }
 
 impl<'a> Compilation<'a>{
@@ -1199,16 +1216,6 @@ fn concise_function_literal(&mut self, i: &mut TokenIterator, t0: &Token)
     info: Info::None, s: None, a: Some(Box::new([args,x]))
   }));
 }
-
-/*
-fn sub_statement(&mut self, i: &mut TokenIterator, t: &Token)
-  -> Result<Rc<AST>,Error>
-{
-  let x = try!(self.function_literal(i,t));
-  let id = identifier(match x.s {Some(ref s) => s, None => panic!()},t.line,t.col);
-  return Ok(binary_operator(t.line,t.col,Symbol::Assignment,id,x));
-}
-*/
 
 fn function_literal(&mut self, i: &mut TokenIterator, t0: &Token)
   -> Result<Rc<AST>,Error>
@@ -2131,7 +2138,7 @@ fn use_path(&mut self, i: &mut TokenIterator, t0: &Token)
 {
   let mut buffer = match t0.item {
     Item::String(ref s) => s.to_string(),
-    _ => panic!()
+    _ => unreachable!()
   };
   buffer.push_str("/");
   i.index+=1;
@@ -2249,7 +2256,7 @@ fn use_statement(&mut self, i: &mut TokenIterator, t0: &Token)
     }
   }
   if v.len()==1 {
-    return Ok(match v.pop() {Some(x) => x, None => compiler_error()});
+    return Ok(match v.pop() {Some(x) => x, None => unreachable!()});
   }else{
     return Ok(Rc::new(AST{line: t0.line, col: t0.col, symbol_type: SymbolType::Keyword,
       value: Symbol::Block, info: Info::None, s: None, a: Some(v.into_boxed_slice())}));
@@ -2273,6 +2280,25 @@ fn global_statement(&mut self, i: &mut TokenIterator, t0: &Token)
   }
   return Ok(Rc::new(AST{line: t0.line, col: t0.col, symbol_type: SymbolType::Keyword,
     value: Symbol::Global, info: Info::None, s: None, a: Some(v.into_boxed_slice())}));
+}
+
+fn assert_statement(&mut self, i: &mut TokenIterator, t0: &Token)
+  -> Result<Rc<AST>,Error>
+{
+  let condition = try!(self.expression(i));
+  let p = try!(i.next_any_token(self));
+  let t = &p[i.index];
+  if t.value == Symbol::Comma {
+    i.index+=1;
+    let text = try!(self.expression(i));
+    return Ok(binary_node(t0.line,t0.col,
+      SymbolType::Keyword, Symbol::Assert, condition, text
+    ));
+  }else{
+    return Ok(unary_node(t0.line,t0.col,
+      SymbolType::Keyword, Symbol::Assert, condition
+    ));
+  }
 }
 
 fn statements(&mut self, i: &mut TokenIterator, last_value: Value)
@@ -2388,6 +2414,10 @@ fn statements(&mut self, i: &mut TokenIterator, last_value: Value)
       self.syntax_nesting-=1;
       self.statement = statement;
       v.push(x);
+    }else if value == Symbol::Assert {
+      i.index+=1;
+      let x = try!(self.assert_statement(i,t));
+      v.push(x);
     }else{
       let x = try!(self.assignment(i));
       v.push(x);
@@ -2425,7 +2455,7 @@ fn statements(&mut self, i: &mut TokenIterator, last_value: Value)
     }
   }
   if v.len()==1 {
-    return Ok(match v.pop() {Some(x) => x, None => compiler_error()});
+    return Ok(match v.pop() {Some(x) => x, None => unreachable!()});
   }else{
     return Ok(Rc::new(AST{line: t0.line, col: t0.col, symbol_type: SymbolType::Keyword,
       value: Symbol::Block, info: Info::None, s: None, a: Some(v.into_boxed_slice())}));
@@ -2539,7 +2569,7 @@ fn compile_while(&mut self, v: &mut Vec<u32>, t: &Rc<AST>)
   }
 
   let info = match self.jmp_stack.pop() {
-    Some(info)=>info, None=>unreachable!()
+    Some(info) => info, None => unreachable!()
   };
   let len = v.len();
   for index in info.breaks {
@@ -2592,7 +2622,7 @@ fn compile_for(&mut self, bv: &mut Vec<u32>, t: &Rc<AST>)
   push_i32(bv,(BCSIZE+start) as i32-len as i32);
 
   let info = match self.jmp_stack.pop() {
-    Some(info)=>info, None=>unreachable!()
+    Some(info) => info, None => unreachable!()
   };
   let len = bv.len();
   for index in info.breaks {
@@ -2624,7 +2654,7 @@ fn compile_try_catch(&mut self, bv: &mut Vec<u32>, t: &Rc<AST>)
   push_bc(bv,bc::OP,t.line,t.col);
   push_bc(bv,bc::GETEXC,t.line,t.col);
   let c = ast_argv(&a[1]);
-  self.compile_assignment(bv,&c[0],c[0].line,c[0].col);
+  try!(self.compile_assignment(bv,&c[0],c[0].line,c[0].col));
   if c.len()==2 {
     push_bc(bv,bc::OP,t.line,t.col);
     push_bc(bv,bc::TRYEND,t.line,t.col);
@@ -2657,7 +2687,7 @@ fn compile_app(&mut self, v: &mut Vec<u32>, t: &Rc<AST>)
   let self_argument = match t.info {
     Info::None => false,
     Info::SelfArg => true,
-    _ => panic!()
+    _ => unreachable!()
   };
   let argc = if self_argument {a.len()-2} else {a.len()-1};
 
@@ -2999,8 +3029,9 @@ fn compile_variable(&mut self, bv: &mut Vec<u32>, t: &AST)
 
 fn compile_assignment(&mut self, bv: &mut Vec<u32>, t: &AST,
   line: usize, col: usize
-){
-  let key = match t.s {Some(ref x)=>x, None=>panic!()};
+) -> Result<(),Error>
+{
+  let key = match t.s {Some(ref x) => x, None => unreachable!()};
   if self.function_nesting>0 {
     match self.vtab.index_type(key) {
       Some((index,var_type)) => {
@@ -3023,7 +3054,9 @@ fn compile_assignment(&mut self, bv: &mut Vec<u32>, t: &AST,
             push_u32(bv,index as u32);
           },
           VarType::FnId => {
-            panic!();
+            return Err(self.syntax_error(t.line,t.col,String::from(
+              "cannot assign to function."
+            )));
           }
         }
       },
@@ -3054,6 +3087,7 @@ fn compile_assignment(&mut self, bv: &mut Vec<u32>, t: &AST,
     push_bc(bv,bc::STORE,line,col);
     push_u32(bv,index as u32);
   }
+  return Ok(());
 }
 
 fn compile_compound_assignment(
@@ -3075,7 +3109,7 @@ fn compile_compound_assignment(
     };
     let op = binary_operator(t.line,t.col,value,a[0].clone(),a[1].clone());
     try!(self.compile_ast(bv,&op));
-    self.compile_assignment(bv,&a[0],t.line,t.col);
+    try!(self.compile_assignment(bv,&a[0],t.line,t.col));
   }else{
     let args_left = ast_argv(&a[0]);
     try!(self.compile_ast(bv,&args_left[0]));
@@ -3100,7 +3134,9 @@ fn compile_compound_assignment(
     }else if a[0].value == Symbol::Dot {
       push_bc(bv,bc::DOT,a[0].line,a[0].col);
     }else{
-      panic!();
+      return Err(self.syntax_error(a[0].line,a[0].col,String::from(
+        "cannot compound assign to this expression."
+      )));
     }
     push_bc(bv,op_code,a[0].line,a[0].col);
   }
@@ -3112,7 +3148,7 @@ fn closure(&mut self, bv: &mut Vec<u32>, t: &AST){
   let a = &self.vtab.v[..];
   let ref mut context = match self.vtab.context {
     Some(ref mut context) => context,
-    None => panic!()
+    None => unreachable!()
   };
   for i in 0..n {
     if a[i].var_type == VarType::Context {
@@ -3130,7 +3166,12 @@ fn closure(&mut self, bv: &mut Vec<u32>, t: &AST){
             push_bc(bv,bc::LOAD_CONTEXT,t.line,t.col);
             push_u32(bv,index as u32);
           },
-          _ => panic!()
+          VarType::FnId => {
+            push_bc(bv,bc::FNSELF,t.line,t.col);
+          },
+          VarType::Global => {
+            unreachable!();
+          }
         }
       }else{
         if self.coroutine {
@@ -3182,7 +3223,7 @@ fn compile_left_hand_side(&mut self, bv: &mut Vec<u32>, t: &AST)
   -> Result<(),Error>
 {
   if t.symbol_type == SymbolType::Identifier {
-    self.compile_assignment(bv,&t,t.line,t.col);
+    try!(self.compile_assignment(bv,&t,t.line,t.col));
   }else if t.value == Symbol::Index {
     let b = ast_argv(&t);
     for i in 0..b.len() {
@@ -3199,7 +3240,7 @@ fn compile_left_hand_side(&mut self, bv: &mut Vec<u32>, t: &AST)
     try!(self.compile_unpack(bv,t));
   }else if t.value == Symbol::Map {
     let id = identifier("_m_",t.line,t.col);
-    self.compile_assignment(bv,&id,t.line,t.col);
+    try!(self.compile_assignment(bv,&id,t.line,t.col));
     let a = ast_argv(t);
     let n = a.len();
     let mut i=0;
@@ -3220,7 +3261,7 @@ fn compile_left_hand_side(&mut self, bv: &mut Vec<u32>, t: &AST)
         let null_coalescing = operator(t.line,t.col,Symbol::Else,Box::new([app,a[i+1].clone()]));
         try!(self.compile_ast(bv,&null_coalescing));
       }
-      self.compile_assignment(bv,&a[i],t.line,t.col);
+      try!(self.compile_assignment(bv,&a[i],t.line,t.col));
       i+=2;
     }
   }else{
@@ -3249,6 +3290,26 @@ fn compile_long(&mut self, bv: &mut Vec<u32>, t: &AST)
   let index = self.get_index(&key);
   push_bc(bv,bc::LONG,t.line,t.col);
   push_u32(bv,index as u32);
+  return Ok(());
+}
+
+fn compile_assert(&mut self, bv: &mut Vec<u32>, t: &AST)
+  -> Result<(),Error>
+{
+  let a = ast_argv(t);
+  let condition = unary_operator(t.line,t.col,Symbol::Not,a[0].clone());
+  let err = if a.len()==2 {
+    let x = string("Assertion failed: ".to_string(),t.line,t.col);
+    let y = a[1].clone();
+    binary_operator(t.line,t.col,Symbol::Plus,x,y)
+  }else{
+    string("Assertion failed.".to_string(),t.line,t.col)
+  };
+  let failed = unary_node(t.line,t.col,SymbolType::Keyword,Symbol::Raise,err);
+  let y = binary_node(t.line,t.col,SymbolType::Keyword,Symbol::If,
+    condition, failed
+  );
+  try!(self.compile_ast(bv,&y));
   return Ok(());
 }
 
@@ -3475,6 +3536,10 @@ fn compile_ast(&mut self, bv: &mut Vec<u32>, t: &Rc<AST>)
       try!(self.global_declaration(a));
     }else if value == Symbol::Try {
       try!(self.compile_try_catch(bv,t));
+    }else if value == Symbol::Assert {
+      if self.debug_mode {
+        try!(self.compile_assert(bv,t));
+      }
     }else{
       unreachable!();
     }
@@ -3880,11 +3945,21 @@ fn print_var_tab(vtab: &VarTab, indent: usize){
   }
 }
 
+pub struct CompilerExtra{
+  pub debug_mode: bool
+}
+
 pub fn compile(v: Vec<Token>, mode_cmd: bool, value: Value,
-  history: &mut system::History, id: &str,
-  rte: &Rc<RTE>
+  history: &mut system::History, id: &str, rte: &Rc<RTE>
 ) -> Result<Rc<Module>,Error>
 {
+  let debug_mode = {
+    if let Some(ref extra) = *rte.compiler_config.borrow() {
+      extra.debug_mode
+    }else{
+      false
+    }
+  };
   let mut compilation = Compilation{
     mode_cmd: mode_cmd, index: 0,
     syntax_nesting: 0, parens: 0, statement: !mode_cmd,
@@ -3892,7 +3967,7 @@ pub fn compile(v: Vec<Token>, mode_cmd: bool, value: Value,
     stab_index: 0, data: Vec::new(), bv_blocks: Vec::new(),
     fn_indices: Vec::new(), vtab: VarTab::new(None),
     function_nesting: 0, jmp_stack: Vec::new(),
-    coroutine: false, for_nesting: 0
+    coroutine: false, for_nesting: 0, debug_mode
   };
   let mut i = TokenIterator{index: 0, a: Rc::new(v.into_boxed_slice())};
   let y = try!(compilation.ast(&mut i,value));

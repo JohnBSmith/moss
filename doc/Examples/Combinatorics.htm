@@ -18,6 +18,7 @@
 <h2 id="toc">Table of contents</h2>
 <ol>
 <li><a href="#factorial">Factorial function</a>
+<li><a href="#permutations">Permutations</a>
 </ol>
 </div>
 
@@ -26,23 +27,27 @@
 <pre class="moss">
 # Iterative
 fac = sub|n|
-  p = 1
+  y = 1
   for i in 1..n
-    p = p*i
+    y = y*i
   end
-  return p
+  return y
 end
+
 
 # Recursive
 fac = |n| 1 if n==0 else n*fac(n-1)
 
+
 # Functional
 fac = |n| (1..n).reduce(1,|x,y| x*y)
+
 
 # As a dynamic system
 Fac = |[n,y]| [n+1,y*(n+1)]
 fac = |n| (Fac^n)([0,1])[1]
-fac = |n| Fac.orbit([0,1]).omit(n)()[1]
+fac = |n| Fac.orbit([0,1]).skip(n)()[1]
+
 
 # Tail-recursive
 sub call(f,n,y)
@@ -56,13 +61,61 @@ end
 Fac = |n,y| y if n==0 else || Fac(n-1,y*n)
 fac = |n| call(Fac,n,1)
 
-# By counting all permutations
+
+# Recursive, by Y combinator
+Y = |F| (|x| x(x))(|x| F(|n| x(x)(n)))
+fac = Y(|f||n| 1 if n==0 else n*f(n-1))
+
+
+# Corecursive
+fac = |n| sub*||
+  y=1; k=1
+  while true
+    yield y
+    y, k = y*k, k+1
+  end
+end.skip(n)()
+
+
+# By counting all permutations inside of the
+# space of all mappings from 0..n-1 to 0..n-1
 fac = |n| (list(n)^n).count(|t| (0..n-1).all(|x| x in t))
 
+
+# By generating all permutations and counting them
+use itertools: permutations
+fac = |n| permutations(n).count()
+
+
 # Print them to the terminal
-(0..10).map(|n| [n,fac(n)]).each(print)
+(0..9).map(|n| [n,fac(n)]).each(print)
 </pre>
 
+
+<h2 id="permutations">Permutations</h2>
+
+<pre class="moss">
+# Generate all permutations of a list
+sub permutations(a)
+  a = list(a)
+  return sub* ||
+    if size(a)&lt;=1
+      yield copy(a)
+    else
+      x = a[..0]
+      for p in permutations(a[1..])
+        for i in 0..size(a)-1
+          yield p[..i-1]+x+p[i..]
+        end
+      end
+    end
+  end
+end
+
+for n in 0..4
+  permutations(n).each(print)
+end
+</pre>
 
 </body>
 </html>

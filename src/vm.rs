@@ -24,6 +24,7 @@ use rand::Rand;
 // use ::Interpreter;
 use system;
 use compiler;
+use compiler::{CompilerExtra};
 
 // byte code size
 // byte code+argument size
@@ -607,7 +608,7 @@ pub fn object_to_repr(env: &mut Env, x: &Object) -> Result<String,Box<Exception>
   }
 }
 
-fn function_id_to_string(env: &mut Env, f: &Function) -> String {
+fn function_id_to_string(f: &Function) -> String {
   match f.id {
     Object::Null => format!("function"),
     Object::Int(x) => {
@@ -619,10 +620,7 @@ fn function_id_to_string(env: &mut Env, f: &Function) -> String {
         format!("function ({}:{})",line,col)
       }
     },
-    _ => format!("{}",match object_to_string(env,&f.id) {
-      Ok(value)=>value,
-      Err(e) => "[could not show: Exception in str(f.id)]".to_string()
-    })
+    _ => format!("{}",f.id)
   }
 }
 
@@ -2292,6 +2290,15 @@ fn operator_of(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorRe
         _ => false
       };
     },
+    Object::Map(x) => {
+      value = match type_obj {
+        Object::Table(ref t) => {
+          Rc::ptr_eq(t,&env.rte.type_map) ||
+          Rc::ptr_eq(t,&env.rte.type_iterable)
+        },
+        _ => false
+      };
+    },
     Object::Function(x) => {
       value = match type_obj {
         Object::Table(ref t) => {
@@ -3145,6 +3152,7 @@ pub struct RTE{
   pub module_table: Rc<RefCell<Map>>,
   pub interface_types: RefCell<Vec<Rc<Table>>>,
   pub seed_rng: RefCell<Rand>,
+  pub compiler_config: RefCell<Option<Box<CompilerExtra>>>,
 
   pub key_string: Object,
   pub key_neg: Object,
@@ -3196,6 +3204,7 @@ impl RTE{
       module_table: Map::new(),
       interface_types: RefCell::new(Vec::new()),
       seed_rng: RefCell::new(Rand::new(0)),
+      compiler_config: RefCell::new(None),
 
       key_string: U32String::new_object_str("string"),
       key_neg:    U32String::new_object_str("neg"),
@@ -3639,7 +3648,13 @@ fn vm_loop(
                   let (s1,s2) = stack.split_at_mut(sp);
                   let mut env = Env{sp: 0, stack: s2, env: env};
                   match fp(&mut env, &s1[sp-argc-1], &s1[sp-argc..sp]) {
-                    Ok(y) => y, Err(e) => {exception = Err(e); break;}
+                    Ok(y) => y, Err(mut e) => {
+                      let (line,col) = get_line_col(&a,ip-BCASIZE);
+                      let fids = function_id_to_string(f);
+                      e.push_clm(line,col,&module.id,&fids);
+                      exception = Err(e);
+                      break;
+                    }
                   }
                 };
                 sp-=argc+1;
@@ -3651,13 +3666,19 @@ fn vm_loop(
                   let (s1,s2) = stack.split_at_mut(sp);
                   let mut env = Env{sp: 0, stack: s2, env: env};
                   let pf = &mut *match fp.try_borrow_mut() {
-                    Ok(f)=>f, Err(e) => {
+                    Ok(f)=>f, Err(_) => {
                       exception = Err(mut_fn_aliasing(&mut env,f));
                       break;
                     }
                   };
                   match pf(&mut env, &s1[sp-argc-1], &s1[sp-argc..sp]) {
-                    Ok(y) => y, Err(e) => {exception = Err(e); break;}
+                    Ok(y) => y, Err(mut e) => {
+                      let (line,col) = get_line_col(&a,ip-BCASIZE);
+                      let fids = function_id_to_string(f);
+                      e.push_clm(line,col,&module.id,&fids);
+                      exception = Err(e);
+                      break;
+                    }
                   }
                 };
                 sp-=argc+1;
@@ -3976,10 +3997,16 @@ fn vm_loop(
   }else{
     state.sp = sp;
     if let Err(ref mut e) = exception {
-      let (line,col) = get_line_col(&a,ip);
-      e.set_spot(line,col,&module.id);
+      match e.spot {
+        None => {
+          let (line,col) = get_line_col(&a,ip);
+          e.set_spot(line,col,&module.id);
+        },
+        Some(_) => {}
+      }
 
       loop{
+        if ret {break;}
         let frame = match env.frame_stack.pop() {
           Some(x)=>x,
           None=>{break;}
@@ -3987,7 +4014,7 @@ fn vm_loop(
         module = frame.module;
         a = module.program.clone();
         let (line,col) = get_line_col(&a,frame.ip-BCASIZE);
-        let fids = function_id_to_string(&mut Env{env,sp,stack},&*fnself);
+        let fids = function_id_to_string(&*fnself);
         e.push_clm(line,col,&module.id,&fids);
         fnself = frame.f;
         if frame.catch {
@@ -4004,10 +4031,12 @@ fn vm_loop(
           catch = true;
 
           continue 'main;
+        }else{
+          ret = frame.ret;
         }
       }
     }else{
-      panic!();
+      unreachable!();
     }
     return exception;
   }
@@ -4314,7 +4343,13 @@ impl<'a> Env<'a>{
               self.stack[self.sp] = Object::Null;
               self.sp+=1;
             }
-            try!(vm_loop(self,fp.address.get(),sp,bp,fp.module.clone(),fp.gtab.clone(),f.clone()));
+            match vm_loop(self,fp.address.get(),sp,bp,fp.module.clone(),fp.gtab.clone(),f.clone()) {
+              Ok(()) => {},
+              Err(mut e) => {
+                e.traceback_push(&function_id_to_string(f));
+                return Err(e);
+              }
+            }
             let y = replace(&mut self.stack[self.sp-1],Object::Null);
             for x in &mut self.stack[sp..self.sp-1] {
               *x = Object::Null;
@@ -4345,8 +4380,9 @@ impl<'a> Env<'a>{
     &self.env.rte
   }
 
-  pub fn eval_string(&mut self, s: &str, id: &str, gtab: Rc<RefCell<Map>>, value: compiler::Value)
-    -> Result<Object,Box<Exception>>
+  pub fn eval_string(&mut self, s: &str, id: &str, gtab: Rc<RefCell<Map>>,
+    value: compiler::Value
+  ) -> Result<Object,Box<Exception>>
   {
     let mut history = system::History::new();
     match compiler::scan(s,1,id,false) {
@@ -4390,7 +4426,8 @@ impl<'a> Env<'a>{
         Ok(v) => {
           // compiler::print_vtoken(&v);
           match compiler::compile(
-            v,true,compiler::Value::Optional,&mut history,"command line",self.rte()
+            v,true,compiler::Value::Optional,&mut history,
+            "command line", self.rte()
           ){
             Ok(module) => {
               match eval(self,module.clone(),gtab.clone(),true) {

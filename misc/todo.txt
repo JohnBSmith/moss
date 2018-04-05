@@ -12,8 +12,10 @@
 * sandbox security model for file access
 * interning literals of type Long
 * in range to iterator/list: start/end of type Long
+* search paths
 
 == Library ==
+* long
 * reverse iterator
 * cycling iterator
 * iterator: tee
@@ -23,7 +25,6 @@
 * insert for lists
 * regular expressions
 * graphics
-* powmod
 
 === Linear algebra ===
 * polymorphic arrays
@@ -63,10 +64,12 @@
 * multiple dispatch in operator overloading
 * env-pointer in Interface::to_string
 * interface objects in hash tables
+* assert statement
 
 == Library ==
 * zip
 * hash for Long
+* powmod
 
 === Linear Algebra ===
 * polymorphic arrays

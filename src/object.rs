@@ -173,12 +173,33 @@ impl Exception{
       self.traceback = Some(a);
     }
   }
+  pub fn traceback_push(&mut self, fid: &str) {
+    let s = U32String::new_object_str(fid);
+    if let Some(ref mut a) = self.traceback {
+      a.v.push(s);
+    }else{
+      let mut a = List::new();
+      a.v.push(s);
+      self.traceback = Some(a);
+    }
+  }
 }
 
 impl fmt::Debug for Exception {
   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
     write!(f, "{}", ::vm::object_to_string_plain(&self.value))
   }
+}
+
+#[macro_export]
+macro_rules! trace_err_try {
+  ($e:expr, $fid:expr) => (match $e {
+    Ok(val) => val,
+    Err(mut err) => {
+      err.traceback_push($fid);
+      return Err(err)
+    }
+  });
 }
 
 pub type OperatorResult = Result<(),Box<Exception>>;

@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Algorithms</title>
+  <link href="../css/main.css" rel="stylesheet">
+  <script src="../js/moss-syntax.js"></script>
+</head>
+<body>
+
+<table class="navigation">
+<tr><td><b>&uarr;</b> <a href="toc.htm">Up</a>
+</table>
+<h1>Algorithms</h1>
+
+<div class="toc">
+<h2 id="toc">Table of contents</h2>
+<ol>
+<li><a href="#itertools">Module <code>itertools</code> &mdash; functions that create iterators</a>
+<li><a href="#functional">Module <code>functional</code> &mdash; functional programming</a>
+</ol>
+</div>
+
+<h2 id="itertools">Module itertools</h2>
+<p>Functions that create iterators.
+
+<dl class="code">
+<dt>permutations(a)
+<dd>An iterator over all permutations of <code>a</code>
+</dl>
+
+<h2 id="functional">Module functional</h2>
+<p>Functional programming.
+
+<dl class="code">
+<dt>fix(F)
+<dd>Memoizing fixed point combinator.
+<pre class="moss">
+fib = fix(|f,n| 1 if n==1 or n==2 else f(n-1)+f(n-2))
+</pre>
+</dl>
+
+</body>
+</html>
+
