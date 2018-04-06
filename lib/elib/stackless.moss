@@ -55,8 +55,22 @@ Iterable.any = sub|p|
   return false
 end
 
-List.all = Iterable.all
-List.any = Iterable.any
+Iterable.count = sub|p=null|
+  k=0
+  if p is null
+    if self: String or self: List or self: Map
+      return size(self)
+    end
+    for x in self
+      k+=1
+    end
+  else
+    for x in self
+      if p(x) then k+=1 end
+    end
+  end
+  return k
+end
 
 Iterable.reduce = sub|e,f=null|
   if f is null

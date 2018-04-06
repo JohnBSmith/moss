@@ -10,13 +10,13 @@ use object::{Object, FnResult, U32String, Function, Table, List, Map,
 use vm::Env;
 use iterable::new_iterator;
 
-fn map_update(m: &mut Map, m2: &Map){
+pub fn map_update(m: &mut Map, m2: &Map){
   for (key,value) in &m2.m {
     m.m.insert(key.clone(),value.clone());
   }
 }
 
-fn map_extend(m: &mut Map, m2: &Map) {
+pub fn map_extend(m: &mut Map, m2: &Map) {
   for (key,value) in &m2.m {
     if !m.m.contains_key(key) {
       m.m.insert(key.clone(),value.clone());

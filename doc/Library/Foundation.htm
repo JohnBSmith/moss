@@ -228,7 +228,7 @@ is exhausted.
 
 Note that, for a list of lists, <code>zip</code> is an involution:
 <pre class="moss">
-a == zip.apply(zip.apply(a).list()).list()
+a == zip(*zip(*a).list()).list()
 </pre>
 
 <dt>eval(s), eval(s,m)
@@ -270,7 +270,7 @@ and return it. Thus, <code>a.pop(0)</code> removes the first element.
 Beforehand, all elements from index <code>i</code> inclusive onwards
 are shiftet one position to the right.
 
-<dt>a.append(b)
+<dt>a.append(b), a.push(*b)
 <dd>Append all elements from <code>b</code> to <code>a</code>.
 
 <dt>a.clear(), a.clear(n)

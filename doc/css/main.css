@@ -95,6 +95,7 @@ table.bt{
 table.bt td, table.bt th{
   border: 1px solid #b0b0a0;
   padding-left: 0.2em;
+  padding-right: 0.2em;
   text-align: left;
   vertical-align: top;
 }

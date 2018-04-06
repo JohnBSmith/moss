@@ -1,0 +1,28 @@
+
+
+# == A driver for formal languages ==
+# Words of characters: L = {"a","ab"}.
+# Words of general symbols: L = {[], [1,2], [3]}.
+# Operations:
+# L1|L2, L1&L2, L1-L2, L1*L2, L^n, L.star(n), L.plus(n).
+
+extend(Map,{
+  sub mpy(L1;L2)
+    set((list(L1)*list(L2)).map(|[x,y]| x+y))
+  end,
+  sub pow(L;n)
+    if n==0
+      return {""} if size(L)==0 else {iter(L)()[1..0]}
+    else
+      return (1..n-1).reduce(L,|x,y| x*L)
+    end
+  end,
+  sub star(L;n)
+    (0..n).map(|k| L^k).reduce({},|x,y| x|y)
+  end,
+  sub plus(L;n)
+    (1..n).map(|k| L^k).reduce({},|x,y| x|y)
+  end
+})
+
+

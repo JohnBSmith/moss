@@ -16,6 +16,7 @@
 
 == Library ==
 * long
+# reverse string
 * reverse iterator
 * cycling iterator
 * iterator: tee

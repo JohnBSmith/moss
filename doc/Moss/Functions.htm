@@ -25,7 +25,7 @@
 <li><a href="#var">Variadic functions</a>
 <li><a href="#opt">Optional arguments</a>
 <li><a href="#named">Named arguments</a>
-<li><a href="#unpacking">List unpacking</a>
+<li><a href="#unpacking">Argument list unpacking</a>
 <li><a href="#argc">Argument count</a>
 <li><a href="#methods">Methods</a>
 <li><a href="#app">Function application</a>
@@ -319,23 +319,29 @@ end
 </pre>
 
 
-<h2 id="unpacking">List unpacking</h2>
+<h2 id="unpacking">Argument list unpacking</h2>
 
 <p>Sometimes we want a variadic function <code>f</code> to take the
 elements of a list as its arguments. To make this task simple,
-there is the generalized application operation <code>f.apply(a)</code>.
+there is the generalized application operation <code>f(*a)</code>.
+The prefix operator "<code>*</code>" is called
+<i>list unpacking operator</i>, also known as <i>splat</i>.
 
 <pre class="moss cmd-box">
-# variadic summation function
+# a variadic summation function
 &gt; s = |*a| a.sum()
 
-# normal call
+# a normal call
 &gt; s(1,2,3,4)
 10
 
-# unpacking call
+# we want to do this
 &gt; a = [1,2,3,4]
-&gt; s.apply(a)
+&gt; s(a[0],a[1],a[2],a[3])
+
+# more pleasant, via unpacking
+&gt; a = [1,2,3,4]
+&gt; s(*a)
 10
 </pre>
 
@@ -344,19 +350,20 @@ there is the generalized application operation <code>f.apply(a)</code>.
 <pre class="moss indent">
 # One can transform
 print("abcd") == print("a","b","c","d")
-== print.apply(["a","b","c","d"]) == print.apply(list("abcd"))
+== print(*["a","b","c","d"]) == print(*list("abcd"))
+  (semantic equivalence)
 
 # So, in general, if s is a string
-print(s) == print.apply(list(s))
+print(s) == print(*list(s))
+  (semantic equivalence)
 </pre>
 
-<p>If an unpacking call gets two arguments, the first
-argument is the self argument.
+<p>Unpacking may be mixed with implicit and explicit self arguments.
 So, if <code>x</code> is an object and <code>m</code> is a two
 argument method of <code>x</code>, we have</code>
 
 <pre class="moss indent">
-x.m(a,b) == x.m.apply(x,[a,b]).
+x.m(a,b) == x.m(*[a,b]) == x.m(x;*[a,b]).
 </pre>
 
 
@@ -374,7 +381,7 @@ the number of arguments of a given boolean function.
 sub truth_table(f)
   a = [false,true]^f.argc()
   for x in a
-    print((x+[f.apply(x)]).map(int))
+    print((x+[f(*x)]).map(int))
   end
 end
 </pre>
@@ -408,7 +415,7 @@ self argument. Viewed this way, <code>m</code> is called
 <p>If <code>m</code> is inserted in <code>String</code>,
 all strings will have <code>m</code> as a method.
 <pre class="moss cmd-box">
-&gt; String.m=m
+&gt; String.m = m
 &gt; "tea".m(1,2)
 ["tea", 1, 2]
 </pre>
@@ -499,13 +506,13 @@ Function.plus = |f;g| |x| f(x)+g(x)
 instead of <code>f(x)+g(x)</code>.
 
 <p>If <code>t</code> is a pair, one can write
-<code>f.apply(t)</code> instead of <code>f(t[0],t[1])</code>.
+<code>f(*t)</code> instead of <code>f(t[0],t[1])</code>.
 That is a more general way of function application,
-because one can always write <code>f.apply([t[0],t[1]])</code>.
+because one can always write <code>f(*[t[0],t[1]])</code>.
 In general one has
 <pre class="moss indent">
-  f(x,y) == f(null; x,y) == f.apply([x,y]),
-a.m(x,y) == a.m(a; x,y)  == a.m.apply(a,[x,y]).
+  f(x,y) == f(null;x,y) ==   f(*[x,y]) == f(null;*[x,y]),
+a.m(x,y) == a.m(a;x,y)  == a.m(*[x,y]) == a.m(a;*[x,y]).
 </pre>
 
 

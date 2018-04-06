@@ -20,6 +20,7 @@ use compiler::Value;
 use long::{Long, pow_mod};
 use tuple::Tuple;
 use iterable::new_iterator;
+use map::map_extend;
 
 pub fn type_name(x: &Object) -> String {
   loop{
@@ -857,6 +858,33 @@ fn type_to_string(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
   return Ok(Object::Null);
 }
 
+fn extend(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+  if argv.len()<2 {
+    return env.argc_error(argv.len(),2,VARIADIC,"extend");
+  }
+  if let Object::Table(ref t) = argv[0] {
+    let m = &mut t.map.borrow_mut();
+    for p in &argv[1..] {
+      match *p {
+        Object::Table(ref pt) => {
+          let pm = &pt.map.borrow();
+          map_extend(m,pm);
+        },
+        Object::Map(ref pm) => {
+          let pm = &pm.borrow();
+          map_extend(m,pm);
+        },
+        _ => {
+          return env.type_error("Type error in extend(x,y): y is not a table.");
+        }
+      }
+    }
+    return Ok(Object::Null);
+  }else{
+    return env.type_error("Type error in extend(x,y): x is not a table.");
+  }
+}
+
 pub fn init_rte(rte: &RTE){
   let mut gtab = rte.gtab.borrow_mut();
   gtab.insert_fn_plain("print",print,0,VARIADIC);
@@ -890,6 +918,7 @@ pub fn init_rte(rte: &RTE){
   gtab.insert_fn_plain("ord",ord,1,1);
   gtab.insert_fn_plain("chr",chr,1,1);
   gtab.insert_fn_plain("map",map,1,1);
+  gtab.insert_fn_plain("extend",extend,2,VARIADIC);
   gtab.insert("empty", Object::Empty);
 
   let type_bool = rte.type_bool.clone();

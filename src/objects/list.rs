@@ -417,6 +417,15 @@ fn clear(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
   }
 }
 
+pub fn cartesian_product(a: &List, b: &List) -> Object {
+  let mut v: Vec<Object> = Vec::with_capacity(a.v.len()*b.v.len());
+  for x in &a.v {
+    for y in &b.v {
+      v.push(List::new_object(vec![x.clone(),y.clone()]));
+    }
+  }
+  return List::new_object(v);
+}
 
 pub fn init(t: &Table){
   let mut m = t.map.borrow_mut();

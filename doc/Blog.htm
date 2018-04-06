@@ -499,10 +499,12 @@ galias = malias.g
 
 
 <h3 data-date="20170930" id="assert"
->Assert statement</h3>
+>Assert statements</h3>
 
 <p>The assert statement was added to the language:
 <pre class="moss indent">
+assert condition
+
 assert condition, text
 </pre>
 <p>It is implemented as syntatic sugar, because <code>text</code>
@@ -635,7 +637,7 @@ us nice reflection with respect to the prototype chain. For clarity,
 we have:
 
 <pre class="moss indent">
-a.x == a.("x")
+a.x &equiv; a.("x")
 </pre>
 
 <h3 data-date="20180326" id="the-metaclass-patch"
@@ -850,6 +852,75 @@ end
 
 <p>Again, difficulties arise when nesting and chaining are combined.
 
+
+<h3 data-date="20180406" id="auto-unpacking-removed"
+>Auto unpacking removed</h3>
+
+<p>For convenience, in some higher order functions there was
+automatic list unpacking:
+
+<pre class="moss indent">
+scalar_product = |v,w| zip(v,w).sum(|x,y| x*y)
+               = |v,w| zip(v,w).sum(|t| t[0]*t[1])
+</pre>
+
+<p>This is not possible in general and thus is
+removed in favor of explicit unpacking:
+<pre class="moss indent">
+scalar_product = |v,w| zip(v,w).sum(|[x,y]| x*y)
+</pre>
+
+<h3 data-date="20180406" id="argument-list-unpacking"
+>Argument list unpacking</h3>
+
+<p>For argument list unpacking there was so far:
+<pre class="moss indent">
+f(1,2) &equiv; f.apply([1,2])
+</pre>
+
+<p>This approach has the drawback that self arguments must
+be given explicitly:
+<pre class="moss indent">
+x.m(1,2) &equiv; x.m.apply(x;[1,2])
+  /*but not*/ x.m.apply([1,2])
+</pre>
+
+<p>Due to this reason, <code>f.apply(a)</code> is replaced
+by <code>f(*a)</code>.
+
+<p>Surprisingly, the implementation patch
+was very short and took me only 30 min. I added the unary prefix operator
+"<code>*</code>" to the recursive descent at the same level
+as the unary perfix operators "<code>+ - ~</code>". Now in AST
+compilation we match <code>splat</code> in these ASTs:
+<pre class="indent">
+  (apply f (splat (list 1 2))),
+  (apply (dot x "m") (splat (list 1 2))),
+  (apply (dot x "m") x (splat (list 1 2))),
+</pre>
+<p>and branch to compilation of unpacking apply. There we take
+explicit and implicit self arguments into account again.
+A new byte code <code>APPLY</code> is added to the interpreter.
+This byte code calls a very short function that takes
+<code>f,self,a</code> from the stack and calls the Rust-Moss
+transition <code>env.call(f,self,a)</code> where <code>env</code>
+is a pointer to the calling environment. The very same behavior
+was in <code>f.apply(self,a)</code>.
+
+<p>In before I mused about alternative approaches.
+One could have unpacked to the object stack and taken a dynamic
+argument count from the object stack. But firstly this would
+have made calling slower and secondly would have lead to
+stack overflow in case of large lists.
+
+<p>The following behavior is not implemented at this point of time:
+<pre class="moss indent">
+f(*a,*b) &equiv; f(*(a+b)),
+f(x,y,*a) &equiv; f(*([x,y]+a))
+etc.
+</pre>
+
+<p>Thus we need to use the right hand side.
 
 </body>
 </html>

@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Operators</title>
+  <link rel="stylesheet" href="../css/main.css">
+  <script src = "../js/rust-syntax.js" type="text/javascript">
+  </script>
+  <style>
+code.kw {color: #004060; font-weight: bold;}
+  </style>
+</head>
+<body>
+
+<table class="navigation">
+<tr><td><b>&uarr;</b> <a href="toc.htm">Up</a>
+</table>
+<h1>Quick reference</h1>
+
+<h2 id="toc">Table of contents</h2>
+<ol>
+<li><a href="#precedence">Operator precedence table</a>
+<li><a href="#keywords">Keywords</a>
+</ol>
+
+<h2 id="precedence">Operator precedence table</h2>
+
+<table class="bt">
+<tr>
+<th>Level
+<th>Operators
+<th>Meaning</th>
+<th>Associativity
+
+<tr>
+<td class="r">1
+<td><code>f(a), a[k]</code>
+<td>function application,<br>indexing
+<td>left
+
+<tr>
+<td class="r">2
+<td><code>a^b</code>
+<td>power
+<td>right</td>
+
+<tr>
+<td class="r">3
+<td><code>-a, ~a, *a</code>
+<td>negation, complement,<br>
+list unpacking
+<td>right
+
+<tr><td class="r">4
+<td><code>a*b, a/b,<br>a//b, a%b</code>
+<td>multiplication, division,<br>
+integer division, modulo
+<td>left
+
+<tr>
+<td class="r">5
+<td><code>a+b, a-b</code>
+<td>addition, subtraction
+<td>left</td>
+
+<tr><td class="r">6
+<td><code>a&gt;&gt;b, a&lt;&lt;b</code>
+<td>right shift, left shift
+<td>left
+
+<tr>
+<td class="r">7
+<td><code>a&amp;b</code>
+<td>bitwise and
+<td>left
+
+<tr>
+<td class="r">8
+<td><code>a|b, a$b</code>
+<td>bitwise or,<br>bitwise exclusive or
+<td>left
+
+<tr>
+<td class="r">9
+<td><code>a..b</code>
+<td>range
+<td>left
+
+<tr>
+<td class="r">10
+<td><code>a&lt;b, a&gt;b,<br>a&lt;=b, a&gt;=b</code>
+<td>less than, greater than,<br>
+less than or equal to,<br>
+greater than or equal to
+<td>left
+
+<tr>
+<td class="r">11
+<td><code>a==b, a!=b<br>
+a is b,<br>a is not b,<br>
+a in b,<br>a not in b,<br>
+a: b</code>
+<td>equal to, not equal to,<br>
+is the same object as,<br>
+is not the same object as,<br>
+membership,<br>type test
+<td>left
+
+<tr>
+<td class="r">12
+<td><code>not a</code>
+<td>logical negation
+<td>right
+
+<tr><td class="r">13
+<td><code>a and b</code>
+<td>conjunction
+<td>left
+
+<tr>
+<td class="r">14
+<td><code>a or b</code>
+<td>disjunction
+<td>left
+
+<tr>
+<td class="r">15
+<td><code>a if c else b</code>
+<td>conditional expression
+<td>right
+</table>
+
+<h2 id="keywords">Keywords</h2>
+<table class="bt">
+<tr><th>Keyword<th>Meaning
+<tr><td><code class="kw">and</code><td>logical operator
+<tr><td><code class="kw">assert</code><td>assert a logical expression
+<tr><td><code class="kw">begin</code><td>a code block
+<tr><td><code class="kw">break</code><td>leave a loop
+<tr><td><code class="kw">catch</code><td>catch an exception
+<tr><td><code class="kw">continue</code><td>jump to the begin of a loop
+<tr><td><code class="kw">do</code><td>separates a condition from a loop body
+<tr><td><code class="kw">elif</code><td>else if
+<tr><td><code class="kw">else</code><td>else case
+<tr><td><code class="kw">end</code><td>end of a statement
+<tr><td><code class="kw">false</code><td>literal of a logical value
+<tr><td><code class="kw">for</code><td>for loop statement
+<tr><td><code class="kw">global</code><td>declare a variable to be global
+<tr><td><code class="kw">goto</code><td>jump statement
+<tr><td><code class="kw">if</code><td>conditional statement
+<tr><td><code class="kw">in</code><td>membership operator
+<tr><td><code class="kw">is</code><td>is-the-same-object-as operator
+<tr><td><code class="kw">label</code><td>jump label
+<tr><td><code class="kw">null</code><td>literal of the null object
+<tr><td><code class="kw">not</code><td>logical operator
+<tr><td><code class="kw">or</code><td>logical operator
+<tr><td><code class="kw">raise</code><td>raise an exception
+<tr><td><code class="kw">return</code><td>return from a subroutine
+<tr><td><code class="kw">sub</code><td>subroutine
+<tr><td><code class="kw">table</code><td>literal of a table object
+<tr><td><code class="kw">then</code><td>separates a condition from conditional statments
+<tr><td><code class="kw">true</code><td>literal of a logical value
+<tr><td><code class="kw">try</code><td>exception handling may occur
+<tr><td><code class="kw">use</code><td>import a module
+<tr><td><code class="kw">while</code><td>while loop statement
+<tr><td><code class="kw">yield</code><td>return from a coroutine
+</table>
+
+</body>
+</html>
+

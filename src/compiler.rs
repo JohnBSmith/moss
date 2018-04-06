@@ -39,7 +39,7 @@ enum Symbol{
   Use, Yield, True, False, Null, Dot, Comma, Colon, Semicolon,
   List, Map, Application, Index, Block, Statement, Terminal,
   APlus, AMinus, AAst, ADiv, AIdiv, AMod, AAmp, AVline, ASvert,
-  Empty, Tuple
+  Empty, Tuple, Splat
 }
 
 enum Item{
@@ -605,7 +605,7 @@ fn symbol_to_string(value: Symbol) -> &'static str {
     Symbol::Eq   => "==", Symbol::Ne => "!=",
     Symbol::List => "[]", Symbol::Application => "app",
     Symbol::Map  => "{}", Symbol::Index => "index",
-    Symbol::Tuple => "()",
+    Symbol::Tuple => "()", Symbol::Splat => "u*",
     Symbol::APlus => "+=",
     Symbol::AMinus => "-=",
     Symbol::AAst => "*=",
@@ -1515,11 +1515,19 @@ fn power(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
 fn signed_expression(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
   let p = try!(i.next_token(self));
   let t = &p[i.index];
-  if t.value==Symbol::Minus || t.value==Symbol::Tilde {
+  if t.value==Symbol::Minus || t.value==Symbol::Tilde || t.value==Symbol::Ast
+  {
     i.index+=1;
     let x = try!(self.power(i));
-    let value = if t.value==Symbol::Minus
-      {Symbol::Neg} else {Symbol::Tilde};
+    /* let value = if t.value==Symbol::Minus
+      {Symbol::Neg} else if t.value
+      {Symbol::Tilde};
+    */
+    let value = match t.value {
+      Symbol::Minus => Symbol::Neg,
+      Symbol::Ast => Symbol::Splat,
+      _ => Symbol::Tilde
+    };
     return Ok(unary_operator(t.line,t.col,value,x));
   }else if t.value==Symbol::Plus {
     i.index+=1;
@@ -2680,6 +2688,38 @@ fn compile_try_catch(&mut self, bv: &mut Vec<u32>, t: &Rc<AST>)
   return Ok(());
 }
 
+fn compile_app_unpack(&mut self, bv: &mut Vec<u32>, a: &[Rc<AST>],
+  self_argument: bool, line: usize, col: usize
+) -> Result<(),Error>
+{
+  if self_argument {
+    if a.len() != 3 {
+      return Err(self.syntax_error(line,col,String::from("expected one argument.")));
+    }
+    try!(self.compile_ast(bv,&a[0]));
+    try!(self.compile_ast(bv,&a[1]));
+    let argv = &ast_argv(&a[2])[0];
+    try!(self.compile_ast(bv,argv));
+  }else{
+    if a.len() != 2 {
+      return Err(self.syntax_error(line,col,String::from("expected one argument.")));
+    }
+    if a[0].value == Symbol::Dot {
+      let b = ast_argv(&a[0]);
+      try!(self.compile_ast(bv,&b[0]));
+      try!(self.compile_ast(bv,&b[1]));
+      push_bc(bv, bc::DUP_DOT_SWAP, line, col);
+    }else{
+      try!(self.compile_ast(bv,&a[0]));
+      push_bc(bv, bc::NULL, line, col);
+    }
+    let argv = &ast_argv(&a[1])[0];
+    try!(self.compile_ast(bv,argv));
+  }
+  push_bc(bv, bc::APPLY, line, col);
+  return Ok(());
+}
+
 fn compile_app(&mut self, v: &mut Vec<u32>, t: &Rc<AST>)
   -> Result<(),Error>
 {
@@ -2689,7 +2729,12 @@ fn compile_app(&mut self, v: &mut Vec<u32>, t: &Rc<AST>)
     Info::SelfArg => true,
     _ => unreachable!()
   };
-  let argc = if self_argument {a.len()-2} else {a.len()-1};
+  let n = a.len();
+  if a[n-1].value == Symbol::Splat {
+    return self.compile_app_unpack(v,a,self_argument,t.line,t.col);
+  }
+
+  let argc = if self_argument {n-2} else {n-1};
 
   if self_argument {
     // callee
@@ -3879,6 +3924,7 @@ fn asm_listing(a: &[u32]) -> String {
           unreachable!("op ??");
         }
       },
+      bc::APPLY => {s.push_str("apply\n"); i+=BCSIZE;}
       bc::HALT => {s.push_str("halt\n"); i+=BCSIZE;},
       _ => {unreachable!();}
     }
