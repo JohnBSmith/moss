@@ -558,8 +558,10 @@ pub fn scan(s: &str, line_start: usize, file: &str, new_line_start: bool)
               item: Item::None});
             i+=2; col+=2;
           }else{
-            return Err(Box::new(EnumError::Syntax(SyntaxError{line: line, col: col, file: String::from(file),
-              s: format!("unexpected character '{}'.", c)})));
+            return Err(Box::new(EnumError::Syntax(SyntaxError{
+              line: line, col: col, file: String::from(file),
+              s: format!("unexpected character '{}'.", c)
+            })));
           }
         },
         '#' => {
@@ -570,8 +572,10 @@ pub fn scan(s: &str, line_start: usize, file: &str, new_line_start: bool)
           i+=1; col=1; line+=1;
         },
         _ => {
-          return Err(Box::new(EnumError::Syntax(SyntaxError{line: line, col: col, file: String::from(file),
-            s: format!("unexpected character '{}'.", c)})));
+          return Err(Box::new(EnumError::Syntax(SyntaxError{
+            line: line, col: col, file: String::from(file),
+            s: format!("unexpected character '{}'.", c)
+          })));
         }
       }
     }
@@ -968,9 +972,11 @@ fn binary_node(line: usize, col: usize,
 
 impl<'a> Compilation<'a>{
 
-fn syntax_error(&self, line: usize, col: usize, s: String) -> Error{
-  Box::new(EnumError::Syntax(SyntaxError{line: line, col: col,
-    file: String::from(self.file), s: s
+#[inline(never)]
+fn syntax_error(&self, line: usize, col: usize, s: &str) -> Error{
+  Box::new(EnumError::Syntax(SyntaxError{
+    line: line, col: col,
+    file: String::from(self.file), s: String::from(s)
   }))
 }
 
@@ -1005,7 +1011,7 @@ fn list_literal(&mut self, i: &mut TokenIterator) -> Result<Box<[Rc<AST>]>,Error
       i.index+=1;
       break;
     }else{
-      return Err(self.syntax_error(t.line, t.col, String::from("expected ',' or ']'.")));
+      return Err(self.syntax_error(t.line, t.col, "expected ',' or ']'."));
     }
   }
   return Ok(v.into_boxed_slice());
@@ -1041,7 +1047,7 @@ fn map_literal(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error> {
             i.index+=1;
             break;
           }else if t2.value != Symbol::Comma {
-            return Err(self.syntax_error(t2.line, t2.col, String::from("expected ',' or '}'.")));
+            return Err(self.syntax_error(t2.line, t2.col, "expected ',' or '}'."));
           }
           i.index+=1;
           continue;
@@ -1075,13 +1081,13 @@ fn map_literal(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error> {
           i.index+=1;
           break;
         }else if t2.value != Symbol::Comma {
-          return Err(self.syntax_error(t2.line, t2.col, String::from("expected ',' or '}'.")));
+          return Err(self.syntax_error(t2.line, t2.col, "expected ',' or '}'."));
         }
         i.index+=1;
       }else if t.value== Symbol::Assignment {
         i.index+=1;
         if key.symbol_type != SymbolType::Identifier {
-          return Err(self.syntax_error(t.line, t.col, String::from("expected an identifier before '='.")));
+          return Err(self.syntax_error(t.line, t.col, "expected an identifier before '='."));
         }
         let value = try!(self.expression(i));
         let skey = Rc::new(AST{
@@ -1097,11 +1103,11 @@ fn map_literal(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error> {
           i.index+=1;
           break;
         }else if t2.value != Symbol::Comma {
-          return Err(self.syntax_error(t2.line, t2.col, String::from("expected ',' or '}'.")));
+          return Err(self.syntax_error(t2.line, t2.col, "expected ',' or '}'."));
         }
         i.index+=1;
       }else{
-        return Err(self.syntax_error(t.line, t.col, String::from("expected ',' or '=' or ':' or '}'.")));
+        return Err(self.syntax_error(t.line, t.col, "expected ',' or '=' or ':' or '}'."));
       }
     }
   }
@@ -1122,7 +1128,7 @@ fn table_literal(&mut self, i: &mut TokenIterator, t0: &Token) -> Result<Rc<AST>
   let p = try!(i.next_token(self));
   let t = &p[i.index];
   if t.value != Symbol::CLeft {
-    return Err(self.syntax_error(t.line, t.col, String::from("expected '{'.")));
+    return Err(self.syntax_error(t.line, t.col, "expected '{'."));
   }
   i.index+=1;
   let map = try!(self.map_literal(i));
@@ -1155,7 +1161,7 @@ fn arguments_list(&mut self, i: &mut TokenIterator, t0: &Token, terminator: Symb
           i.index+=1;
           break;
         }else{
-          return Err(self.syntax_error(t.line, t.col, String::from("expected '|'.")));
+          return Err(self.syntax_error(t.line, t.col, "expected '|'."));
         }
       }
       let x = try!(self.atom(i));
@@ -1191,7 +1197,7 @@ fn arguments_list(&mut self, i: &mut TokenIterator, t0: &Token, terminator: Symb
         i.index+=1;
         break;
       }else{
-        return Err(self.syntax_error(t.line, t.col, String::from("expected ',' or '|'.")));
+        return Err(self.syntax_error(t.line, t.col, "expected ',' or '|'."));
       }
     }
   }
@@ -1250,7 +1256,7 @@ fn function_literal(&mut self, i: &mut TokenIterator, t0: &Token)
   }else if t.value == Symbol::Terminal {
     Symbol::Newline
   }else{
-    return Err(self.syntax_error(t.line, t.col, String::from("expected '(' or '|'.")));
+    return Err(self.syntax_error(t.line, t.col, "expected '(' or '|'."));
   };
   let args = if terminator == Symbol::Newline {
     Rc::new(AST{line: t0.line, col: t0.col,
@@ -1274,7 +1280,7 @@ fn function_literal(&mut self, i: &mut TokenIterator, t0: &Token)
   let p = try!(i.next_token_optional(self));
   let t = &p[i.index];
   if t.value != Symbol::End {
-    return Err(self.syntax_error(t.line, t.col, String::from("expected 'end'.")));
+    return Err(self.syntax_error(t.line, t.col, "expected 'end'."));
   }
   self.parens = parens;
   self.syntax_nesting-=1;
@@ -1323,7 +1329,7 @@ fn application(&mut self, i: &mut TokenIterator, f: Rc<AST>, terminal: Symbol)
           }
         }else{
           return Err(self.syntax_error(t.line, t.col,
-            "expected identifer before '='.".to_string()
+            "expected identifer before '='."
           ));
         }
       }else{
@@ -1374,7 +1380,7 @@ fn block(&mut self, i: &mut TokenIterator, t0: &Token) -> Result<Rc<AST>,Error> 
   let p = try!(i.next_token_optional(self));
   let t = &p[i.index];
   if t.value != Symbol::End {
-    return Err(self.syntax_error(t.line, t.col, String::from("expected 'end'.")));
+    return Err(self.syntax_error(t.line, t.col, "expected 'end'."));
   }
   self.parens = parens;
   self.syntax_nesting-=1;
@@ -1423,11 +1429,11 @@ fn atom(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error> {
     y = try!(self.comma_expression(i,Symbol::Tuple));
     let p = try!(i.next_token(self));
     let t = &p[i.index];
+    if t.value != Symbol::PRight {
+      return Err(self.syntax_error(t.line, t.col, "expected ')'."));
+    }
     self.syntax_nesting-=1;
     self.parens-=1;
-    if t.value != Symbol::PRight {
-      return Err(self.syntax_error(t.line, t.col, String::from("expected ')'.")));
-    }
     i.index+=1;
   }else if t.value==Symbol::BLeft {
     i.index+=1;
@@ -1454,7 +1460,9 @@ fn atom(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error> {
     i.index+=1;
     y = try!(self.function_literal(i,t));
     if y.value == Symbol::Assignment {
-      return Err(self.syntax_error(t.line,t.col,"unexpected sub-statement.".to_string()));
+      return Err(self.syntax_error(t.line,t.col,
+        "unexpected sub-statement."
+      ));
     }
   }else if t.value==Symbol::Begin {
     i.index+=1;
@@ -1493,6 +1501,16 @@ fn application_term(&mut self, i: &mut TokenIterator)
         try!(self.atom(i))
       };
       x = binary_operator(t.line,t.col,Symbol::Dot,x,y);
+    }else if t.token_type == SymbolType::Identifier {
+      let y = Rc::new(AST{
+        line: t.line, col: t.col,
+        symbol_type: SymbolType::String,
+        value: Symbol::None, info: Info::None,
+        s: Some(t.item.assert_string().clone()),
+        a: None
+      });
+      i.index+=1;
+      x = binary_operator(t.line,t.col,Symbol::Index,x,y);
     }else{
       return Ok(x);
     }
@@ -1519,10 +1537,6 @@ fn signed_expression(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
   {
     i.index+=1;
     let x = try!(self.power(i));
-    /* let value = if t.value==Symbol::Minus
-      {Symbol::Neg} else if t.value
-      {Symbol::Tilde};
-    */
     let value = match t.value {
       Symbol::Minus => Symbol::Neg,
       Symbol::Ast => Symbol::Splat,
@@ -1863,7 +1877,7 @@ fn while_statement(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
   if t.value == Symbol::Do || t.value == Symbol::Newline {
     i.index+=1;
   }else{
-    return Err(self.syntax_error(t.line, t.col, String::from("expected 'do' or a line break.")));
+    return Err(self.syntax_error(t.line, t.col, "expected 'do' or a line break."));
   }
   let body = try!(self.statements(i,Value::None));
   return Ok(Rc::new(AST{line: t.line, col: t.col, symbol_type: SymbolType::Keyword,
@@ -1899,7 +1913,7 @@ fn for_statement(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error> {
   let p = try!(i.next_token(self));
   let t = &p[i.index];
   if t.value != Symbol::In {
-    return Err(self.syntax_error(t.line, t.col, String::from("expected 'in'.")));
+    return Err(self.syntax_error(t.line, t.col, "expected 'in'."));
   }
   i.index+=1;
   let a = try!(self.comma_expression(i,Symbol::List));
@@ -1908,7 +1922,7 @@ fn for_statement(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error> {
   if t.value == Symbol::Do || t.value == Symbol::Newline {
     i.index+=1;
   }else{
-    return Err(self.syntax_error(t.line, t.col, String::from("expected 'do' or a line break.")));
+    return Err(self.syntax_error(t.line, t.col, "expected 'do' or a line break."));
   }
   let body = try!(self.statements(i,Value::None));
   return Ok(Rc::new(AST{line: t.line, col: t.col, symbol_type: SymbolType::Keyword,
@@ -1924,7 +1938,7 @@ fn if_statement(&mut self, i: &mut TokenIterator, t0: &Token) -> Result<Rc<AST>,
     i.index+=1;
   }else{
     return Err(self.syntax_error(t.line, t.col,
-      format!("expected 'then' or a line break.")
+      "expected 'then' or a line break."
     ));
   }
   let body = try!(self.statements(i,Value::None));
@@ -1941,7 +1955,7 @@ fn if_statement(&mut self, i: &mut TokenIterator, t0: &Token) -> Result<Rc<AST>,
       if t.value == Symbol::Then || t.value == Symbol::Newline {
         i.index+=1;
       }else{
-        return Err(self.syntax_error(t.line, t.col, String::from("expected 'then' or a line break.")));
+        return Err(self.syntax_error(t.line, t.col, "expected 'then' or a line break."));
       }
       let body = try!(self.statements(i,Value::None));
       v.push(condition);
@@ -1954,7 +1968,7 @@ fn if_statement(&mut self, i: &mut TokenIterator, t0: &Token) -> Result<Rc<AST>,
       break;
     }else{
       return Err(self.syntax_error(t.line,t.col,
-        "expected 'elif, 'else' or 'end'.".to_string()
+        "expected 'elif, 'else' or 'end'."
       ));
     }
   }
@@ -1970,11 +1984,10 @@ fn end_of(&mut self, i: &mut TokenIterator, symbol: Symbol) -> Result<(),Error>{
     let p = try!(i.next_token_optional(self));
     let t = &p[i.index];
     if t.value != symbol {
-      return Err(self.syntax_error(t.line, t.col,
-        format!("expected 'end of {}', but got 'end of {}'.",
-          symbol_to_string(symbol),
-          symbol_to_string(t.value))
-      ));
+      return Err(self.syntax_error(t.line, t.col,&format!(
+        "expected 'end of {}', but got 'end of {}'.",
+        symbol_to_string(symbol), symbol_to_string(t.value)
+      )));
     }
     i.index+=1;
   }
@@ -2003,7 +2016,7 @@ fn try_catch_statement(
       i.index+=1;
       break;
     }else{
-      return Err(self.syntax_error(t.line, t.col, String::from("expected 'catch'.")));
+      return Err(self.syntax_error(t.line, t.col, "expected 'catch'."));
     }
     let id = try!(self.identifier(i));
     i.index+=1;
@@ -2016,7 +2029,7 @@ fn try_catch_statement(
       i.index+=1;
       None
     }else{
-      return Err(self.syntax_error(t.line, t.col, String::from("expected 'if'.")));   
+      return Err(self.syntax_error(t.line, t.col, "expected 'if'."));   
     };
     let cblock = try!(self.statements(i,Value::None));
     let c = Rc::new(AST{line: cline, col: ccol, symbol_type: SymbolType::Keyword,
@@ -2056,7 +2069,7 @@ fn identifier(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error> {
   let s = if t.token_type == SymbolType::Identifier {
     match t.item {Item::String(ref s) => s, _ => unreachable!()}
   }else{
-    return Err(self.syntax_error(t.line, t.col, String::from("expected an identifer.")));
+    return Err(self.syntax_error(t.line, t.col, "expected an identifer."));
   };
   return Ok(identifier(s,t.line,t.col));
 }
@@ -2094,7 +2107,7 @@ fn qualification(&mut self, v: &mut Vec<Rc<AST>>, id: Rc<AST>,
       v.push(y);
       return Ok(());
     }else{
-      return Err(self.syntax_error(t.line, t.col, String::from("unexpected token.")));
+      return Err(self.syntax_error(t.line, t.col, "unexpected token."));
     };
     i.index+=1;
     let p2 = try!(i.next_token_optional(self));
@@ -2119,10 +2132,10 @@ fn qualification(&mut self, v: &mut Vec<Rc<AST>>, id: Rc<AST>,
         {
           break;
         }else{
-          return Err(self.syntax_error(t.line, t.col, String::from("unexpected token.")));
+          return Err(self.syntax_error(t.line, t.col, "unexpected token."));
         }
       }else{
-        return Err(self.syntax_error(t.line, t.col, String::from("unexpected token.")));
+        return Err(self.syntax_error(t.line, t.col, "unexpected token."));
       }
     }else{
       let y = self.qualification_assignment(s,id.clone(),s,t.line,t.col);
@@ -2135,7 +2148,7 @@ fn qualification(&mut self, v: &mut Vec<Rc<AST>>, id: Rc<AST>,
     {
       break;
     }else{
-      return Err(self.syntax_error(t.line, t.col, String::from("unexpected token.")));
+      return Err(self.syntax_error(t.line, t.col, "unexpected token."));
     }
   }
   return Ok(());
@@ -2156,7 +2169,7 @@ fn use_path(&mut self, i: &mut TokenIterator, t0: &Token)
     let s = if t.token_type == SymbolType::Identifier {
       match t.item {Item::String(ref s) => s, _ => unreachable!()}
     }else{
-      return Err(self.syntax_error(t.line,t.col,"expected identifier.".to_string()));
+      return Err(self.syntax_error(t.line,t.col,"expected identifier."));
     };
     buffer.push_str(s);
     i.index+=1;
@@ -2203,7 +2216,7 @@ fn use_statement(&mut self, i: &mut TokenIterator, t0: &Token)
             (id,Some(path))
           }
         }else{
-          return Err(self.syntax_error(t3.line, t3.col, String::from("expected identifier.")));
+          return Err(self.syntax_error(t3.line, t3.col, "expected identifier."));
         }
       }else if t2.value == Symbol::Dot {
         try!(self.use_path(i,t))
@@ -2220,11 +2233,11 @@ fn use_statement(&mut self, i: &mut TokenIterator, t0: &Token)
       if t.value == Symbol::PRight {
         i.index+=1;
       }else{
-        return Err(self.syntax_error(t.line, t.col, String::from("unexpected ')'.")));
+        return Err(self.syntax_error(t.line, t.col, "unexpected ')'."));
       }
       (id,None)
     }else{
-      return Err(self.syntax_error(t.line, t.col, String::from("unexpected identifier.")));
+      return Err(self.syntax_error(t.line, t.col, "unexpected identifier."));
     };
 
     if let Some(path) = path {
@@ -2254,13 +2267,13 @@ fn use_statement(&mut self, i: &mut TokenIterator, t0: &Token)
       if t.value == Symbol::PRight {
         i.index+=1;
       }else{
-        return Err(self.syntax_error(t.line, t.col, String::from("expected ')'.")));         
+        return Err(self.syntax_error(t.line, t.col, "expected ')'."));         
       }
       break;
     }else if t.value == Symbol::Newline || t.value == Symbol::Terminal {
       break;
     }else{
-      return Err(self.syntax_error(t.line, t.col, String::from("unexpected token.")));
+      return Err(self.syntax_error(t.line, t.col, "unexpected token."));
     }
   }
   if v.len()==1 {
@@ -2337,7 +2350,7 @@ fn statements(&mut self, i: &mut TokenIterator, last_value: Value)
       let p = try!(i.next_token_optional(self));
       let t = &p[i.index];
       if t.value != Symbol::End {    
-        return Err(self.syntax_error(t.line, t.col, String::from("expected 'end'.")));
+        return Err(self.syntax_error(t.line, t.col, "expected 'end'."));
       }
       i.index+=1;
       try!(self.end_of(i,Symbol::While));
@@ -2353,7 +2366,7 @@ fn statements(&mut self, i: &mut TokenIterator, last_value: Value)
       let p = try!(i.next_token_optional(self));
       let t = &p[i.index];
       if t.value != Symbol::End {
-        return Err(self.syntax_error(t.line, t.col, String::from("expected 'end'.")));    
+        return Err(self.syntax_error(t.line, t.col, "expected 'end'."));    
       }
       i.index+=1;
       try!(self.end_of(i,Symbol::For));
@@ -2369,7 +2382,7 @@ fn statements(&mut self, i: &mut TokenIterator, last_value: Value)
       let p = try!(i.next_token_optional(self));
       let t = &p[i.index];
       if t.value != Symbol::End {
-        return Err(self.syntax_error(t.line, t.col, String::from("expected 'end'.")));
+        return Err(self.syntax_error(t.line, t.col, "expected 'end'."));
       }
       i.index+=1;
       try!(self.end_of(i,Symbol::If));
@@ -2432,18 +2445,21 @@ fn statements(&mut self, i: &mut TokenIterator, last_value: Value)
     }
     let p = try!(i.next_any_token(self));
     let t = &p[i.index];
-    if t.value == Symbol::Semicolon {
+    let value = t.value;
+    if value == Symbol::Semicolon {
       i.index+=1;
-    }else if t.value == Symbol::End || t.value == Symbol::Elif ||
-      t.value == Symbol::Else || t.value == Symbol::Catch
+    }else if value == Symbol::End || value == Symbol::Elif ||
+      value == Symbol::Else || value == Symbol::Catch
     {
       break;
-    }else if t.value == Symbol::Newline {
+    }else if value == Symbol::Newline {
       i.index+=1;
-    }else if t.value == Symbol::Terminal {
+    }else if value == Symbol::Terminal {
+      break;
+    }else if value == Symbol::PRight {
       break;
     }else{
-      return Err(self.unexpected_token(t.line, t.col, t.value));
+      return Err(self.unexpected_token(t.line, t.col, value));
     }
   }
   if last_value != Value::None {
@@ -2471,7 +2487,14 @@ fn statements(&mut self, i: &mut TokenIterator, last_value: Value)
 }
 
 fn ast(&mut self, i: &mut TokenIterator, value: Value) -> Result<Rc<AST>,Error>{
-  return self.statements(i,value);
+  let y = try!(self.statements(i,value));
+  let p = try!(i.next_any_token(self));
+  let t = &p[i.index];
+  if t.value == Symbol::Terminal {
+    return Ok(y);
+  }else{
+    return Err(self.syntax_error(t.line, t.col, "unexpected token."));
+  }
 }
 
 fn compile_operator(&mut self, bv: &mut Vec<u32>,
@@ -2694,7 +2717,7 @@ fn compile_app_unpack(&mut self, bv: &mut Vec<u32>, a: &[Rc<AST>],
 {
   if self_argument {
     if a.len() != 3 {
-      return Err(self.syntax_error(line,col,String::from("expected one argument.")));
+      return Err(self.syntax_error(line,col,"expected one argument."));
     }
     try!(self.compile_ast(bv,&a[0]));
     try!(self.compile_ast(bv,&a[1]));
@@ -2702,7 +2725,7 @@ fn compile_app_unpack(&mut self, bv: &mut Vec<u32>, a: &[Rc<AST>],
     try!(self.compile_ast(bv,argv));
   }else{
     if a.len() != 2 {
-      return Err(self.syntax_error(line,col,String::from("expected one argument.")));
+      return Err(self.syntax_error(line,col,"expected one argument."));
     }
     if a[0].value == Symbol::Dot {
       let b = ast_argv(&a[0]);
@@ -2930,7 +2953,7 @@ fn string_literal(&mut self, s: &str, line: usize, col: usize)
       else if c=='u' {
         let x = match unicode_literal(&mut i) {
           Ok(x) => x, Err(e) => {
-            return Err(self.syntax_error(line,col,e));
+            return Err(self.syntax_error(line,col,&e));
           }
         };
         y.push(x);
@@ -3021,12 +3044,12 @@ fn arguments(&mut self, bv: &mut Vec<u32>, t: &AST, selfarg: bool)
         }
       }else{
         return Err(self.syntax_error(a[i].line,a[i].col,
-          String::from("expected identifier before '='.")
+          "expected identifier before '='."
         ));
       }
     }else{
       return Err(self.syntax_error(a[i].line,a[i].col,
-        String::from("expected identifier or [...] or {...} or assignment.")
+        "expected identifier or [...] or {...} or assignment."
       ));
     }
   }
@@ -3099,9 +3122,9 @@ fn compile_assignment(&mut self, bv: &mut Vec<u32>, t: &AST,
             push_u32(bv,index as u32);
           },
           VarType::FnId => {
-            return Err(self.syntax_error(t.line,t.col,String::from(
+            return Err(self.syntax_error(t.line,t.col,
               "cannot assign to function."
-            )));
+            ));
           }
         }
       },
@@ -3179,9 +3202,9 @@ fn compile_compound_assignment(
     }else if a[0].value == Symbol::Dot {
       push_bc(bv,bc::DOT,a[0].line,a[0].col);
     }else{
-      return Err(self.syntax_error(a[0].line,a[0].col,String::from(
+      return Err(self.syntax_error(a[0].line,a[0].col,
         "cannot compound assign to this expression."
-      )));
+      ));
     }
     push_bc(bv,op_code,a[0].line,a[0].col);
   }
@@ -3244,7 +3267,7 @@ fn global_declaration(&mut self, a: &[Rc<AST>]) -> Result<(),Error> {
       self.vtab.count_global+=1;
     }else{
       return Err(self.syntax_error(t.line,t.col,
-        String::from("expected identifier.")
+        "expected identifier."
       ));
     }
   }
@@ -3296,7 +3319,7 @@ fn compile_left_hand_side(&mut self, bv: &mut Vec<u32>, t: &AST)
           try!(self.compile_string(bv,&a[i]));
         }else{
           return Err(self.syntax_error(a[i].line,a[i].col,
-            String::from("expected identifier.")
+            "expected identifier."
           ));
         }
         push_bc(bv,bc::GET_INDEX,t.line,t.col);
@@ -3311,7 +3334,8 @@ fn compile_left_hand_side(&mut self, bv: &mut Vec<u32>, t: &AST)
     }
   }else{
     return Err(self.syntax_error(t.line,t.col,
-      String::from("expected identifier before '='.")));
+      "expected identifier before '='."
+    ));
   }
   return Ok(());
 }
@@ -3474,9 +3498,9 @@ fn compile_ast(&mut self, bv: &mut Vec<u32>, t: &Rc<AST>)
       let size = match t.a {Some(ref a) => a.len() as u32, None => unreachable!()};
       push_u32(bv,size);
     }else{
-      return Err(self.syntax_error(t.line,t.col,
-        format!("cannot compile Operator '{}'.",symbol_to_string(t.value))
-      ));
+      return Err(self.syntax_error(t.line,t.col,&format!(
+        "cannot compile Operator '{}'.", symbol_to_string(t.value)
+      )));
     }
   }else if t.symbol_type == SymbolType::Int {
     match t.info {
@@ -3536,7 +3560,8 @@ fn compile_ast(&mut self, bv: &mut Vec<u32>, t: &Rc<AST>)
       let n = self.jmp_stack.len();
       if n==0 {
         return Err(self.syntax_error(t.line,t.col,
-          "Statement 'break' is expected to be inside of a loop.".to_string()));
+          "Statement 'break' is expected to be inside of a loop."
+        ));
       }
       let breaks = &mut self.jmp_stack[n-1].breaks;
       breaks.push(bv.len());
@@ -3545,8 +3570,9 @@ fn compile_ast(&mut self, bv: &mut Vec<u32>, t: &Rc<AST>)
       push_bc(bv,bc::JMP,t.line,t.col);
       let start = match self.jmp_stack.last() {
         Some(info) => info.start,
-        None => {return Err(self.syntax_error(t.line,t.col,
-          "Statement 'continue' is expected to be inside of a loop.".to_string()))}
+        None => return Err(self.syntax_error(t.line,t.col,
+          "Statement 'continue' is expected to be inside of a loop."
+        ))
       };
       let len = bv.len();
       push_i32(bv,(BCSIZE+start) as i32-len as i32);
@@ -3560,7 +3586,7 @@ fn compile_ast(&mut self, bv: &mut Vec<u32>, t: &Rc<AST>)
       push_bc(bv,bc::EMPTY,t.line,t.col);
     }else if value == Symbol::Yield {
       if !self.coroutine {
-        return Err(self.syntax_error(t.line,t.col,format!(
+        return Err(self.syntax_error(t.line,t.col,&format!(
           "yield is only valid in sub*."
         )));
       }

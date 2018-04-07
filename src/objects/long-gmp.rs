@@ -283,6 +283,13 @@ impl Long {
           Err(()) => Err(())
         }
       },
+      Object::Interface(ref x) => {
+        if let Some(_) = x.as_any().downcast_ref::<Long>() {
+          Ok(Object::Interface(x.clone()))
+        }else{
+          Err(())
+        }
+      },
       _ => Err(())
     }
   }
@@ -320,6 +327,9 @@ impl Interface for Long {
   fn as_any(&self) -> &Any {self}
   fn type_name(&self) -> String {
     "Long".to_string()
+  }
+  fn get_type(&self, env: &mut Env) -> FnResult {
+    Ok(Object::Table(env.rte().type_long.clone()))
   }
   fn to_string(&self, env: &mut Env) -> Result<String,Box<Exception>> {
     Ok(self.value.to_string())

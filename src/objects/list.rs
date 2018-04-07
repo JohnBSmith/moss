@@ -427,6 +427,42 @@ pub fn cartesian_product(a: &List, b: &List) -> Object {
   return List::new_object(v);
 }
 
+pub fn cartesian_power(v: &Vec<Object>, n: i32) -> Object {
+  let n = if n<0 {0} else {n as u32};
+  let m = v.len();
+  let len = m.pow(n);
+  let mut y: Vec<Vec<Object>> = Vec::with_capacity(len);
+  if m==0 {
+    let y = List::new_object(Vec::new());
+    if n==0 {
+      return List::new_object(vec![y]);
+    }else{
+      return y;
+    }
+  }
+  for _ in 0..len {
+    y.push(Vec::new());
+  }
+  let mut k = len/m;
+  let mut count = 1;
+  for _ in 0..n {
+    let mut j=0;
+    for _ in 0..count {
+      for index in 0..m {
+        for _ in 0..k {
+          y[j].push(v[index].clone());
+          j+=1;
+        }
+      }
+    }
+    count = count*m;
+    k = k/m;
+  }
+  return List::new_object(
+    y.into_iter().map(|v| List::new_object(v)).collect()
+  );
+}
+
 pub fn init(t: &Table){
   let mut m = t.map.borrow_mut();
   m.insert_fn_plain("push",push,0,VARIADIC);

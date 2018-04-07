@@ -20,6 +20,7 @@ use tuple::Tuple;
 use format::u32string_format;
 use global::type_name;
 use rand::Rand;
+use list::cartesian_power;
 
 // use ::Interpreter;
 use system;
@@ -1636,6 +1637,15 @@ fn operator_pow(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorR
     _ => {}
   }
   return match stack[sp-2].clone() {
+    Object::List(a) => {
+      return match stack[sp-1] {
+        Object::Int(n) => {
+          stack[sp-2] = cartesian_power(&a.borrow().v,n);
+          Ok(())
+        },
+        _ => {break 'r;}
+      };
+    },
     Object::Function(f) => {
       let n = replace(&mut stack[sp-1],Object::Null);
       match ::function::iterate(&mut Env{env,sp,stack},&Object::Function(f),&n) {

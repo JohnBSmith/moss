@@ -404,6 +404,9 @@ pub trait Interface{
   fn type_name(&self) -> String {
     "Interface object".to_string()
   }
+  fn get_type(&self, env: &mut Env) -> FnResult {
+    env.type_error("Type error in type(x): interface object x has no type")
+  }
   fn is_instance_of(&self, type_obj: &Object, rte: &RTE) -> bool {
     false
   }

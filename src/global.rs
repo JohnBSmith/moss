@@ -361,6 +361,7 @@ fn ftype(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
         t.prototype.clone()
       }
     },
+    Object::Interface(ref x) => return x.get_type(env),
     _ => Object::Null
   });
 }
@@ -582,6 +583,7 @@ fn fint(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     1 => {}, n => return env.argc_error(n,1,1,"int")
   }
   match argv[0] {
+    Object::Bool(x) => Ok(Object::Int(x as i32)),
     Object::Int(n) => Ok(Object::Int(n)),
     Object::String(ref s) => Ok(Object::Int(stoi(&s.v))),
     _ => env.type_error1(
@@ -885,6 +887,21 @@ fn extend(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
   }
 }
 
+fn long(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+  match argv.len() {
+    1 => {}, n => return env.argc_error(n,1,1,"long")
+  }
+  match Long::to_long(&argv[0]) {
+    Ok(y) => Ok(y),
+    Err(()) => {
+      env.type_error1(
+        "Type error in long(x): cannot convert x to long.",
+        "x",&argv[0]
+      )
+    }
+  }
+}
+
 pub fn init_rte(rte: &RTE){
   let mut gtab = rte.gtab.borrow_mut();
   gtab.insert_fn_plain("print",print,0,VARIADIC);
@@ -919,6 +936,7 @@ pub fn init_rte(rte: &RTE){
   gtab.insert_fn_plain("chr",chr,1,1);
   gtab.insert_fn_plain("map",map,1,1);
   gtab.insert_fn_plain("extend",extend,2,VARIADIC);
+  gtab.insert_fn_plain("long",long,1,1);
   gtab.insert("empty", Object::Empty);
 
   let type_bool = rte.type_bool.clone();

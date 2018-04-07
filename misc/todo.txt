@@ -1,6 +1,7 @@
 
 = TODO LIST =
 == Interpreter kernel ==
+* syntax: empty blocks
 * tracebacks
 * in a coroutine let all exit paths
   perform a loop as "yield; return empty"
@@ -15,12 +16,10 @@
 * search paths
 
 == Library ==
-* long
-# reverse string
+* Iterable.join
+* reverse string
 * reverse iterator
-* cycling iterator
 * iterator: tee
-* extend for objects
 * reverse slice for lists
 * rotate slice for lists
 * insert for lists
@@ -69,8 +68,12 @@
 
 == Library ==
 * zip
+* cycling iterator
+* extend for objects
+* long
 * hash for Long
 * powmod
+* cartesian power
 
 === Linear Algebra ===
 * polymorphic arrays

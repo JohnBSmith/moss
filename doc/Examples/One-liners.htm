@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>One-liners</title>
+  <link href="../css/main.css" rel="stylesheet">
+  <script src = "../js/moss-syntax.js">
+  </script>
+</head>
+<body>
+
+<table class="navigation">
+<tr><td><b>&uarr;</b> <a href="toc.htm">Up</a>
+</table>
+<h1>One-liners</h1>
+
+<blockquote>
+<i>In the case of a well-known conversational programming language
+I have been told from various sides that as soon as a programming
+community is equipped with a terminal for it, a specific phenomenon
+occurs that even has a wellestablished name: it is called
+“the one-liners”. It takes one of two different forms:
+one programmer places a one-line program on the desk of another and
+either he proudly tells what it does and adds the qustion,
+“Can you code this in less symbols?” &mdash; as if this were of any
+conceptual relevance! &mdash; or he just says, “Guess what it does!”
+From this observation, we must conclude that this language as a tool
+is an open invitation for clever tricks; and while exactly this may be
+the explanation for some of is appeal, viz. to those who like to show
+how clever they are, I am sorry, but I must regard this as one of the
+most damning things that can be said about a
+programming language.</i>
+</blockquote>
+<p>E. W. Dijkstra (1987): The Humble Programmer.
+
+<h2>Table of contents</h2>
+<ol>
+<li><a href="#map-filter-reduce">Map, filter, reduce</a>
+<li><a href="#qsort">Quicksort</a>
+<li><a href="#permutations">Permutations</a>
+<li><a href="#nt">Number theory</a>
+<li><a href="#curry">Currying</a>
+<li><a href="#partial-application">Partial application
+<li><a href="#mandelbrot">Mandelbrot set</a>
+</ol>
+<br>
+
+<h3 id="map-filter-reduce">Map, filter, reduce</h3>
+<pre class="moss">
+List.map = |a;f| [] if a==[] else [f(a[0])]+a[1..].map(f)
+
+List.filter = |a;p| ([] if a==[] else
+  ([a[0]] if p(a[0]) else [])+a[1..].filter(p))
+
+List.reduce = |a;e,f| e if a==[] else f(a[0],a[1..].reduce(e,f))
+</pre>
+<br>
+
+<h3 id="qsort">Quicksort</h3>
+<pre class="moss">
+qsort = |a| ([] if a==[] else
+  qsort(a[1..].filter(|x| x&lt;a[0]))+[a[0]]+
+  qsort(a[1..].filter(|x| x&gt;=a[0])))
+</pre>
+<br>
+
+<h3 id="permutations">Permutations</h3>
+<pre class="moss">
+# Print all permutations of [0,1,2].
+(list(3)^3).filter(|t| (0..2).all(|x| x in t))).each(print)
+</pre>
+<br>
+
+<h3 id="nt">Number theory</h3>
+<pre class="moss">
+# Print the first 100 prime numbers.
+print((1..).filter(|n| (1..n).count(|k| n%k==0)==2).list(100))
+
+
+# Calculate the prime factorization of 360.
+isprime = |n| (1..n).count(|k| n%k==0)==2
+
+factor = |n| (list(2..n).filter(|k| n%k==0 and isprime(k))
+  .map(|p| [p,(1..).until(|k| n%(p^k)!=0).count()]))
+
+print(factor(360))
+
+</pre>
+<br>
+
+<h3 id="curry">Currying</h3>
+<pre class="moss">
+# Convert f(x,y) to f(x)(y).
+curry = sub|f| n = f.argc(); a = list(n);
+  (2..n).reduce(sub|x| a[n-1] = x; f(*a) end,
+  |g,i| sub|x| a[n-i] = x; g end) end
+
+
+# Convert f(x)(y) to f(x,y).
+uncurry = |f| |*a| a.reduce(f,|g,x| g(x))
+</pre>
+<br>
+
+<h3 id="partial-application">Partial application</h3>
+<pre class="moss">
+# Variadic, fixes first arguments.
+first = |f,*a| |*b| f(*(a+b))
+
+# Variadic, fixes last arguments.
+last = |f,*a| |*b| f(*(b+a))
+</pre>
+<br>
+
+<h3 id="set-theory">Set theory</h3>
+<pre class="moss">
+# Calculate the power set of {0,1,2}.
+P = |a| a.reduce({{}},|p,x| p|set(p.map(|s| s|{x})))
+print(P({0,1,2}))
+</pre>
+<br>
+
+<h3 id="mandelbrot">Mandelbrot set</h3>
+<pre class="moss">
+(0..25).map(|x|
+  (0..39).map(sub|y| c = (x/10-2)+(y/10-2)*1i;
+    "*" if abs(((|z| z^2+c)^10)(0))&lt;2 else "\s"
+  end).join()).each(print)
+
+</pre>
+
+</body>
+</html>
+
