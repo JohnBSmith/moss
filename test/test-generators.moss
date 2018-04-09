@@ -3,7 +3,7 @@ use itertools: permutations
 use math.cf: fac
 use sys: exit
 
-sub error(s)
+function error(s)
   print("Error: generators test ", s, " failed.")
   exit(1)
 end

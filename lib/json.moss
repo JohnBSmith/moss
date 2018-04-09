@@ -9,7 +9,7 @@ use math: isnan, isinf
 
 Bracket = object()
 Sep = object()
-mode_nan=null
+mode_nan = null
 
 keyword_tab = {
   "null": [null,null],
@@ -40,11 +40,11 @@ json_repr_tab = {
   "\b": "\b\b"
 }
 
-sub syntax_error(line,col,s)
+function syntax_error(line,col,s)
   raise "Line {}, col {}\nSyntax error: {}"%[line+1,col+1,s]
 end
 
-sub encode_escape(s)
+function encode_escape(s)
   if '\b' in s
     a=[]
     sequence=false
@@ -65,7 +65,7 @@ sub encode_escape(s)
   end
 end
 
-sub scan(s)
+function scan(s)
   i=0
   n=size(s)
   a=[]
@@ -145,7 +145,7 @@ sub scan(s)
   return a
 end
 
-sub get_token(i)
+function get_token(i)
   n,a=i
   if n>=size(a)
     if size(a)>0
@@ -158,7 +158,7 @@ sub get_token(i)
   end
 end
 
-sub atom(x)
+function atom(x)
   if x[0] is Int or x[0] is Float
     return x[1]
   elif x[0] is String
@@ -170,7 +170,7 @@ sub atom(x)
   end
 end
 
-sub list_literal(i)
+function list_literal(i)
   a=[]
   x = get_token(i)
   if x[0] is Bracket and x[1]==']'
@@ -194,7 +194,7 @@ sub list_literal(i)
   return a
 end
 
-sub map_literal(i)
+function map_literal(i)
   d={}
   x = get_token(i)
   if x[0] is Bracket and x[1]=='}'
@@ -224,7 +224,7 @@ sub map_literal(i)
   return d
 end
 
-sub expression(i)
+function expression(i)
   x = get_token(i)
   if x[0] is Bracket
     if x[1]=='['
@@ -240,20 +240,19 @@ sub expression(i)
   end
 end
 
-sub load(s)
+function load(s)
   a = scan(s)
   i = [0,a]
   return expression(i)
 end
 
-sub is_atomic(a)
-  a.all(sub|x|
-    T = type(x)
-    return not(T is List or T is Map) or size(x)==0
+function is_atomic(a)
+  a.all(fn|x|
+    return not(x: List or x: Map) or size(x)==0
   end)
 end
 
-sub json_str_repr(s)
+function json_str_repr(s)
   a=["\d"]
   for c in s
     if c in json_repr_tab
@@ -266,7 +265,7 @@ sub json_str_repr(s)
   return a.join()
 end
 
-sub json_float_repr(x)
+function json_float_repr(x)
   if isnan(x)
     return "NaN" if mode_nan else "\dNaN\d"
   elif isinf(x)
@@ -280,7 +279,7 @@ sub json_float_repr(x)
   end
 end
 
-sub dump_rec(a,n,x)
+function dump_rec(a,n,x)
   T = type(x)
   if T is Int or T is Bool or T is null
     a.push(x)
@@ -342,7 +341,7 @@ sub dump_rec(a,n,x)
   end
 end
 
-sub dump_rec_compressed(a,x)
+function dump_rec_compressed(a,x)
   T = type(x)
   if T is Int or T is Bool or T is null
     a.push(x)
@@ -382,7 +381,7 @@ sub dump_rec_compressed(a,x)
   end
 end
 
-sub dump(x,*argv)
+function dump(x,*argv)
   t = argv[0] if size(argv)!=0 else {}
   global mode_nan
   mode_nan = "nan" in t

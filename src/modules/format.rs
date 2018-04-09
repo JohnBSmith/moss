@@ -30,7 +30,7 @@ fn get_key(env: &Env, m: &Object, key: &Object) -> FnResult {
       let d = &m.borrow_mut().m;
       match d.get(key) {
         Some(value) => Ok(value.clone()),
-        None => env.index_error("Index error in m[key]: key not found.")
+        None => env.index_error(&format!("Index error in m[{0}]: {0} not found.",key.to_repr()))
       }
     },
     _ => env.type_error("Type error in m[key]: m is not a map.")
@@ -41,8 +41,13 @@ enum Space {
   None, Left(usize), Center(usize), Right(usize)
 }
 
+struct Float {
+  fmt: char,
+  precision: Option<usize>
+}
+
 struct Fmt {
-  space: Space
+  space: Space, float: Option<Float>, sign: bool
 }
 
 fn number(v: &[char], mut i: usize, value: &mut usize) -> usize {
@@ -64,7 +69,7 @@ fn number(v: &[char], mut i: usize, value: &mut usize) -> usize {
   return i;
 }
 
-fn obtain_fmt(fmt: &mut Fmt, v: &[char], mut i: usize) -> Result<usize,Box<Exception>> {
+fn obtain_fmt(fmt: &mut Fmt, v: &[char], mut i: usize) -> Result<usize,String> {
   let n = v.len();
   while i<n && v[i]==' ' {i+=1;}
   if i>=n {return Ok(i);}
@@ -82,14 +87,82 @@ fn obtain_fmt(fmt: &mut Fmt, v: &[char], mut i: usize) -> Result<usize,Box<Excep
     i = number(v,i,&mut value);
     fmt.space = Space::Center(value);
   }
-  return Ok(i);
+  if i<n && (v[i]=='+' || v[i]=='-') {
+    fmt.sign = true;
+    i+=1;
+  }
+  if i<n && (v[i]=='f' || v[i]=='e') {
+    let c = v[i];
+    i+=1;
+    let precision = if i<n && v[i].is_digit(10) {
+      i = number(v,i,&mut value);
+      Some(value)
+    }else{
+      None
+    };
+    fmt.float = Some(Float{fmt: c, precision});
+  }
+  if i<n {
+    if v[i]=='}' {
+      return Ok(i);
+    }else{
+      return Err(format!("Value error in s%a: in s: unexpected character: '{}'.",v[i]));
+    }
+  }else{
+    return Err(String::from("Value error in s%a: in s: expected '}'."));
+  }
 }
 
 fn apply_fmt(env: &mut Env, buffer: &mut String,
   fmt: &Fmt, x: &Object
 ) -> Result<(),Box<Exception>>
 {
-  let s = try!(x.string(env));
+  let s = match fmt.float {
+    None => try!(x.string(env)),
+    Some(ref float) => {
+      let x = match *x {
+        Object::Int(n) => n as f64,
+        Object::Float(x) => x,
+        _ => {
+          return match env.type_error("Type error in format: expected a float.") {
+            Ok(_) => unreachable!(),
+            Err(e) => Err(Box::new(*e))
+          }
+        }
+      };
+      if float.fmt == 'f' {
+        if let Some(precision) = float.precision {
+          if fmt.sign {
+            format!("{:+.*}",precision,x)
+          }else{
+            format!("{:.*}",precision,x)
+          }
+        }else{
+          if fmt.sign {
+            format!("{:+}",x)
+          }else{
+            format!("{:}",x)
+          }
+        }
+      }else if float.fmt == 'e' {
+        if let Some(precision) = float.precision {
+          if fmt.sign {
+            format!("{:+.*e}",precision,x)
+          }else{
+            format!("{:.*e}",precision,x)
+          }
+        }else{
+          if fmt.sign {
+            format!("{:+e}",x)
+          }else{
+            format!("{:e}",x)
+          }
+        }
+      }else{
+        unreachable!()
+      }
+    }
+  };
   match fmt.space {
     Space::Left(value) => {
       buffer.push_str(&s);
@@ -123,7 +196,7 @@ pub fn u32string_format(env: &mut Env, s: &U32String, a: &Object) -> FnResult {
         buffer.push('{');
         i+=2;
       }else {
-        let mut fmt = Fmt{space: Space::None};
+        let mut fmt = Fmt{space: Space::None, float: None, sign: false};
         i+=1;
         while i<n && v[i]==' ' {i+=1;}
         let x: Object;
@@ -146,7 +219,12 @@ pub fn u32string_format(env: &mut Env, s: &U32String, a: &Object) -> FnResult {
         }
         while i<n && v[i]==' ' {i+=1;}
         if i<n && v[i]==':' {i+=1;}
-        i = try!(obtain_fmt(&mut fmt,v,i));
+        i = match obtain_fmt(&mut fmt,v,i) {
+          Ok(index) => index,
+          Err(s) => {
+            return env.value_error(&s)
+          }
+        };
         try!(apply_fmt(env,&mut buffer,&fmt,&x));
         while i<n && v[i]==' ' {i+=1;}
         if i<n && v[i]=='}' {i+=1;}

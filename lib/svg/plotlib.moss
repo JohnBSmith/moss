@@ -1,36 +1,137 @@
 
-fstr = |x| str(x,"f",2)
+begin
+global system
 
-Graphics = table{
-  sub rect(x,y,h,w)
-    self.a.push('\n<rect x="{}" y="{}" width="{}" height="{}" stroke-width="0.01"/>' %
-      [x,y,h,w].map(fstr))
-  end,
-  sub line(x1,y1,x2,y2)
-    self.a.push('\n<line x1="{}" y1="{}" x2="{}" y2="{}" stroke="black" stroke-width="0.01"/>' %
-      [x1,y1,x2,y2].map(fstr))
-  end,
-  sub flush
-    self.a.join("",head%[self.w,self.h],foot)
-  end
-}
+use math: isnan, isinf
 
-sub system(d={})
-  {w=100, h=100} = d
-  return table Graphics{a=[], w=w, h=h}
+function fstr(x)
+  str(x,"f",2)
 end
 
+function hline(s,y)
+  s.a.push('<line x1="0" y1="{0}" x2="10" y2="{0}" stroke="#848480" stroke-width="0.02"/>\n' %
+    [y].map(fstr))
+end
+
+function vline(s,x)
+  s.a.push('<line x1="{0}" y1="0" x2="{0}" y2="10" stroke="#848480" stroke-width="0.02"/>\n' %
+    [x].map(fstr))
+end
+
+function path(s,a)
+  mx = 5/s.wx
+  my = 5/s.wy
+  s.a.push('<polyline fill="none" stroke="#202080" stroke-width="0.06"\npoints="{}"/>\n' % [a.map(|[x,y]| 
+    [fstr(5+x*mx),5].join(",") if isnan(y) or isinf(y) else [fstr(5+x*mx),fstr(5-y*my)].join(",")
+  ).join(" ")])
+end
 
 head = """\
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" version="1.1" height="{}" width="{}">\
-<g transform="translate(0,100) scale(100,-100)">\
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" width="{0}" height="{1}">
+{4}<style><![CDATA[
+text{{font-family: "DejaVu Sans", sans-serif;}}
+]]></style>
+<rect x="0" y="0" width="100%" height="100%" fill="#ffffff"/>
+
+<g transform="scale({2},{3})">
 """
 
-foot = """
+foot = """\
 </g>
-</svg>
+</svg>\
 """
 
+defs = """\
+<defs> 
+  <pattern id="grid" x="0" y="0" width="1" height="1" patternUnits="userSpaceOnUse">
+    <rect x="0" y="0" width="10" height="10" stroke="#dadad0" stroke-width="0.08" fill="none"/>
+  </pattern>
+</defs>
+"""
 
+function to_s(x)
+  if x<0
+    return "\u{2212}"+str(abs(x))
+  else
+    return str(x)
+  end
+end
 
+function text(s,x,y,txt)
+  s.a.push('<text x="{}" y="{}" font-size="0.5" text-anchor="end">{}</text>\n' % [fstr(x),fstr(y),txt])
+end
+
+function scale(s)
+  x_adjust = 5.2
+  y_adjust = 5.5
+  for x in 1..4
+    text(s,x_adjust+x,y_adjust,to_s(x))
+  end
+  for x in -4..-1
+    text(s,x_adjust+x,y_adjust,to_s(x))
+  end
+
+  x_adjust = 4.86
+  y_adjust = 5.1
+  for y in 1..4
+    text(s,x_adjust,y_adjust-y,to_s(y))
+  end
+  for y in -4..-1
+    text(s,x_adjust,y_adjust-y,to_s(y))    
+  end
+end
+
+function axes(s)
+  hline(s,5)
+  vline(s,5)
+  scale(s)
+end
+
+function grid(s)
+  s.defs = defs
+  s.a.push('<rect fill="url(#grid)" stroke="#dadad0" stroke-width="0.1" x="0" y="0" width="10" height="10"/>\n')
+end
+
+Graphics = table{
+  function string
+    "system"
+  end,
+
+  function rect(x,y,h,w)
+    self.a.push('<rect x="{}" y="{}" width="{}" height="{}" stroke-width="0.1"/>\n' %
+      [x,y,h,w].map(fstr))
+  end,
+
+  function line(x1,y1,x2,y2)
+    mx = 5/self.wx
+    my = 5/self.wy
+    self.a.push('<line x1="{}" y1="{}" x2="{}" y2="{}" stroke="black" stroke-width="0.1"/>\n' %
+      [5+mx*x1,5-my*y1,5+mx*x2,5-my*y2].map(fstr))
+  end,
+  
+  function plot(f)
+    a = list(-self.wx..self.wx: 1/self.n)
+    if f: List
+      for fk in f
+        path(self,a.map(|x| [x,fk(x)]))
+      end
+    else
+      path(self,a.map(|x| [x,f(x)]))
+    end
+  end,
+
+  function flush
+    self.a.join("",head % [self.w,self.h,self.w//10,self.h//10,self.defs],foot)
+  end
+}
+
+function system(d={})
+  {w=400, h=400, wx=5, wy=5, n=10} = d
+  s = table Graphics{a=[], w=w, h=h, wx=wx, wy=wy, defs="", n=n}
+  grid(s)
+  axes(s)
+  return s
+end
+
+end

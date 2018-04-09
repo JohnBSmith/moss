@@ -207,50 +207,6 @@ fn new_shuffle() -> MutableFn {
   });
 }
 
-fn join(env: &mut Env, a: &[Object], sep: Option<&Object>,
-  left: Option<&Object>, right: Option<&Object>
-) -> Result<String,Box<Exception>> {
-  let mut s: String = String::new();
-  if let Some(left) = left {
-    s.push_str(&try!(left.string(env)));
-  }
-  if let Some(sep) = sep {
-    let sep = &try!(sep.string(env));
-    let mut first = true;
-    for x in a {
-      if first {
-        first = false;
-      }else{
-        s.push_str(sep);
-      }
-      s.push_str(&try!(x.string(env)));
-    }
-  }else{
-    for x in a {
-      s.push_str(&try!(x.string(env)));
-    }
-  }
-  if let Some(right) = right {
-    s.push_str(&try!(right.string(env)));
-  }
-  return Ok(s);
-}
-
-fn list_join(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
-  let a = match *pself {
-    Object::List(ref x)=>x,
-    _ => return env.type_error("Type error in a.join(): a is not a list.")
-  };
-  let y = match argv.len() {
-    0 => join(env,&a.borrow().v,None,None,None),
-    1 => join(env,&a.borrow().v,Some(&argv[0]),None,None),
-    2 => join(env,&a.borrow().v,Some(&argv[0]),Some(&argv[1]),None),
-    3 => join(env,&a.borrow().v,Some(&argv[0]),Some(&argv[1]),Some(&argv[2])),
-    n => return env.argc_error(n,0,3,"join")
-  };
-  Ok(U32String::new_object_str(&try!(y)))
-}
-
 fn list_chain(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
   let mut a = match *pself {
     Object::List(ref a) => a.borrow_mut(),
@@ -472,7 +428,6 @@ pub fn init(t: &Table){
   m.insert_fn_plain("size",size,0,0);
   m.insert_fn_plain("map",map,1,1);
   m.insert_fn_plain("filter",filter,1,1);
-  m.insert_fn_plain("join",list_join,0,1);
   m.insert_fn_plain("chain",list_chain,0,0);
   m.insert_fn_plain("rev",list_rev,0,0);
   m.insert_fn_plain("swap",list_swap,2,2);

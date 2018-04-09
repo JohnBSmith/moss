@@ -1,9 +1,9 @@
 
 Callcc = object()
 
-callcc = sub|f,x=null|
+callcc = fn|f,x=null|
   a = [null]
-  callback = sub|y|
+  callback = fn|y|
     a[0] = y
     raise Callcc
   end
@@ -15,7 +15,7 @@ callcc = sub|f,x=null|
 end
 
 /*
-sub message(cc,x)
+function message(cc,x)
   cc("Some people like {}."%[x])
   print("Phantom")
 end

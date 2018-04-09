@@ -191,7 +191,7 @@ use the functions <code>min(x,y)</code> and <code>max(x,y)</code>.
 <tr>
   <td><code>Function</code>
   <td><code>|x| 2*x</code>
-  <td>functions, subprograms
+  <td>functions
 </table>
 
 <h3 id="functions">Functions</h3>
@@ -291,23 +291,23 @@ a sequence of statements, a longer syntax has to be used.
 f = |x| 2*x
 
 # (2) Longer syntax
-f = sub|x| 2*x end
+f = fn|x| 2*x end
 
 # (3) Full syntax
-f = sub|x| return 2*x end
+f = fn|x| return 2*x end
 
 # (4) Function with private name "f"
-f = sub f|x| return 2*x end
+f = fn f|x| return 2*x end
 
 # (5) Equivalent to (4)
-sub f(x) return 2*x end
+function f(x) return 2*x end
 </pre>
 
 <p>A function can contain statements and local variables.
 Here is an example, an approximation of the natural exponential
 function:
 <pre class="moss indent">
-sub exp(x)
+function exp(x)
   u = x/64
   y = 1 + u + u^2/2 + u^3/6 + u^4/24
   return y^64
@@ -500,7 +500,7 @@ This is a fundamental, albeit easy to understand, data structure.
 ["abc", 12, [1, 2]]
 </pre>
 
-<p>The expression <code>list(a..b)</code> constructs a list of
+<p>The expression <code>list(a..b)</code> creates a list of
 integers from <code>a</code> to <code>b</code>.
 
 <pre class="moss cmd-box">
@@ -543,7 +543,7 @@ transform is also possible.
 &gt; [1,2]+[]
 [1, 2]
 </pre>
-<p>Lists are indexed like strings. The function <code>"size"</code>
+<p>Lists are indexed like strings. The function <code>size(a)</code>
 takes a list and returns the number of its elements.
 
 <pre class="moss cmd-box">
@@ -691,7 +691,7 @@ while true
   print(ord(c))
 end
 </pre>
-<p>This program is so short that it can be written as an one liner.
+<p>This program is so short that it can be written as an one-liner.
 
 <pre class="moss indent">
 while true do print(ord(input())) end
@@ -714,7 +714,7 @@ end of while
 </pre>
 
 <p>The user might input more than one character.
-We can take this into account in the following way.
+We take this into account in the following way.
 
 <pre class="moss indent">
 while true
@@ -947,7 +947,7 @@ end
 some piece of functionality multiple times.
 
 <pre class="moss indent">
-sub count(s,c)
+function count(s,c)
   k=0
   for x in s
     if x==c then k=k+1
@@ -971,20 +971,20 @@ statement has an alternative syntatic form.
 <pre class="moss indent">
 # (1) A function without a private name,
 # called anonymous.
-f = sub|x| 2*x end
+f = fn|x| 2*x end
 
 # (2) The same function, but with private name "f".
-f = sub f|x| 2*x end
+f = fn f|x| 2*x end
 
 # (3) Syntactic sugar for statement (2).
 # This is an assignment to the variable f,
 # but the assignment operation is invisible.
-sub f(x) 2*x end
+function f(x) 2*x end
 </pre>
 
-<p>So we could have written <code>count = sub|s,c|</code> or
-<code>count = sub count|s,c|</code> instead
-of <code>sub count(s,c)</code>.
+<p>So we could have written <code>count = fn|s,c|</code> or
+<code>count = fn count|s,c|</code> instead
+of <code>function count(s,c)</code>.
 
 
 <h2 id="import">Module import</h2>
@@ -992,31 +992,45 @@ of <code>sub count(s,c)</code>.
 For example, there is a module called <code>math</code>, that
 provides the elementary functions.
 
-<pre class="moss">
+<pre class="moss indent">
 # ordinary import
 use math
 f = |x| math.sin(math.pi*x)
+
 
 # qualified import
 use math: pi, sin, cos
 f = |x| sin(pi*x)
 
+
 # alias import
-use m=math
+use m = math
 f = |x| m.sin(m.pi*x)
 
+
 # qualified alias import
-use math: pi, s=sin, c=cos
+use math: pi, s = sin, c = cos
 f = |x| s(pi*x)
+
 
 # qualification of everything
 # (should be avoided)
 use math:*
 f = |x| sin(pi*x)
 
+
 # load and qualify in separate steps
 math = load("math")
 use(math): pi, sin, cos
+
+
+# line breaks
+use math (
+  e, pi,
+  exp, ln,
+  sin, cos, tan
+)
+
 
 # show what is contained in math
 expose = |m| print(list(record(m)).sort().join(", "))
@@ -1039,7 +1053,7 @@ s = "Phantom text"
 print(s)
 #*/
 
-/*01*/ stoi = sub|s| /*string to integer*/
+/*01*/ stoi = fn|s| /*string to integer*/
 /*02*/   s.reduce(0,|x,c| 10*x+ord(c)-48)
 /*03*/ end
 </pre>

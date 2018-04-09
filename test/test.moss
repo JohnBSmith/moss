@@ -1,7 +1,7 @@
 
 sys = load("sys")
 
-sub error(s)
+function error(s)
   print("Error: test ", s, " failed.")
   sys.exit(1)
 end
@@ -25,11 +25,11 @@ if [4,8] != [1,2].map(|x| 2*x).map(|x| 2*x)
   error("#2.2")
 end
 
-if [2,4] != [1,2].map(sub|x| u=2*x; u end)
+if [2,4] != [1,2].map(fn|x| u=2*x; u end)
   error("#2.3")
 end
 
-sub f1
+function f1
   if [2,4] != [1,2].map(|x| 2*x)
     error("#2.4")
   end
@@ -38,13 +38,13 @@ sub f1
     error("#2.5")
   end
 
-  if [2,4] != [1,2].map(sub|x| u=2*x; u end)
+  if [2,4] != [1,2].map(fn|x| u=2*x; u end)
     error("#2.6")
   end
 end
 f1()
 
-sub f2
+function f2
   a = []
   for t in [1,2].map(|x| [x])
     a.push(t)
@@ -63,7 +63,7 @@ sub f2
 end
 f2()
 
-map = sub|f,a|
+map = fn|f,a|
   y = []
   for x in a
     y.push(f(x))
@@ -80,7 +80,7 @@ if fac(4)!=24
   error("#5.1")
 end
 
-fac = sub fac|n| 1 if n==0 else n*fac(n-1) end
+fac = fn fac|n| 1 if n==0 else n*fac(n-1) end
 if fac(4)!=24
   error("#5.2")
 end
@@ -90,12 +90,12 @@ if fib(10)!=55
   error("#5.3")
 end
 
-fib = sub fib|n| 1 if n==1 or n==2 else fib(n-1)+fib(n-2) end
+fib = fn fib|n| 1 if n==1 or n==2 else fib(n-1)+fib(n-2) end
 if fib(10)!=55
   error("#5.4")
 end
 
-fix = |F| sub g|n| F(g,n) end
+fix = |F| fn g|n| F(g,n) end
 fac = fix(|f,n| 1 if n==0 else n*f(n-1))
 if fac(4)!=24
   error("#5.5")
@@ -120,9 +120,9 @@ if list(1..10)!=qsort(list(1..10).shuffle())
   error("#6.1")
 end
 
-sub counter(a,b)
+function counter(a,b)
   a = a-1
-  return sub||
+  return fn||
     if a==b
       return empty
     else
@@ -140,7 +140,7 @@ if [2,4,6,8]!=counter(1,4).map(|x| 2*x).list()
   error("#7.2")
 end
 
-if [2,4,6,8]!=counter(1,4).map(sub|x| u=2*x; u end).list()
+if [2,4,6,8]!=counter(1,4).map(fn|x| u=2*x; u end).list()
   error("#7.3")
 end
 
@@ -148,7 +148,7 @@ if [2,4]!=List.map.apply([1,2],[|x| 2*x])
   error("#8.1")
 end
 
-if [2,4]!=List.map.apply([1,2],[sub|x| u=2*x; u end])
+if [2,4]!=List.map.apply([1,2],[fn|x| u=2*x; u end])
   error("#8.2")
 end
 
@@ -157,7 +157,7 @@ if [2,4]!=a.map.apply(a,[|x| 2*x])
   error("#8.3")
 end
 
-if [2,4]!=a.map.apply(a,[sub|x| u=2*x; u end])
+if [2,4]!=a.map.apply(a,[fn|x| u=2*x; u end])
   error("#8.4")
 end
 
@@ -208,21 +208,21 @@ if [1,2,"a","b"]!=f(1,2)
   error("#10.3")
 end
 
-(sub||
+fn||
   [x,y] = [10,11]
   if x!=10 or y!=11
     error("#11.1")
   end
-end)()
+end()
 
-(sub||
+fn||
   [[x,y],[w,z]] = [[12,13],[14,15]]
   if x!=12 or y!=13 or w!=14 or z!=15
     error("#11.2")
   end
-end)()
+end()
 
-(sub||
+fn||
   [x,y] = [16,17]
   if x!=16 or y!=17
     error("#11.3")
@@ -231,16 +231,16 @@ end)()
   if x!=18 or y!=19 or w!=20 or z!=21
     error("#11.4")
   end
-end)()
+end()
 
-(sub||
+fn||
   [x,y] = [22,[1,2]]
   if x!=22 or y!=[1,2]
     error("#11.5")
   end
-end)()
+end()
 
-(sub||
+fn||
   t = table{}
   [t.x,t.y] = list(1..2)
   if t.x!=1 or t.y!=2
@@ -251,7 +251,7 @@ end)()
   if a!=[240,360]
     error("#11.7")
   end
-end)()
+end()
 
 f = || []
 if [] != f.apply([])
@@ -286,7 +286,7 @@ if [2,4] != List.map.apply([1,2],[|x| 2*x])
   error("#12.6")
 end
 
-(sub||
+fn||
   f = || []
   if [] != f.apply([])
     error("#12.7")
@@ -319,19 +319,19 @@ end
   if [2,4] != List.map.apply([1,2],[|x| 2*x])
     error("#12.13")
   end
-end)()
+end()
 
 a = (|[x,y]| [x+y,x]).orbit([1,1]).map(|x| x[1]).list(10)
 if a!=list(1..10).map(fib)
   error("#13.1")
 end
 
-curry = sub|f|
+curry = fn|f|
   n = f.argc()
   a = list(0..n-1)
   return (2..n).reduce(
-    sub|x| a[n-1]=x; f.apply(a) end,
-    |g,i| sub|x| a[n-i]=x; g end)
+    fn|x| a[n-1]=x; f.apply(a) end,
+    |g,i| fn|x| a[n-i]=x; g end)
 end
 
 uncurry = |f| |*a| a.reduce(f,|g,x| g(x))
@@ -368,11 +368,11 @@ if [1,2,3,4] != uncurry(|x| |y| |z| |w| [x,y,z,w])(1,2,3,4)
   error("#14.8")
 end
 
-curry = sub|n,f|
+curry = fn|n,f|
   a = list(0..n-1)
   return (2..n).reduce(
-    sub|x| a[n-1]=x; f.apply(a) end,
-    |g,i| sub|x| a[n-i]=x; g end)
+    fn|x| a[n-1]=x; f.apply(a) end,
+    |g,i| fn|x| a[n-i]=x; g end)
 end
 
 if list(0..9) != curry(10,|*a| a)(0)(1)(2)(3)(4)(5)(6)(7)(8)(9)
@@ -384,7 +384,7 @@ end
 # but this time an overflow of the machine stack.
 # The source is a recursively called destructor that
 # cleans up the linked list of closures, produced in curry.
-sub main
+function main
   n = 20
   u = list(1..n)
   if u != uncurry(curry(n,|*a| a)).apply(u)

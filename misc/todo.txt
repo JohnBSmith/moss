@@ -16,7 +16,6 @@
 * search paths
 
 == Library ==
-* Iterable.join
 * reverse string
 * reverse iterator
 * iterator: tee
@@ -74,6 +73,7 @@
 * hash for Long
 * powmod
 * cartesian power
+* Iterable.join
 
 === Linear Algebra ===
 * polymorphic arrays

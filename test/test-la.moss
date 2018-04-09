@@ -2,7 +2,7 @@
 use math.la: vector, matrix
 use sys: exit
 
-sub error(s)
+function error(s)
   print("Error in la-test: test ", s, " failed.")
   exit(1)
 end

@@ -29,7 +29,7 @@ and resumed later. At its stop it <i>yields</i> a value.
 
 <p>An easy example:
 <pre class="moss indent">
-g = || sub*||
+g = || fn*||
   yield 1
   yield 2
   yield 1
@@ -64,7 +64,7 @@ isprime = |n| n>1 and (2..).until(|k| k*k>n).all(|k| n%k!=0)
 an iterable object by a given predicate <code>p</code>.
 
 <pre class="moss indent">
-Iterable.filter = sub|a;p|
+Iterable.filter = fn|a;p|
   y = []
   for x in a
     if p(x)
@@ -120,7 +120,7 @@ simply don't know how large such a range has to be.
 In order to do that, we use a coroutine.
 
 <pre class="moss indent">
-Iterable.filter = |a;p| sub*||
+Iterable.filter = |a;p| fn*||
   for x in a
     if p(x)
       yield x

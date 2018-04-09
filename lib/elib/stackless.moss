@@ -1,5 +1,5 @@
 
-List.map = sub|f|
+List.map = fn|f|
   a = []
   for x in self
     a.push(f(x))
@@ -7,7 +7,7 @@ List.map = sub|f|
   return a
 end
 
-List.filter = sub|p|
+List.filter = fn|p|
   a = []
   for x in self
     if p(x)
@@ -17,18 +17,18 @@ List.filter = sub|p|
   return a
 end
 
-Iterable.map = sub|f|
+Iterable.map = fn|f|
   a = self
-  sub*||
+  fn*||
     for x in a
       yield f(x)
     end
   end
 end
 
-Iterable.filter = sub|p|
+Iterable.filter = fn|p|
   a = self
-  sub*||
+  fn*||
     for x in a
       if p(x)
         yield x
@@ -37,7 +37,7 @@ Iterable.filter = sub|p|
   end
 end
 
-Iterable.all = sub|p|
+Iterable.all = fn|p|
   for x in self
     if not p(x)
       return false
@@ -46,7 +46,7 @@ Iterable.all = sub|p|
   return true
 end
 
-Iterable.any = sub|p|
+Iterable.any = fn|p|
   for x in self
     if p(x)
       return true
@@ -55,7 +55,7 @@ Iterable.any = sub|p|
   return false
 end
 
-Iterable.count = sub|p=null|
+Iterable.count = fn|p=null|
   k=0
   if p is null
     if self: String or self: List or self: Map
@@ -72,7 +72,7 @@ Iterable.count = sub|p=null|
   return k
 end
 
-Iterable.reduce = sub|e,f=null|
+Iterable.reduce = fn|e,f=null|
   if f is null
     f = e
     i = iter(self)

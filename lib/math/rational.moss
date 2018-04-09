@@ -1,21 +1,21 @@
 
 
-sub gcd(a,b)
+function gcd(a,b)
   while b!=0 do a,b=b,a%b end
   return a
 end
 
-sub rat(n,d)
+function rat(n,d)
   t = gcd(n,d)
   return table Rat{n=n//t, d=d//t}
 end
 
-sub rat_int(n)
+function rat_int(n)
   return rat(n,1)
 end
 
 Rat = table{
-  sub string
+  function string
     s = "-" if sgn(self.n)*sgn(self.d)<0 else ""
     if abs(self.d)==1
       return "{}{}" % [s,abs(self.n)]
@@ -23,10 +23,12 @@ Rat = table{
       return "{}{}/{}" % [s,abs(self.n),abs(self.d)]
     end
   end,
-  sub neg(a;)
+
+  function neg(a;)
     return table Rat{n=-a.n,d=a.d}
   end,
-  sub plus(a;b)
+
+  function plus(a;b)
     if b: Rat
       n = a.n*b.d+b.n*a.d
       d = a.d*b.d
@@ -37,10 +39,12 @@ Rat = table{
       return b+a
     end
   end,
-  sub rplus(a;b)
+
+  function rplus(a;b)
     return rat(a*b.d+b.n,b.d)
   end,
-  sub minus(a;b)
+
+  function minus(a;b)
     if b: Rat
       n = a.n*b.d-b.n*a.d
       d = a.d*b.d
@@ -51,10 +55,12 @@ Rat = table{
       return -(b-a)
     end
   end,
-  sub rminus(a;b)
+
+  function rminus(a;b)
     return rat(a*b.d-b.n,b.d)
   end,
-  sub mpy(a;b)
+
+  function mpy(a;b)
     if b: Rat
       n = a.n*b.n
       d = a.d*b.d
@@ -65,10 +71,12 @@ Rat = table{
       return b*a
     end
   end,
-  sub rmpy(a;b)
+
+  function rmpy(a;b)
     return rat(a*b.n,b.d)
   end,
-  sub div(a;b)
+
+  function div(a;b)
     if b: Rat
       return rat(a.n*b.d,a.d*b.n)
     elif b: Int or b: Long
@@ -77,10 +85,12 @@ Rat = table{
       return b.rdiv(a;b)
     end
   end,
-  sub rdiv(b)
+
+  function rdiv(b)
     return rat(self*b.d,b.n)
   end,
-  sub pow(b)
+
+  function pow(b)
     if b>0
       return rat(self.n^b, self.d^b)
     elif b<0
@@ -89,7 +99,8 @@ Rat = table{
       return rat(1,1)
     end
   end,
-  sub lt(a;b)
+
+  function lt(a;b)
     if b: Rat
       return sgn(a.d)*a.n*abs(b.d) < sgn(b.d)*b.n*abs(a.d)
     else

@@ -1,12 +1,12 @@
 
-zip = sub|a|
+zip = fn|a|
   map = a.map
   any = a.any
   next = |i| i()
   is_empty = |x| x==empty
 
   a = map(a;iter)
-  return sub*||
+  return fn*||
     while true
       t = map(a;next)
       if any(t;is_empty)
@@ -18,7 +18,7 @@ zip = sub|a|
   end
 end
 
-chain = |a| sub*||
+chain = |a| fn*||
   for i in a
     for x in i
       yield x
@@ -26,7 +26,7 @@ chain = |a| sub*||
   end
 end
 
-Iterable.reduce = sub reduce|x0,f|
+Iterable.reduce = fn reduce|x0,f|
   y = x0
   for x in self
     y = f(y,x)
@@ -34,9 +34,9 @@ Iterable.reduce = sub reduce|x0,f|
   return y
 end
 
-Iterable.accumulate = sub accumulate|x0,f|
+Iterable.accumulate = fn accumulate|x0,f|
   a = self
-  return sub*||
+  return fn*||
     y = x0
     yield y
     for x in a
@@ -46,16 +46,16 @@ Iterable.accumulate = sub accumulate|x0,f|
   end
 end
 
-Iterable.take = sub take|n|
+Iterable.take = fn take|n|
   i = iter(self)
-  return sub*||
+  return fn*||
     for k in 1..n
       yield i()
     end
   end
 end
 
-Iterable.skip = sub skip|n|
+Iterable.skip = fn skip|n|
   i = iter(self)
   for k in 1..n
     i()
@@ -63,14 +63,14 @@ Iterable.skip = sub skip|n|
   return i
 end
 
-Iterable.at = sub at|n|
+Iterable.at = fn at|n|
   return self.skip(n)()
 end
 
-sub cycle(x)
+fn cycle(x)
   a = x.list()
   i=0; n=size(a)
-  return sub*||
+  return fn*||
     while true
       i = 1 if i==n else i+1
       yield a[i-1]
@@ -78,8 +78,8 @@ sub cycle(x)
   end
 end
 
-sub permutations(a)
-  sub* ||
+fn permutations(a)
+  fn* ||
     if size(a)<=1
       yield copy(a)
     else

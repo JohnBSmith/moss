@@ -1,12 +1,12 @@
 
 use sys
 
-sub error(s)
+function error(s)
   print("Error: ", s)
   sys.exit(1)
 end
 
-sub str_to_list(s)
+function str_to_list(s)
   k=0; a=[]; b=[]
   for c in s
     if c.isdigit()
@@ -21,32 +21,32 @@ sub str_to_list(s)
   return b
 end
 
-sub list_to_str(a)
-  a.map(sub|x|
-    x.chunks(3).list().map(sub|y|
+function list_to_str(a)
+  a.map(fn|x|
+    x.chunks(3).list().map(fn|y|
       y.map(|d| '.' if d==0 else str(d)).join()
     end).join("|")
-  end).chunks(3).list().map(sub|y|
+  end).chunks(3).list().map(fn|y|
     y.join("\n")
   end).join("\n---+---+---\n")
 end
 
-sub row_set(a,i)
+function row_set(a,i)
   set(a[i].filter(|x| x!=0))
 end
 
-sub col_set(a,j)
+function col_set(a,j)
   set(list(0..8).map(|i| a[i][j]).filter(|x| x!=0))
 end
 
-sub box_set(a,i,j)
+function box_set(a,i,j)
   i=(i//3)*3; j=(j//3)*3
-  set(list(0..2).map(sub|x|
+  set(list(0..2).map(fn|x|
     list(0..2).map(|y| a[i+x][j+y])
   end).chain().filter(|x| x!=0))
 end
 
-sub step(a)
+function step(a)
   for i in 0..8
     for j in 0..8
       if a[i][j]==0
@@ -61,14 +61,14 @@ sub step(a)
   return false
 end
 
-sub solve(a)
+function solve(a)
   t=true
   while t
     t=step(a)
   end
 end
 
-sub main(s,L)
+function main(s,L)
   a = str_to_list(s)
   solve(a)
   if list_to_str(a) != L
@@ -78,7 +78,7 @@ end
 
 # Backtracking 
 
-sub bsolve(a)
+function bsolve(a)
   # solve(a)
   for i in 0..8
     for j in 0..8
@@ -97,7 +97,7 @@ sub bsolve(a)
   return [a.map(copy)]
 end
 
-sub bmain(s,L)
+function bmain(s,L)
   a = bsolve(str_to_list(s))
   if size(a)!=1 or list_to_str(a[0])!=L
     error("#sudoku-backtracking")

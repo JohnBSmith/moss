@@ -57,7 +57,7 @@ and overwrite its old name. Instead of using a global variable we
 can use a private variable which will point to the function itself more
 directly. Then overwriting the old name becomes possible.
 <pre class="moss indent">
-sum = sub f|a,b| a if b==0 else f(succ(a),pred(b)) end
+sum = fn f|a,b| a if b==0 else f(succ(a),pred(b)) end
 
 # Now valid
 old_sum = sum
@@ -87,7 +87,7 @@ to know the subprogram just before the call.
 <p>One of the easiest examples is the function <code>map</code>
 which applies a given function to each element of a list.
 <pre class="moss indent">
-map = sub|a,f|
+function map(a,f)
   b=[]
   for x in a
     b.push(f(x))
@@ -95,9 +95,7 @@ map = sub|a,f|
   return b
 end
 
-A = [1,2,3,4]
-F = |x| 2*x
-print(map(A,F))
+print(map([1,2,3,4],|x| 2*x))
 # Output:
 # [2, 4, 6, 8]
 </pre>
@@ -105,7 +103,7 @@ print(map(A,F))
 <p>Interestingly, passing functions allows the construction of custom
 control structures. A basic for loop is written without much effort.
 <pre class="moss indent">
-For = sub|a,b,f|
+function For(a,b,f)
   i=a
   while i&lt;=b
     f(i)
@@ -113,7 +111,7 @@ For = sub|a,b,f|
   end
 end
 
-For(1,4,sub|i|
+For(1,4,fn|i|
   print(i, "^ = ", str(2^i).rjust(2,"0"))
 end)
 # 2^1 = 02
@@ -129,7 +127,8 @@ end)
 The first way one can think to do this, is to use the
 definition of the derivative directly.
 <pre class="moss indent">
-diff = sub|f,x| h=0.001
+function diff(f,x)
+  h = 0.001
   return (f(x+h)-f(x))/h
 end
 </pre>
@@ -137,12 +136,13 @@ end
 <p>This is a little bit naive. The following algorithm does it
 better, because it cancels out errors.
 <pre class="moss indent">
-diff = sub|f,x| h=0.001
+function diff(f,x)
+  h = 0.001
   return (f(x+h)-f(x-h)/(2*h)
 end
 </pre>
 
-<p>The differential operator can also be seen as an operator that
+<p>The differential operator may also be seen as an operator that
 takes a function and returns a function (the derivative). If we
 use currying, we can use both views directly.
 <pre class="moss indent">
@@ -151,7 +151,7 @@ D = |f| |x| diff(f,x)
 
 <p>Now <code>D</code> is the differential operator, <code>D(f)</code>
 is the first derivative and <code>D(f)(x)</code> is the same
-as <code>diff(f,x)</code>. And that is simply currying. The
+as <code>diff(f,x)</code>. And that simply is currying. The
 operator&nbsp;<code>D</code> is the curried form of <code>diff</code>.
 
 
@@ -166,8 +166,8 @@ into a function <code>f</code>, so
 that <code>f(i)==a[i]</code> for all indices of <code>a</code>.
 
 <pre class="moss cmd-box">
-&gt; fn = |a| |i| a[i]
-&gt; f = fn([4,2,3,1])
+&gt; seq = |a| |i| a[i]
+&gt; f = seq([4,2,3,1])
 </pre>
 
 <p>Furthermore, the bound data can itself be a function, because data,
@@ -183,7 +183,7 @@ modify the variable <code>city</code> from inside of the function
 <code>stars</code>.
 
 <pre class="moss indent">
-sub stars(s)
+function stars(s)
   s = "*"+s+"*"
 end
 
@@ -198,7 +198,7 @@ variable. Such a variable can be simulated as a list with only
 one element.
 
 <pre class="moss indent">
-sub stars(a)
+function stars(a)
   a[0]="*"+a[0]+"*"
 end
 
@@ -212,7 +212,7 @@ print(city[0])
 If there are many arguments, this has better readability.
 
 <pre class="moss indent">
-sub stars(s)
+function stars(s)
   s.value = "*"+s.value+"*"
 end
 
@@ -236,7 +236,7 @@ automatically converted into a list.
 
 <p>There may be obligatory arguments.
 <pre class="moss cmd-box">
-&gt; p = |x,y,*a| x+a.join("|")+y
+&gt; p = |x,y,*a| a.join("|",x,y)
 &gt; p("(",")",1,2,3,4)
 "(1|2|3|4)"
 </pre>
@@ -252,15 +252,22 @@ function call is as follows.
 
 <h2 id="opt">Optional arguments</h2>
 
-<p>For the last formal argument, a default value may be specified.
+<p>For the last formal argument(s), a default value may be specified.
 If the actual argument is omitted, this default value is taken.
 
 <pre class="moss cmd-box">
-&gt; p = |x,y,sep=", "| ["(",x,sep,y,")"].join()
+&gt; p = |x,y,sep=", "| "({}{}{})" % [x,sep,y]
 &gt; p(1,2)
 "(1, 2)"
+
 &gt; p(1,2,"|")
 "(1|2)"
+</pre>
+
+<p>You may even branch to different behavior.
+
+<pre class="moss cmd-box">
+&gt; p = |x,y=null| p1(x) if y is null else p2(x,y)
 </pre>
 
 
@@ -269,7 +276,11 @@ If the actual argument is omitted, this default value is taken.
 <p>Named arguments can be simulated by maps.
 
 <pre class="moss cmd-box">
-&gt; p = |m| ["(",m["x"],m["sep"],m["y"],")"].join()
+&gt; p = |m| "({}{}{})" % [m["x"],m["sep"],m["y"]]
+&gt; p({x=1,y=2,sep="|"})
+"(1|2)"
+
+&gt; p = |m| "({x}{sep}{y})" % m
 &gt; p({x=1,y=2,sep="|"})
 "(1|2)"
 </pre>
@@ -277,17 +288,21 @@ If the actual argument is omitted, this default value is taken.
 <p>For convenience, such a map can be unpacked, allowing
 named default arguments:
 <pre class="moss indent">
-sub p(m)
-  {x,y,sep=", "}=m
-  return ["(",x,sep,y,")"].join()
+function p(m)
+  {x,y,sep=", "} = m
+  return "({}{}{})" % [x,sep,y]
+end
+
+function p({x,y,sep=", "})
+  return "({}{}{})" % [x,sep,y]
 end
 </pre>
 
-<p>A default configuration could be given for everything:
+<p>A default configuration may be given for everything:
 <pre class="moss indent">
-sub p(m={})
-  {x="x", y="y", sep=", "}=m
-  return ["(",x,sep,y,")"].join()
+function p(m={})
+  {x="x", y="y", sep=", "} = m
+  return "({}{}{})" % [x,sep,y]
 end
 </pre>
 
@@ -302,9 +317,9 @@ end
 
 <p>Positional and named arguments may be mixed:
 <pre class="moss indent">
-sub p(x,y,m={})
-  {sep=", "}=m
-  return ["(",x,sep,y,")"].join()
+function p(x,y,m={})
+  {sep=", "} = m
+  return "({}{}{})" % [x,sep,y]
 end
 </pre>
 <pre class="moss cmd-box">
@@ -378,7 +393,7 @@ printing program, that determines the table to print based on
 the number of arguments of a given boolean function.
 
 <pre class="moss indent">
-sub truth_table(f)
+function truth_table(f)
   a = [false,true]^f.argc()
   for x in a
     print((x+[f(*x)]).map(int))
@@ -465,7 +480,7 @@ Function.plus = |f;g| |x| f(x)+g(x)
 <p>wich, in this case, also looks clearly more likeable.
 One could have written:
 <pre class="moss indent">
-Function.plus = sub|g|
+Function.plus = fn|g|
   f = self
   return |x| f(x)+g(x)
 end
@@ -568,8 +583,8 @@ an internal static variable <code>k</code>, which holds
 its state.
 
 <pre class="moss indent">
-sub counter(k)
-  return sub||
+function counter(k)
+  return fn||
     k+=1
     return k-1
   end
@@ -634,7 +649,7 @@ it like in Scheme.
 
 <p>This won't work:
 <pre class="moss indent">
-sub tree(x)
+function tree(x)
   table{x=x, left=tree(x), right=tree(x+1)}
 end
 print(tree(0).right.right.right.x)
@@ -643,7 +658,7 @@ print(tree(0).right.right.right.x)
 <p>It produces infinite recursion.
 We have to use explicit lazy evaluation:
 <pre class="moss indent">
-sub tree(x)
+function tree(x)
   table{x=x, left=|| tree(x), right=|| tree(x+1)}
 end
 print(tree(0).right().right().right().x)
@@ -658,11 +673,11 @@ Lazy = table{
   string = || "lazy expression"
 }
 
-sub delay(f)
+function delay(f)
   table Lazy{call=f}
 end
 
-sub force(x)
+function force(x)
   x.call() if x: Lazy else x
 end
 
@@ -673,7 +688,7 @@ print([force(2), force(t)])
 <p>But in most constructions, a value is never a function.
 In such cases we can simply check for a function.
 <pre class="moss indent">
-sub force(x)
+function force(x)
   x() if x: Function else x
 end
 

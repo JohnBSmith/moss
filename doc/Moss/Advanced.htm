@@ -99,9 +99,9 @@ the computation should take only <code>N(n)=c+n</code> calls.
 
 <p>The following memoizing fixed point combinator achieves this.
 <pre class="moss indent">
-sub fix(F)
+function fix(F)
   m = {}
-  return sub g|n|
+  return fn g|n|
     if n not in m then m[n] = F(g,n) end
     return m[n]
   end
@@ -154,7 +154,7 @@ At first, some auxiliary functionality is to be defined.
 <pre class="moss indent">
 dtab = {}
 
-sub define(m,d)
+function define(m,d)
   if m not in dtab
     dtab[m] = d
   else
@@ -163,7 +163,7 @@ sub define(m,d)
 end
 
 method = {
-  2: sub|m|
+  2: fn|m|
     f = dtab[m]
     return |x,y| f[[type(x),type(y)]](x,y)
   end

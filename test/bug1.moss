@@ -1,7 +1,7 @@
 
 use sys: call
 
-sub ack(m, n)
+function ack(m, n)
   if m<4
     if m<2
       return m+n+1
@@ -17,7 +17,7 @@ sub ack(m, n)
   end
 end
 
-sub main
+function main
   print(ack(4,3))
 end
 

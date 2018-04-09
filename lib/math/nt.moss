@@ -1,12 +1,12 @@
 
-sub gcd(a,b)
+function gcd(a,b)
   while b!=0
     h = b; b = a%b; a = h
   end
   return a
 end
 
-sub lcm(a,b=null)
+function lcm(a,b=null)
   if b is null
     return a.reduce(|x,y| x*y//gcd(x,y))
   else
@@ -17,7 +17,7 @@ end
 begin
   global isprime
 
-  sub isprime_trial_division(n)
+  function isprime_trial_division(n)
     if n<2
       return false
     else
@@ -37,7 +37,7 @@ begin
     value="Value error in isprime(n): n is too large."
   }
 
-  sub witness(a,d,n,r)
+  function witness(a,d,n,r)
     if pow(a,d,n)==1
       return true
     else
@@ -58,7 +58,7 @@ begin
   b5 = [2,3,5,7,11,13,17,19,23,29,31,37]
   b6 = [2,3,5,7,11,13,17,19,23,29,31,37,41]
 
-  sub isprime_deterministic(n)
+  function isprime_deterministic(n)
     if n==2 or n==3
       return true
     elif n%2==0 or n<2
@@ -88,7 +88,7 @@ begin
     return b.all(|a| witness(a,d,n,r))
   end
 
-  sub isprime_probalistic(n,m)
+  function isprime_probalistic(n,m)
     if n==2 or n==3
       return true
     elif n%2==0 or n<2
@@ -112,7 +112,7 @@ begin
     return true
   end
 
-  sub isprime(n,m=null)
+  function isprime(n,m=null)
     for k in prime_tab
       if n%k==0
         return n==k
@@ -126,11 +126,11 @@ begin
   end
 end
 
-sub divisors(n)
+function divisors(n)
   (1..n).filter(|k| n%k==0).list()
 end
 
-sub factor(n)
+function factor(n)
   a=[]
   if n<=0
     if n==0
@@ -157,11 +157,11 @@ sub factor(n)
   end
 end
 
-sub phi(n)
+function phi(n)
   0 if n<1 else factor(n).prod(|[p,e]| p^(e-1)*(p-1))
 end
 
-sub base(n,b)
+function base(n,b)
   a = []
   while n!=0
     a.push(n%b)

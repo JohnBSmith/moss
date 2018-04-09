@@ -1,11 +1,10 @@
 
 use plotlib: system
+use math: pi, sin, cos, tan
 
 s = system()
 
-# s.rect(0,0,50,50)
-s.line(0,0,1,1)
+s.plot(|x| sin(pi*x))
 
 print(s.flush())
-
 

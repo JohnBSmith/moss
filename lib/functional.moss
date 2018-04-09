@@ -1,9 +1,9 @@
 
 
-sub fix(F)
+function fix(F)
   m={}
-  return sub f|n|
-    if n not in m then m[n]=F(f,n) end
+  return fn f|n|
+    if n not in m then m[n] = F(f,n) end
     return m[n]
   end
 end

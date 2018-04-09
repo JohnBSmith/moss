@@ -561,20 +561,26 @@ projection <code>p</code>.
 [2, "b"]
 </pre>
 
-<dt>a.join()
+<dt>a.join(sep="",left="",right="")
 <dd>Apply <code>str</code> to each element and join the strings
 together.
 <pre class="moss">
-&gt; ["a","b","c"].join()
-"abc"
+&gt; (1..4).join()
+"1234"
 </pre>
 
-<dt>a.join(sep)
-<dd>Apply <code>str</code> to each element and join the strings
-together with <code>sep</code> inserted between.
+If <code>sep</code> is given, it will be inserted between.
 <pre class="moss">
-&gt; ["a","b","c"].join("#*")
-"a#*b#*c"
+&gt; (1..4).join(", ")
+"1, 2, 3, 4"
+</pre>
+
+The result will be surrounded by <code>left</code>
+and <code>right</code>, if given.
+
+<pre class="moss">
+&gt; (1..4).join(", ","(",")")
+"(1, 2, 3, 4)"
 </pre>
 
 <dt>a.enum(), a.enum(start)
@@ -609,18 +615,20 @@ as a list. If <code>n</code> is given, a maximum number of
 <dd>Return a new iterator with the same elements, but the elements
 are grouped to chunks of size <code>n</code>.
 <pre class="moss">
-&gt; [1,2,3,4,5,6].chunks(2)
+&gt; (1..6).chunks(2).list()
 [[1, 2], [3, 4], [5, 6]]
 </pre>
 
+<!--
 <dt>a.chunks(R)
 <dd>Return a new iterator with the same elements, but the elements
 are grouped by equivalence relation <code>R</code> to equivalence
 classes.
 <pre class="moss">
-&gt; [1,2,3,4,5,6].chunks(|x,y| x%3==y%3)
+&gt; [1,2,3,4,5,6].chunks(|x,y| x%3==y%3).list()
 [[1, 4], [2, 5], [3, 6]]
 </pre>
+-->
 
 </dl>
 

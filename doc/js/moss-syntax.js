@@ -18,7 +18,7 @@ var keyword = {
   "raise": 0, "yield": 0, "return": 0,
   "true": 0, "false": 0, "null": 0,
   "goto": 0, "label": 0, "use": 0,
-  "assert": 0, "function": 0
+  "assert": 0, "function": 0, "fn": 0
 };
 
 function syntax(s){

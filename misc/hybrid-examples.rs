@@ -6,7 +6,7 @@ extern crate moss;
 fn main(){
     let i = moss::Interpreter::new();
     let a = i.eval("
-        List.map = sub|f|
+        List.map = fn|f|
             a = []
             for x in self
                 a.push(f(x))

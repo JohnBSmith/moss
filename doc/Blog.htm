@@ -221,7 +221,7 @@ Function.o = |f| |x| self(f(x))
 </pre>
 <p>One is forced to write instead:
 <pre class="moss indent">
-Function.o = sub|f|
+Function.o = fn|f|
   g = self
   return |x| g(f(x))
 end
@@ -274,11 +274,11 @@ build in functions. Now a function's argument count can simply be
 a range. Not given arguments will be filled out with
 <code>null</code>. Now
 <pre class="moss indent">
-sub f(x,y=expression)
+function f(x,y=expression)
 </pre>
 <p>is simply syntatic sugar for
 <pre class="moss indent">
-sub f(x,y=null)
+function f(x,y=null)
   if y is null then y=expression end
 </pre>
 <p>An implementation is straightforward:
@@ -300,7 +300,7 @@ if-AST and body-AST.
 </pre>
 <p>Easy going. At next, default named arguments are stated as follows:
 <pre class="moss indent">
-sub f(x,m={})
+function f(x,m={})
   a = m["a"] if "a" in m else a0
   b = m["b"] if "b" in m else b0
   # ...
@@ -332,13 +332,13 @@ hand side is an expression. I think it was a worthwhile effort.
 
 <p>Finally it can be moved into the arguments list:
 <pre class="moss indent">
-sub f(x,{a=a0,b=b0})
+function f(x,{a=a0,b=b0})
   # ...
 end
 </pre>
 as syntactic sugar for
 <pre class="moss indent">
-sub f(x,_m0_)
+function f(x,_m0_)
   {a=a0,b=b0} = _m0_
   # ...
 end
@@ -346,13 +346,13 @@ end
 
 <p>Furthermore,
 <pre class="moss indent">
-sub f([x,y])
+function f([x,y])
   # ...
 end
 </pre>
 <p>is syntactic sugar for
 <pre class="moss indent">
-sub f(_t0_)
+function f(_t0_)
   x,y = _t0_
   # ...
 end
@@ -376,7 +376,7 @@ begin ... end
 </pre>
 <p>is syntatic sugar for:
 <pre class="moss indent">
-(sub|| ... end)()
+fn|| ... end()
 </pre>
 
 <p>Often we want to create a local variable, use it in one or
@@ -516,7 +516,7 @@ end
 </pre>
 <p>Example of usage:
 <pre class="moss indent">
-sub pow(x,n)
+function pow(x,n)
   assert n: Int and n&gt;=0, "pow(x,n), n: Int, n&gt;=0"
   y=1
   for k in 1..n
@@ -703,24 +703,24 @@ prototype = (type, prototype, object_name, hidden_properties)
 
 <p>A simple example:
 <pre class="moss indent">
-sub class(name,prototype,properties)
+function class(name,prototype,properties)
   object((Type,prototype,name),properties)
 end
 
 Bird = class("Bird",null,{
-  sub string
+  function string
     "{} is a bird." % [self.name]
   end,
-  sub fly
+  function fly
     "{} can fly!" % [self.name]
   end
 })
 
 Duck = class("Duck",Bird,{
-  sub string
+  function string
     "{} is a duck." % [self.name]
   end,
-  sub dive
+  function dive
     "{} can dive!" % [self.name]
   end
 })
@@ -751,9 +751,9 @@ max(<code>'scope</code>,&nbsp;<code>'closure</code>).
 <p>In Moss, lexical scoped closures are possible, but by capture
 per cloning. Not possible so far is such a construct:
 <pre class="moss indent">
-sub main
+function main
   s = 0
-  (1..4).each(sub|k|
+  (1..4).each(fn|k|
     s = s+k
   end)
   print(s)
@@ -773,18 +773,18 @@ f = |x,y| |z| x+y+z
 <p>as an example to examine what is happening.
 This is transformed into the following pseudo-Moss:
 <pre class="moss indent">
-f = sub|x,y|
+f = fn|x,y|
   _t = [x,y]
-  return sub(_t)|z| t[0]+t[1]+z end
+  return fn(_t)|z| t[0]+t[1]+z end
 end
 </pre>
 
 <p>After transformation one can see why nothing happens:
 <pre class="moss indent">
-sub main
+function main
   s = 0
   _t = [s]
-  (1..4).each(sub(_t)|k|
+  (1..4).each(fn(_t)|k|
     _t[0] = _t[0]+k
   end)
   print(s)
@@ -799,14 +799,14 @@ is replaced by <code>print(_t[0])</code>.
 
 <p>Closure chains are not problematic:
 <pre class="moss indent">
-sub main
+function main
   s = 0
   _t = [s]
-  (1..4).each(sub(_t)|k|
+  (1..4).each(fn(_t)|k|
     _t[0] = _t[0]+k
   end)
   _t = [_t[0]]
-  (1..4).each(sub(_t)|k|
+  (1..4).each(fn(_t)|k|
     _t[0] = _t[0]+k
   end)
   print(_t[0])
@@ -815,12 +815,12 @@ end
 
 <p>Closure nesting is more problematic:
 <pre class="moss indent">
-sub main
+function main
   s = 0
   _t1 = [s]
-  (1..4).each(sub(_t1)|i|
+  (1..4).each(fn(_t1)|i|
     _t2 = [_t1[0]]
-    (1..4).each(sub(_t2)|j|
+    (1..4).each(fn(_t2)|j|
       _t2[0] = _t2[0]+i*j
     end)
     # lifetime of _t2 ends here
@@ -836,13 +836,13 @@ is about lexical scoping. Because of this situation, we could
 simply move <code>_t2</code> into the outmost local scope:
 
 <pre class="moss indent">
-sub main
+function main
   s = 0
   _t1 = [s]
   _t2 = []
-  (1..4).each(sub(_t1)|i|
+  (1..4).each(fn(_t1)|i|
     _t2.push(_t1[0])
-    (1..4).each(sub(_t2)|j|
+    (1..4).each(fn(_t2)|j|
       _t2[0] = _t2[0]+i*j
     end)
   end)
@@ -921,6 +921,47 @@ etc.
 </pre>
 
 <p>Thus we need to use the right hand side.
+
+<h3 data-date="20180407" id="key-operation-shorthand"
+>Key operation shorthand</h3>
+
+<p>To have key operations in the form <code>m["key"]</code> is
+somewhat clumsy if the map is used as a <code>struct</code>.
+I introduced the new shorthand syntax <code>m key</code> to
+the language. Now we have the following symmetry:
+
+<table class="bt indent">
+<tr>
+<th>
+<th>General
+<th>Shorthand
+
+<tr>
+<th>Object dispatch
+<td><code class="moss">a.("key")</code>
+<td><code class="moss">a.key</code>
+
+<tr>
+<th>Map indexing
+<td><code class="moss">a["key"]</code>
+<td><code class="moss">a key</code>
+</table>
+
+<p>There are some side effects:
+<pre class="moss indent">
+&gt; ord abcd
+[97, 98, 99, 100]
+
+&gt; str abcd
+["a", "b", "c", "d"]
+</pre>
+
+<p>Why? Index operation is overloaded as image set and multiargument
+map. The arguments can be iterables. Hence,
+<pre class="moss indent">
+ord abcd == ord["abcd"] == list("abcd").map(ord).
+</pre>
+
 
 </body>
 </html>

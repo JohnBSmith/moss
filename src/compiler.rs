@@ -35,7 +35,7 @@ enum Symbol{
   PLeft, PRight, BLeft, BRight, CLeft, CRight, Newline,
   Lshift, Rshift, Assert, Begin, Break, Catch, Continue,
   Elif, Else, End, For, Global, Goto, Label, Of,
-  If, While, Do, Raise, Return, Sub, Table, Then, Try,
+  If, While, Do, Raise, Return, Fn, Function, Table, Then, Try,
   Use, Yield, True, False, Null, Dot, Comma, Colon, Semicolon,
   List, Map, Application, Index, Block, Statement, Terminal,
   APlus, AMinus, AAst, ADiv, AIdiv, AMod, AAmp, AVline, ASvert,
@@ -84,6 +84,8 @@ static KEYWORDS: &'static [KeywordsElement] = &[
    KeywordsElement{s: "end",     t: &SymbolType::Keyword, v: &Symbol::End},
    KeywordsElement{s: "false",   t: &SymbolType::Bool,    v: &Symbol::False},
    KeywordsElement{s: "for",     t: &SymbolType::Keyword, v: &Symbol::For},
+   KeywordsElement{s: "fn",      t: &SymbolType::Keyword, v: &Symbol::Fn},
+   KeywordsElement{s: "function",t: &SymbolType::Keyword, v: &Symbol::Function},
    KeywordsElement{s: "global",  t: &SymbolType::Keyword, v: &Symbol::Global},
    KeywordsElement{s: "goto",    t: &SymbolType::Keyword, v: &Symbol::Goto},
    KeywordsElement{s: "label",   t: &SymbolType::Keyword, v: &Symbol::Label},
@@ -96,7 +98,6 @@ static KEYWORDS: &'static [KeywordsElement] = &[
    KeywordsElement{s: "or",      t: &SymbolType::Operator,v: &Symbol::Or},
    KeywordsElement{s: "raise",   t: &SymbolType::Keyword, v: &Symbol::Raise},
    KeywordsElement{s: "return",  t: &SymbolType::Keyword, v: &Symbol::Return},
-   KeywordsElement{s: "sub",     t: &SymbolType::Keyword, v: &Symbol::Sub},
    KeywordsElement{s: "table",   t: &SymbolType::Keyword, v: &Symbol::Table},
    KeywordsElement{s: "then",    t: &SymbolType::Keyword, v: &Symbol::Then},
    KeywordsElement{s: "true",    t: &SymbolType::Bool,    v: &Symbol::True},
@@ -644,7 +645,8 @@ fn symbol_to_string(value: Symbol) -> &'static str {
     Symbol::Of => "of",
     Symbol::Raise => "raise",
     Symbol::Return => "return",
-    Symbol::Sub => "sub",
+    Symbol::Fn => "fn",
+    Symbol::Function => "Function",
     Symbol::Table => "table",
     Symbol::Then => "then",
     Symbol::True => "true",
@@ -711,10 +713,10 @@ fn print_ast(t: &AST, indent: usize){
     },
     SymbolType::Operator | SymbolType::Separator |
     SymbolType::Keyword  | SymbolType::Bool | SymbolType::Assignment => {
-      if t.value == Symbol::Sub {
+      if t.value == Symbol::Fn {
         match t.s {
-          Some(ref s) => {println!("sub {}",s);},
-          None => {println!("sub");}
+          Some(ref s) => {println!("fn {}",s);},
+          None => {println!("fn");}
         }
       }else{
         println!("{}",symbol_to_string(t.value));
@@ -1027,33 +1029,29 @@ fn map_literal(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error> {
     loop{
       let p = try!(i.next_token(self));
       let t = &p[i.index];
-      let key = if t.value == Symbol::Sub {
+      let key = if t.value == Symbol::Function {
         i.index+=1;
-        let literal = try!(self.function_literal(i,t));
-        if literal.value == Symbol::Assignment {
-          let a = ast_argv(&literal);
+        let literal = try!(self.function_literal(i,t,Symbol::Function));
+        let a = ast_argv(&literal);
 
-          let key = Rc::new(AST{
-            line: a[0].line, col: a[0].col,
-            symbol_type: SymbolType::String, value: Symbol::None,
-            info: Info::None, s: a[0].s.clone(), a: None
-          });
-          v.push(key);
-          v.push(a[1].clone());
+        let key = Rc::new(AST{
+          line: a[0].line, col: a[0].col,
+          symbol_type: SymbolType::String, value: Symbol::None,
+          info: Info::None, s: a[0].s.clone(), a: None
+        });
+        v.push(key);
+        v.push(a[1].clone());
 
-          let p2 = try!(i.next_token(self));
-          let t2 = &p2[i.index];
-          if t2.value == Symbol::CRight {
-            i.index+=1;
-            break;
-          }else if t2.value != Symbol::Comma {
-            return Err(self.syntax_error(t2.line, t2.col, "expected ',' or '}'."));
-          }
+        let p2 = try!(i.next_token(self));
+        let t2 = &p2[i.index];
+        if t2.value == Symbol::CRight {
           i.index+=1;
-          continue;
-        }else{
-          literal
+          break;
+        }else if t2.value != Symbol::Comma {
+          return Err(self.syntax_error(t2.line, t2.col, "expected ',' or '}'."));
         }
+        i.index+=1;
+        continue;
       }else{
         try!(self.union(i))
       };
@@ -1218,13 +1216,14 @@ fn concise_function_literal(&mut self, i: &mut TokenIterator, t0: &Token)
   let args = try!(self.arguments_list(i,t0,Symbol::Vline));
   let x = try!(self.expression(i));
   return Ok(Rc::new(AST{line: t0.line, col: t0.col,
-    symbol_type: SymbolType::Keyword, value: Symbol::Sub,
+    symbol_type: SymbolType::Keyword, value: Symbol::Fn,
     info: Info::None, s: None, a: Some(Box::new([args,x]))
   }));
 }
 
-fn function_literal(&mut self, i: &mut TokenIterator, t0: &Token)
-  -> Result<Rc<AST>,Error>
+fn function_literal(&mut self, i: &mut TokenIterator,
+  t0: &Token, symbol: Symbol
+) -> Result<Rc<AST>,Error>
 {
   let p = try!(i.next_token(self));
   let t = &p[i.index];
@@ -1244,19 +1243,25 @@ fn function_literal(&mut self, i: &mut TokenIterator, t0: &Token)
   };
   let p = try!(i.next_token_optional(self));
   let t = &p[i.index];
-  let terminator = if t.value == Symbol::PLeft {
-    i.index+=1;
-    Symbol::PRight
-  }else if t.value == Symbol::Vline {
-    i.index+=1;
-    Symbol::Vline
-  }else if t.value == Symbol::Newline {
-    i.index+=1;
-    Symbol::Newline
-  }else if t.value == Symbol::Terminal {
-    Symbol::Newline
+  let terminator = if symbol == Symbol::Function {
+    if t.value == Symbol::PLeft {
+      i.index+=1;
+      Symbol::PRight
+    }else if t.value == Symbol::Newline {
+      i.index+=1;
+      Symbol::Newline
+    }else if t.value == Symbol::Terminal {
+      Symbol::Newline
+    }else{
+      return Err(self.syntax_error(t.line, t.col, "expected '(' or new line."));
+    }
   }else{
-    return Err(self.syntax_error(t.line, t.col, "expected '(' or '|'."));
+    if t.value == Symbol::Vline {
+      i.index+=1;
+      Symbol::Vline
+    }else{
+      return Err(self.syntax_error(t.line, t.col, "expected '|'."));
+    }
   };
   let args = if terminator == Symbol::Newline {
     Rc::new(AST{line: t0.line, col: t0.col,
@@ -1285,12 +1290,12 @@ fn function_literal(&mut self, i: &mut TokenIterator, t0: &Token)
   self.parens = parens;
   self.syntax_nesting-=1;
   i.index+=1;
-  try!(self.end_of(i,Symbol::Sub));
+  try!(self.end_of(i,Symbol::Fn));
   let y = Rc::new(AST{line: t0.line, col: t0.col,
-    symbol_type: SymbolType::Keyword, value: Symbol::Sub,
+    symbol_type: SymbolType::Keyword, value: Symbol::Fn,
     info: info, s: id, a: Some(Box::new([args,x]))
   });
-  if terminator == Symbol::PRight || terminator == Symbol::Newline {
+  if symbol == Symbol::Function {
     let id = identifier(match y.s {Some(ref s) => s, None => unreachable!()},t.line,t.col);
     return Ok(binary_operator(t.line,t.col,Symbol::Assignment,id,y));
   }else{
@@ -1386,7 +1391,7 @@ fn block(&mut self, i: &mut TokenIterator, t0: &Token) -> Result<Rc<AST>,Error> 
   self.syntax_nesting-=1;
   i.index+=1;
   let y = Rc::new(AST{line: t0.line, col: t0.col,
-    symbol_type: SymbolType::Keyword, value: Symbol::Sub,
+    symbol_type: SymbolType::Keyword, value: Symbol::Fn,
     info: Info::None, s: None, a: Some(Box::new([
       empty_list(t0.line,t0.col,SymbolType::Operator,Symbol::List),
     x]))
@@ -1456,14 +1461,9 @@ fn atom(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error> {
   }else if t.value==Symbol::Vline {
     i.index+=1;
     y = try!(self.concise_function_literal(i,t));
-  }else if t.value==Symbol::Sub {
+  }else if t.value==Symbol::Fn {
     i.index+=1;
-    y = try!(self.function_literal(i,t));
-    if y.value == Symbol::Assignment {
-      return Err(self.syntax_error(t.line,t.col,
-        "unexpected sub-statement."
-      ));
-    }
+    y = try!(self.function_literal(i,t,Symbol::Fn));
   }else if t.value==Symbol::Begin {
     i.index+=1;
     y = try!(self.block(i,t));
@@ -2338,107 +2338,114 @@ fn statements(&mut self, i: &mut TokenIterator, last_value: Value)
       break;
     }
     let value = t.value;
-    if value == Symbol::While {
-      i.index+=1;
-      let statement = self.statement;
-      self.statement = true;
-      self.syntax_nesting+=1;
-      let x = try!(self.while_statement(i));
-      self.syntax_nesting-=1;
-      self.statement = statement;
-      v.push(x);
-      let p = try!(i.next_token_optional(self));
-      let t = &p[i.index];
-      if t.value != Symbol::End {    
-        return Err(self.syntax_error(t.line, t.col, "expected 'end'."));
+    if t.token_type == SymbolType::Keyword {
+      if value == Symbol::While {
+        i.index+=1;
+        let statement = self.statement;
+        self.statement = true;
+        self.syntax_nesting+=1;
+        let x = try!(self.while_statement(i));
+        self.syntax_nesting-=1;
+        self.statement = statement;
+        v.push(x);
+        let p = try!(i.next_token_optional(self));
+        let t = &p[i.index];
+        if t.value != Symbol::End {    
+          return Err(self.syntax_error(t.line, t.col, "expected 'end'."));
+        }
+        i.index+=1;
+        try!(self.end_of(i,Symbol::While));
+      }else if value == Symbol::For {
+        i.index+=1;
+        let statement = self.statement;
+        self.statement = true;
+        self.syntax_nesting+=1;
+        let x = try!(self.for_statement(i));
+        self.syntax_nesting-=1;
+        self.statement = statement;
+        v.push(x);
+        let p = try!(i.next_token_optional(self));
+        let t = &p[i.index];
+        if t.value != Symbol::End {
+          return Err(self.syntax_error(t.line, t.col, "expected 'end'."));    
+        }
+        i.index+=1;
+        try!(self.end_of(i,Symbol::For));
+      }else if value == Symbol::If {
+        i.index+=1;
+        let statement = self.statement;
+        self.statement = true;
+        self.syntax_nesting+=1;
+        let x = try!(self.if_statement(i,t));
+        self.syntax_nesting-=1;
+        self.statement = statement;
+        v.push(x);
+        let p = try!(i.next_token_optional(self));
+        let t = &p[i.index];
+        if t.value != Symbol::End {
+          return Err(self.syntax_error(t.line, t.col, "expected 'end'."));
+        }
+        i.index+=1;
+        try!(self.end_of(i,Symbol::If));
+      }else if value == Symbol::End || value == Symbol::Elif ||
+        value == Symbol::Else || value == Symbol::Catch
+      {
+        break;
+      }else if value == Symbol::Return {
+        i.index+=1;
+        let x = try!(self.return_statement(i,t,Symbol::Return));
+        v.push(x);
+      }else if value == Symbol::Function {
+        i.index+=1;
+        let mut x = try!(self.function_literal(i,t,Symbol::Function));
+        /*
+        if x.value == Symbol::Sub && self.statement {
+          x = Rc::new(AST{line: t.line, col: t.col, symbol_type: SymbolType::Keyword,
+          value: Symbol::Statement, info: Info::None, s: None, a: Some(Box::new([x]))});
+        }
+        */
+        v.push(x);
+      }else if value == Symbol::Break {
+        i.index+=1;
+        let x = atomic_literal(t.line,t.col,Symbol::Break);
+        v.push(x);
+      }else if value == Symbol::Continue {
+        i.index+=1;
+        let x = atomic_literal(t.line,t.col,Symbol::Continue);
+        v.push(x);
+      }else if value == Symbol::Yield {
+        i.index+=1;
+        let x = try!(self.return_statement(i,t,Symbol::Yield));
+        v.push(x);
+      }else if value == Symbol::Use {
+        i.index+=1;
+        let x = try!(self.use_statement(i,t));
+        v.push(x);
+      }else if value == Symbol::Global {
+        i.index+=1;
+        let x = try!(self.global_statement(i,t));
+        v.push(x);
+      }else if value == Symbol::Raise {
+        i.index+=1;
+        let x = try!(self.raise_statement(i,t));
+        v.push(x);
+      }else if value == Symbol::Try {
+        i.index+=1;
+        let statement = self.statement;
+        self.statement = true;
+        self.syntax_nesting+=1;
+        let x = try!(self.try_catch_statement(i,t));
+        self.syntax_nesting-=1;
+        self.statement = statement;
+        v.push(x);
+      }else if value == Symbol::Assert {
+        i.index+=1;
+        let x = try!(self.assert_statement(i,t));
+        v.push(x);
+      }else{
+        let x = try!(self.assignment(i));
+        v.push(x);
       }
-      i.index+=1;
-      try!(self.end_of(i,Symbol::While));
-    }else if value == Symbol::For {
-      i.index+=1;
-      let statement = self.statement;
-      self.statement = true;
-      self.syntax_nesting+=1;
-      let x = try!(self.for_statement(i));
-      self.syntax_nesting-=1;
-      self.statement = statement;
-      v.push(x);
-      let p = try!(i.next_token_optional(self));
-      let t = &p[i.index];
-      if t.value != Symbol::End {
-        return Err(self.syntax_error(t.line, t.col, "expected 'end'."));    
-      }
-      i.index+=1;
-      try!(self.end_of(i,Symbol::For));
-    }else if value == Symbol::If {
-      i.index+=1;
-      let statement = self.statement;
-      self.statement = true;
-      self.syntax_nesting+=1;
-      let x = try!(self.if_statement(i,t));
-      self.syntax_nesting-=1;
-      self.statement = statement;
-      v.push(x);
-      let p = try!(i.next_token_optional(self));
-      let t = &p[i.index];
-      if t.value != Symbol::End {
-        return Err(self.syntax_error(t.line, t.col, "expected 'end'."));
-      }
-      i.index+=1;
-      try!(self.end_of(i,Symbol::If));
-    }else if value == Symbol::End || value == Symbol::Elif ||
-      value == Symbol::Else || value == Symbol::Catch
-    {
-      break;
-    }else if value == Symbol::Return {
-      i.index+=1;
-      let x = try!(self.return_statement(i,t,Symbol::Return));
-      v.push(x);
-    }else if value == Symbol::Sub {
-      i.index+=1;
-      let mut x = try!(self.function_literal(i,t));
-      if x.value == Symbol::Sub && self.statement {
-        x = Rc::new(AST{line: t.line, col: t.col, symbol_type: SymbolType::Keyword,
-        value: Symbol::Statement, info: Info::None, s: None, a: Some(Box::new([x]))});
-      }
-      v.push(x);
-    }else if value == Symbol::Break {
-      i.index+=1;
-      let x = atomic_literal(t.line,t.col,Symbol::Break);
-      v.push(x);
-    }else if value == Symbol::Continue {
-      i.index+=1;
-      let x = atomic_literal(t.line,t.col,Symbol::Continue);
-      v.push(x);
-    }else if value == Symbol::Yield {
-      i.index+=1;
-      let x = try!(self.return_statement(i,t,Symbol::Yield));
-      v.push(x);
-    }else if value == Symbol::Use {
-      i.index+=1;
-      let x = try!(self.use_statement(i,t));
-      v.push(x);
-    }else if value == Symbol::Global {
-      i.index+=1;
-      let x = try!(self.global_statement(i,t));
-      v.push(x);
-    }else if value == Symbol::Raise {
-      i.index+=1;
-      let x = try!(self.raise_statement(i,t));
-      v.push(x);
-    }else if value == Symbol::Try {
-      i.index+=1;
-      let statement = self.statement;
-      self.statement = true;
-      self.syntax_nesting+=1;
-      let x = try!(self.try_catch_statement(i,t));
-      self.syntax_nesting-=1;
-      self.statement = statement;
-      v.push(x);
-    }else if value == Symbol::Assert {
-      i.index+=1;
-      let x = try!(self.assert_statement(i,t));
-      v.push(x);
     }else{
       let x = try!(self.assignment(i));
       v.push(x);
@@ -3536,7 +3543,7 @@ fn compile_ast(&mut self, bv: &mut Vec<u32>, t: &Rc<AST>)
       for i in 0..a.len() {
         try!(self.compile_ast(bv,&a[i]));
       }
-    }else if value == Symbol::Sub {
+    }else if value == Symbol::Fn {
       try!(self.compile_fn(bv,t));
     }else if value == Symbol::Statement {
       let a = ast_argv(t);

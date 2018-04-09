@@ -1,5 +1,5 @@
 
 
-fib = sub f|n| 1 if n<3 else f(n-1)+f(n-2) end
+fib = fn f|n| 1 if n<3 else f(n-1)+f(n-2) end
 print(fib(36))
 

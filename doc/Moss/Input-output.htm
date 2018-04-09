@@ -65,11 +65,11 @@ print(x,y,z) == print([x,y,z].join())
 <p>holds. This allows us to express an alternative version
 of <code>print</code> that takes a separator.
 <pre class="moss indent">
-sub Print(a,sep)
-  print(a.join(sep))
+function print(a,sep)
+  put(a.join(sep),"\n")
 end
 
-Print([1,2,3],"|")
+print([1,2,3],"|")
 # Output:
 # 1|2|3
 </pre>

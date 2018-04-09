@@ -6,7 +6,7 @@ use std::cmp::Ordering;
 use object::{
   Object, Table, List, U32String,
   FnResult, Function, EnumFunction,
-  MutableFn
+  MutableFn, Exception
 };
 use vm::{Env, op_add, op_mpy};
 use global::list;
@@ -644,6 +644,54 @@ fn take(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
   Ok(new_iterator(g))
 }
 
+fn join(env: &mut Env, a: &[Object], sep: Option<&Object>,
+  left: Option<&Object>, right: Option<&Object>
+) -> Result<String,Box<Exception>> {
+  let mut s: String = String::new();
+  if let Some(left) = left {
+    s.push_str(&try!(left.string(env)));
+  }
+  if let Some(sep) = sep {
+    let sep = &try!(sep.string(env));
+    let mut first = true;
+    for x in a {
+      if first {
+        first = false;
+      }else{
+        s.push_str(sep);
+      }
+      s.push_str(&try!(x.string(env)));
+    }
+  }else{
+    for x in a {
+      s.push_str(&try!(x.string(env)));
+    }
+  }
+  if let Some(right) = right {
+    s.push_str(&try!(right.string(env)));
+  }
+  return Ok(s);
+}
+
+fn iterable_join(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
+  let a = match *pself {
+    Object::List(ref a) => a.clone(),
+    ref x => {
+      match try!(list(env,x)) {
+        Object::List(a) => a, _ => unreachable!()
+      }
+    }
+  };
+  let y = match argv.len() {
+    0 => join(env,&a.borrow().v,None,None,None),
+    1 => join(env,&a.borrow().v,Some(&argv[0]),None,None),
+    2 => join(env,&a.borrow().v,Some(&argv[0]),Some(&argv[1]),None),
+    3 => join(env,&a.borrow().v,Some(&argv[0]),Some(&argv[1]),Some(&argv[2])),
+    n => return env.argc_error(n,0,3,"join")
+  };
+  Ok(U32String::new_object_str(&try!(y)))
+}
+
 pub fn init(t: &Table){
   let mut m = t.map.borrow_mut();
   m.insert_fn_plain("list",to_list,0,1);
@@ -662,5 +710,6 @@ pub fn init(t: &Table){
   m.insert_fn_plain("until",until,1,1);
   m.insert_fn_plain("enum",enumerate,0,1);
   m.insert_fn_plain("take",take,1,1);
+  m.insert_fn_plain("join",iterable_join,0,1);
 }
 

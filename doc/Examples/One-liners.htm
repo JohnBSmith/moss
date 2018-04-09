@@ -91,9 +91,9 @@ print(factor(360))
 <h3 id="curry">Currying</h3>
 <pre class="moss">
 # Convert f(x,y) to f(x)(y).
-curry = sub|f| n = f.argc(); a = list(n);
-  (2..n).reduce(sub|x| a[n-1] = x; f(*a) end,
-  |g,i| sub|x| a[n-i] = x; g end) end
+curry = fn|f| n = f.argc(); a = list(n);
+  (2..n).reduce(fn|x| a[n-1] = x; f(*a) end,
+  |g,i| fn|x| a[n-i] = x; g end) end
 
 
 # Convert f(x)(y) to f(x,y).
@@ -122,7 +122,7 @@ print(P({0,1,2}))
 <h3 id="mandelbrot">Mandelbrot set</h3>
 <pre class="moss">
 (0..25).map(|x|
-  (0..39).map(sub|y| c = (x/10-2)+(y/10-2)*1i;
+  (0..39).map(fn|y| c = (x/10-2)+(y/10-2)*1i;
     "*" if abs(((|z| z^2+c)^10)(0))&lt;2 else "\s"
   end).join()).each(print)
 

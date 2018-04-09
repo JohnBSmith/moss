@@ -1,21 +1,21 @@
 
 # factorial
-sub fac(n)
+function fac(n)
   return (1..n).prod()
 end
 
 # raising factorial
-sub rf(x,n)
+function rf(x,n)
   n.prod(|k| x+k)
 end
 
 # falling factorial
-sub ff(x,n)
+function ff(x,n)
   n.prod(|k| x-k)
 end
 
 # binomial coefficient
-sub bc(n,k)
+function bc(n,k)
   if k<0 or k>n
     return 0
   elif k==0 or k==n
@@ -31,18 +31,18 @@ sub bc(n,k)
 end
 
 # multinomial coefficient
-sub mc(k)
+function mc(k)
   return size(k).prod(|i| bc(i.sum(|j| k[j]),k[i]))
 end
 
 # finite difference
-sub Delta(n,f,x,h)
-  return (sub|x| f(x+h)-f(x) end^n)(x)
+function Delta(n,f,x,h)
+  return (fn|x| f(x+h)-f(x) end^n)(x)
 end
 
 begin global pf
   m = {}
-  sub partition(n,k)
+  function partition(n,k)
     if n<k
       return 0
     elif k==1 or n==k
@@ -59,7 +59,7 @@ begin global pf
   end
 
   # partition function
-  sub pf(n,k=null)
+  function pf(n,k=null)
     if k is null
       return (1..n).sum(|k| partition(n,k))
     else
@@ -70,7 +70,7 @@ end
 
 begin global stirling1
   m = {}
-  sub s1(n,k)
+  function s1(n,k)
     if n==0
       return 1 if k==0 else 0
     elif k==0
@@ -87,7 +87,7 @@ begin global stirling1
   end
 
   # Stirling numbers of the first kind
-  sub stirling1(n,k)
+  function stirling1(n,k)
     if n<0 and k<0
       return stirling2(-k,-n)
     else
@@ -98,7 +98,7 @@ end
 
 begin global stirling2
   m = {}
-  sub s2(n,k)
+  function s2(n,k)
     if n==0
       return 1 if k==0 else 0
     elif k==0
@@ -115,7 +115,7 @@ begin global stirling2
   end
 
   # Stirling numbers of the second kind
-  sub stirling2(n,k)
+  function stirling2(n,k)
     if n<0 and k<0
       return stirling1(-k,-n)
     else
@@ -128,7 +128,7 @@ end
 begin global euler1
   # Eulerian numbers
   m = {}
-  sub euler1(n,k)
+  function euler1(n,k)
     if n==0
       return 1 if k==0 else 0
     elif k<0
@@ -148,7 +148,7 @@ end
 begin global euler2
   # second-order Eulerian numbers
   m = {}
-  sub euler2(n,k)
+  function euler2(n,k)
     if n==0
       return 1 if k==0 else 0
     elif k<0
@@ -166,11 +166,11 @@ begin global euler2
 end
 
 # Bell numbers
-sub bell(n)
+function bell(n)
   (0..n).sum(|k| stirling2(n,k))
 end
 
-sub permutations(a)
+function permutations(a)
   if size(a)<=1
     return [copy(a)]
   end
@@ -187,7 +187,7 @@ end
 begin
   global combinations, partitions
 
-  sub comb(m,s)
+  function comb(m,s)
     if m==0
       return [s[1..0]]
     elif size(s)==0
@@ -198,7 +198,7 @@ begin
     end
   end
 
-  sub combinations(m,s)
+  function combinations(m,s)
     if s: Map
       return comb(m,list(s)).map(set)
     elif s: String
@@ -208,7 +208,7 @@ begin
     end
   end
 
-  sub part(n,k,max)
+  function part(n,k,max)
     if n==0
       return [[]]
     elif n>k*max
@@ -228,7 +228,7 @@ begin
     end
   end
 
-  sub partitions(n,k)
+  function partitions(n,k)
     part(n,k,n)
   end
 end

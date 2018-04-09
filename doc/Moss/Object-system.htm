@@ -66,7 +66,7 @@ Bristol = table{
 We will define one.
 
 <pre class="moss indent">
-Bristol.move = sub||
+Bristol.move = fn||
   print(self.id, " moves at ", self.vmax//2, " kn.")
 end
 
@@ -98,14 +98,14 @@ Hermes.vmax = 25
 and a type/class/metaobject <code>Ship</code>.
 
 <pre class="moss indent">
-ship = sub|id,vmax|
+function ship(id,vmax)
   return table Ship{id=id, vmax=vmax}
 end
 
 Ship = table{
   color = "gray blue",
   engine = "diesel",
-  move = sub||
+  function move
     print(self.id, " moves at ", self.vmax//2 " kn.")
   end
 }
@@ -263,7 +263,7 @@ true
 
 <pre class="moss indent">
 Plane = table{
-  take_off = sub||
+  function take_off
     print(self.id, " is in the sky.")
   end
 }
@@ -403,20 +403,20 @@ but this implementation allows also for arithmetic of
 complex integers.
 
 <pre class="moss indent">
-complex = sub|x,y|
+function complex(x,y)
   return table Complex{re=x, im=y}
 end
 
 Complex = table{
-  sub string
+  function string
     return "({}|{})" % [self.re, self.im]
   end,
 
-  sub neg
+  function neg
     return table Complex{re = -self.re, im = -self.im}
   end,
 
-  sub plus(a;b)
+  function plus(a;b)
     if b: Complex
       return table Complex{re = a.re+b.re, im = a.im+b.im}
     else
@@ -424,11 +424,11 @@ Complex = table{
     end
   end,
 
-  sub rplus(a;b)
+  function rplus(a;b)
     return table Complex{re = a+b.re, im = b.im}
   end,
 
-  sub minus(a;b)
+  function minus(a;b)
     if b: Complex
       return table Complex{re = a.re-b.re, im = a.im-b.im}
     else
@@ -436,11 +436,11 @@ Complex = table{
     end
   end,
 
-  sub rminus(a;b)
+  function rminus(a;b)
     return table Complex{re = a-b.re, im = -b.im}
   end,
 
-  sub mpy(a;b)
+  function mpy(a;b)
     if b: Complex
       return table Complex{
         re = a.re*b.re-a.im*b.im,
@@ -451,11 +451,11 @@ Complex = table{
     end
   end,
 
-  sub rmpy(a;b)
+  function rmpy(a;b)
     return table Complex{re = a*b.re, im = a*b.im}
   end,
 
-  sub div(a;b)
+  function div(a;b)
     if b: Complex
       r2 = b.re*b.re+b.im*b.im
       return table Complex{
@@ -467,7 +467,7 @@ Complex = table{
     end
   end,
 
-  sub rdiv(a;b)
+  function rdiv(a;b)
     r2 = b.re*b.re+b.im*b.im
     return table Complex{
       re = a*b.re/r2,
@@ -475,7 +475,7 @@ Complex = table{
     }
   end,
 
-  sub pow(a;n)
+  function pow(a;n)
     return (1..n).prod(|k| a)
   end
 }
@@ -509,13 +509,13 @@ private property table.
 <pre class="moss indent">
 Ship = object()
 
-sub ship
+function ship
   private_tab = {color = "blue"}
   return table Ship{
-    sub get(property)
+    function get(property)
       return private_tab[property]
     end,
-    sub change_color
+    function change_color
       private_tab["color"] = "green"
     end
   }
@@ -539,13 +539,13 @@ to see the properties.
 <pre class="moss indent">
 Ship = object()
 
-sub ship
+function ship
   private_tab = {color = "blue"}
   return table Ship{
-    sub info
+    function info
       return "A {} ship." % private_tab["color"]
     end,
-    sub change_color
+    function change_color
       private_tab["color"] = "green"
     end
   }

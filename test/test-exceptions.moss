@@ -1,16 +1,16 @@
 
 use sys: exit
 
-sub error(s)
+function error(s)
   print("Error: exceptions test ", s, " failed.")
   exit(1)
 end
 
 Callcc = object()
 
-callcc = sub|f,*a|
+function callcc(f,*a)
   a = [null]
-  callback = sub|x|
+  callback = fn|x|
     a[0] = x
     raise Callcc
   end
@@ -21,7 +21,7 @@ callcc = sub|f,*a|
   end
 end
 
-sub f(ret,x)
+function f(ret,x)
   ret("fy")
 end
 
