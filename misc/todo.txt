@@ -11,11 +11,13 @@
 * continuations, call/cc
 * custom detstructors
 * sandbox security model for file access
+* a security model by functions that can be called only once
 * interning literals of type Long
 * in range to iterator/list: start/end of type Long
 * search paths
 
 == Library ==
+* float range iterator
 * reverse string
 * reverse iterator
 * iterator: tee

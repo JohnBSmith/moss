@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Numerical analysis</title>
+  <link href="../css/main.css" rel="stylesheet">
+  <script src = "../js/moss-syntax.js">
+  </script>
+</head>
+<body>
+
+<table class="navigation">
+<tr><td><b>&uarr;</b> <a href="toc.htm">Up</a>
+</table>
+<h1>Numerical analysis</h1>
+
+<div class="toc">
+<h2 id="toc">Table of contents</h2>
+<ol>
+<li><a href="#euler-method">Euler method</a>
+</ol>
+</div>
+
+<h2 id="euler-method">Euler method</h2>
+
+<pre class="moss">
+use na: interpolate
+
+# f'(x) = g(x,f(x))
+# h: step size
+# N: number of steps
+function euler(g,{x0,y0,h,N})
+  x = x0; y = y0
+  a = [[x,y]]
+  for k in 1..N
+    y = y+h*g(x,y)
+    x = x0+k*h
+    a.push([x,y])
+  end
+  return interpolate(a)
+end
+
+
+# f^(m)(x) = g(x,y)
+# y = [f(x),f'(x),...,f^(m-1)(x)]
+function euler_any_order(g,{x0,y0,h,N})
+  x = x0; y = copy(y0)
+  m = size(y)
+  a = [[x,y[0]]]
+  for k in 1..N
+    hg = h*g(x,y)
+    for i in 0..m-2
+      y[i] = y[i]+h*y[i+1]
+    end
+    y[m-1] = y[m-1]+hg
+    x = x0+k*h
+    a.push([x,y[0]])
+  end
+  return interpolate(a)
+end
+
+
+exp = euler(|x,y| y,{
+  x0=0, y0=1, h=0.01, N=1000
+})
+
+sin = euler_any_order(|x,y| -y[0],{
+  x0=0, y0=[0,1], h=0.01, N=1000
+})
+</pre>
+
+
+</body>
+</html>
+

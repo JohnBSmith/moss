@@ -6,7 +6,7 @@ body{
   margin-bottom: 10em;
   max-width: 48em;
   color: #4a463a;
-  font-family: "DejaVu Sans", sans-serif;
+  font-family: "DejaVu Sans", "Verdana", sans-serif;
 }
 p{
   line-height: 24px;

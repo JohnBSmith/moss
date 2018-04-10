@@ -97,7 +97,23 @@ fac = |n| permutations(n).count()
 <pre class="moss">
 # Generate all permutations of a list
 function permutations(a)
-  a = list(a)
+  if size(a)&lt;=1
+    return [copy(a)]
+  else
+    b = []
+    x = a[..0]
+    for p in permutations(a[1..])
+      for i in 0..size(a)-1
+        b.push(p[..i-1]+x+p[i..])
+      end
+    end
+    return b
+  end
+end
+
+
+# Return an interator instead of a list
+function permutations(a)
   return fn*||
     if size(a)&lt;=1
       yield copy(a)
@@ -113,8 +129,45 @@ function permutations(a)
 end
 
 for n in 0..4
-  permutations(n).each(print)
+  permutations(list(n)).each(print)
 end
+
+
+# Generate all permutations of an ordered
+# list in lexicographical order
+function permutations(a)
+  if size(a)==0
+    return [[]]
+  else
+    b = []
+    for i in 0..size(a)-1
+      for x in permutations(a[..i-1]+a[i+1..])
+        b.push([a[i]]+x)
+      end
+    end
+    return b
+  end
+end
+
+
+# Return an iterator instead of a list
+function permutations(a)
+  return fn*||
+    if size(a)==0
+      yield []
+    else
+      for i in 0..size(a)-1
+        for x in permutations(a[..i-1]+a[i+1..])
+          yield [a[i]]+x
+        end
+      end
+    end
+  end
+end
+
+
+# Take any iterable
+perm = |a| permutations(list(a))
 </pre>
 
 </body>

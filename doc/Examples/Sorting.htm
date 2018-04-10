@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Sorting</title>
+  <link href="../css/main.css" rel="stylesheet">
+  <script src = "../js/moss-syntax.js">
+  </script>
+</head>
+<body>
+
+<table class="navigation">
+<tr><td><b>&uarr;</b> <a href="toc.htm">Up</a>
+</table>
+<h1>Sorting</h1>
+
+<div class="toc">
+<h2 id="toc">Table of contents</h2>
+<ol>
+<li><a href="#quicksort">Quicksort</a>
+<li><a href="#mergesort">Mergesort</a>
+</ol>
+</div>
+
+<h2 id="quicksort">Quicksort</h2>
+
+<pre class="moss">
+qsort = |a| ([] if size(a)==0 else
+  qsort(a[1..].filter(|x| x&lt;a[0]))+[a[0]]+
+  qsort(a[1..].filter(|x| x&gt;=a[0])))
+</pre>
+
+
+<h2 id="mergesort">Mergesort</h2>
+
+<pre class="moss">
+msort = |a| (copy(a) if size(a)&lt;=1 else
+  merge(msort(a[1..:2]),msort(a[0..:2])))
+
+function merge(L,R)
+  y = []
+  while size(L)!=0 and size(R)!=0
+    y.push((L if L[-1]&gt;R[-1] else R).pop())
+  end
+  return L+R+y.rev()
+end
+</pre<
+
+
+</body>
+</html>
+

@@ -1,11 +1,7 @@
 
-html{
-  background: #00302a;
-}
 body{
-  background: #00302a;
   font-family: "DejaVu Sans", "Verdana", sans-serif;
-  color: #f0f0f0;
+  color: #404040;
   margin-top: 2.6em;
 }
 main{
@@ -45,17 +41,17 @@ div.text{
   padding-left: 2em;
   padding-right: 1em;
   padding-bottom: 40em;
-  border-top: 2px solid #20403a;
-  color: #d0d0c0;
+  border-top: 2px solid #dadad0;
+  color: #404040;
 }
 
 a{
-  color: #ffeaa4;
+  color: #004060;
   text-decoration: none;
 }
 
 a:hover{
-  color: #f0f040;
+  color: #602020;
   text-decoration: underline;
 }
 

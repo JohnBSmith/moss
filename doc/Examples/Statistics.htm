@@ -43,9 +43,9 @@ end
 Stat = table{
   function string
     return """\
-      mean  = {},\n\
-      sigma = {}\
-    """ % [str(self.mean,"f",4), str(self.sigma,"f",4)]
+      mean  = {:f4},\n\
+      sigma = {:f4}\
+    """ % [self.mean, self.sigma]
   end
 }
 
