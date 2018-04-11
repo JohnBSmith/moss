@@ -4,10 +4,9 @@
   <meta charset="UTF-8">
   <title>Operators</title>
   <link rel="stylesheet" href="../css/main.css">
-  <script src = "../js/rust-syntax.js" type="text/javascript">
-  </script>
   <style>
 code.kw {color: #004060; font-weight: bold;}
+.types b{color: #004000;}
   </style>
 </head>
 <body>
@@ -20,6 +19,7 @@ code.kw {color: #004060; font-weight: bold;}
 <h2 id="toc">Table of contents</h2>
 <ol>
 <li><a href="#precedence">Operator precedence table</a>
+<li><a href="#data-types">Data types</a>
 <li><a href="#keywords">Keywords</a>
 </ol>
 
@@ -129,6 +129,34 @@ membership,<br>type test
 <td>conditional expression
 <td>right
 </table>
+
+<h2 id="data-types">Data types</h2>
+<pre class="types">
+<b>Bool, Int, Long, Float, Complex, List, Map,
+Range, Iterable, Function, Type</b>
+
+<b>List</b>
+  a+b, n*a, a^n, a==b, a&lt;b, a&lt;=b,
+  a.append(b), a.chain(), a.clear(), a.filter(p),
+  a.insert(i,x), a.map(f), a.pop(), a.push(x), a.rev(),
+  a.shuffle(), a.swap(i,j)
+
+<b>Map</b>
+  a&amp;b, a|b, a-b, a$b, a==b,
+  m.add(x), m.clear(), m.extend(m2), m.items(),
+  m.remove(), m.update(), m.values()
+
+<b>Iterable</b>
+  a.all(p), a.any(p), a.chunks(n), a.count(), a.count(p),
+  a.each(f), a.enum(), a.filter(p), a.join(), a.join(sep),
+  a.join(sep,left,right), a.list(), a.list(n), a.map(f),
+  a.prod(), a.prod(f), a.reduce(f), a.reduce(e,f),
+  a.skip(n), a.sort(), a.sort(p), a.sum(), a.sum(f),
+  a.take(n), a.until(p)
+
+<b>Function</b>
+  f^n, f.argc(), f.orbit(x)
+</pre>
 
 <h2 id="keywords">Keywords</h2>
 <table class="bt">

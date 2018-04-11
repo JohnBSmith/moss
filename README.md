@@ -1,7 +1,8 @@
 
 [Home](https://johnbsmith.github.io/moss/home.htm)
-| [Language](https://johnbsmith.github.io/moss/doc/Moss/toc.htm)
-| [Library](https://johnbsmith.github.io/moss/doc/Library/toc.htm)
+| [Language](https://johnbsmith.github.io/moss/doc/moss/toc.htm)
+| [Library](https://johnbsmith.github.io/moss/doc/library/toc.htm)
+| [Examples](https://johnbsmith.github.io/moss/doc/examples/toc.htm)
 | [Rust-Moss examples](doc/md/rust-moss-examples.md)
 
 # Experimental Moss interpreter in Rust

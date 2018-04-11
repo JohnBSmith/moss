@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Numerical analysis</title>
+  <link href="../css/main.css" rel="stylesheet">
+  <script src = "../js/moss-syntax.js">
+  </script>
+</head>
+<body>
+
+<table class="navigation">
+<tr><td><b>&uarr;</b> <a href="toc.htm">Up</a>
+</table>
+<h1>Numerical analysis</h1>
+
+<div class="toc">
+<h2 id="toc">Table of contents</h2>
+<ol>
+<li><a href="#diff">Numerical derivative</a>
+<li><a href="#simpson">Simpson's rule</a>
+<li><a href="#gauss">Gauss quadrature</a>
+<li><a href="#euler-method">Euler method</a>
+</ol>
+</div>
+
+<h2 id="diff">Numerical derivative</h2>
+<pre class="moss">
+# The first derivative of a function f at x 
+diffh = |h| |f,x| (f(x+h)-f(x-h))/(2*h)
+diff = diffh(0.001)
+
+
+# Differential operator
+Dh = |h| |f| |x| (f(x+h)-f(x-h))/(2*h)
+D = Dh(0.001)
+
+
+f = |x| x^2
+f1 = D(f)
+f2 = (D^2)(f)
+</pre>
+
+<h2 id="simpson">Simpson's rule</h2>
+<pre class="moss">
+function simpson(f,a,b,n)
+  h = (b-a)/n
+  y = 0
+  for i in 0..n-1
+    x = a+h*i
+    y = y+f(x)+4*f(x+0.5*h)+f(x+h)
+  end
+  return y*h/6
+end
+</pre>
+
+<h2 id="gauss">Gauss quadrature</h2>
+<pre class="moss">
+# Gauss-Legendre quadrature nodes,
+# GL8 = [x[k],w[k]] for k in 0..7
+GL8 = [
+  [-0.9602898564975362, 0.1012285362903764],
+  [-0.7966664774136267, 0.2223810344533745],
+  [-0.5255324099163290, 0.3137066458778874],
+  [-0.1834346424956498, 0.3626837833783619],
+  [ 0.1834346424956498, 0.3626837833783619],
+  [ 0.5255324099163290, 0.3137066458778874],
+  [ 0.7966664774136267, 0.2223810344533745],
+  [ 0.9602898564975362, 0.1012285362903764]
+]
+
+function gauss(f,a,b,n)
+  h = (b-a)/n
+  p = 0.5*h
+  s = 0
+  for j in 0..n-1
+    q = p+a+j*h
+    sj = 0
+    for t in GL8
+      sj += t[1]*f(p*t[0]+q)
+    end
+    s += p*sj
+  end
+  return s
+end
+</pre>
+
+<h2 id="euler-method">Euler method</h2>
+
+<pre class="moss">
+use na: interpolate
+
+# f'(x) = g(x,f(x))
+# h: step size
+# N: number of steps
+function euler(g,{x0,y0,h,N})
+  x = x0; y = y0
+  a = [[x,y]]
+  for k in 1..N
+    y = y+h*g(x,y)
+    x = x0+k*h
+    a.push([x,y])
+  end
+  return interpolate(a)
+end
+
+
+# f^(m)(x) = g(x,y)
+# y = [f(x),f'(x),...,f^(m-1)(x)]
+function euler_any_order(g,{x0,y0,h,N})
+  x = x0; y = copy(y0)
+  m = size(y)
+  a = [[x,y[0]]]
+  for k in 1..N
+    hg = h*g(x,y)
+    for i in 0..m-2
+      y[i] = y[i]+h*y[i+1]
+    end
+    y[m-1] = y[m-1]+hg
+    x = x0+k*h
+    a.push([x,y[0]])
+  end
+  return interpolate(a)
+end
+
+
+exp = euler(|x,y| y,{
+  x0=0, y0=1, h=0.01, N=1000
+})
+
+sin = euler_any_order(|x,y| -y[0],{
+  x0=0, y0=[0,1], h=0.01, N=1000
+})
+</pre>
+
+
+</body>
+</html>
+

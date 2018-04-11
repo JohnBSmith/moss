@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Functional programming</title>
+  <link href="../css/main.css" rel="stylesheet">
+  <script src = "../js/moss-syntax.js">
+  </script>
+</head>
+<body>
+
+<table class="navigation">
+<tr><td><b>&uarr;</b> <a href="toc.htm">Up</a>
+</table>
+<h1>Functional programming</h1>
+
+<div class="toc">
+<h2 id="toc">Table of contents</h2>
+<ol>
+<li><a href="#partial-application">Partial application</a>
+<li><a href="#currying">Currying</a>
+<li><a href="#fix">Fixed-point combinator</a>
+</ol>
+</div>
+
+<h2 id="partial-application">Partial application</h2>
+
+<pre class="moss">
+first = |f,x| |y| f(x,y)
+second = |f,y| |x| f(x,y)
+
+# Variadic, fix first arguments
+first = |f,*a| |*b| f(*(a+b))
+
+# Variadic, fix last arguments
+last = |f,*a| |*b| f(*(b+a))
+</pre>
+
+
+<h2 id="currying">Currying</h2>
+<pre class="moss">
+function curry(f)
+  n = f.argc()
+  a = list(0..n-1)
+  g = fn|x| a[n-1]=x; f(*a) end
+  for i in 2..n
+    g = fn|x| a[n-i]=x; g end
+  end
+  return g
+end
+
+curry = fn|f|
+  n = f.argc(); a = list(0..n-1)
+  return (2..n).reduce(
+    fn|x| a[n-1] = x; f(*a) end,
+    |g,i| fn|x| a[n-i] = x; g end) end
+
+uncurry = |f| |*a| a.reduce(f,|g,x| g(x))
+</pre>
+
+<h2 id="fixed-point-combinator">Fixed-point combinator</h2>
+
+<pre class="moss">
+# Y-combinator
+fix = |F| (|x| x(x))(|x| F(|n| x(x)(n)))
+
+
+# by built-in recursion
+fix = |F| fn g|n| F(g)(n) end
+
+
+# without currying
+fix = |F| fn g|n| F(g,n) end
+
+
+# with memoization
+fix = fn|F|
+  m = {}
+  return fn g|n|
+    if n not in m then m[n] = F(g,n) end
+    return m[n]
+  end
+end
+
+
+# one argument example: factorial function
+fac = fix(|f| |n| 1 if n==0 else n*f(n-1))
+
+# without currying
+fac = fix(|f,n| 1 if n==0 else n*f(n-1))
+
+
+# two argument example: integer power
+pow = fix(|f| |[x,n]| 1 if n==0 else x*f([x,n-1]))
+
+# without currying
+pow = fix(|f,[x,n]| 1 if n==0 else x*f([x,n-1]))
+
+
+for n in 0..10
+  print([n,fac(n)])
+end
+
+for n in 0..10
+  print([n,pow([2,n])])
+end
+</pre>
+
+</body>
+</html>
+

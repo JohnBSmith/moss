@@ -20,7 +20,8 @@
 <li><a href="#construction">Construction</a>
 <li><a href="#literal">Object literal</a>
 <li><a href="#prototypes">Prototypes</a>
-<li><a href="#basic-data-types">Basic data types
+<li><a href="#basic-data-types">Basic data types</a>
+<li><a href="#classes-and-metaclasses">Classes and Metaclasses</a>
 <li><a href="#inheritance">Multiple inheritance</a>
 <li><a href="#reflection">Reflection</a>
 <li><a href="#monkey">Monkey patching</a>
@@ -84,7 +85,7 @@ Hermes.id = "HMS Hermes"
 Hermes.vmax = 25
 </pre>
 
-<p>But we might also clone HMS Hermes completely and then
+<p>But we might also clone HMS Bristol completely and then
 overwrite some of the member objects.
 
 <pre class="moss indent">
@@ -256,6 +257,73 @@ function in lower case.
 true
 </pre>
 
+
+<h2 id="classes-and-metaclasses">Classes and Metaclasses</h2>
+
+<p>To be honest, the conincidence between types and prototypes can
+be broken. A table constructor may take a tuple of three parts
+instead of a simple prototype. In general we have:
+<pre class="moss indent">
+x = table(type, prototype, name) {}
+</pre>
+
+<p>Properties are searched in <code>x</code> first and then
+in the prototype chain. But <code>type(x)</code> will lead
+to the type, not the prototype. The type of a type is sometimes
+called a metaclass. The metaclass of the basic data types
+is called <code>Type</code>. Thus we have:
+
+<pre class="moss cmd-box">
+&gt; type([])
+List
+
+&gt; type(List)
+Type
+
+&gt; prototype([])
+List
+
+&gt; prototype(List)
+Iterable
+</pre>
+
+<p>Now, basic class construction is stated as follows:
+<pre class="moss indent">
+function class(name,prototype,properties)
+  object((Type,prototype,name),properties)
+end
+
+Bird = class("Bird",null,{
+  function string
+    "{} is a bird." % [self.name]
+  end,
+  function fly
+    "{} can fly!" % [self.name]
+  end
+})
+
+Duck = class("Duck",Bird,{
+  function string
+    "{} is a duck." % [self.name]
+  end,
+  function dive
+    "{} can dive!" % [self.name]
+  end
+})
+
+d = table Duck{name = "Donald"}
+
+print(d)
+print(d.fly())
+print(d.dive())
+print("type: ", type(d))
+
+# Output:
+# Donald is a duck.
+# Donald can fly!
+# Donald can dive!
+# type: Duck
+</pre>
 
 <h2 id="inheritance">Multiple inheritance</h2>
 

@@ -17,14 +17,14 @@
 <div class="toc">
 <h2 id="toc">Table of contents</h2>
 <ol>
-<li><a href="#Stringbuffer">Stringbuffers</a>
-<li><a href="#Memoisation">Memoisation</a>
+<li><a href="#stringbuffers">Stringbuffers</a>
+<li><a href="#memoisation">Memoisation</a>
 <li><a href="#uniq">Unique</a>
-<li><a href="#Multiple-dispatch">Multiple dispatch</a>
+<li><a href="#multiple-dispatch">Multiple dispatch</a>
 </ol>
 </div>
 
-<h2 id="Regression">Stringbuffers</h2>
+<h2 id="stringbuffers">Stringbuffers</h2>
 
 <p>In Moss strings are immutable. That means, after construction,
 a string cannot be modified. Therefore one cannot append a
@@ -71,7 +71,7 @@ end
 s = a.join()
 </pre>
 
-<h2 id="Memoisation">Memoisation</h2>
+<h2 id="memoisation">Memoisation</h2>
 
 <p>We can directly obtain an implementation from the
 recursive definition of the Fibonacci-squence:
@@ -147,7 +147,7 @@ a desired precision:
 uniq = |a,prec| list(map(a.map(|x| [int(x/prec),x])).values())
 </pre>
 
-<h2 id="Multiple-dispatch">Multiple dispatch</h2>
+<h2 id="multiple-dispatch">Multiple dispatch</h2>
 
 <p>Here is a basic implementation of multiple dispatch in Moss.
 At first, some auxiliary functionality is to be defined.

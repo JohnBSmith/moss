@@ -19,6 +19,7 @@
 <ol>
 <li><a href="#quicksort">Quicksort</a>
 <li><a href="#mergesort">Mergesort</a>
+<li><a href="#by-projection">By projection</a>
 </ol>
 </div>
 
@@ -28,6 +29,13 @@
 qsort = |a| ([] if size(a)==0 else
   qsort(a[1..].filter(|x| x&lt;a[0]))+[a[0]]+
   qsort(a[1..].filter(|x| x&gt;=a[0])))
+
+
+is_sorted = |a| (0..size(a)-2).all(|i| a[i]&lt;=a[i+1])
+
+a = list(1..100).shuffle()
+print(qsort(a))
+print(is_sorted(qsort(a)))
 </pre>
 
 
@@ -44,7 +52,31 @@ function merge(L,R)
   end
   return L+R+y.rev()
 end
-</pre<
+</pre>
+
+<h2 id="by-projection">By projection</h2>
+
+<pre class="moss">
+# Sort a list a by comparing p(x) and p(y) for x,y in a
+# where p is a projection, also called key function.
+# The algorithm is also known as Schwartzian transform.
+
+qsort = |a,rel| ([] if size(a)==0 else
+  qsort(a[1..].filter(|x| rel(x,a[0])),rel)+[a[0]]+
+  qsort(a[1..].filter(|x| not rel(x,a[0])),rel))
+
+sort_by = |a,p| qsort(
+    a.map(|x| [x,p(x)]), |x,y| x[1]&lt;y[1]
+).map(|x| x[0])
+
+
+a = [{A=1,B=2},{A=0,B=4},{A=5,B=3},{A=3,B=1}]
+print(sort_by(a,|t| t["A"]))
+
+
+# built-in
+print(copy(a).sort(|t| t["A"]))
+</pre>
 
 
 </body>
