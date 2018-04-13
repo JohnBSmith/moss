@@ -249,10 +249,17 @@ pub fn scan(s: &str, line_start: usize, file: &str, new_line_start: bool)
           i+=1; col+=1;
         },
         ':' => {
-          v.push(Token{token_type: SymbolType::Separator,
-            value: Symbol::Colon, line: line, col: col,
-            item: Item::None});
-          i+=1; col+=1;
+          if i+1<n && a[i+1]=='=' {
+            v.push(Token{token_type: SymbolType::Operator,
+              value: Symbol::Assignment, line: line, col: col,
+              item: Item::None});
+            i+=2; col+=2;
+          }else{
+            v.push(Token{token_type: SymbolType::Separator,
+              value: Symbol::Colon, line: line, col: col,
+              item: Item::None});
+            i+=1; col+=1;
+          }
         },
         ';' => {
           v.push(Token{token_type: SymbolType::Separator,
@@ -1347,6 +1354,12 @@ fn application(&mut self, i: &mut TokenIterator, f: Rc<AST>, terminal: Symbol)
       }else if t.value == Symbol::Semicolon {
         i.index+=1;
         self_argument = Info::SelfArg;
+        let p2 = try!(i.next_token(self));
+        let t2 = &p2[i.index];
+        if t2.value == terminal {
+          i.index+=1;
+          break;
+        }
       }else if t.value == terminal {
         i.index+=1;
         break;

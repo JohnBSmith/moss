@@ -657,6 +657,13 @@ pub fn op_lt(env: &mut Env, x: &Object, y: &Object) -> FnResult {
   return Ok(replace(&mut env.stack[env.sp],Object::Null));
 }
 
+pub fn op_le(env: &mut Env, x: &Object, y: &Object) -> FnResult {
+  env.stack[env.sp] = x.clone();
+  env.stack[env.sp+1] = y.clone();
+  try!(::vm::operator_le(env.env,env.sp+2,env.stack));
+  return Ok(replace(&mut env.stack[env.sp],Object::Null));
+}
+
 pub fn op_eq(env: &mut Env, x: &Object, y: &Object) -> FnResult {
   /*
   env.stack[env.sp] = x.clone();
@@ -2463,6 +2470,26 @@ fn operator_in(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorRe
       }
       return Ok(());
     },
+    Object::Range(r) => {
+      let k = match key {
+        Object::Int(x) => x,
+        _ => return Err(env.type_error_plain("Type error in 'k in i..j': k is not an integer."))
+      };
+      let i = match r.a {
+        Object::Int(x) => x,
+        _ => return Err(env.type_error_plain("Type error in 'k in i..j': i is not an integer."))
+      };
+      let j = match r.b {
+        Object::Int(x) => x,
+        _ => return Err(env.type_error_plain("Type error in 'k in i..j': j is not an integer."))
+      };
+      match r.step {
+        Object::Null => {},
+        _ => return Err(env.type_error_plain("Type error in 'k in i..j: step': step is not supported."))
+      }
+      stack[sp-2] = Object::Bool(i<=k && k<=j);
+      return Ok(());
+    },
     a => Err(env.type_error1_plain(sp,stack,
       "Type error in 'x in a': expected a to be of type List, String or Map.", "a", &a
     ))
@@ -2644,24 +2671,45 @@ fn operator_index(env: &mut EnvPart, argc: usize,
       match replace(&mut stack[sp-1],Object::Null) {
         Object::Range(r) => {
           let n = s.v.len() as i32;
+          let step = match r.step {
+            Object::Int(x) => x,
+            Object::Null => 1,
+            _ => return Err(env.type_error1_plain(sp,stack,
+              "Type error in s[i..j: step]: step is not an integer.",
+              "j",&r.step
+            ))
+          };
           let i = match r.a {
             Object::Int(x) => if x<0 {x+n} else {x},
-            Object::Null => 0,
+            Object::Null => if step<0 {n-1} else {0},
             _ => return Err(env.type_error1_plain(sp,stack,
               "Type error in s[i..j]: i is not an integer.",
-              "i",&r.a))
+              "i",&r.a
+            ))
           };
           let j = match r.b {
             Object::Int(x) => if x< -1 {x+n} else{x},
-            Object::Null => n-1,
+            Object::Null => if step<0 {0} else {n-1},
             _ => return Err(env.type_error1_plain(sp,stack,
               "Type error in s[i..j]: j is not an integer.",
-              "j",&r.b))
+              "j",&r.b
+            ))
           };
           let mut v: Vec<char> = Vec::new();
-          for k in i..j+1 {
-            if 0<=k && k<n {
-              v.push(s.v[k as usize]);
+          let mut k = i;
+          if step<0 {
+            while k>=j {
+              if 0<=k && k<n {
+                v.push(s.v[k as usize]);
+              }
+              k+=step;
+            }
+          }else{
+            while k<=j {
+              if 0<=k && k<n {
+                v.push(s.v[k as usize]);
+              }
+              k+=step;
             }
           }
           stack[sp-2] = U32String::new_object(v);
@@ -2868,6 +2916,7 @@ fn dispatch_leftover(
     Object::String(_) => (&env.rte.type_string,true),
     Object::List(_) => (&env.rte.type_list,true),
     Object::Map(_) => (&env.rte.type_map,true),
+    Object::Function(_) => (&env.rte.type_function,true),
     _ => return None
   };
   match type_object.map.borrow().m.get(key) {

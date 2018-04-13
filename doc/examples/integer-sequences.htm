@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Integer sequences</title>
+  <link href="../css/main.css" rel="stylesheet">
+  <script src = "../js/moss-syntax.js">
+  </script>
+</head>
+<body>
+
+<table class="navigation">
+<tr><td><b>&uarr;</b> <a href="toc.htm">Up</a>
+</table>
+<h1>Integer sequences</h1>
+
+<div class="toc">
+<h2 id="toc">Table of contents</h2>
+<ol>
+<li><a href="#fib">Fibonacci sequence</a>
+<li><a href="#collatz">Collatz conjecture</a>
+</ol>
+</div>
+
+<h2 id="fib">Fibonacci sequence</h2>
+
+<pre class="moss">
+# Recursive
+function fix(F)
+  m = {}
+  return fn g|n|
+    if n not in m then m[n] = F(g,n) end
+    return m[n]
+  end
+end
+
+fib = fix(|f,n| 1 if n in 1..2 else f(n-1)+f(n-2))
+
+
+# As a dynamic system
+Fib = |[x,y]| [x+y,x]
+fib = |n| (Fib^n)([0,1])[0]
+
+
+# By a general algorithm for
+# a(n) := f(n,a(n-2),a(n-1))
+rec = |a0,a1,f| fn|n|
+  x,y = a0,a1
+  for k in 0..n-1
+    x,y = y,f(k,x,y)
+  end
+  return x
+end
+
+fib = rec(0,1,|n,x,y| x+y)
+</pre>
+
+<h2 id="collatz">Collatz conjecture</h2>
+
+<pre class="moss">
+collatz = |n| n//2 if n%2==0 else 3*n+1
+
+for x in 1..20
+  a = collatz.orbit(x).until(|n| n==1).list()
+  print(a)
+end
+
+function tab(m)
+  d = {}
+  for x in 1..m
+    i = collatz.orbit(x)
+    a = i()
+    for b in i
+      if b in d
+        d[b].add(a)
+        break
+      end
+      d[b] = {a}
+      a = b
+    end
+  end
+  d[4] = {8}
+  return d
+end
+
+function tree(n,d,s,max)
+  if s&lt;max
+    print("| "*s,n)
+    if n in d
+      for x in list(d[n]).sort()
+        tree(x,d,s+1,max)
+      end
+    end
+  end
+end
+
+tree(1,tab(100),0,20)
+</pre>
+
+
+
+</body>
+</html>
+

@@ -585,6 +585,7 @@ fn fint(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
   match argv[0] {
     Object::Bool(x) => Ok(Object::Int(x as i32)),
     Object::Int(n) => Ok(Object::Int(n)),
+    Object::Float(x) => Ok(Object::Int(x.round() as i32)),
     Object::String(ref s) => Ok(Object::Int(stoi(&s.v))),
     _ => env.type_error1(
       "Type error in int(x): cannot convert x to int.",

@@ -19,6 +19,7 @@
 <ol>
 <li><a href="#quicksort">Quicksort</a>
 <li><a href="#mergesort">Mergesort</a>
+<li><a href="#comb-sort">Comb sort</a>
 <li><a href="#by-projection">By projection</a>
 </ol>
 </div>
@@ -36,6 +37,34 @@ is_sorted = |a| (0..size(a)-2).all(|i| a[i]&lt;=a[i+1])
 a = list(1..100).shuffle()
 print(qsort(a))
 print(is_sorted(qsort(a)))
+
+
+
+# in place
+function partition(a,l,r)
+  pivot = a[r]
+  i = l-1
+  for j in l..r-1
+    if a[j] &lt; pivot
+      i = i+1
+      a.swap(i,j)
+    end
+  end
+  a.swap(i+1,r)
+  return i+1
+end
+
+function quicksort(a,l,r)
+  if l&lt;r
+    p = partition(a,l,r)
+    quicksort(a,l,p-1)
+    quicksort(a,p+1,r)
+  end
+end
+
+function qsort(a)
+  quicksort(a,0,size(a)-1)
+end
 </pre>
 
 
@@ -51,6 +80,26 @@ function merge(L,R)
     y.push((L if L[-1]&gt;R[-1] else R).pop())
   end
   return L+R+y.rev()
+end
+</pre>
+
+<h2 id="comb-sort">Comb sort</h2>
+<pre class="moss">
+use math: floor
+
+function comb_sort(a)
+  gap = size(a)
+  swaps = true
+  while gap>1 or swaps
+    gap = max(1,int(floor(gap/1.3)))
+    swaps = false
+    for i in 0..size(a)-1-gap
+      if a[i]>a[i+gap]
+        a.swap(i,i+gap)
+        swaps = true
+      end
+    end
+  end
 end
 </pre>
 

@@ -20,6 +20,7 @@
 <li><a href="#partial-application">Partial application</a>
 <li><a href="#currying">Currying</a>
 <li><a href="#fix">Fixed-point combinator</a>
+<li><a href="#composition">Composition</a>
 </ol>
 </div>
 
@@ -58,7 +59,7 @@ curry = fn|f|
 uncurry = |f| |*a| a.reduce(f,|g,x| g(x))
 </pre>
 
-<h2 id="fixed-point-combinator">Fixed-point combinator</h2>
+<h2 id="fix">Fixed-point combinator</h2>
 
 <pre class="moss">
 # Y-combinator
@@ -104,6 +105,20 @@ end
 for n in 0..10
   print([n,pow([2,n])])
 end
+</pre>
+
+<h2 id="composition">Composition</h2>
+
+<pre class="moss">
+Function.mpy = |g;f| |x| g(f(x))
+
+compose = |*a| |x| a.rev().reduce(x,|y,f| f(y))
+
+f = |x| 2*x
+g = |x| x+1
+
+print((g*f)(2))
+print(compose(g,f)(2))
 </pre>
 
 </body>

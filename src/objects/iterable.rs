@@ -8,7 +8,7 @@ use object::{
   FnResult, Function, EnumFunction,
   MutableFn, Exception
 };
-use vm::{Env, op_add, op_mpy};
+use vm::{Env, op_add, op_mpy, op_lt, op_le};
 use global::list;
 
 
@@ -673,7 +673,7 @@ fn join(env: &mut Env, a: &[Object], sep: Option<&Object>,
   return Ok(s);
 }
 
-fn iterable_join(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
+fn iterable_join(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
   let a = match *pself {
     Object::List(ref a) => a.clone(),
     ref x => {
@@ -690,6 +690,112 @@ fn iterable_join(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
     n => return env.argc_error(n,0,3,"join")
   };
   Ok(U32String::new_object_str(&try!(y)))
+}
+
+fn min_plain(env: &mut Env, a: &Object) -> FnResult {
+  let i = &try!(iter(env,a));
+  let mut minimum = try!(env.call(i,&Object::Null,&[]));
+  loop{
+    let x = try!(env.call(i,&Object::Null,&[]));
+    match x {
+      Object::Empty => break,
+      x => {
+        match try!(op_lt(env,&x,&minimum)) {
+          Object::Bool(condition) => {
+            if condition {
+              minimum = x;
+            }
+          },
+          _ => return env.type_error("Type error in a.min(): expected x<y of type Bool.")
+        }
+      }
+    }    
+  }
+  return Ok(minimum);
+}
+
+fn iterable_min(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+  match argv.len() {
+    0 => return min_plain(env,pself),
+    1 => {},
+    n => return env.argc_error(n,1,1,"min")
+  }
+  let i = &try!(iter(env,pself));
+  let p = &argv[0];
+  let mut minimum = try!(env.call(i,&Object::Null,&[]));
+  let mut ymin = try!(env.call(p,&Object::Null,&[minimum.clone()]));
+  loop{
+    let x = try!(env.call(i,&Object::Null,&[]));
+    match x {
+      Object::Empty => break,
+      x => {
+        let y = try!(env.call(p,&Object::Null,&[x.clone()]));
+        match try!(op_lt(env,&y,&ymin)) {
+          Object::Bool(condition) => {
+            if condition {
+              minimum = x;
+              ymin = y;
+            }
+          },
+          _ => return env.type_error("Type error in a.min(p): expected p(x)<p(y) of type Bool.")
+        }
+      }
+    }
+  }
+  return Ok(minimum);
+}
+
+fn max_plain(env: &mut Env, a: &Object) -> FnResult {
+  let i = &try!(iter(env,a));
+  let mut maximum = try!(env.call(i,&Object::Null,&[]));
+  loop{
+    let x = try!(env.call(i,&Object::Null,&[]));
+    match x {
+      Object::Empty => break,
+      x => {
+        match try!(op_le(env,&x,&maximum)) {
+          Object::Bool(condition) => {
+            if !condition {
+              maximum = x;
+            }
+          },
+          _ => return env.type_error("Type error in a.max(): expected x<y of type Bool.")
+        }
+      }
+    }    
+  }
+  return Ok(maximum);
+}
+
+fn iterable_max(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+  match argv.len() {
+    0 => return max_plain(env,pself),
+    1 => {},
+    n => return env.argc_error(n,1,1,"max")
+  }
+  let i = &try!(iter(env,pself));
+  let p = &argv[0];
+  let mut maximum = try!(env.call(i,&Object::Null,&[]));
+  let mut ymax = try!(env.call(p,&Object::Null,&[maximum.clone()]));
+  loop{
+    let x = try!(env.call(i,&Object::Null,&[]));
+    match x {
+      Object::Empty => break,
+      x => {
+        let y = try!(env.call(p,&Object::Null,&[x.clone()]));
+        match try!(op_le(env,&y,&ymax)) {
+          Object::Bool(condition) => {
+            if !condition {
+              maximum = x;
+              ymax = y;
+            }
+          },
+          _ => return env.type_error("Type error in a.max(p): expected p(x)<p(y) of type Bool.")
+        }
+      }
+    }
+  }
+  return Ok(maximum);
 }
 
 pub fn init(t: &Table){
@@ -711,5 +817,7 @@ pub fn init(t: &Table){
   m.insert_fn_plain("enum",enumerate,0,1);
   m.insert_fn_plain("take",take,1,1);
   m.insert_fn_plain("join",iterable_join,0,1);
+  m.insert_fn_plain("min",iterable_min,0,1);
+  m.insert_fn_plain("max",iterable_max,0,1);
 }
 
