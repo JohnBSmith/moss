@@ -1,6 +1,7 @@
 
 = TODO LIST =
 == Interpreter kernel ==
+* list slice step
 * syntax: empty blocks
 * tracebacks
 * in a coroutine let all exit paths
@@ -17,7 +18,6 @@
 * search paths
 
 == Library ==
-* float range iterator
 * reverse string
 * reverse iterator
 * iterator: tee

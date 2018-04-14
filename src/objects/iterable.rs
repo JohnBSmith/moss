@@ -6,7 +6,7 @@ use std::cmp::Ordering;
 use object::{
   Object, Table, List, U32String,
   FnResult, Function, EnumFunction,
-  MutableFn, Exception
+  MutableFn, Exception, Range
 };
 use vm::{Env, op_add, op_mpy, op_lt, op_le};
 use global::list;
@@ -20,18 +20,74 @@ pub fn new_iterator(f: MutableFn) -> Object {
   }))
 }
 
-pub fn iter(env: &mut Env, x: &Object) -> FnResult{
+fn float_range_to_iterator(env: &mut Env, r: &Range) -> FnResult {
+  let a = match r.a {
+    Object::Int(x) => x as f64,
+    Object::Float(x) => x,
+    _ => return env.type_error1(
+      "Type error in iter(a..b): a is not of type Float.",
+      "a",&r.a)
+  };
+  let b = match r.b {
+    Object::Int(x) => x as f64,
+    Object::Float(x) => x,
+    _ => return env.type_error1(
+      "Type error in iter(a..b): b is not of type Float.",
+      "b",&r.b)
+  };
+  let d = match r.step {
+    Object::Null => 1.0,
+    Object::Int(x) => x as f64,
+    Object::Float(x) => x,
+    _ => return env.type_error1(
+      "Type error in iter(a..b: d): d is not of type Float.",
+      "d",&r.step)
+  };
+
+  let q = (b-a)/d;
+  let n = if q<0.0 {0} else {(q+0.001) as usize+1};
+  let mut k = 0;
+
+  let f = Box::new(move |env: &mut Env, pself: &Object, argv: &[Object]| -> FnResult {
+    return Ok(if k<n {
+      let y = a+k as f64*d;
+      k+=1;
+      Object::Float(y)
+    }else{
+      Object::Empty
+    });
+  });
+  return Ok(new_iterator(f));
+}
+
+fn int_range_iterator(mut a: i32, b: i32, d: i32) -> MutableFn {
+  Box::new(move |env: &mut Env, pself: &Object, argv: &[Object]| -> FnResult {
+    return if a<=b {
+      a+=d;
+      Ok(Object::Int(a-d))
+    }else{
+      Ok(Object::Empty)
+    }
+  })
+}
+
+pub fn iter(env: &mut Env, x: &Object) -> FnResult {
   match *x {
+    Object::Int(n) => {
+      Ok(new_iterator(int_range_iterator(0,n-1,1)))
+    },
     Object::Function(ref f) => {
       Ok(Object::Function(f.clone()))
     },
     Object::Range(ref r) => {
       let mut a = match r.a {
         Object::Int(a)=>a,
+        Object::Float(_) => return float_range_to_iterator(env,r),
         _ => {return env.type_error("Type error in iter(a..b): a is not an integer.");}
       };
       let d = match r.step {
         Object::Null => 1,
+        Object::Float(_) => return float_range_to_iterator(env,r),
         Object::Int(x)=>x,
         _ => return env.type_error1(
           "Type error in iter(a..b: d): d is not an integer.",
@@ -52,14 +108,7 @@ pub fn iter(env: &mut Env, x: &Object) -> FnResult{
               }
             })
           }else{
-            Box::new(move |env: &mut Env, pself: &Object, argv: &[Object]| -> FnResult{
-              return if a<=b {
-                a+=d;
-                Ok(Object::Int(a-d))
-              }else{
-                Ok(Object::Empty)
-              }
-            })
+            int_range_iterator(a,b,d)
           }
         },
         Object::Null => {

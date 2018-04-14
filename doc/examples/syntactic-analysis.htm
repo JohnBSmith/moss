@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Syntactic analysis</title>
+  <link href="../css/main.css" rel="stylesheet">
+  <script src = "../js/moss-syntax.js">
+  </script>
+</head>
+<body>
+
+<table class="navigation">
+<tr><td><b>&uarr;</b> <a href="toc.htm">Up</a>
+</table>
+<h1>Syntactic analysis</h1>
+
+<div class="toc">
+<h2 id="toc">Table of contents</h2>
+<ol>
+<li><a href="#scan">Lexical analysis</a>
+</ol>
+</div>
+
+<h2 id="scan">Lexical analysis</h2>
+
+<pre class="moss">
+# A simple scanner:
+# takes an input string,
+# returns a list of tokens.
+
+SyntaxError = table{}
+
+function scan(s)
+  a = []
+  n = size(s)
+  i = 0
+  while i&lt;n
+    if s[i] in "+-*/^(){}[];,"
+      a.push(s[i])
+      i+=1
+    elif s[i].isalpha()
+      j = i
+      while i&lt;n and s[i].isalnum()
+        i+=1
+      end
+      a.push(s[j..i-1])
+    elif s[i].isdigit()
+      j = i
+      while i&lt;n and s[i].isdigit()
+        i+=1
+      end
+      a.push(s[j..i-1])
+    elif s[i].isspace()
+      i+=1
+    else
+      raise table SyntaxError{
+        value = "unexpected character: '{}'"%[s[i]]
+      }
+    end
+  end
+  return a
+end
+
+while true
+  s = input("&gt; ")
+  try
+    print(scan(s))
+  catch e if e: SyntaxError
+    print("Syntax error: ", e.value, ".")
+  end
+end
+</pre>
+
+
+
+</body>
+</html>
+

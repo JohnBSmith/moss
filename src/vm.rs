@@ -684,6 +684,10 @@ fn operator_neg(env: &mut EnvPart, sp: usize, stack: &mut [Object]) -> OperatorR
       stack[sp-1] = Object::Float(-x);
       return Ok(());
     },
+    Object::Complex(z) => {
+      stack[sp-1] = Object::Complex(-z);
+      return Ok(());
+    },
     _ => {}
   }
   match replace(&mut stack[sp-1],Object::Null) {
@@ -2614,24 +2618,44 @@ fn operator_index(env: &mut EnvPart, argc: usize,
       match replace(&mut stack[sp-1],Object::Null) {
         Object::Range(r) => {
           let n = a.v.len() as i32;
+          let step = match r.step {
+            Object::Null => 1,
+            Object::Int(x) => x,
+            _ => return Err(env.type_error1_plain(sp,stack,
+              "Type error in a[i..j]: j is not an integer.",
+              "j",&r.step
+            ))
+          };
           let i = match r.a {
             Object::Int(x) => if x<0 {x+n} else {x},
-            Object::Null => 0,
+            Object::Null => if step<0 {n-1} else {0},
             _ => return Err(env.type_error1_plain(sp,stack,
               "Type error in a[i..j]: i is not an integer.",
               "i",&r.a))
           };
           let j = match r.b {
             Object::Int(x) => if x< -1 {x+n} else {x},
-            Object::Null => n-1,
+            Object::Null => if step<0 {0} else {n-1},
             _ => return Err(env.type_error1_plain(sp,stack,
               "Type error in a[i..j]: j is not an integer.",
-              "j",&r.b))
+              "j",&r.b
+            ))
           };
           let mut v: Vec<Object> = Vec::new();
-          for k in i..j+1 {
-            if 0<=k && k<n {
-              v.push(a.v[k as usize].clone());
+          let mut k=i;
+          if step<0 {
+            while k>=j {
+              if 0<=k && k<n {
+                v.push(a.v[k as usize].clone());
+              }
+              k+=step;              
+            }
+          }else{
+            while k<=j {
+              if 0<=k && k<n {
+                v.push(a.v[k as usize].clone());
+              }
+              k+=step;
             }
           }
           stack[sp-2] = List::new_object(v);

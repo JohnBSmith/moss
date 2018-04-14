@@ -21,6 +21,7 @@
 <li><a href="#simpson">Simpson's rule</a>
 <li><a href="#gauss">Gauss quadrature</a>
 <li><a href="#euler-method">Euler method</a>
+<li><a href="#fft">FFT</a>
 </ol>
 </div>
 
@@ -131,6 +132,27 @@ exp = euler(|x,y| y,{
 sin = euler_any_order(|x,y| -y[0],{
   x0=0, y0=[0,1], h=0.01, N=1000
 })
+</pre>
+
+<h2 id="fft">FFT</h2>
+
+<pre class="moss">
+use math: pi, exp
+
+# Fast Fourier transform of a.
+# Note: size(a) is a power of two.
+
+function fft(a)
+  if size(a)&lt;=1
+    return copy(a)
+  else
+    even = fft(a[0..:2]); odd = fft(a[1..:2])
+    N = size(a); L = list(0..N//2-1)
+    T = L.map(|k| exp(-2i*pi*k/N)*odd[k])
+    return (L.map(|k| even[k]+T[k])+
+            L.map(|k| even[k]-T[k]))
+  end
+end
 </pre>
 
 

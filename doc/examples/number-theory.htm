@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Number theory</title>
+  <link href="../css/main.css" rel="stylesheet">
+  <script src = "../js/moss-syntax.js">
+  </script>
+</head>
+<body>
+
+<table class="navigation">
+<tr><td><b>&uarr;</b> <a href="toc.htm">Up</a>
+</table>
+<h1>Number theory</h1>
+
+<div class="toc">
+<h2 id="toc">Table of contents</h2>
+<ol>
+<li><a href="#zeller">Zeller's congruence</a>
+</ol>
+</div>
+
+<h2 id="zeller">Zeller's congruence</h2>
+
+<pre class="moss">
+begin
+  global day_of_the_week
+  w = ["Satur", "Sun", "Mon", "Tues", "Wednes", "Thurs", "Fri"]
+
+  function day_of_the_week(year,month,day)
+    J = year//100
+    K = (year  if month in 3..12 else year-1)%100
+    m = (month if month in 3..12 else month+12)
+    n = (day + (m+1)*13//5 + K + K//4 + J//4 - 2*J)%7
+    return w[n]+"day"
+  end
+end
+</pre>
+
+
+
+</body>
+</html>
+
