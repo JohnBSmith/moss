@@ -1,8 +1,6 @@
 
 = TODO LIST =
 == Interpreter kernel ==
-* list slice step
-* syntax: empty blocks
 * tracebacks
 * in a coroutine let all exit paths
   perform a loop as "yield; return empty"
@@ -18,12 +16,10 @@
 * search paths
 
 == Library ==
-* reverse string
 * reverse iterator
 * iterator: tee
 * reverse slice for lists
 * rotate slice for lists
-* insert for lists
 * regular expressions
 * graphics
 

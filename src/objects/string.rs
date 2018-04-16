@@ -18,7 +18,24 @@ fn isspace(c: char) -> bool {
     c==' ' || c=='\t' || c=='\n'
 }
 
-fn fisdigit(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+fn islower(c: char) -> bool {
+    ('a' as u32)<=(c as u32) && (c as u32)<=('z' as u32)
+}
+
+fn isupper(c: char) -> bool {
+    ('A' as u32)<=(c as u32) && (c as u32)<=('Z' as u32)
+}
+
+#[inline(never)]
+fn type_error0_string(env: &mut Env, id: &str, s: &Object) -> FnResult {
+     env.type_error1(&format!(
+         "Type error in s.{}(): s is not a string.", id
+     ),"s",s)
+}
+
+fn string_isdigit(env: &mut Env, pself: &Object, argv: &[Object])
+-> FnResult
+{
     match argv.len() {
         0 => {}, n => return env.argc_error(n,0,0,"isdigit")
     }
@@ -29,11 +46,13 @@ fn fisdigit(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
             }
             return Ok(Object::Bool(true));
         },
-        _ => env.type_error("Type error in s.isdigit(): s is not a string.")
+        ref s => type_error0_string(env,"isdigit",s)
     }
 }
 
-fn fisalpha(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+fn string_isalpha(env: &mut Env, pself: &Object, argv: &[Object])
+-> FnResult
+{
     match argv.len() {
         0 => {}, n => return env.argc_error(n,0,0,"isalpha")
     }
@@ -44,11 +63,32 @@ fn fisalpha(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
             }
             return Ok(Object::Bool(true));
         },
-        _ => env.type_error("Type error in s.isalpha(): s is not a string.")
+        ref s => type_error0_string(env,"isalpha",s)
     }
 }
 
-fn fisspace(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+fn string_isalnum(env: &mut Env, pself: &Object, argv: &[Object])
+-> FnResult
+{
+    match argv.len() {
+        0 => {}, n => return env.argc_error(n,0,0,"isalnum")
+    }
+    match *pself {
+        Object::String(ref s) => {
+            for c in &s.v {
+                if !(isdigit(*c) || isalpha(*c)) {
+                    return Ok(Object::Bool(false));
+                }
+            }
+            return Ok(Object::Bool(true));
+        },
+        ref s => type_error0_string(env,"isalnum",s)
+    }
+}
+
+fn string_isspace(env: &mut Env, pself: &Object, argv: &[Object])
+-> FnResult
+{
     match argv.len() {
         0 => {}, n => return env.argc_error(n,0,0,"isspace")
     }
@@ -59,7 +99,77 @@ fn fisspace(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
             }
             return Ok(Object::Bool(true));
         },
-        _ => env.type_error("Type error in s.isspace(): s is not a string.")
+        ref s => type_error0_string(env,"isspace",s)
+    }
+}
+
+fn string_islower(env: &mut Env, pself: &Object, argv: &[Object])
+-> FnResult
+{
+    match argv.len() {
+        0 => {}, n => return env.argc_error(n,0,0,"islower")
+    }
+    match *pself {
+        Object::String(ref s) => {
+            for c in &s.v {
+                if !islower(*c) {return Ok(Object::Bool(false));}
+            }
+            return Ok(Object::Bool(true));
+        },
+        ref s => type_error0_string(env,"islower",s)
+    }
+}
+
+fn string_isupper(env: &mut Env, pself: &Object, argv: &[Object])
+-> FnResult
+{
+    match argv.len() {
+        0 => {}, n => return env.argc_error(n,0,0,"isupper")
+    }
+    match *pself {
+        Object::String(ref s) => {
+            for c in &s.v {
+                if !isupper(*c) {return Ok(Object::Bool(false));}
+            }
+            return Ok(Object::Bool(true));
+        },
+        ref s => type_error0_string(env,"isupper",s)
+    }
+}
+
+fn lower(env: &mut Env, pself: &Object, argv: &[Object])
+-> FnResult
+{
+    match argv.len() {
+        0 => {}, n => return env.argc_error(n,0,0,"lower")
+    }
+    match *pself {
+        Object::String(ref s) => {
+            let mut v: Vec<char> = Vec::new();
+            for c in &s.v {
+                v.append(&mut c.to_lowercase().collect());
+            }
+            return Ok(U32String::new_object(v));
+        },
+        ref s => type_error0_string(env,"lower",s)
+    }
+}
+
+fn upper(env: &mut Env, pself: &Object, argv: &[Object])
+-> FnResult
+{
+    match argv.len() {
+        0 => {}, n => return env.argc_error(n,0,0,"upper")
+    }
+    match *pself {
+        Object::String(ref s) => {
+            let mut v: Vec<char> = Vec::new();
+            for c in &s.v {
+                v.append(&mut c.to_uppercase().collect());
+            }
+            return Ok(U32String::new_object(v));
+        },
+        ref s => type_error0_string(env,"upper",s)
     }
 }
 
@@ -170,9 +280,14 @@ pub fn duplicate(s: &[char], n: i32) -> Object {
 
 pub fn init(t: &Table){
     let mut m = t.map.borrow_mut();
-    m.insert_fn_plain("isdigit",fisdigit,0,0);
-    m.insert_fn_plain("isalpha",fisalpha,0,0);
-    m.insert_fn_plain("isspace",fisspace,0,0);
+    m.insert_fn_plain("isdigit",string_isdigit,0,0);
+    m.insert_fn_plain("isalpha",string_isalpha,0,0);
+    m.insert_fn_plain("isalnum",string_isalnum,0,0);
+    m.insert_fn_plain("isspace",string_isspace,0,0);
+    m.insert_fn_plain("islower",string_islower,0,0);
+    m.insert_fn_plain("isupper",string_isupper,0,0);
+    m.insert_fn_plain("lower",lower,0,0);
+    m.insert_fn_plain("upper",upper,0,0);
     m.insert_fn_plain("ljust",ljust,1,2);
     m.insert_fn_plain("rjust",rjust,1,2);
 }

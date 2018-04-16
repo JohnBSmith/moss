@@ -18,6 +18,7 @@
 <h2 id="toc">Table of contents</h2>
 <ol>
 <li><a href="#scan">Lexical analysis</a>
+<li><a href="#recursive-descent">A recursive descent parser</a>
 </ol>
 </div>
 
@@ -29,6 +30,10 @@
 # returns a list of tokens.
 
 SyntaxError = table{}
+
+function syntax_error(s)
+  return table SyntaxError{value=s}
+end
 
 function scan(s)
   a = []
@@ -49,15 +54,15 @@ function scan(s)
       while i&lt;n and s[i].isdigit()
         i+=1
       end
-      a.push(s[j..i-1])
+      a.push(int(s[j..i-1]))
     elif s[i].isspace()
       i+=1
     else
-      raise table SyntaxError{
-        value = "unexpected character: '{}'"%[s[i]]
-      }
+      raise syntax_error(
+        "unexpected character: '{}'"%[s[i]])
     end
   end
+  a.push(null)
   return a
 end
 
@@ -71,6 +76,121 @@ while true
 end
 </pre>
 
+<br>
+<h2 id="recursive-descent">A recursive descent parser</h2>
+
+<pre class="moss">
+# The function ast(a) is a parser that takes a vector of tokens,
+# and returns an abstract syntax tree consisting of S-expressions
+# of the form [operator,[arg0,arg1,...]].
+
+# <b>Formal grammar</b>
+# by production rules in EBNF
+
+# atom = number | identifier | "(" expression ")";
+# power = atom ["^" negation];
+# negation = ["-"] power;
+# multiplication = negation {("*" | "/") negation};
+# addition = multiplication {("+" | "-") multiplication};
+# expression = addition;
+
+# Example input:
+# "2*(x+y)^2+4*x".
+
+
+function expect(a,i)
+  if a[i] is null
+    raise syntax_error("unexpected end of input")
+  else
+    return a[i]
+  end
+end
+
+function atom(a,i)
+  t = expect(a,i)
+  if t: Int
+    return i+1,a[i]
+  elif t: String and t[0].isalpha()
+    return i+1,a[i]
+  elif t=="("
+    i,x = expression(a,i+1)
+    if expect(a,i)!=")"
+      raise syntax_error(
+        "expected ')', but got '{}'"%[a[i]])
+    end
+    return i+1,x
+  else
+    raise syntax_error(
+      "unexpected symbol: '{}'"%[a[i]])
+  end
+end
+
+function power(a,i)
+  i,x = atom(a,i)
+  if a[i]=="^"
+    i,y = negation(a,i+1)
+    return i,["^",[x,y]]
+  else
+    return i,x
+  end
+end
+
+function negation(a,i)
+  if a[i]=="-"
+    i,x = power(a,i+1)
+    return i,["negation",[x]]
+  else
+    return power(a,i)
+  end
+end
+
+function multiplication(a,i)
+  i,x = negation(a,i)
+  op = a[i]
+  while op=="*" or op=="/"
+    i,y = negation(a,i+1)
+    x = [op,[x,y]]
+    op = a[i]
+  end
+  return i,x
+end
+
+function addition(a,i)
+  i,x = multiplication(a,i)
+  op = a[i]
+  while op=="+" or op=="-"
+    i,y = multiplication(a,i+1)
+    x = [op,[x,y]]
+    op = a[i]
+  end
+  return i,x
+end
+
+function expression(a,i)
+  return addition(a,i)
+end
+
+function ast(a)
+  i,t = addition(a,0)
+  if a[i] is null
+    return t
+  else
+    raise syntax_error(
+      "unexpected symbol: '{}'"%[a[i]])
+  end
+end
+
+while true
+  s = input("&gt; ")
+  try
+    a = scan(s)
+    print(ast(a))
+  catch e if e: SyntaxError
+    print("Syntax error: ", e.value, ".")
+  end
+end
+
+</pre>
 
 
 </body>

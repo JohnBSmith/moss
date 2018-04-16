@@ -18,6 +18,7 @@
 <ol>
 <li><a href="#global-objects">Global objects</a>
 <li><a href="#global-functions">Global functions</a>
+<li><a href="#string">String (data type)</a>
 <li><a href="#list">List (data type)</a>
 <li><a href="#map">Map (data type)</a>
 <li><a href="#function">Function (data type)</a>
@@ -251,6 +252,64 @@ is given, use it as an environment for free/global variables.
 </dl>
 
 
+<h2 id="string">String (<a href="#iterable">Iterable</a>)</h2>
+
+<dl class="code">
+<dt>s.lower()
+<dd>Return the string <code>s</code> projected to lower case.
+<pre class="moss">
+&gt; "Bee".lower()
+"bee"
+</pre>
+
+<dt>s.upper()
+<dd>Return the string <code>s</code> projected to upper case.
+<pre class="moss">
+&gt; "Bee".upper()
+"BEE"
+</pre>
+
+<dt>s.islower()
+<dd>Return only true if the string <code>s</code> is empty or all
+letters are in lower case.</dd>
+
+<dt>s.isupper()
+<dd>Return only true if the string <code>s</code> is empty or all
+letters are in upper case.</dd>
+
+<dt>s.isalpha()
+<dd>Return only true if the string <code>s</code> is empty or consists only
+of letters.</dd>
+
+<dt>s.isdigit()
+<dd>Return only true if the string <code>s</code> is empty or consists only
+of digits.</dd>
+
+<dt>s.isalnum()
+<dd>Return only true if the string <code>s</code> is empty or each character
+is a letter or a digit.</dd>
+
+<dt>s.isrange(a,b)
+<dd>Return only true if the string <code>s</code> is empty or consists only
+of characters from Unicode code point <code>a</code> inclusive
+to <code>b</code> inclusive. You may also write
+<code>s.isrange(c,d)</code> instead of
+<code>s.isrange(ord(c),ord(d))</code>.
+
+<dt>s.ltrim(), s.ltrim(chars)
+<dd>Remove withespace from the left side. If a string
+<code>chars</code> is given, remove characters
+until a character is found, that is not contained in
+<code>chars</code>.
+
+<dt>s.rtrim(), s.rtrim(chars)
+<dd>Remove withespace from the right side.
+
+<dt>s.trim(), s.trim(chars)
+<dd>Remove withespace from the left and right side.
+</dl>
+
+
 <h2 id="list">List (<a href="#iterable">Iterable</a>)</h2>
 
 <dl class="code">
@@ -346,65 +405,7 @@ function. The sorting algorithm is not required to be stable.
 </dl>
 
 
-<h2 id="string">Type string (<a href="#iterable">Iterable</a>)</h2>
-
-<dl class="code">
-<dt>s.lower()
-<dd>Return the string <code>s</code> projected to lower case.
-<pre class="moss">
-&gt; "Bee".lower()
-"bee"
-</pre>
-
-<dt>s.upper()
-<dd>Return the string <code>s</code> projected to upper case.
-<pre class="moss">
-&gt; "Bee".upper()
-"BEE"
-</pre>
-
-<dt>s.islower()
-<dd>Return only true if the string <code>s</code> is empty or all
-letters are in lower case.</dd>
-
-<dt>s.isupper()
-<dd>Return only true if the string <code>s</code> is empty or all
-letters are in upper case.</dd>
-
-<dt>s.isalpha()
-<dd>Return only true if the string <code>s</code> is empty or consists only
-of letters.</dd>
-
-<dt>s.isdigit()
-<dd>Return only true if the string <code>s</code> is empty or consists only
-of digits.</dd>
-
-<dt>s.isalnum()
-<dd>Return only true if the string <code>s</code> is empty or each character
-is a letter or a digit.</dd>
-
-<dt>s.isrange(a,b)
-<dd>Return only true if the string <code>s</code> is empty or consists only
-of characters from Unicode code point <code>a</code> inclusive
-to <code>b</code> inclusive. You may also write
-<code>s.isrange(c,d)</code> instead of
-<code>s.isrange(ord(c),ord(d))</code>.
-
-<dt>s.ltrim(), s.ltrim(chars)
-<dd>Remove withespace from the left side. If a string
-<code>chars</code> is given, remove characters
-until a character is found, that is not contained in
-<code>chars</code>.
-
-<dt>s.rtrim(), s.rtrim(chars)
-<dd>Remove withespace from the right side.
-
-<dt>s.trim(), s.trim(chars)
-<dd>Remove withespace from the left and right side.
-</dl>
-
-
-<h2 id="map">Type map  (<a href="#iterable">Iterable</a>)</h2>
+<h2 id="map">Map  (<a href="#iterable">Iterable</a>)</h2>
 
 <dl class="code">
 <dt>m.values()
