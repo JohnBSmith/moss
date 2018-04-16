@@ -59,8 +59,8 @@ into strings and joins them together.
 </pre>
 <p>That is to say, the equation
 <pre class="moss indent">
-print(x,y,z) == print([x,y,z].join())
-== print([x,y,z].map(str).join())
+print(*a) ≡≡ print(a.join())
+≡≡ print(a.map(str).join())
 </pre>
 <p>holds. This allows us to express an alternative version
 of <code>print</code> that takes a separator.

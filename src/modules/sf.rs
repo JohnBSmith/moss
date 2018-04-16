@@ -1,4 +1,6 @@
 
+#![allow(unused_variables)]
+#![allow(dead_code)]
 #![allow(unused_imports)]
 #![allow(non_snake_case)]
 
@@ -106,43 +108,47 @@ fn eiPi(phi: f64,n: f64,m: f64) -> f64 {
     return s*RF(c*c,1.0-mss,1.0)+1.0/3.0*nss*s*RJ(c*c,1.0-mss,1.0,1.0-nss);
 }
 
-fn sf_K(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
-  if argv.len() != 1 {
-    return env.argc_error(argv.len(),1,1,"K");
-  }
-  match argv[0] {
-    Object::Int(x) => {
-      Ok(Object::Float(cK(x as f64)))
-    },
-    Object::Float(x) => {
-      Ok(Object::Float(cK(x)))
-    },
-    _ => env.type_error("Type error in K(x): x is not a number.")
-  }
+fn sf_K(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+    match argv.len() {
+        1 => {}, n => return env.argc_error(n,1,1,"K")
+    }
+    match argv[0] {
+        Object::Int(x) => {
+            Ok(Object::Float(cK(x as f64)))
+        },
+        Object::Float(x) => {
+            Ok(Object::Float(cK(x)))
+        },
+        ref x => env.type_error1(
+          "Type error in K(x): x is not a number.", "x", x
+        )
+    }
 }
 
-fn sf_E(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
-  if argv.len() != 1 {
-    return env.argc_error(argv.len(),1,1,"E");
-  }
-  match argv[0] {
-    Object::Int(x) => {
-      Ok(Object::Float(cE(x as f64)))
-    },
-    Object::Float(x) => {
-      Ok(Object::Float(cE(x)))
-    },
-    _ => env.type_error("Type error in E(x): x is not a number.")
-  }
+fn sf_E(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+    match argv.len() {
+        1 => {}, n => return env.argc_error(n,1,1,"E")
+    }
+    match argv[0] {
+        Object::Int(x) => {
+            Ok(Object::Float(cE(x as f64)))
+        },
+        Object::Float(x) => {
+            Ok(Object::Float(cE(x)))
+        },
+        ref x => env.type_error1(
+          "Type error in E(x): x is not a number.", "x", x
+        )
+    }
 }
 
 pub fn load_sf() -> Object {
-  let sf = new_module("sf");
-  {
-    let mut m = sf.map.borrow_mut();
-    m.insert_fn_plain("K",sf_K,1,1);
-    m.insert_fn_plain("E",sf_E,1,1);
-  }
-  return Object::Table(Rc::new(sf));
+    let sf = new_module("sf");
+    {
+        let mut m = sf.map.borrow_mut();
+        m.insert_fn_plain("K",sf_K,1,1);
+        m.insert_fn_plain("E",sf_E,1,1);
+    }
+    return Object::Table(Rc::new(sf));
 }
 

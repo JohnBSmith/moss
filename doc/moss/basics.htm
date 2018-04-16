@@ -429,8 +429,7 @@ arbitrary Unicode characters inside of a string literal.
 <tr><td><code>\b</code><td>backslash
 <tr><td><code>\d</code><td>double quote
 <tr><td><code>\q</code><td>single quote
-<tr><td><code>\xhh</code><td>character with Unicode value <code>0xhh</code>
-<tr><td><code>\uhhhh</code><td>character with Unicode value <code>0xhhhh</code>
+<tr><td><code>\x{hh}</code><td>character with Unicode value <code>0xhh</code>
 </table>
 
 <p>The number <code>0xhh</code> is a hexadecimal number consisting of two
@@ -438,7 +437,7 @@ hexadecimal digits, a number in the range <code>0x00..0xff</code>.
 An example:
 
 <pre class="moss indent">
-print("\b\b\b\b\na\s\sb\n\d\q\q\d\n\x41\u0041\u0042")
+print("\b\b\b\b\na\s\sb\n\d\q\q\d\n\x{41}\x{41}\x{42}")
 # Output:
 # \\\\
 # a  b

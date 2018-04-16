@@ -29,118 +29,118 @@ use math(
 "#;
 
 fn is_option(s: &str) -> bool {
-  s.len()>0 && &s[0..1]=="-"
+    s.len()>0 && &s[0..1]=="-"
 }
 
 struct IFile{
-  s: String,
-  e: bool
+    s: String,
+    e: bool
 }
 
 struct Info{
-  program: Option<String>,
-  ifile: Vec<IFile>,
-  argv: Vec<String>,
-  cmd: Option<String>,
-  exit: bool,
-  math: bool,
-  debug_mode: bool
+    program: Option<String>,
+    ifile: Vec<IFile>,
+    argv: Vec<String>,
+    cmd: Option<String>,
+    exit: bool,
+    math: bool,
+    debug_mode: bool
 }
 
 impl Info{
-  pub fn new() -> Box<Self> {
-    let mut info = Info{
-      program: None,
-      ifile: Vec::new(),
-      argv: Vec::new(),
-      cmd: None,
-      exit: false,
-      math: false,
-      debug_mode: false
-    };
-    let mut first = true;
-    let mut ifile = false;
-    let mut cmd = false;
-    let mut args = false;
-    for s in env::args() {
-      if args {
-        info.argv.push(s);
-      }else if first {
-        info.program = Some(s);
-        first = false;
-      }else if is_option(&s) {
-        if s=="-i" {
-          ifile = true;
-        }else if s=="-e" {
-          cmd = true;
-        }else if s=="-ei" {
-          ifile = true;
-          cmd = true;
-        }else if s=="-m" {
-          info.math = true;
-        }else if s=="-h" || s=="-help" || s=="--help" {
-          println!("{}",HELP);
-          info.exit = true;
-          return Box::new(info);
-        }else if s=="-d" {
-          info.debug_mode = true;
-        }else{
-          println!("Error: unknown option: {}.",&s);
+    pub fn new() -> Box<Self> {
+        let mut info = Info{
+            program: None,
+            ifile: Vec::new(),
+            argv: Vec::new(),
+            cmd: None,
+            exit: false,
+            math: false,
+            debug_mode: false
+        };
+        let mut first = true;
+        let mut ifile = false;
+        let mut cmd = false;
+        let mut args = false;
+        for s in env::args() {
+            if args {
+                info.argv.push(s);
+            }else if first {
+                info.program = Some(s);
+                first = false;
+            }else if is_option(&s) {
+                if s=="-i" {
+                    ifile = true;
+                }else if s=="-e" {
+                    cmd = true;
+                }else if s=="-ei" {
+                    ifile = true;
+                    cmd = true;
+                }else if s=="-m" {
+                    info.math = true;
+                }else if s=="-h" || s=="-help" || s=="--help" {
+                    println!("{}",HELP);
+                    info.exit = true;
+                    return Box::new(info);
+                }else if s=="-d" {
+                    info.debug_mode = true;
+                }else{
+                    println!("Error: unknown option: {}.",&s);
+                }
+            }else if ifile {
+                info.ifile.push(IFile{s: s, e: cmd});
+                ifile = false;
+                cmd = false;
+            }else if cmd {
+                info.cmd = Some(s);
+            }else{
+                info.argv.push(s);
+                args = true;
+            }
         }
-      }else if ifile {
-        info.ifile.push(IFile{s: s, e: cmd});
-        ifile = false;
-        cmd = false;
-      }else if cmd {
-        info.cmd = Some(s);
-      }else{
-        info.argv.push(s);
-        args = true;
-      }
+        return Box::new(info);
     }
-    return Box::new(info);
-  }
 }
 
 fn main(){
-  let info = Info::new();
-  let i = moss::Interpreter::new();
-  i.set_config(CompilerExtra{
-    debug_mode: info.debug_mode
-  });
+    let info = Info::new();
+    let i = moss::Interpreter::new();
+    i.set_config(CompilerExtra{
+        debug_mode: info.debug_mode
+    });
 
-  let gtab = Map::new();
-  i.rte.clear_at_exit(gtab.clone());
+    let gtab = Map::new();
+    i.rte.clear_at_exit(gtab.clone());
 
-  if info.exit {return;}
+    if info.exit {return;}
 
-  {
-    let mut argv = i.rte.argv.borrow_mut();
-    *argv = Some(moss::new_list_str(&info.argv));
-  }
-  if info.math {
-    i.eval_env(MATH,gtab.clone());
-  }
-  for file in &info.ifile {
-    if file.e {
-      i.eval_env(&file.s,gtab.clone());
+    {
+        let mut argv = i.rte.argv.borrow_mut();
+        *argv = Some(moss::new_list_str(&info.argv));
+    }
+    if info.math {
+        i.eval_env(MATH,gtab.clone());
+    }
+    for file in &info.ifile {
+        if file.e {
+            i.eval_env(&file.s,gtab.clone());
+        }else{
+            i.eval_file(&file.s,gtab.clone());
+        }
+    }
+    if let Some(ref id) = info.argv.first() {
+        if id.len()==0 {
+            i.command_line_session(gtab);
+        }else{
+            i.eval_file(id,gtab);
+        }
+    }else if let Some(ref cmd) = info.cmd {
+        let x = i.eval_env(cmd,gtab);
+        if x != Object::Null {
+            println!("{}",i.repr(&x));
+        }
     }else{
-      i.eval_file(&file.s,gtab.clone());
+        i.command_line_session(gtab);
     }
-  }
-  if let Some(ref id) = info.argv.first() {
-    if id.len()==0 {
-      i.command_line_session(gtab);
-    }else{
-      i.eval_file(id,gtab);
-    }
-  }else if let Some(ref cmd) = info.cmd {
-    let x = i.eval_env(cmd,gtab);
-    if x != Object::Null {
-      println!("{}",i.repr(&x));
-    }
-  }else{
-    i.command_line_session(gtab);
-  }
 }
 

@@ -364,13 +364,11 @@ The prefix operator "<code>*</code>" is called
 
 <pre class="moss indent">
 # One can transform
-print("abcd") == print("a","b","c","d")
-== print(*["a","b","c","d"]) == print(*list("abcd"))
-  (semantic equivalence)
+print("abcd") ≡≡ print("a","b","c","d")
+≡≡ print(*["a","b","c","d"]) ≡≡ print(*list("abcd"))
 
 # So, in general, if s is a string
-print(s) == print(*list(s))
-  (semantic equivalence)
+print(s) ≡≡ print(*list(s))
 </pre>
 
 <p>Unpacking may be mixed with implicit and explicit self arguments.
@@ -378,7 +376,7 @@ So, if <code>x</code> is an object and <code>m</code> is a two
 argument method of <code>x</code>, we have</code>
 
 <pre class="moss indent">
-x.m(a,b) == x.m(*[a,b]) == x.m(x;*[a,b]).
+x.m(a,b) ≡≡ x.m(*[a,b]) ≡≡ x.m(x;*[a,b]).
 </pre>
 
 
@@ -413,8 +411,8 @@ self argument. Viewed this way, <code>m</code> is called
 
 <p>The self argument can be given explicitly:
 <pre class="moss">
-  f(a,b) == f(null; a,b),
-  x.m(a,b) == x.m(x; a,b).
+  f(a,b) ≡≡ f(null; a,b),
+  x.m(a,b) ≡≡ x.m(x; a,b).
 </pre>
 
 <p>A simple example shows how self arguments work.
@@ -526,8 +524,8 @@ That is a more general way of function application,
 because one can always write <code>f(*[t[0],t[1]])</code>.
 In general one has
 <pre class="moss indent">
-  f(x,y) == f(null;x,y) ==   f(*[x,y]) == f(null;*[x,y]),
-a.m(x,y) == a.m(a;x,y)  == a.m(*[x,y]) == a.m(a;*[x,y]).
+  f(x,y) ≡≡ f(null;x,y) ≡≡   f(*[x,y]) ≡≡ f(null;*[x,y]),
+a.m(x,y) ≡≡ a.m(a;x,y)  ≡≡ a.m(*[x,y]) ≡≡ a.m(a;*[x,y]).
 </pre>
 
 
