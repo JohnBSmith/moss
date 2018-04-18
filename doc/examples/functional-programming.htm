@@ -27,14 +27,14 @@
 <h2 id="partial-application">Partial application</h2>
 
 <pre class="moss">
-first = |f,x| |y| f(x,y)
+first  = |f,x| |y| f(x,y)
 second = |f,y| |x| f(x,y)
 
 # Variadic, fix first arguments
 first = |f,*a| |*b| f(*(a+b))
 
 # Variadic, fix last arguments
-last = |f,*a| |*b| f(*(b+a))
+last  = |f,*a| |*b| f(*(b+a))
 </pre>
 
 

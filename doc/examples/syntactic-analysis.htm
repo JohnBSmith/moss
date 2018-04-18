@@ -19,6 +19,7 @@
 <ol>
 <li><a href="#scan">Lexical analysis</a>
 <li><a href="#recursive-descent">A recursive descent parser</a>
+<li><a href="#eval">A simple evaluator</a>
 </ol>
 </div>
 
@@ -82,7 +83,7 @@ end
 <pre class="moss">
 # The function ast(a) is a parser that takes a vector of tokens,
 # and returns an abstract syntax tree consisting of S-expressions
-# of the form [operator,[arg0,arg1,...]].
+# of the form [operator,arg0,arg1,...].
 
 # <b>Formal grammar</b>
 # by production rules in EBNF
@@ -129,7 +130,7 @@ function power(a,i)
   i,x = atom(a,i)
   if a[i]=="^"
     i,y = negation(a,i+1)
-    return i,["^",[x,y]]
+    return i,["^",x,y]
   else
     return i,x
   end
@@ -138,7 +139,7 @@ end
 function negation(a,i)
   if a[i]=="-"
     i,x = power(a,i+1)
-    return i,["negation",[x]]
+    return i,["~",x]
   else
     return power(a,i)
   end
@@ -149,7 +150,7 @@ function multiplication(a,i)
   op = a[i]
   while op=="*" or op=="/"
     i,y = negation(a,i+1)
-    x = [op,[x,y]]
+    x = [op,x,y]
     op = a[i]
   end
   return i,x
@@ -160,7 +161,7 @@ function addition(a,i)
   op = a[i]
   while op=="+" or op=="-"
     i,y = multiplication(a,i+1)
-    x = [op,[x,y]]
+    x = [op,x,y]
     op = a[i]
   end
   return i,x
@@ -189,9 +190,60 @@ while true
     print("Syntax error: ", e.value, ".")
   end
 end
-
 </pre>
 
+<br>
+<h2 id="eval">A simple evaluator</h2>
+
+<pre class="moss">
+function eval(t)
+  if t: Int
+    return t
+  elif t: List
+    op = t[0]
+    if op=="+"
+      return eval(t[1])+eval(t[2])
+    elif op=="-"
+      return eval(t[1])-eval(t[2])
+    elif op=="*"
+      return eval(t[1])*eval(t[2])
+    elif op=="/"
+      return eval(t[1])/eval(t[2])
+    elif op=="^"
+      return eval(t[1])^eval(t[2])
+    elif op=="~"
+      return -eval(t[1])
+    else
+      panic()
+    end
+  else
+    panic()
+  end
+end
+
+while true
+  s = input("&gt; ")
+  try
+    a = scan(s)
+    t = ast(a)
+    print(eval(t))
+  catch e if e: SyntaxError
+    print("Syntax error: ", e.value, ".")
+  end
+end
+
+
+# It is possible to use a dispatch table
+
+dispatch = {
+  "+": |x,y| x+y, "-": |x,y| x-y,
+  "*": |x,y| x*y, "/": |x,y| x/y,
+  "^": |x,y| x^y, "~": |x| -x
+}
+
+eval = |t| (t if t: Int else
+  dispatch[t[0]](*t[1..].map(eval)))
+</pre>
 
 </body>
 </html>

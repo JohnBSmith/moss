@@ -911,6 +911,14 @@ fn long(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     }
 }
 
+fn panic(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+    match argv.len() {
+        0 => return env.std_exception("Panic."),
+        1 => return env.std_exception(&format!("Panic: {}.",argv[0])),
+        n => return env.argc_error(n,0,1,"panic")
+    }
+}
+
 pub fn init_rte(rte: &RTE){
     let mut gtab = rte.gtab.borrow_mut();
     gtab.insert_fn_plain("print",print,0,VARIADIC);
@@ -946,6 +954,7 @@ pub fn init_rte(rte: &RTE){
     gtab.insert_fn_plain("map",map,1,1);
     gtab.insert_fn_plain("extend",extend,2,VARIADIC);
     gtab.insert_fn_plain("long",long,1,1);
+    gtab.insert_fn_plain("panic",panic,0,1);
     gtab.insert("empty", Object::Empty);
 
     let type_bool = rte.type_bool.clone();

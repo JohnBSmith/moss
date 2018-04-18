@@ -54,6 +54,11 @@ List.filter = |a;p| ([] if a==[] else
   ([a[0]] if p(a[0]) else [])+a[1..].filter(p))
 
 List.reduce = |a;e,f| e if a==[] else f(a[0],a[1..].reduce(e,f))
+
+
+List.map = |a;f| a.reduce([],|t,x| t+[f(x)])
+
+List.filter = |a;p| a.reduce([],|t,x| t+[x] if p(x) else t)
 </pre>
 <br>
 

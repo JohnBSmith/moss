@@ -270,31 +270,33 @@ is given, use it as an environment for free/global variables.
 </pre>
 
 <dt>s.islower()
-<dd>Return only true if the string <code>s</code> is empty or all
-letters are in lower case.</dd>
+<dd>Return true if the string <code>s</code> is empty or all
+characters are lower case letters.</dd>
 
 <dt>s.isupper()
-<dd>Return only true if the string <code>s</code> is empty or all
-letters are in upper case.</dd>
+<dd>Return true if the string <code>s</code> is empty or all
+characters are upper case letters.</dd>
 
 <dt>s.isalpha()
-<dd>Return only true if the string <code>s</code> is empty or consists only
+<dd>Return true if the string <code>s</code> is empty or consists only
 of letters.</dd>
 
-<dt>s.isdigit()
-<dd>Return only true if the string <code>s</code> is empty or consists only
+<dt>s.isdigit(), s.isdigit(radix)
+<dd>Return true if the string <code>s</code> is empty or consists only
 of digits.</dd>
 
 <dt>s.isalnum()
-<dd>Return only true if the string <code>s</code> is empty or each character
+<dd>Return true if the string <code>s</code> is empty or each character
 is a letter or a digit.</dd>
 
+<!--
 <dt>s.isrange(a,b)
-<dd>Return only true if the string <code>s</code> is empty or consists only
+<dd>Return true if the string <code>s</code> is empty or consists only
 of characters from Unicode code point <code>a</code> inclusive
 to <code>b</code> inclusive. You may also write
 <code>s.isrange(c,d)</code> instead of
 <code>s.isrange(ord(c),ord(d))</code>.
+-->
 
 <dt>s.ltrim(), s.ltrim(chars)
 <dd>Remove withespace from the left side. If a string
