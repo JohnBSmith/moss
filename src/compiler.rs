@@ -935,9 +935,16 @@ fn syntax_error(&self, line: usize, col: usize, s: &str) -> Error{
     }))
 }
 
-fn unexpected_token(&mut self, line: usize, col: usize, value: Symbol) -> Error{
-    Box::new(EnumError::Syntax(SyntaxError{line: line, col: col, file: String::from(self.file),
-        s: format!("unexpected token: '{}'.",symbol_to_string(value))
+fn unexpected_token(&mut self, t: &Token) -> Error{
+    let s = match t.token_type {
+        SymbolType::Identifier => String::from("unexpected token: identifier."),
+        SymbolType::String => String::from("unexpected token: string literal."),
+        SymbolType::Int => String::from("unexpected token: integer literal."),
+        _ => format!("unexpected token: '{}'.",symbol_to_string(t.value))
+    };
+    Box::new(EnumError::Syntax(SyntaxError{
+        line: t.line, col: t.col, file: String::from(self.file),
+        s: s
     }))
 }
 
@@ -1310,7 +1317,7 @@ fn application(&mut self, i: &mut TokenIterator, f: Rc<AST>, terminal: Symbol)
                 i.index+=1;
                 break;
             }else{
-                return Err(self.unexpected_token(t.line, t.col, t.value));
+                return Err(self.unexpected_token(&t));
             }
         }
     }
@@ -1427,7 +1434,7 @@ fn atom(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error> {
         i.index+=1;
         y = try!(self.block(i,t));
     }else{
-        return Err(self.unexpected_token(t.line, t.col, t.value));
+        return Err(self.unexpected_token(&t));
     }
     return Ok(y);
 }
@@ -1460,16 +1467,6 @@ fn application_term(&mut self, i: &mut TokenIterator)
                 try!(self.atom(i))
             };
             x = binary_operator(t.line,t.col,Symbol::Dot,x,y);
-        }else if t.token_type == SymbolType::Identifier {
-            let y = Rc::new(AST{
-                line: t.line, col: t.col,
-                symbol_type: SymbolType::String,
-                value: Symbol::None, info: Info::None,
-                s: Some(t.item.assert_string().clone()),
-                a: None
-            });
-            i.index+=1;
-            x = binary_operator(t.line,t.col,Symbol::Index,x,y);
         }else{
             return Ok(x);
         }
@@ -2419,7 +2416,7 @@ fn statements(&mut self, i: &mut TokenIterator, last_value: Value)
         }else if value == Symbol::PRight {
             break;
         }else{
-            return Err(self.unexpected_token(t.line, t.col, value));
+            return Err(self.unexpected_token(&t));
         }
     }
     if last_value != Value::None {

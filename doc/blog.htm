@@ -361,7 +361,7 @@ end
 <p>In addition I achieved (by 30 lines of C&nbsp;code) syntactic sugar
 for named actual arguments:
 <pre class="moss indent">
-f(x,y,a=e1,b=e2) == f(x,y,{a=e1,b=e2})
+f(x,y,a=e1,b=e2) ≡≡ f(x,y,{a=e1,b=e2})
 </pre>
 <p>They may appear in any order, independently from positional
 arguments. That is a little more welfare than simply omitting
@@ -637,7 +637,7 @@ us nice reflection with respect to the prototype chain. For clarity,
 we have:
 
 <pre class="moss indent">
-a.x &equiv; a.("x")
+a.x ≡≡ a.("x")
 </pre>
 
 <h3 data-date="20180326" id="the-metaclass-patch"
@@ -875,13 +875,13 @@ scalar_product = |v,w| zip(v,w).sum(|[x,y]| x*y)
 
 <p>For argument list unpacking there was so far:
 <pre class="moss indent">
-f(1,2) &equiv; f.apply([1,2])
+f(1,2) ≡≡ f.apply([1,2])
 </pre>
 
 <p>This approach has the drawback that self arguments must
 be given explicitly:
 <pre class="moss indent">
-x.m(1,2) &equiv; x.m.apply(x;[1,2])
+x.m(1,2) ≡≡ x.m.apply(x;[1,2])
   /*but not*/ x.m.apply([1,2])
 </pre>
 
@@ -915,52 +915,12 @@ stack overflow in case of large lists.
 
 <p>The following behavior is not implemented at this point of time:
 <pre class="moss indent">
-f(*a,*b) &equiv; f(*(a+b)),
-f(x,y,*a) &equiv; f(*([x,y]+a))
+f(*a,*b) ≡≡ f(*(a+b)),
+f(x,y,*a) ≡≡ f(*([x,y]+a))
 etc.
 </pre>
 
 <p>Thus we need to use the right hand side.
-
-<h3 data-date="20180407" id="key-operation-shorthand"
->Key operation shorthand</h3>
-
-<p>To have key operations in the form <code>m["key"]</code> is
-somewhat clumsy if the map is used as a <code>struct</code>.
-I introduced the new shorthand syntax <code>m key</code> to
-the language. Now we have the following symmetry:
-
-<table class="bt indent">
-<tr>
-<th>
-<th>General
-<th>Shorthand
-
-<tr>
-<th>Object dispatch
-<td><code class="moss">a.("key")</code>
-<td><code class="moss">a.key</code>
-
-<tr>
-<th>Map indexing
-<td><code class="moss">a["key"]</code>
-<td><code class="moss">a key</code>
-</table>
-
-<p>There are some side effects:
-<pre class="moss indent">
-&gt; ord abcd
-[97, 98, 99, 100]
-
-&gt; str abcd
-["a", "b", "c", "d"]
-</pre>
-
-<p>Why? Index operation is overloaded as image set and multiargument
-map. The arguments can be iterables. Hence,
-<pre class="moss indent">
-ord abcd == ord["abcd"] == list("abcd").map(ord).
-</pre>
 
 
 </body>
