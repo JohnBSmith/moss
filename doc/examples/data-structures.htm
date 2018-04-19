@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Data structures</title>
+  <link href="../css/main.css" rel="stylesheet">
+  <script src = "../js/moss-syntax.js">
+  </script>
+</head>
+<body>
+
+<table class="navigation">
+<tr><td><b>&uarr;</b> <a href="toc.htm">Up</a>
+</table>
+<h1>Data structures</h1>
+
+<div class="toc">
+<h2 id="toc">Table of contents</h2>
+<ol>
+<li><a href="#singly-linked-list">Singly linked list</a>
+</ol>
+</div>
+
+<h2 id="singly-linked-list">Singly linked list</h2>
+
+<pre class="moss">
+function empty_error(id)
+  return table ValueError{
+    value = "Value error in a.{}: a is empty."%[id]}
+end
+
+function link(a)
+  y = table LinkedList{pfirst=null, plast=null}
+  for x in a
+    y.push(x)
+  end
+  return y
+end
+
+LinkedList = table(Type,Iterable,"LinkedList"){
+  function string
+    self.map(str).join(", ","link([","])")
+  end,
+
+  function empty
+    return self.pfirst is null
+  end,
+
+  function iter
+    t = self.pfirst
+    return fn*||
+      while not t is null
+        yield t[0]
+        t = t[1]
+      end
+    end
+  end,
+
+  function push(x)
+    if self.pfirst is null
+      self.plast = [x,null]
+      self.pfirst = self.plast
+    else
+      self.plast[1] = [x,null]
+      self.plast = self.plast[1]
+    end
+  end,
+  
+  function unshift(x)
+    if self.pfirst is null
+      self.plast = [x,null]
+      self.pfirst = self.plast
+    else
+      self.pfirst = [x,self.pfirst]
+    end
+  end,
+
+  function shift
+    if self.pfirst is null
+      raise empty_error("shift()")
+    else
+      value = self.pfirst[0]
+      self.pfirst = self.pfirst[1]
+      return value
+    end
+  end,
+  
+  function first
+    if self.pfirst is null
+      raise empty_error("first()")
+    else
+      return self.pfirst[0]
+    end
+  end,
+
+  function rest
+    if self.pfirst is null
+      raise empty_error("rest()")
+    else
+      return table LinkedList{
+        pfirst = self.pfirst[1],
+        plast = self.plast
+      }
+    end
+  end
+}
+</pre>
+
+
+
+</body>
+</html>
+

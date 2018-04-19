@@ -1,5 +1,6 @@
 
 
+
 function permutations(a)
   a = list(a)
   return fn*||
@@ -15,5 +16,58 @@ function permutations(a)
     end
   end
 end
+
+
+function accumulate(a,f,g=null)
+  if g is null
+    i = iter(a)
+    return fn*||
+      y = i()
+      yield y
+      for x in i
+        y = f(y,x)
+        yield y
+      end
+    end
+  else
+    y = f
+    f = g    
+    return fn*||
+      yield y
+      for x in a
+        y = f(y,x)
+        yield y
+      end
+    end
+  end
+end
+
+
+function chain(*argv)
+  return fn*||
+    for a in argv
+      for x in a
+        yield x
+      end
+    end
+  end
+end
+
+function repeat(x,n=null)
+  if n is null
+    return fn*||
+      while true
+        yield x
+      end
+    end
+  else
+    return fn*||
+      for i in n
+        yield x
+      end
+    end
+  end
+end
+
 
 

@@ -3548,7 +3548,7 @@ fn compile_ast(&mut self, bv: &mut Vec<u32>, t: &Rc<AST>)
         }else if value == Symbol::Yield {
             if !self.coroutine {
                 return Err(self.syntax_error(t.line,t.col,&format!(
-                    "yield is only valid in sub*."
+                    "yield is only valid in fn*."
                 )));
             }
             let a = ast_argv(t);

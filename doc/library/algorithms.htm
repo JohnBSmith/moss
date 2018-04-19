@@ -25,8 +25,20 @@
 <p>Functions that create iterators.
 
 <dl class="code">
+<dt>chain(*iterables)
+<dd>Lazy evaluation of <code>iter(iterables.sum(list))</code>.
+<pre class="moss">
+&gt; chain(1..2,1..4).list()
+[1, 2, 1, 2, 3, 4]
+</pre>
+
 <dt>permutations(a)
-<dd>An iterator over all permutations of <code>a</code>
+<dd>Return an iterator over all permutations of <code>a</code>.
+
+<dt>repeat(x), repeat(x,n)
+<dd>Return an iterator that returns <code>x</code> over and over
+again. If <code>n</code> is given, the iterator will be exhausted
+after <code>n</code> calls.
 </dl>
 
 <h2 id="functional">Module functional</h2>

@@ -73,6 +73,10 @@ fn int_range_iterator(mut a: i32, b: i32, d: i32) -> MutableFn {
     })
 }
 
+fn not_iterable(env: &mut Env) -> FnResult {
+   env.type_error("Type error in iter(x): x is not iterable.")
+}
+
 pub fn iter(env: &mut Env, x: &Object) -> FnResult {
     match *x {
         Object::Int(n) => {
@@ -164,7 +168,15 @@ pub fn iter(env: &mut Env, x: &Object) -> FnResult {
             });
             Ok(new_iterator(f))
         },
-        _ => env.type_error("Type error in iter(x): x is not iterable.")
+        Object::Table(ref x) => {
+            match x.get(&env.rte().key_iter) {
+                Some(ref iter) => {
+                    env.call(iter,&Object::Table(x.clone()),&[])
+                },
+                None => not_iterable(env)
+            }
+        },
+        _ => not_iterable(env)
     }
 }
 

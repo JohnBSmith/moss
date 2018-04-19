@@ -3404,6 +3404,7 @@ pub struct RTE{
     pub compiler_config: RefCell<Option<Box<CompilerExtra>>>,
 
     pub key_string: Object,
+    pub key_iter: Object,
     pub key_neg: Object,
     pub key_plus: Object,
     pub key_rplus: Object,
@@ -3456,6 +3457,7 @@ impl RTE{
             compiler_config: RefCell::new(None),
 
             key_string: U32String::new_object_str("string"),
+            key_iter:   U32String::new_object_str("iter"),
             key_neg:    U32String::new_object_str("neg"),
             key_plus:   U32String::new_object_str("plus"),
             key_rplus:  U32String::new_object_str("rplus"),
