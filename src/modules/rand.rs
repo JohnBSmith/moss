@@ -45,5 +45,9 @@ impl Rand{
         let m = (b-a+1) as u32;
         return a+(self.rand()%m) as i32;
     }
+
+    pub fn rand_float(&mut self) -> f64 {
+        (self.rand() as f64)/(<u32>::max_value() as f64)
+    }
 }
 

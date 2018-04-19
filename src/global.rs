@@ -527,35 +527,49 @@ fn copy(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     }
 }
 
+fn rand_float(env: &mut Env) -> FnResult {
+    let seed = env.rte().seed_rng.borrow_mut().rand();
+    let mut rng = Rand::new(seed);
+    let f = Box::new(move |env: &mut Env, pself: &Object, argv: &[Object]| -> FnResult {
+        Ok(Object::Float(rng.rand_float()))
+    });
+    return Ok(Function::mutable(f,0,0));
+}
+
+fn rand_range(env: &mut Env, r: &Range) -> FnResult {
+    let a = match r.a {
+        Object::Int(x)=>x,
+        _ => return env.type_error1(
+            "Type error in rand(a..b): a is not an integer.",
+            "a",&r.a)
+    };
+    let b = match r.b {
+        Object::Int(x)=>x,
+        _ => return env.type_error1(
+            "Type error in rand(a..b): b is not an integer.",
+            "b",&r.b)
+    };
+    let seed = env.rte().seed_rng.borrow_mut().rand();
+    let mut rng = Rand::new(seed);
+    let f = Box::new(move |env: &mut Env, pself: &Object, argv: &[Object]| -> FnResult {
+        Ok(Object::Int(rng.rand_range(a,b)))
+    });
+    return Ok(Function::mutable(f,0,0));
+}
+
 fn frand(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
-    if argv.len()==1 {
-        match argv[0] {
-            Object::Range(ref r) => {
-                let a = match r.a {
-                    Object::Int(x)=>x,
-                    _ => return env.type_error1(
-                        "Type error in rand(a..b): a is not an integer.",
-                        "a",&r.a)
-                };
-                let b = match r.b {
-                    Object::Int(x)=>x,
-                    _ => return env.type_error1(
-                        "Type error in rand(a..b): b is not an integer.",
-                        "b",&r.b)
-                };
-                let seed = env.rte().seed_rng.borrow_mut().rand();
-                let mut rng = Rand::new(seed);
-                let f = Box::new(move |env: &mut Env, pself: &Object, argv: &[Object]| -> FnResult {
-                    Ok(Object::Int(rng.rand_range(a,b)))
-                });
-                return Ok(Function::mutable(f,0,0));
-            },
-            _ => return env.type_error1(
-                "Type error in rand(r): r is not a range.",
-                "r",&argv[0])
-        }
-    }else{
-        return env.argc_error(argv.len(),1,1,"rand");
+    match argv.len() {
+        0 => rand_float(env),
+        1 => {
+            match argv[0] {
+                Object::Range(ref r) => rand_range(env,r),
+                ref x => env.type_error1(
+                    "Type error in rand(r): r is not a range.",
+                    "r",x
+                )
+            }
+        },
+        n => env.argc_error(n,1,1,"rand")
     }
 }
 

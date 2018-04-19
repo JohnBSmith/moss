@@ -4,6 +4,12 @@ global system
 
 use math: isnan, isinf
 
+color_table = [
+  "002080",
+  "006000",
+  "800060"
+]
+
 function fstr(x)
   str(x,"f",2)
 end
@@ -18,12 +24,30 @@ function vline(s,x)
     [x].map(fstr))
 end
 
-function path(s,a)
-  mx = 5/s.wx
-  my = 5/s.wy
-  s.a.push('<polyline fill="none" stroke="#202080" stroke-width="0.06"\npoints="{}"/>\n' % [a.map(|[x,y]| 
-    [fstr(5+x*mx),5].join(",") if isnan(y) or isinf(y) else [fstr(5+x*mx),fstr(5-y*my)].join(",")
-  ).join(" ")])
+function path(s,a,color)
+  mx = 5/s.wx; px = s.px
+  my = 5/s.wy; py = s.py
+  s.a.push('<polyline fill="none" stroke="#{}" stroke-width="0.06"\npoints="{}"/>\n' % [
+    color,
+    a.map(|[x,y]|
+      [fstr(5+(x-px)*mx),5].join(",") if isnan(y) or isinf(y) else
+      [fstr(5+(x-px)*mx),fstr(5-(y-py)*my)].join(",")
+    ).join(" ")
+  ])
+end
+
+function getfx(s)
+  mx = 5/s.wx; px = s.px
+  return |x| fstr(5+(x-px)*mx)
+end
+
+function getfy(s)
+  my = 5/s.wy; py = s.py
+  return |y| fstr(5-(y-py)*my)
+end
+
+function scatter_circle(s,fx,fy,x,y,color)
+  s.a.push('<circle cx="{}" cy="{}" r="0.12" fill="#{}"/>\n' % [fx(x),fy(y),color])
 end
 
 head = """\
@@ -52,9 +76,9 @@ defs = """\
 
 function to_s(x)
   if x<0
-    return "\u{2212}"+str(abs(x))
+    return "\x{2212}"+str(abs(x),"f",0)
   else
-    return str(x)
+    return str(x,"f",0)
   end
 end
 
@@ -63,22 +87,25 @@ function text(s,x,y,txt)
 end
 
 function scale(s)
+  wx = s.wx; px = s.px
+  wy = s.wy; py = s.py
+
   x_adjust = 5.2
   y_adjust = 5.5
   for x in 1..4
-    text(s,x_adjust+x,y_adjust,to_s(x))
+    text(s,x_adjust+x,y_adjust,to_s(px+x*wx/5))
   end
   for x in -4..-1
-    text(s,x_adjust+x,y_adjust,to_s(x))
+    text(s,x_adjust+x,y_adjust,to_s(px+x*wx/5))
   end
 
   x_adjust = 4.86
   y_adjust = 5.1
   for y in 1..4
-    text(s,x_adjust,y_adjust-y,to_s(y))
+    text(s,x_adjust,y_adjust-y,to_s(py+y*wy/5))
   end
   for y in -4..-1
-    text(s,x_adjust,y_adjust-y,to_s(y))    
+    text(s,x_adjust,y_adjust-y,to_s(py+y*wy/5))
   end
 end
 
@@ -109,15 +136,32 @@ Graphics = table{
     self.a.push('<line x1="{}" y1="{}" x2="{}" y2="{}" stroke="black" stroke-width="0.1"/>\n' %
       [5+mx*x1,5-my*y1,5+mx*x2,5-my*y2].map(fstr))
   end,
-  
+
   function plot(f)
-    a = list(-self.wx..self.wx: 1/self.n)
+    px = self.px
+    py = self.py
+    a = list(px-self.wx..px+self.wx: 1/self.n)
     if f: List
       for fk in f
-        path(self,a.map(|x| [x,fk(x)]))
+        color = self.color_it()
+        path(self,a.map(|x| [x,fk(x)]),color)
       end
     else
-      path(self,a.map(|x| [x,f(x)]))
+      color = self.color_it()
+      path(self,a.map(|x| [x,f(x)]),color)
+    end
+  end,
+  
+  function scatter(a,m = null)
+    fx = getfx(self)
+    fy = getfy(self)
+    if m is null
+      color = "8080a0"
+    else
+      {color = "8080a0"} = m
+    end
+    for x,y in a
+      scatter_circle(self,fx,fy,x,y,color)
     end
   end,
 
@@ -127,8 +171,13 @@ Graphics = table{
 }
 
 function system(d={})
-  {w=400, h=400, wx=5, wy=5, n=10} = d
-  s = table Graphics{a=[], w=w, h=h, wx=wx, wy=wy, defs="", n=n}
+  {w=400, h=400, wx=5, wy=5, px=0, py=0, n=10} = d
+  s = table Graphics{
+    a=[], w=w, h=h,
+    wx=wx, wy=wy, px=px, py=py,
+    defs="", n=n,
+    color_it = cycle(color_table)
+  }
   grid(s)
   axes(s)
   return s

@@ -1,7 +1,6 @@
 
 = TODO LIST =
 == Interpreter kernel ==
-* iter(x) (x: a table object) as x.iter()
 * tracebacks
 * in a coroutine let all exit paths
   perform a loop as "yield; return empty"

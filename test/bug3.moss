@@ -1,0 +1,8 @@
+
+# unexpected token: else
+
+f(||
+  1 if true
+  else 2
+)
+

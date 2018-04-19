@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Sudoku</title>
+  <link href="../css/main.css" rel="stylesheet">
+  <script src = "../js/moss-syntax.js">
+  </script>
+</head>
+<body>
+
+<table class="navigation">
+<tr><td><b>&uarr;</b> <a href="toc.htm">Up</a>
+</table>
+<h2>Sudoku</h2>
+
+<pre class="moss">
+# A sudoku solver for simple sudokus and
+# a backtracking solver for harder ones.
+
+function string_to_list(s)
+  k = 0; a = []; b = []
+  for c in s
+    if c.isdigit()
+      k+=1; a.push(int(c))
+    elif c=='.'
+      k+=1; a.push(0)
+    end
+    if k==9
+      k = 0; b.push(a)
+      a = []
+    end
+  end
+  return b
+end
+
+function list_to_string(a)
+  a.map(fn|x|
+    x.chunks(3).list().map(fn|y|
+      y.map(|d| '.' if d==0 else str(d)).join()
+    end).join("|")
+  end).chunks(3).list().map(fn|y|
+    y.join("\n")
+  end).join("\n---+---+---\n")
+end
+
+function row_set(a,i)
+  set(a[i].filter(|x| x!=0))
+end
+
+function col_set(a,j)
+  set(list(0..8).map(|i| a[i][j]).filter(|x| x!=0))
+end
+
+function box_set(a,i,j)
+  i=(i//3)*3; j=(j//3)*3
+  set(list(0..2).map(fn|x|
+    list(0..2).map(|y| a[i+x][j+y])
+  end).chain().filter(|x| x!=0))
+end
+
+function step(a)
+  for i in 0..8
+    for j in 0..8
+      if a[i][j]==0
+        M = set(1..9)-(row_set(a,i)|col_set(a,j)|box_set(a,i,j))
+        if size(M)==1
+          a[i][j]=list(M)[0]
+          return true
+        end
+      end
+    end
+  end
+  return false
+end
+
+function solve(a)
+  t=true
+  while t
+    t=step(a)
+  end
+end
+
+
+# Backtracking 
+
+function bsolve(a)
+  for i in 0..8
+    for j in 0..8
+      if a[i][j]==0
+        M = set(1..9)-(row_set(a,i)|col_set(a,j)|box_set(a,i,j))
+        s = []
+        for x in M
+          b = a.map(copy)
+          b[i][j] = x
+          s.append(bsolve(b))
+        end
+        return s
+      end
+    end
+  end
+  return a.map(copy)
+end
+
+function main(s)
+  a = string_to_list(s)
+  solve(a)
+  print(list_to_string(a),"\n")
+end
+
+function bmain(s)
+  a = bsolve(string_to_list(s))
+  print(list_to_string(a),"\n")
+end
+
+s1 = """
+..3|..9|6..
+4..|..2|..3
+862|153|.9.
+---+---+---
+5.7|2.6|.3.
+.3.|5..|...
+6.9|.7.|.51
+---+---+---
+.2.|4.8|..7
+.4.|.3.|.2.
+3..|.25|148
+"""
+
+main(s1)
+bmain(s1)
+</pre>
+
+</body>
+</html>
+
