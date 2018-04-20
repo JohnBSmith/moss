@@ -50,6 +50,15 @@ after <code>n</code> calls.
 <pre class="moss">
 fib = fix(|f,n| 1 if n==1 or n==2 else f(n-1)+f(n-2))
 </pre>
+
+<dt>lazy(|| expression)
+<dd>Create a new lazily evaluated expression. Evaluation of a
+such an expression <code>x</code> is done by <code>x.value()</code>.
+The expression is evaluated only once, the result then memoized for
+subsequent calls.
+
+<dt>Lazy
+<dd>Data type of lazily evaluated expressions.
 </dl>
 
 </body>

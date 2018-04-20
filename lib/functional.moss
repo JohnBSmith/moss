@@ -8,5 +8,23 @@ function fix(F)
   end
 end
 
+Lazy = table(Type,null,"Lazy"){
+  function string
+    "lazy expression"
+  end,
+  function value
+    if self.x is null
+      x = self.f()
+      self.x = x
+      return x
+    else
+      return self.x
+    end
+  end
+}
+
+function lazy(f)
+  return table Lazy{f=f,x=null}
+end
 
 

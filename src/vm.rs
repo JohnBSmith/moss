@@ -23,6 +23,7 @@ use format::u32string_format;
 use global::type_name;
 use rand::Rand;
 use list::cartesian_power;
+use iterable::iter;
 
 // use ::Interpreter;
 use system;
@@ -2837,6 +2838,33 @@ fn operator_index(env: &mut EnvPart, argc: usize,
     }
 }
 
+fn slice_assignment(env: &mut Env, a: &mut List, r: &Range, b: &Object) -> FnResult {
+    let it = &try!(iter(env,b));
+    let n = a.v.len();
+    let start = match r.a {
+        Object::Int(x) => if x<0 {
+            let index = x as isize+n as isize;
+            if index<0 {0} else {index as usize}
+        } else {x as usize},
+        Object::Null => 0,
+        _ => return env.type_error("Type error in a[i..j] = b: i is not an integer.")
+    };
+    let end = match r.b {
+        Object::Int(x) => if x<0 {
+            let index = x as isize+n as isize;
+            if index<0 {0} else {index as usize}
+        } else {x as usize},
+        Object::Null => n-1,
+        _ => return env.type_error("Type error in a[i..j] = b: j is not an integer.")
+    };
+    for x in &mut a.v[start..end+1] {
+        let y = try!(env.call(it,&Object::Null,&[]));
+        if let Object::Empty = y {break;}
+        *x = y;
+    }
+    return Ok(Object::Null);
+}
+
 fn index_assignment(env: &mut EnvPart, argc: usize,
     sp: usize, stack: &mut [Object]
 ) -> OperatorResult
@@ -2863,7 +2891,7 @@ fn index_assignment(env: &mut EnvPart, argc: usize,
     }
     match stack[sp-2].clone() {
         Object::List(a) => {
-            match stack[sp-1] {
+            match replace(&mut stack[sp-1],Object::Null) {
                 Object::Int(i) => {
                     let mut a = a.borrow_mut();
                     if a.frozen {
@@ -2893,6 +2921,16 @@ fn index_assignment(env: &mut EnvPart, argc: usize,
                         }
                     }
                     Ok(())          
+                },
+                Object::Range(r) => {
+                    let b = replace(&mut stack[sp-3],Object::Null);
+                    match slice_assignment(
+                      &mut Env{env,sp,stack},
+                      &mut a.borrow_mut(),&r,&b
+                    ) {
+                        Ok(_) => Ok(()),
+                        Err(e) => Err(e)
+                    }
                 },
                 _ => Err(env.type_error_plain("Type error in a[i]=value: i is not an integer."))
             }

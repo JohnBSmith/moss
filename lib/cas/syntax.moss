@@ -1,0 +1,150 @@
+
+
+SyntaxError = table{}
+
+function syntax_error(s)
+  return table SyntaxError{value=s}
+end
+
+Symbol = table(Type,null,"Symbol"){}
+Id = table(Type,null,"Id"){}
+
+function scan(s)
+  a = []
+  n = size(s)
+  i = 0
+  line = 0
+  col = 0
+  while i<n
+    if s[i] in "+-*/^(){}[];,"
+      a.push([Symbol,s[i],line,col])
+      i+=1; col+=1
+    elif s[i].isalpha()
+      j = i; hcol=col
+      while i<n and s[i].isalnum()
+        i+=1; col+=1
+      end
+      a.push([Id,s[j..i-1],line,hcol])
+    elif s[i].isdigit()
+      j = i; hcol=col
+      while i<n and s[i].isdigit()
+        i+=1; col+=1
+      end
+      a.push([Int,int(s[j..i-1]),line,hcol])
+    elif s[i].isspace()
+      if s[i]=='\n'
+        line+=1
+        col=0
+      else
+        col+=1
+      end
+      i+=1
+    else
+      raise syntax_error(
+        "unexpected character: '{}'"%[s[i]])
+    end
+  end
+  a.push([null,null,line,col])
+  return a
+end
+
+function expect(a,i)
+  if a[i][0] is null
+    raise syntax_error("unexpected end of input")
+  else
+    return a[i]
+  end
+end
+
+function atom(a,i)
+  t = expect(a,i)
+  if t[0] is Int
+    return i+1,t[1]
+  elif t[0] is Id
+    return i+1,t[1]
+  elif t[0] is Symbol and t[1]=="("
+    i,x = expression(a,i+1)
+    te = expect(a,i)
+    if not (te[0] is Symbol and te[1]==")")
+      raise syntax_error(
+        "expected ')', but got '{}'"%[a[i]])
+    end
+    return i+1,x
+  else
+    raise syntax_error(
+      "unexpected symbol: '{}'"%[a[i]])
+  end
+end
+
+
+function power(a,i)
+  i,x = atom(a,i)
+  t = a[i]
+  if t[0] is Symbol and t[1]=="^"
+    i,y = negation(a,i+1)
+    return i,["^",x,y]
+  else
+    return i,x
+  end
+end
+
+function negation(a,i)
+  t = a[i]
+  if t[0] is Symbol and t[1]=="-"
+    i,x = power(a,i+1)
+    return i,["~",x]
+  else
+    return power(a,i)
+  end
+end
+
+function multiplication(a,i)
+  i,x = negation(a,i)
+  op = a[i]
+  while op[0] is Symbol and op[1]=="*" or op[1]=="/"
+    i,y = negation(a,i+1)
+    x = [op[1],x,y]
+    op = a[i]
+  end
+  return i,x
+end
+
+function addition(a,i)
+  i,x = multiplication(a,i)
+  op = a[i]
+  while op[0] is Symbol and op[1]=="+" or op[1]=="-"
+    i,y = multiplication(a,i+1)
+    x = [op[1],x,y]
+    op = a[i]
+  end
+  return i,x
+end
+
+function expression(a,i)
+  return addition(a,i)
+end
+
+function ast(a)
+  i,x = addition(a,0)
+  t = a[i]
+  if t[0] is null
+    return x
+  else
+    raise syntax_error(
+      "unexpected symbol: '{}'"%[a[i]])
+  end
+end
+
+while true
+  s = input("> ")
+  try
+    a = scan(s)
+    print(ast(a))
+  catch e if e: SyntaxError
+    print("Syntax error: ", e.value, ".")
+  end
+end
+
+
+
+

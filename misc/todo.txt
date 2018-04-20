@@ -18,8 +18,7 @@
 == Library ==
 * reverse iterator
 * iterator: tee
-* reverse slice for lists
-* rotate slice for lists
+* rotate a list
 * regular expressions
 * graphics
 

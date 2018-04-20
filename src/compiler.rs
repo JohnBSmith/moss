@@ -779,6 +779,24 @@ pub struct JmpInfo{
     breaks: Vec<usize>
 }
 
+pub struct Pool{
+    stab: HashMap<String,usize>,
+    stab_index: usize,
+    data: Vec<Object>
+}
+
+impl Pool{
+    fn get_index(&mut self, key: &str) -> usize {
+        if let Some(index) = self.stab.get(key) {
+            return *index;
+        }
+        self.data.push(U32String::new_object_str(key));
+        self.stab.insert(String::from(key),self.stab_index);
+        self.stab_index+=1;
+        return self.stab_index-1;
+    }
+}
+
 pub struct Compilation<'a>{
     mode_cmd: bool,
     syntax_nesting: usize,
@@ -786,9 +804,7 @@ pub struct Compilation<'a>{
     statement: bool,
     history: &'a mut system::History,
     file: &'a str,
-    stab: HashMap<String,usize>,
-    stab_index: usize,
-    data: Vec<Object>,
+    pool: Pool,
     bv_blocks: Vec<u32>,
     fn_indices: Vec<usize>,
     vtab: VarTab,
@@ -1408,14 +1424,22 @@ fn atom(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error> {
         i.index+=1;
     }else if t.value==Symbol::BLeft {
         i.index+=1;
+        self.parens+=1;
+        self.syntax_nesting+=1;
         let x = try!(self.list_literal(i));
+        self.syntax_nesting-=1;
+        self.parens-=1;
         y = Rc::new(AST{line: t.line, col: t.col,
             symbol_type: SymbolType::Operator, value: Symbol::List,
             info: Info::None, s: None, a: Some(x)
         });
     }else if t.value==Symbol::CLeft {
         i.index+=1;
+        self.parens+=1;
+        self.syntax_nesting+=1;
         y = try!(self.map_literal(i));
+        self.syntax_nesting-=1;
+        self.parens-=1;
     }else if t.value==Symbol::Null ||
         t.value==Symbol::False || t.value==Symbol::True
     {
@@ -1448,10 +1472,18 @@ fn application_term(&mut self, i: &mut TokenIterator)
         let t = &p[i.index];
         if t.value == Symbol::PLeft {
             i.index+=1;
+            self.parens+=1;
+            self.syntax_nesting+=1;
             x = try!(self.application(i,x,Symbol::PRight));
+            self.syntax_nesting-=1;
+            self.parens-=1;
         }else if t.value == Symbol::BLeft {
             i.index+=1;
+            self.parens+=1;
+            self.syntax_nesting+=1;
             x = try!(self.application(i,x,Symbol::BRight));
+            self.syntax_nesting-=1;
+            self.parens-=1;
         }else if t.value == Symbol::Dot {
             i.index+=1;
             let p2 = try!(i.next_token(self));
@@ -2465,17 +2497,6 @@ fn compile_operator(&mut self, bv: &mut Vec<u32>,
     return Ok(());
 }
 
-fn get_index(&mut self, key: &str) -> usize{
-    if let Some(index) = self.stab.get(key) {
-        return *index;
-    }
-    self.data.push(U32String::new_object_str(key));
-    self.stab.insert(String::from(key),self.stab_index);
-    self.stab_index+=1;
-    return self.stab_index-1;
-}
-
-
 // if   c1 then a1
 // elif c2 then a2
 // elif c3 then a3
@@ -2819,14 +2840,14 @@ fn compile_fn(&mut self, bv: &mut Vec<u32>, t: &Rc<AST>)
     // The name of the function.
     match t.s {
         Some(ref s) => {
-            let index = self.get_index(s);
+            let index = self.pool.get_index(s);
             push_bc(bv,bc::STR,t.line,t.col);
             push_u32(bv,index as u32);
         },
         None => {
             push_bc(bv,bc::INT,t.line,t.col);
             push_u32(bv,((t.col as u32 & 0xffff)<<16) | (t.line as u32 & 0xffff));
-            // let index = self.get_index(&format!("({}:{})",t.line,t.col));
+            // let index = self.pool.get_index(&format!("({}:{})",t.line,t.col));
             // push_bc(bv,bc::STR,t.line,t.col);
             // push_u32(bv,index as u32);
             // push_bc(bv, bc::NULL, t.line, t.col);
@@ -3033,7 +3054,7 @@ fn compile_variable(&mut self, bv: &mut Vec<u32>, t: &AST)
                     push_u32(bv,index as u32);
                 },
                 VarType::Global => {
-                    let index = self.get_index(key);
+                    let index = self.pool.get_index(key);
                     push_bc(bv,bc::LOAD,t.line,t.col);
                     push_u32(bv,index as u32);    
                 },
@@ -3044,7 +3065,7 @@ fn compile_variable(&mut self, bv: &mut Vec<u32>, t: &AST)
             return Ok(());
         },
         None => {
-            let index = self.get_index(key);
+            let index = self.pool.get_index(key);
             push_bc(bv,bc::LOAD,t.line,t.col);
             push_u32(bv,index as u32);
             return Ok(());
@@ -3074,7 +3095,7 @@ fn compile_assignment(&mut self, bv: &mut Vec<u32>, t: &AST,
                         push_u32(bv,index as u32);
                     },
                     VarType::Global => {
-                        let index = self.get_index(key);
+                        let index = self.pool.get_index(key);
                         push_bc(bv,bc::STORE,line,col);
                         push_u32(bv,index as u32);
                     },
@@ -3108,7 +3129,7 @@ fn compile_assignment(&mut self, bv: &mut Vec<u32>, t: &AST,
             }
         }
     }else{
-        let index = self.get_index(key);
+        let index = self.pool.get_index(key);
         push_bc(bv,bc::STORE,line,col);
         push_u32(bv,index as u32);
     }
@@ -3195,7 +3216,11 @@ fn closure(&mut self, bv: &mut Vec<u32>, t: &AST){
                         push_bc(bv,bc::FNSELF,t.line,t.col);
                     },
                     VarType::Global => {
-                        unreachable!();
+                        // rare case:
+                        // fn|| global k; fn*|| k=0 end end
+                        let index = self.pool.get_index(&a[i].s);
+                        push_bc(bv,bc::LOAD,t.line,t.col);
+                        push_u32(bv,index as u32);
                     }
                 }
             }else{
@@ -3304,7 +3329,7 @@ fn compile_string(&mut self, bv: &mut Vec<u32>, t: &AST)
 {
     let s = match t.s {Some(ref x) => x, None => unreachable!()};
     let key = try!(self.string_literal(s,t.line,t.col));
-    let index = self.get_index(&key);
+    let index = self.pool.get_index(&key);
     push_bc(bv,bc::STR,t.line,t.col);
     push_u32(bv,index as u32);
     return Ok(());
@@ -3315,7 +3340,7 @@ fn compile_long(&mut self, bv: &mut Vec<u32>, t: &AST)
 {
     let s = match t.s {Some(ref x) => x, None => unreachable!()};
     let key = try!(self.string_literal(s,t.line,t.col));
-    let index = self.get_index(&key);
+    let index = self.pool.get_index(&key);
     push_bc(bv,bc::LONG,t.line,t.col);
     push_u32(bv,index as u32);
     return Ok(());
@@ -4001,8 +4026,12 @@ pub fn compile(v: Vec<Token>, mode_cmd: bool, value: Value,
     let mut compilation = Compilation{
         mode_cmd: mode_cmd,
         syntax_nesting: 0, parens: 0, statement: !mode_cmd,
-        history: history, file: id, stab: HashMap::new(),
-        stab_index: 0, data: Vec::new(), bv_blocks: Vec::new(),
+        history: history, file: id,
+        pool: Pool{
+            stab: HashMap::new(),
+            stab_index: 0, data: Vec::new()
+        },
+        bv_blocks: Vec::new(),
         fn_indices: Vec::new(), vtab: VarTab::new(None),
         function_nesting: 0, jmp_stack: Vec::new(),
         coroutine: false, for_nesting: 0, debug_mode
@@ -4020,11 +4049,11 @@ pub fn compile(v: Vec<Token>, mode_cmd: bool, value: Value,
     bv.append(&mut compilation.bv_blocks);
 
     // print_asm_listing(&bv);
-    // print_data(&compilation.data);
+    // print_data(&compilation.pool.data);
     let m = Rc::new(Module{
         // program: bv,
         program: Rc::from(bv),
-        data: compilation.data,
+        data: compilation.pool.data,
         rte: rte.clone(),
         gtab: rte.gtab.clone(),
         id: id.to_string()
