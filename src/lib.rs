@@ -30,7 +30,12 @@ mod iterable;
 #[path = "objects/string.rs"]
 mod string;
 
+#[cfg(feature = "long-gmp")]
 #[path = "objects/long-gmp.rs"]
+mod long;
+
+#[cfg(all(not(feature = "long"),not(feature = "long-gmp")))]
+#[path = "objects/long-none.rs"]
 mod long;
 
 #[path = "objects/tuple.rs"]
@@ -51,6 +56,7 @@ mod format;
 #[path = "modules/sys.rs"]
 mod sys;
 
+#[cfg(feature = "math-la")]
 #[path = "modules/la.rs"]
 mod la;
 

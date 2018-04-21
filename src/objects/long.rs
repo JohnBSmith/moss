@@ -7,10 +7,11 @@ use std::fmt;
 type Digit = u8;
 const HEX_COUNT: usize=2;
 
-struct Long{
+pub struct Long{
     v: Vec<Digit>,
     minus: bool
 }
+
 impl fmt::LowerHex for Long {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         for &x in self.v[..].iter().rev() {

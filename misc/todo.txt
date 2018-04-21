@@ -1,7 +1,6 @@
 
 = TODO LIST =
 == Interpreter kernel ==
-* dummy module for long
 * tracebacks
 * in a coroutine let all exit paths
   perform a loop as "yield; return empty"

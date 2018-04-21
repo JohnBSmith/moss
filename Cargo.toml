@@ -8,6 +8,12 @@ description = "Experimental Moss interpreter"
 homepage = "https://johnbsmith.github.io/moss/home.htm"
 repository = "https://github.com/JohnBSmith/moss"
 
+[features]
+# default = []
+default = ["long-gmp", "math-la"]
+long-gmp = []
+math-la = []
+
 [lib]
 name = "moss"
 path = "src/lib.rs"
@@ -23,6 +29,7 @@ termios = "0.2"
 
 [profile.dev]
 debug = true
+
 
 
 

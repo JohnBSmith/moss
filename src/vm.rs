@@ -632,6 +632,7 @@ fn function_id_to_string(f: &Function) -> String {
     }
 }
 
+#[allow(dead_code)]
 pub fn op_neg(env: &mut Env, x: &Object) -> FnResult {
     env.stack[env.sp] = x.clone();
     try!(::vm::operator_neg(env.env,env.sp+1,env.stack));
@@ -645,6 +646,7 @@ pub fn op_add(env: &mut Env, x: &Object, y: &Object) -> FnResult {
     return Ok(replace(&mut env.stack[env.sp],Object::Null));
 }
 
+#[allow(dead_code)]
 pub fn op_sub(env: &mut Env, x: &Object, y: &Object) -> FnResult {
     env.stack[env.sp] = x.clone();
     env.stack[env.sp+1] = y.clone();
@@ -659,6 +661,7 @@ pub fn op_mpy(env: &mut Env, x: &Object, y: &Object) -> FnResult {
     return Ok(replace(&mut env.stack[env.sp],Object::Null));
 }
 
+#[allow(dead_code)]
 pub fn op_div(env: &mut Env, x: &Object, y: &Object) -> FnResult {
     env.stack[env.sp] = x.clone();
     env.stack[env.sp+1] = y.clone();
@@ -4264,7 +4267,7 @@ fn vm_loop(
           let index = load_u32(&a,ip+BCSIZE);
           stack[sp] = match Long::to_long(&module.data[index as usize]) {
               Ok(x) => x,
-              Err(()) => panic!()
+              Err(()) => panic!("to_long")
           };
           sp+=1;
           ip+=BCASIZE;
