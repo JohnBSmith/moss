@@ -471,6 +471,7 @@ pub fn scan(s: &str, line_start: usize, file: &str, new_line_start: bool)
                         i+=2; col+=2;
                         let j=i;
                         while i+2<n && (a[i]!='"' || a[i+1]!='"' || a[i+2]!='"') {
+                            if a[i]=='\n' {line+=1; col=0;}
                             i+=1; col+=1;
                         }
                         let s: &String = &a[j..i].iter().cloned().collect();
@@ -481,7 +482,10 @@ pub fn scan(s: &str, line_start: usize, file: &str, new_line_start: bool)
                         i+=3; col+=3;
                     }else{
                         let j=i;
-                        while i<n && a[i]!='"' {i+=1; col+=1;}
+                        while i<n && a[i]!='"' {
+                            if a[i]=='\n' {line+=1; col=0;}
+                            i+=1; col+=1;
+                        }
                         let s: &String = &a[j..i].iter().cloned().collect();
                         v.push(Token{token_type: SymbolType::String,
                             value: Symbol::None, line: line, col: hcol,

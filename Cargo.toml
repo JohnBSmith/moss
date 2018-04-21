@@ -1,6 +1,6 @@
 [package]
 name = "moss"
-version = "0.0.2"
+version = "0.0.3"
 authors = ["Finn <finn.bcd@gmail.com>"]
 license = "CC0-1.0"
 
