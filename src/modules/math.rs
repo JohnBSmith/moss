@@ -4,7 +4,7 @@
 
 use std::f64::consts::{PI,E,LOG10_E};
 use std::rc::Rc;
-use complex::Complex64;
+use complex::c64;
 use object::{Object, FnResult, Function, new_module};
 use vm::Env;
 
@@ -32,23 +32,23 @@ pub fn gamma(x: f64) -> f64 {
     }
 }
 
-fn lanczos_cgamma(z: Complex64) -> Complex64 {
+fn lanczos_cgamma(z: c64) -> c64 {
     let p=[
         0.99999999999980993, 676.5203681218851, -1259.1392167224028,
         771.32342877765313, -176.61502916214059, 12.507343278686905,
         -0.13857109526572012, 9.9843695780195716e-6, 1.5056327351493116e-7
     ];
     let z = z-1.0;
-    let mut y = Complex64{re: p[0], im: 0.0};
+    let mut y = c64{re: p[0], im: 0.0};
     y=y+p[1]/(z+1.0); y=y+p[2]/(z+2.0);
     y=y+p[3]/(z+3.0); y=y+p[4]/(z+4.0);
     y=y+p[5]/(z+5.0); y=y+p[6]/(z+6.0);
     y=y+p[7]/(z+7.0); y=y+p[8]/(z+8.0);
     let t=z+7.5;
-    return (2.0*PI).sqrt()*t.pow(z+0.5)*(-t).exp()*y;
+    return (2.0*PI).sqrt()*t.powc(z+0.5)*(-t).exp()*y;
 }
 
-pub fn cgamma(z: Complex64) -> Complex64 {
+pub fn cgamma(z: c64) -> c64 {
     if z.re<0.5 {
         return PI/(PI*z).sin()/lanczos_cgamma(1.0-z);
     }else{
@@ -538,14 +538,14 @@ fn csqrt(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
         },
         Object::Float(x) => {
             if x<0.0 {
-                Ok(Object::Complex(Complex64{re: x, im: 0.0}.sqrt()))
+                Ok(Object::Complex(c64{re: x, im: 0.0}.sqrt()))
             }else{
                 Ok(Object::Float(x.sqrt()))
             }
         },
         Object::Int(x) => {
             if x<0 {
-                Ok(Object::Complex(Complex64{re: x as f64, im: 0.0}.sqrt()))
+                Ok(Object::Complex(c64{re: x as f64, im: 0.0}.sqrt()))
             }else{
                 Ok(Object::Float((x as f64).sqrt()))
             }
@@ -560,10 +560,10 @@ fn cln(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     }
     match argv[0] {
         Object::Int(x) => {
-            Ok(Object::Complex(Complex64{re: x as f64, im: 0.0}.ln()))
+            Ok(Object::Complex(c64{re: x as f64, im: 0.0}.ln()))
         },
         Object::Float(x) => {
-            Ok(Object::Complex(Complex64{re: x, im: 0.0}.ln()))
+            Ok(Object::Complex(c64{re: x, im: 0.0}.ln()))
         },
         Object::Complex(z) => {
             Ok(Object::Complex(z.ln()))
@@ -578,10 +578,10 @@ fn casin(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     }
     match argv[0] {
         Object::Int(x) => {
-            Ok(Object::Complex(Complex64{re: x as f64, im: 0.0}.asin()))
+            Ok(Object::Complex(c64{re: x as f64, im: 0.0}.asin()))
         },
         Object::Float(x) => {
-            Ok(Object::Complex(Complex64{re: x, im: 0.0}.asin()))
+            Ok(Object::Complex(c64{re: x, im: 0.0}.asin()))
         },
         Object::Complex(z) => {
             Ok(Object::Complex(z.asin()))
@@ -596,10 +596,10 @@ fn cacos(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     }
     match argv[0] {
         Object::Int(x) => {
-            Ok(Object::Complex(Complex64{re: x as f64, im: 0.0}.acos()))
+            Ok(Object::Complex(c64{re: x as f64, im: 0.0}.acos()))
         },
         Object::Float(x) => {
-            Ok(Object::Complex(Complex64{re: x, im: 0.0}.acos()))
+            Ok(Object::Complex(c64{re: x, im: 0.0}.acos()))
         },
         Object::Complex(z) => {
             Ok(Object::Complex(z.acos()))
@@ -614,10 +614,10 @@ fn catan(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     }
     match argv[0] {
         Object::Int(x) => {
-            Ok(Object::Complex(Complex64{re: x as f64, im: 0.0}.atan()))
+            Ok(Object::Complex(c64{re: x as f64, im: 0.0}.atan()))
         },
         Object::Float(x) => {
-            Ok(Object::Complex(Complex64{re: x, im: 0.0}.atan()))
+            Ok(Object::Complex(c64{re: x, im: 0.0}.atan()))
         },
         Object::Complex(z) => {
             Ok(Object::Complex(z.atan()))
@@ -632,10 +632,10 @@ fn casinh(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     }
     match argv[0] {
         Object::Int(x) => {
-            Ok(Object::Complex(Complex64{re: x as f64, im: 0.0}.asinh()))
+            Ok(Object::Complex(c64{re: x as f64, im: 0.0}.asinh()))
         },
         Object::Float(x) => {
-            Ok(Object::Complex(Complex64{re: x, im: 0.0}.asinh()))
+            Ok(Object::Complex(c64{re: x, im: 0.0}.asinh()))
         },
         Object::Complex(z) => {
             Ok(Object::Complex(z.asinh()))
@@ -650,10 +650,10 @@ fn cacosh(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     }
     match argv[0] {
         Object::Int(x) => {
-            Ok(Object::Complex(Complex64{re: x as f64, im: 0.0}.acosh()))
+            Ok(Object::Complex(c64{re: x as f64, im: 0.0}.acosh()))
         },
         Object::Float(x) => {
-            Ok(Object::Complex(Complex64{re: x, im: 0.0}.acosh()))
+            Ok(Object::Complex(c64{re: x, im: 0.0}.acosh()))
         },
         Object::Complex(z) => {
             Ok(Object::Complex(z.acosh()))
@@ -668,10 +668,10 @@ fn catanh(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     }
     match argv[0] {
         Object::Int(x) => {
-            Ok(Object::Complex(Complex64{re: x as f64, im: 0.0}.atanh()))
+            Ok(Object::Complex(c64{re: x as f64, im: 0.0}.atanh()))
         },
         Object::Float(x) => {
-            Ok(Object::Complex(Complex64{re: x, im: 0.0}.atanh()))
+            Ok(Object::Complex(c64{re: x, im: 0.0}.atanh()))
         },
         Object::Complex(z) => {
             Ok(Object::Complex(z.atanh()))

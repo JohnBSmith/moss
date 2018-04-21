@@ -1632,7 +1632,7 @@ fn operator_pow(env: &mut EnvPart, sp: usize, stack: &mut [Object])
                     Ok(())
                 },
                 Object::Complex(y) => {
-                    stack[sp-2] = Object::Complex(y.expa(x as f64));
+                    stack[sp-2] = Object::Complex(y.expf(x as f64));
                     Ok(())
                 },
                 _ => {break 'r;}
@@ -1654,7 +1654,7 @@ fn operator_pow(env: &mut EnvPart, sp: usize, stack: &mut [Object])
                     Ok(())
                 },
                 Object::Complex(y) => {
-                    stack[sp-2] = Object::Complex(y.expa(x));
+                    stack[sp-2] = Object::Complex(y.expf(x));
                     Ok(())
                 },
                 _ => {break 'r;}
@@ -1671,7 +1671,7 @@ fn operator_pow(env: &mut EnvPart, sp: usize, stack: &mut [Object])
                     Ok(())
                 },
                 Object::Complex(y) => {
-                    stack[sp-2] = Object::Complex(x.pow(y));
+                    stack[sp-2] = Object::Complex(x.powc(y));
                     Ok(())
                 },
                 _ => {break 'r;}

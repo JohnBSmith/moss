@@ -7,228 +7,234 @@ pub struct Complex64{
     pub im: f64
 }
 
-impl Add for Complex64{
-    type Output = Complex64;
-    fn add(self, b: Complex64) -> Complex64{
-        Complex64{re: self.re+b.re, im: self.im+b.im}
+#[allow(non_camel_case_types)]
+pub type c64 = Complex64;
+
+impl Add for c64 {
+    type Output = c64;
+    fn add(self, b: c64) -> c64 {
+        c64{re: self.re+b.re, im: self.im+b.im}
     }
 }
 
-impl Add<f64> for Complex64{
-    type Output = Complex64;
-    fn add(self, b: f64) -> Complex64{
-        Complex64{re: self.re+b, im: self.im}
+impl Add<f64> for c64 {
+    type Output = c64;
+    fn add(self, b: f64) -> c64 {
+        c64{re: self.re+b, im: self.im}
     }
 }
 
-impl Add<Complex64> for f64{
-    type Output = Complex64;
-    fn add(self, b: Complex64) -> Complex64{
-        Complex64{re: self+b.re, im: b.im}
+impl Add<c64> for f64 {
+    type Output = c64;
+    fn add(self, b: c64) -> c64 {
+        c64{re: self+b.re, im: b.im}
     }
 }
 
-impl Sub for Complex64{
-    type Output = Complex64;
-    fn sub(self, b: Complex64) -> Complex64{
-        Complex64{re: self.re-b.re, im: self.im-b.im}
+impl Sub for c64 {
+    type Output = c64;
+    fn sub(self, b: c64) -> c64 {
+        c64{re: self.re-b.re, im: self.im-b.im}
     }
 }
 
-impl Sub<f64> for Complex64{
-    type Output = Complex64;
-    fn sub(self, b: f64) -> Complex64{
-        Complex64{re: self.re-b, im: self.im}
+impl Sub<f64> for c64 {
+    type Output = c64;
+    fn sub(self, b: f64) -> c64 {
+        c64{re: self.re-b, im: self.im}
     }
 }
 
-impl Sub<Complex64> for f64{
-    type Output = Complex64;
-    fn sub(self, b: Complex64) -> Complex64{
-        Complex64{re: self-b.re, im: -b.im}
+impl Sub<c64> for f64 {
+    type Output = c64;
+    fn sub(self, b: c64) -> c64 {
+        c64{re: self-b.re, im: -b.im}
     }
 }
 
-impl Mul<Complex64> for f64{
-    type Output = Complex64;
-    fn mul(self, b: Complex64) -> Complex64{
-        Complex64{re: self*b.re, im: self*b.im}
+impl Mul<c64> for f64 {
+    type Output = c64;
+    fn mul(self, b: c64) -> c64 {
+        c64{re: self*b.re, im: self*b.im}
     }
 }
 
-impl Mul for Complex64{
-    type Output = Complex64;
-    fn mul(self, b: Complex64) -> Complex64{
-        Complex64{
+impl Mul for c64 {
+    type Output = c64;
+    fn mul(self, b: c64) -> c64 {
+        c64{
             re: self.re*b.re-self.im*b.im,
             im: self.re*b.im+self.im*b.re
         }
     }
 }
 
-impl Div<Complex64> for f64{
-    type Output = Complex64;
-    fn div(self, b: Complex64) -> Complex64{
+impl Div<c64> for f64 {
+    type Output = c64;
+    fn div(self, b: c64) -> c64 {
         let r2 = b.re*b.re+b.im*b.im;
-        Complex64{re: self*b.re/r2, im: -self*b.im/r2}
+        c64{re: self*b.re/r2, im: -self*b.im/r2}
     }
 }
 
-impl Div for Complex64{
-    type Output = Complex64;
-    fn div(self, b: Complex64) -> Complex64{
+impl Div for c64 {
+    type Output = c64;
+    fn div(self, b: c64) -> c64 {
         let r2 = b.re*b.re+b.im*b.im;
-        Complex64{
+        c64{
             re: (self.re*b.re+self.im*b.im)/r2,
             im: (self.im*b.re-self.re*b.im)/r2
         }
     }
 }
 
-impl Div<f64> for Complex64{
-    type Output = Complex64;
-    fn div(self, b: f64) -> Complex64{
-        Complex64{re: self.re/b, im: self.im/b}
+impl Div<f64> for c64 {
+    type Output = c64;
+    fn div(self, b: f64) -> c64 {
+        c64{re: self.re/b, im: self.im/b}
     }
 }
 
-impl Neg for Complex64{
-    type Output = Complex64;
-    fn neg(self) -> Complex64{
-        Complex64{re: -self.re, im: -self.im}
+impl Neg for c64 {
+    type Output = c64;
+    fn neg(self) -> c64 {
+        c64{re: -self.re, im: -self.im}
     }
 }
 
-impl Complex64{
-    pub fn conj(self) -> Complex64{
-        Complex64{re: self.re, im: -self.im}
+impl c64 {
+    pub fn conj(self) -> c64 {
+        c64{re: self.re, im: -self.im}
     }
-    pub fn abs(self) -> f64{
+    pub fn abs(self) -> f64 {
         self.re.hypot(self.im)
     }
-    pub fn abs_square(self) -> f64{
+    pub fn abs_square(self) -> f64 {
         self.re*self.re+self.im*self.im
     }
-    pub fn arg(self) -> f64{
+    pub fn arg(self) -> f64 {
         self.im.atan2(self.re)
     }
-    pub fn to_polar(self) -> (f64,f64){
+    pub fn to_polar(self) -> (f64,f64) {
         (self.re.hypot(self.im), self.im.atan2(self.re))
     }
-    pub fn from_polar(r: f64, phi: f64) -> Complex64{
-        Complex64{re: r*phi.cos(), im: r*phi.sin()}
+    pub fn from_polar(r: f64, phi: f64) -> c64 {
+        c64{re: r*phi.cos(), im: r*phi.sin()}
     }
-    pub fn exp(self) -> Complex64{
+    pub fn exp(self) -> c64 {
         let r = self.re.exp();
-        Complex64{re: r*self.im.cos(), im: r*self.im.sin()}
+        c64{re: r*self.im.cos(), im: r*self.im.sin()}
     }
-    pub fn ln(self) -> Complex64{
+    pub fn ln(self) -> c64 {
         let (r,phi) = self.to_polar();
-        Complex64{re: r.ln(), im: phi}
+        c64{re: r.ln(), im: phi}
     }
-    pub fn sqrt(self) -> Complex64{
+    pub fn sqrt(self) -> c64 {
         let (r,phi) = self.to_polar();
-        Complex64::from_polar(r.sqrt(),0.5*phi)
+        c64::from_polar(r.sqrt(),0.5*phi)
     }
-    pub fn powf(self, a: f64) -> Complex64{
+    pub fn powf(self, a: f64) -> c64 {
         let (r,phi) = self.to_polar();
-        Complex64::from_polar(r.powf(a), phi*a)
+        c64::from_polar(r.powf(a), phi*a)
     }
-    pub fn pow(self, w: Complex64) -> Complex64{
+    pub fn powc(self, w: c64) -> c64 {
         let (r,phi) = self.to_polar();
         let lnr = r.ln();
-        Complex64::from_polar((w.re*lnr-phi*w.im).exp(),phi+w.im*lnr)
+        c64::from_polar(
+            (w.re*lnr-phi*w.im).exp(),
+            w.re*phi+w.im*lnr
+        )
     }
-    pub fn expa(self, base: f64) -> Complex64{
-        Complex64::from_polar(base.powf(self.re), base.ln()+self.im)
+    pub fn expf(self, base: f64) -> c64 {
+        c64::from_polar(base.powf(self.re), self.im*base.ln())
     }
 
     // sin(a+bi) = sin(a)cosh(b) + i*cos(a)sinh(b)
-    pub fn sin(self) -> Complex64{
-        Complex64{
+    pub fn sin(self) -> c64 {
+        c64{
             re: self.re.sin() * self.im.cosh(),
             im: self.re.cos() * self.im.sinh()
         }
     }
 
     // cos(a+bi) = cos(a)cosh(b) - i*sin(a)sinh(b)
-    pub fn cos(self) -> Complex64{
-        Complex64{
+    pub fn cos(self) -> c64 {
+        c64{
             re:  self.re.cos() * self.im.cosh(),
             im: -self.re.sin() * self.im.sinh()
         }
     }
 
     // tan(a+bi) = (sin(2a) + i*sinh(2b))/(cos(2a) + cosh(2b))
-    pub fn tan(self) -> Complex64{
+    pub fn tan(self) -> c64 {
         let x = 2.0*self.re;
         let y = 2.0*self.im;
         let r = 1.0/(x.cos()+y.cosh());
-        Complex64{re: r*x.sin(), im: r*y.sinh()}
+        c64{re: r*x.sin(), im: r*y.sinh()}
     }
 
-    pub fn cot(self) -> Complex64{
+    pub fn cot(self) -> c64 {
         1.0/self.tan()
     }
 
     // sinh(a+bi) = sinh(a)cos(b) + i*cosh(a)sin(b)
-    pub fn sinh(self) -> Complex64{
-        Complex64{
+    pub fn sinh(self) -> c64 {
+        c64{
             re: self.re.sinh() * self.im.cos(),
             im: self.re.cosh() * self.im.sin()
         }
     }
 
     // cosh(a+bi) = cosh(a)cos(b) + i*sinh(a)sin(b)
-    pub fn cosh(self) -> Complex64{
-        Complex64{
+    pub fn cosh(self) -> c64 {
+        c64{
             re: self.re.cosh() * self.im.cos(),
             im: self.re.sinh() * self.im.sin()
         }
     }
 
     // tanh(a+bi) = (sinh(2a) + i*sin(2b))/(cosh(2a) + cos(2b))
-    pub fn tanh(self) -> Complex64{
+    pub fn tanh(self) -> c64 {
         let x = 2.0*self.re;
         let y = 2.0*self.im;
         let r = 1.0/(x.cosh()+y.cos());
-        Complex64{re: r*x.sinh(), im: r*y.sin()}
+        c64{re: r*x.sinh(), im: r*y.sin()}
     }
-    
-    pub fn coth(self) -> Complex64{
+
+    pub fn coth(self) -> c64 {
         1.0/self.tanh()
     }
 
     // asin(z) = -i*ln(sqrt(1-z^2) + i*z)
-    pub fn asin(self) -> Complex64{
-        let i = Complex64{re: 0.0, im: 1.0};
+    pub fn asin(self) -> c64 {
+        let i = c64{re: 0.0, im: 1.0};
         -i*((1.0-self*self).sqrt()+i*self).ln()
     }
 
     // acos(z) = -i*ln(i*sqrt(1-z^2) + z)  
-    pub fn acos(self) -> Complex64{
-        let i = Complex64{re: 0.0, im: 1.0};
+    pub fn acos(self) -> c64 {
+        let i = c64{re: 0.0, im: 1.0};
         -i*(i*(1.0-self*self).sqrt()+self).ln()
     }
 
     // atan(z) = (ln(1+iz) - ln(1-iz))/(2i)
-    pub fn atan(self) -> Complex64{
-        let i = Complex64{re: 0.0, im: 1.0};
+    pub fn atan(self) -> c64 {
+        let i = c64{re: 0.0, im: 1.0};
         ((1.0+i*self).ln()-(1.0-i*self).ln())/(2.0*i)
     }
 
     // asinh(z) = ln(z + sqrt(1+z^2))
-    pub fn asinh(self) -> Complex64{
+    pub fn asinh(self) -> c64 {
         (self+(1.0+self*self).sqrt()).ln()
     }
 
     // acosh(z) = 2 ln(sqrt((z+1)/2) + sqrt((z-1)/2))
-    pub fn acosh(self) -> Complex64{
+    pub fn acosh(self) -> c64 {
         2.0*((0.5*(self+1.0)).sqrt() + (0.5*(self-1.0)).sqrt()).ln()
     }
 
     // atanh(z) = (ln(1+z) - ln(1-z))/2
-    pub fn atanh(self) -> Complex64{
+    pub fn atanh(self) -> c64 {
         0.5*((1.0+self).ln() - (1.0-self).ln())
     }
 
