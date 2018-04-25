@@ -323,12 +323,6 @@ pub fn scan(s: &str, line_start: usize, file: &str, new_line_start: bool)
                     if i+1<n && a[i+1]=='=' {
                         v.push(Token::aoperator(line,col,Symbol::APlus));
                         i+=2; col+=2;
-                    }else if i+1<n && a[i+1]=='+' {
-                        v.push(Token::aoperator(line,col,Symbol::APlus));
-                        v.push(Token{token_type: SymbolType::Int,
-                            value: Symbol::None, line: line, col: col,
-                            item: Item::Int(1)});
-                        i+=2; col+=2;
                     }else{
                         v.push(Token::operator(line,col,Symbol::Plus));
                         i+=1; col+=1;
@@ -337,12 +331,6 @@ pub fn scan(s: &str, line_start: usize, file: &str, new_line_start: bool)
                 '-' => {
                     if i+1<n && a[i+1]=='=' {
                         v.push(Token::aoperator(line,col,Symbol::AMinus));
-                        i+=2; col+=2;
-                    }else if i+1<n && a[i+1]=='-' {
-                        v.push(Token::aoperator(line,col,Symbol::AMinus));
-                        v.push(Token{token_type: SymbolType::Int,
-                            value: Symbol::None, line: line, col: col,
-                            item: Item::Int(1)});
                         i+=2; col+=2;
                     }else{
                         v.push(Token::operator(line,col,Symbol::Minus));

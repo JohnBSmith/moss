@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Functional programming</title>
+  <link rel="stylesheet" href="../css/main.css">
+  <script src = "../js/moss-syntax.js">
+  </script>
+</head>
+<body>
+
+<table class="navigation">
+<tr><td><b>&uarr;</b> <a href="toc.htm">Up</a>
+</table>
+<h1>Functional programming</h1>
+
+<div class="toc">
+<h2 id="toc">Table of contents</h2>
+<ol>
+<li><a href="#higher-order-functions">Higher order functions</a>
+  <ol>
+  <li><a href="#map">Map</a>
+  <li><a href="#filter">Filter</a>
+  <li><a href="#reduce">Reduce</a>
+  <li><a href="#count">Count</a>
+  </ol>
+<li><a href="#transformations">Transformations</a>
+  <ol>
+  <li><a href="#zip">Zip</a>
+  </ol>
+</ol>
+</div>
+
+
+<h2 id="higher-order-functions">Higher order functions</h2>
+
+<p>A function is called a <i>higher order function</i> if it
+takes a function as its argument or returns a function as its
+result. The data types <code>List</code> and <code>Iterable</code>
+already provide a number of such functions. The most well known
+are <code>map</code>, <code>filter</code> and <code>reduce</code>.
+
+<h3 id="map">Map</h3>
+<p>By <code>a.map(f)</code> we return a copy of the list <code>a</code>
+with <code>f</code> applied to every element.
+
+<pre class="moss cmd-box">
+&gt; list(1..4).map(|x| 2*x)
+[2, 4, 6, 8]
+</pre>
+
+<p>The same function is provided by <code>Iterable</code>, with the
+difference that it returns an iterator.
+
+<pre class="moss cmd-box">
+&gt; (1..).map(|x| 2*x).list(4)
+[2, 4, 6, 8]
+
+&gt; iter(list(1..4)).map(|x| 2*x).list()
+[2, 4, 6, 8]
+</pre>
+
+<p>Instead of <code>A.map(f)</code> it is possible to write
+<code>f[A]</code>. Here <code>A</code> is seen as a set, and
+<code>f[A]</code> the image of the set <code>A</code> under
+<code>f</code>. But it works not only on sets, but on any iterable
+object. For example, to convert a string <code>s</code>
+into the list of its character values, use <code>ord[s]</code>.
+
+<pre class="moss cmd-box">
+&gt; ord["abcd"]
+[97, 98, 99, 100]
+</pre>
+
+<p>If <code>f</code> is a binary operator, <code>f[a,b]</code>
+allows us to operate <code>a</code> and <code>b</code>
+pointwise.
+
+<pre class="moss cmd-box">
+&gt; a = list(1..4)
+&gt; add = |x,y| x+y
+&gt; add[a,a]
+[2, 6, 4, 8]
+
+&gt; zip(a,a).map(|[x,y]| x+y).list()
+[2, 6, 4, 8]
+</pre>
+
+<h3 id="filter">Filter</h3>
+<p>By <code>a.filter(p)</code> we filter every element from
+<code>a</code> that fulfills the predicate <code>p</code>.
+For example, let us filter all divisors of <code>n</code>.
+
+<pre class="moss cmd-box">
+&gt; divisors = |n| list(1..n).filter(|k| n%k==0)
+&gt; divisors(12)
+[1, 2, 3, 4, 6, 12]
+</pre>
+
+<p>Let us find some Pythagorean triples.
+
+<pre class="moss cmd-box">
+&gt; (list(1..10)^3).filter(|[x,y,z]| x^2+y^2==z^2)
+[[3, 4, 5], [4, 3, 5], [6, 8, 10], [8, 6, 10]]
+</pre>
+
+<p>Again, <code>Iterable</code> has a version that produces
+an iterator.
+
+<pre class="moss cmd-box">
+&gt; list(1..).filter(|x| x%2==0).list(4)
+[2, 4, 6, 8]
+</pre>
+
+<h3 id="reduce">Reduce</h3>
+
+<p>By <code>a.reduce(f)</code> we insert <code>f</code> as a
+binary operator between the elements of <code>a</code>.
+
+<pre class="moss cmd-box">
+&gt; 1+2+3+4+5+6+7+8+9+10
+55
+
+&gt; list(1..10).reduce(|x,y| x+y)
+55
+</pre>
+
+<p>A start element may be specified.
+<pre class="moss cmd-box">
+&gt; 1000+1+2+3+4
+1010
+
+&gt; list(1..4).reduce(1000,|x,y| x+y)
+1010
+</pre>
+
+<h3 id="count">Count</h3>
+
+<p>By <code>a.count(p)</code> we count how often the predicate
+<code>p</code> is fulfilled. Let us count all divisors of a number
+<code>n</code>.
+
+<pre class="moss cmd-box">
+&gt; d = |n| (1..n).count(|k| n%k==0)
+</pre>
+
+<p>A number is prime if it has two divisors.
+
+<pre class="moss cmd-box">
+&gt; isprime = |n| d(n)==2
+&gt; (1..).filter(isprime).list(10)
+[2, 3, 5, 7, 11, 13, 17, 19, 23, 29]
+</pre>
+
+
+
+<h2 id="transformations">Transformations</h2>
+<h3 id="zip">Zip</h3>
+
+<p>The operation <code>zip(a,b)</code> allows us to join
+<code>a</code> and <code>b</code> elementwise.
+<pre class="moss cmd-box">
+&gt; zip([1,2,3,4],["a","b","c","d"]).list()
+[[1, "a"], [2, "b"], [3, "c"], [4, "d"]]
+</pre>
+
+<p>For convenience:
+<pre class="moss cmd-box">
+&gt; zip(1..,"abcd").list()
+[[1, "a"], [2, "b"], [3, "c"], [4, "d"]]
+
+&gt; "abcd".enum(1).list()
+[[1, "a"], [2, "b"], [3, "c"], [4, "d"]]
+</pre>
+
+</body>
+</html>
+

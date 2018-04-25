@@ -46,15 +46,15 @@ end
 
 function encode_escape(s)
   if '\b' in s
-    a=[]
-    sequence=false
-    unicode=false
+    a = []
+    sequence = false
+    unicode = false
     for c in s
       if sequence
-        sequence=false
+        sequence = false
         a.push(escape_tab[c])
       elif c=='\b'
-        sequence=true
+        sequence = true
       else
         a.push(c)
       end
@@ -66,34 +66,34 @@ function encode_escape(s)
 end
 
 function scan(s)
-  i=0
-  n=size(s)
-  a=[]
-  line=0; col=0
-  negate=false
+  i = 0
+  n = size(s)
+  a = []
+  line = 0; col = 0
+  negate = false
   while i<n
-    c=s[i]
+    c = s[i]
     if c.isdigit()
-      j=i; hcol=col
-      f=false
+      j = i; hcol = col
+      f = false
       while i<n
         if s[i] in '.Ee'
           f=true
         elif not s[i].isdigit()
           break
         end
-        i++; col++
+        i+=1; col+=1
       end
       x = (float if f else int)(s[j..i-1])
       if negate
-        negate=false
+        negate = false
         x=-x
       end
       a.push([Float if f else Int,x,line,hcol])
     elif c.isalpha()
-      j=i; hcol=col
+      j = i; hcol = col
       while i<n and s[i].isalpha()
-        i++; col++
+        i+=1; col+=1
       end
       w = s[j..i-1]
       if w in keyword_tab
@@ -109,33 +109,33 @@ function scan(s)
       end
     elif c in "{}[]"
       a.push([Bracket,c,line,col])
-      i++; col++
+      i+=1; col+=1
     elif c in ",:"
       a.push([Sep,c,line,col])
-      i++; col++
+      i+=1; col+=1
     elif c=='"'
       hcol=col
-      i++; col++; j=i
+      i+=1; col+=1; j=i
       while i<n
         if s[i]=='\b'
           i+=2; col+=2
         elif s[i]=='"'
           break
         else
-          i++; col++
+          i+=1; col+=1
         end
       end
       a.push([String,s[j..i-1],line,hcol])
-      i++; col++
+      i+=1; col+=1
     elif c.isspace()
       if c=='\n'
-        line++; col=0
+        line+=1; col=0
       else
-        col++
+        col+=1
       end
-      i++
+      i+=1
     elif c=='-'
-      i++; col++
+      i+=1; col+=1
       negate = not negate
     else
       raise ("Line {}, col {}\nSyntax error:\s"+
@@ -174,7 +174,7 @@ function list_literal(i)
   a=[]
   x = get_token(i)
   if x[0] is Bracket and x[1]==']'
-    i[0]++
+    i[0]+=1
     return a
   end
   while true
@@ -182,10 +182,10 @@ function list_literal(i)
     a.push(t)
     x = get_token(i)
     if x[0] is Sep and x[1]==','
-      i[0]++
+      i[0]+=1
       continue
     elif x[0] is Bracket and x[1]==']'
-      i[0]++
+      i[0]+=1
       break
     else
       syntax_error(x[2],x[3],"expected ',' or ']'.")
@@ -198,7 +198,7 @@ function map_literal(i)
   d={}
   x = get_token(i)
   if x[0] is Bracket and x[1]=='}'
-    i[0]++
+    i[0]+=1
     return d
   end
   while true
@@ -207,15 +207,15 @@ function map_literal(i)
     if not x[0] is Sep or x[1]!=':'
       syntax_error(x[2],x[3],"expected ':'.")
     end
-    i[0]++
+    i[0]+=1
     value = expression(i)
     d[key]=value
     x = get_token(i)
     if x[0] is Sep and x[1]==','
-      i[0]++
+      i[0]+=1
       continue
     elif x[0] is Bracket and x[1]=='}'
-      i[0]++
+      i[0]+=1
       break
     else
       syntax_error(x[2],x[3],"expected ',' or '}'.")
@@ -228,14 +228,14 @@ function expression(i)
   x = get_token(i)
   if x[0] is Bracket
     if x[1]=='['
-      i[0]++
+      i[0]+=1
       return list_literal(i)
     elif x[1]=='{'
-      i[0]++
+      i[0]+=1
       return map_literal(i)
     end
   else
-    i[0]++
+    i[0]+=1
     return atom(x)
   end
 end
