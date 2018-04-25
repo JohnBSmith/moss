@@ -1,0 +1,39 @@
+
+begin
+global diffh, inv
+
+use math: nan
+
+function diffh(h)
+  return fn diff|f,x|
+    return (f(x+h)-f(x-h))/(2*h)
+  end
+end
+
+function inv(f,x,a,b)
+  a1 = a; b1 = b
+  s = sgn(f(b)-f(a))
+  if s==0 then s=1 end
+
+  for k in 60
+    m = (a+b)/2
+    if s*(f(m)-x)<0
+      a = m
+    else
+      b = m
+    end
+  end
+  if abs(m-a1)<1E-8
+    return nan
+  elif abs(m-b1)<1E-8
+    return nan
+  else
+    return m
+  end
+end
+
+end
+
+
+
+

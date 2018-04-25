@@ -105,6 +105,23 @@ end
 for n in 0..10
   print([n,pow([2,n])])
 end
+
+
+# variadic versions
+fix = |F| (|x| x(x))(|x| F(|*n| x(x)(*n)))
+fix = |F| fn g|*n| F(g)(*n) end
+
+fac = fix(|f| |n| 1 if n==0 else n*f(n-1))
+pow = fix(|f| |x,n| 1 if n==0 else x*f(x,n-1))
+print(pow(2,10))
+
+
+# variadic, without currying
+fix = |F| fn g|*n| F(*([g]+n)) end
+
+fac = fix(|f,n| 1 if n==0 else n*f(n-1))
+pow = fix(|f,x,n| 1 if n==0 else x*f(x,n-1))
+print(pow(2,10))
 </pre>
 
 <h2 id="composition">Composition</h2>

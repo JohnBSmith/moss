@@ -3,7 +3,7 @@
 SyntaxError = table{}
 
 function syntax_error(s)
-  return table SyntaxError{value=s}
+  return table SyntaxError{value=["Syntax error: ",s,"."].join()}
 end
 
 Symbol = table(Type,null,"Symbol"){}
@@ -16,13 +16,16 @@ function scan(s)
   line = 0
   col = 0
   while i<n
-    if s[i] in "+-*/^(){}[];,"
+    if s[i] in "+-*/^(){}[];,="
       a.push([Symbol,s[i],line,col])
       i+=1; col+=1
     elif s[i].isalpha()
       j = i; hcol=col
       while i<n and s[i].isalnum()
         i+=1; col+=1
+      end
+      if size(a)!=0 and a[-1][0] is Int
+        a.push([Symbol,"*",line,col])
       end
       a.push([Id,s[j..i-1],line,hcol])
     elif s[i].isdigit()
@@ -67,7 +70,7 @@ function atom(a,i)
     te = expect(a,i)
     if not (te[0] is Symbol and te[1]==")")
       raise syntax_error(
-        "expected ')', but got '{}'"%[a[i]])
+        "expected ')', but got '{}'"%[te])
     end
     return i+1,x
   else
@@ -76,9 +79,36 @@ function atom(a,i)
   end
 end
 
+function argument_list(a,i)
+  argv = []
+  while true
+    i,x = expression(a,i)
+    argv.push(x)
+    t = expect(a,i)
+    if t[0] is Symbol and t[1]==","
+      i+=1
+    elif t[0] is Symbol and t[1]==")"
+      return i+1,argv
+    else
+      raise syntax_error(
+        "expected ',' or ')', but got '{}'"%[t])
+    end
+  end
+end
+
+function application(a,i)
+  i,x = atom(a,i)
+  t = a[i]
+  if t[0] is Symbol and t[1]=="("
+    i,argv = argument_list(a,i+1)
+    return i,[x]+argv
+  else
+    return i,x
+  end
+end
 
 function power(a,i)
-  i,x = atom(a,i)
+  i,x = application(a,i)
   t = a[i]
   if t[0] is Symbol and t[1]=="^"
     i,y = negation(a,i+1)
@@ -92,7 +122,7 @@ function negation(a,i)
   t = a[i]
   if t[0] is Symbol and t[1]=="-"
     i,x = power(a,i+1)
-    return i,["~",x]
+    return i,["*",-1,x]
   else
     return power(a,i)
   end
@@ -114,18 +144,29 @@ function addition(a,i)
   op = a[i]
   while op[0] is Symbol and op[1]=="+" or op[1]=="-"
     i,y = multiplication(a,i+1)
-    x = [op[1],x,y]
+    x = ["+",x,y] if op[1]=="+" else ["+",x,["*",-1,y]]
     op = a[i]
   end
   return i,x
 end
 
+function assignment(a,i)
+  i,x = addition(a,i)
+  op = a[i]
+  if op[0] is Symbol and op[1]=="="
+    i,y = addition(a,i+1)
+    return i,["=",x,y]
+  else
+    return i,x
+  end
+end
+
 function expression(a,i)
-  return addition(a,i)
+  return assignment(a,i)
 end
 
 function ast(a)
-  i,x = addition(a,0)
+  i,x = expression(a,0)
   t = a[i]
   if t[0] is null
     return x
@@ -135,14 +176,35 @@ function ast(a)
   end
 end
 
-while true
-  s = input("> ")
-  try
-    a = scan(s)
-    print(ast(a))
-  catch e if e: SyntaxError
-    print("Syntax error: ", e.value, ".")
+binary_operators = {
+  "=": 1,
+  "+": 2, "-": 2,
+  "*": 3, "/": 4,
+  "^": 5
+}
+
+function ast_to_string(t,level=0)
+  if t: List
+    op = t[0]
+    if op in binary_operators
+      op_level = binary_operators[op]
+      if op_level>=level
+        return t[1..].map(|x| ast_to_string(x,op_level)).join(op)
+      else
+        return t[1..].map(ast_to_string).join(op,"(",")")
+      end
+    elif op=="~"
+      return ["-",ast_to_string(t[1],3)].join()
+    else
+      return t[1..].map(ast_to_string).join(",",str(op)+"(",")")
+    end
+  else
+    return str(t)
   end
+end
+
+function compile(s)
+  return ast(scan(s))
 end
 
 

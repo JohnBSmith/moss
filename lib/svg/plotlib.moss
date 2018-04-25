@@ -75,10 +75,14 @@ defs = """\
 """
 
 function to_s(x)
+  x = 0.01*int(100*x)
+  if x == int(x)
+    x = int(x)
+  end
   if x<0
-    return "\x{2212}"+str(abs(x),"f",0)
+    return "\x{2212}{}"%[abs(x)]
   else
-    return str(x,"f",0)
+    return str(x)
   end
 end
 

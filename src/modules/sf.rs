@@ -1,13 +1,11 @@
 
 #![allow(unused_variables)]
 #![allow(dead_code)]
-#![allow(unused_imports)]
 #![allow(non_snake_case)]
 
-use std::f64::consts::{PI,E,LOG10_E};
+use std::f64::consts::{PI};
 use std::rc::Rc;
-use complex::Complex64;
-use object::{Object, FnResult, Function, new_module};
+use object::{Object, FnResult, new_module};
 use vm::Env;
 
 fn agm(mut x: f64, mut y: f64) -> f64 {
@@ -148,6 +146,7 @@ pub fn load_sf() -> Object {
         let mut m = sf.map.borrow_mut();
         m.insert_fn_plain("K",sf_K,1,1);
         m.insert_fn_plain("E",sf_E,1,1);
+
     }
     return Object::Table(Rc::new(sf));
 }

@@ -561,22 +561,57 @@ fn prod(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     }
 }
 
+fn compare_lists(a: &[Object], b: &[Object]) -> Ordering {
+    let n = a.len().min(b.len());
+    for i in 0..n {
+        match compare(&a[i],&b[i]) {
+            Ordering::Less => return Ordering::Less,
+            Ordering::Greater => return Ordering::Greater,
+            Ordering::Equal => {}
+        }
+    }
+    return a.len().cmp(&b.len());
+}
+
+fn cmp_float(x: f64, y: f64) -> Ordering {
+    if x<y {
+        Ordering::Less
+    }else if x==y {
+        Ordering::Equal
+    }else{
+        Ordering::Greater
+    }
+}
+
 fn compare(a: &Object, b: &Object) -> Ordering {
     match *a {
         Object::Int(x) => {
             match *b {
                 Object::Int(y) => x.cmp(&y),
-                Object::String(ref y) => Ordering::Less,
-                _ => Ordering::Equal
+                Object::Float(y) => cmp_float(x as f64,y),
+                _ => Ordering::Less
+            }
+        },
+        Object::Float(x) => {
+            match *b {
+                Object::Int(y) => cmp_float(x,y as f64),
+                Object::Float(y) => cmp_float(x,y),
+                _ => Ordering::Less
             }
         },
         Object::String(ref a) => {
             match *b {
                 Object::String(ref b) => a.v.cmp(&b.v),
-                Object::Int(y) => Ordering::Greater,
-                _ => Ordering::Equal
+                Object::List(ref y) => Ordering::Less,
+                _ => Ordering::Greater
             }
         }
+        Object::List(ref x) => {
+            match *b {
+                Object::List(ref y) => compare_lists(&x.borrow().v,&y.borrow().v),
+                _ => Ordering::Greater,
+            }
+        },
         _ => Ordering::Equal
     }
 }

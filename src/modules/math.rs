@@ -56,8 +56,23 @@ pub fn cgamma(z: c64) -> c64 {
     }
 }
 
+fn erf(x: f64) -> f64 {
+    let t = 1.0/(1.0+0.5*x.abs());
+    let t2 = t*t;
+    let t4 = t2*t2;
+    let t8 = t4*t4;
+    let y = t*(-x*x
+      - 1.26551223 + 1.00002368*t
+      + 0.37409196*t2 + 0.09678418*t2*t
+      - 0.18628806*t4 + 0.27886807*t4*t
+      - 1.13520398*t4*t2 + 1.48851587*t4*t2*t
+      - 0.82215223*t8 + 0.17087277*t8*t
+    ).exp();
+    return if x<0.0 {y-1.0} else {1.0-y};
+}
+
 #[inline(never)]
-fn type_error_int_float(env: &mut Env, id: &str, x: &Object) -> FnResult {
+pub fn type_error_int_float(env: &mut Env, id: &str, x: &Object) -> FnResult {
     env.type_error1(
         &format!("Type error in {}(x): expected x of type Int or Float.",id),
         "x", x
@@ -65,7 +80,7 @@ fn type_error_int_float(env: &mut Env, id: &str, x: &Object) -> FnResult {
 }
 
 #[inline(never)]
-fn type_error_int_float_complex(env: &mut Env, id: &str, x: &Object) -> FnResult {
+pub fn type_error_int_float_complex(env: &mut Env, id: &str, x: &Object) -> FnResult {
     env.type_error1(
         &format!("Type error in {}(z): expected z of type Int, Float or Complex.",id),
         "z", x
@@ -444,6 +459,21 @@ fn atan2(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     }
 }
 
+fn ferf(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+    match argv.len() {
+        1 => {}, n => return env.argc_error(n,1,1,"erf")
+    }
+    match argv[0] {
+        Object::Float(x) => {
+            Ok(Object::Float(erf(x)))
+        },
+        Object::Int(x) => {
+            Ok(Object::Float(erf(x as f64)))
+        },
+        ref x => type_error_int_float(env,"erf",x)
+    }
+}
+
 fn isnan(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         1 => {}, n => return env.argc_error(n,1,1,"isnan")
@@ -714,6 +744,7 @@ pub fn load_math() -> Object {
         m.insert_fn_plain("gamma",fgamma,1,1);
         m.insert_fn_plain("hypot",hypot,2,2);
         m.insert_fn_plain("atan2",atan2,2,2);
+        m.insert_fn_plain("erf",ferf,1,1);
         m.insert_fn_plain("isnan",isnan,1,1);
         m.insert_fn_plain("isinf",isinf,1,1);
     }

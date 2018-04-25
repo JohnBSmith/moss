@@ -10,9 +10,10 @@ repository = "https://github.com/JohnBSmith/moss"
 
 [features]
 # default = []
-default = ["long-gmp", "math-la"]
+default = ["long-gmp", "math-la", "math-sf"]
 long-gmp = []
 math-la = []
+math-sf = []
 
 [lib]
 name = "moss"

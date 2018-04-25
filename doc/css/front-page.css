@@ -10,7 +10,7 @@ main{
 }
 h1{
   font-family: "DejaVu Serif", "Verdana", sans-serif;
-  background: #406080;
+  background: #204060;
   color: #ffffff;
   padding-left: 32px;
   padding-right: 1em;
@@ -41,7 +41,7 @@ div.text{
   padding-left: 2em;
   padding-right: 1em;
   padding-bottom: 40em;
-  border-top: 2px solid #dadad0;
+  border-top: 2px solid #dadad4;
   color: #404040;
 }
 

@@ -198,8 +198,13 @@ pub mod bc{
 }
 
 #[allow(dead_code)]
-fn print_op(x: u32){
-    println!("{}",bc::op_to_str(x as u8));
+fn print_op(a: &[u32], i: usize){
+    if a[i] as u8==bc::OP {
+        print!("{} ",bc::op_to_str(a[i] as u8));
+        println!("{}",bc::op_to_str(a[i+1] as u8));
+    }else{
+        println!("{}",bc::op_to_str(a[i] as u8));
+    }
 }
 
 #[allow(dead_code)]
@@ -2050,6 +2055,16 @@ fn operator_lt(env: &mut EnvPart, sp: usize, stack: &mut [Object])
         _ => {}
     }
     return match stack[sp-2].clone() {
+        Object::String(x) => {
+            match stack[sp-1].clone() {
+                Object::String(y) => {
+                    stack[sp-1] = Object::Null;
+                    stack[sp-2] = Object::Bool(x.v<y.v);
+                    Ok(())
+                },
+                _ => {break 'r;}
+            }
+        },
         Object::Interface(x) => {
             let b = replace(&mut stack[sp-1],Object::Null);
             match x.lt(&b,&mut Env{env: env, sp: sp, stack: stack}) {
@@ -2141,6 +2156,16 @@ fn operator_gt(env: &mut EnvPart, sp: usize, stack: &mut [Object])
         _ => {}
     }
     return match stack[sp-2].clone() {
+        Object::String(x) => {
+            match stack[sp-1].clone() {
+                Object::String(y) => {
+                    stack[sp-1] = Object::Null;
+                    stack[sp-2] = Object::Bool(x.v>y.v);
+                    Ok(())
+                },
+                _ => {break 'r;}
+            }
+        },
         Object::Interface(x) => {
             let b = replace(&mut stack[sp-1],Object::Null);
             match x.gt(&b,&mut Env{env: env, sp: sp, stack: stack}) {
@@ -2202,6 +2227,16 @@ fn operator_le(env: &mut EnvPart, sp: usize, stack: &mut [Object])
         _ => {}
     }
     return match stack[sp-2].clone() {
+        Object::String(x) => {
+            match stack[sp-1].clone() {
+                Object::String(y) => {
+                    stack[sp-1] = Object::Null;
+                    stack[sp-2] = Object::Bool(x.v<=y.v);
+                    Ok(())
+                },
+                _ => {break 'r;}
+            }
+        },
         Object::Interface(x) => {
             let b = replace(&mut stack[sp-1],Object::Null);
             match x.le(&b,&mut Env{env: env, sp: sp, stack: stack}) {
@@ -2263,6 +2298,16 @@ fn operator_ge(env: &mut EnvPart, sp: usize, stack: &mut [Object])
         _ => {}
     }
     return match stack[sp-2].clone() {
+        Object::String(x) => {
+            match stack[sp-1].clone() {
+                Object::String(y) => {
+                    stack[sp-1] = Object::Null;
+                    stack[sp-2] = Object::Bool(x.v>=y.v);
+                    Ok(())
+                },
+                _ => {break 'r;}
+            }
+        },
         Object::Interface(x) => {
             let b = replace(&mut stack[sp-1],Object::Null);
             match x.le(&b,&mut Env{env: env, sp: sp, stack: stack}) {
@@ -3588,7 +3633,7 @@ fn vm_loop(
   'main: loop{ // loop
   loop{ // try
     // print_stack(&stack[0..10]);
-    // print_op(a[ip]);
+    // print_op(&a,ip);
     // match unsafe{*a.get_unchecked(ip) as u8} {
     match a[ip] as u8 {
       bc::NULL => {

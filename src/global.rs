@@ -273,9 +273,11 @@ fn load(env: &mut Env, id: Rc<U32String>, hot_plug: bool) -> FnResult{
         #[cfg(feature = "math-la")]
         "math/la" => ::la::load_la(env),
 
+        #[cfg(feature = "math-sf")]
+        "math/sf"    => ::sf::load_sf(),
+
         "cmath" => ::math::load_cmath(),
         "sys"   => ::sys::load_sys(env.rte()),
-        "sf"    => ::sf::load_sf(),
         "regex" => ::regex::load_regex(env),
         _ => {
             try!(load_file(env,&s))
