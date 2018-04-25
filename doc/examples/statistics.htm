@@ -20,6 +20,7 @@
 <li><a href="#mean-sigma">Mean, standard deviation</a>
 <li><a href="#simple-linear-regression">Simple linear regression</a>
 <li><a href="#inverse-transform-sampling">Inverse transform sampling</a>
+<li><a href="#cdf-from-pmf">Obtaining a CDF from a PMF</a>
 </ol>
 </div>
 
@@ -128,7 +129,9 @@ print(s.flush())
 # moss lr &gt; plot.svg
 </pre>
 
+<div>
 <img src="../img/linear-regression.png">
+</div>
 
 <br><br><br>
 <h2 id="inverse-transform-sampling">Inverse transform sampling</h2>
@@ -152,7 +155,7 @@ end
 # Take a list of random numbers and return the
 # cumulative distribution function of this sample.
 function cdf(a)
-  return |x| a.count(|X| X&gt;=x)/size(a)
+  return |x| a.count(|X| X&lt;=x)/size(a)
 end
 
 
@@ -163,7 +166,7 @@ end
 
 
 # CDF: standard normal distribution
-Phi = norm(mu=0.0,sigma=1.0)
+Phi = norm(mu=0,sigma=1)
 
 
 X = rand_cdf(Phi)
@@ -175,7 +178,29 @@ s.plot([Phi,F1,F2])
 print(s.flush())
 </pre>
 
+<div>
 <img src="../img/cdf-standard-normal-distribution.png">
+</div>
+
+<br><br><br>
+<h2 id="cdf-from-pmf">Obtaining a CDF from a PMF</h2>
+
+<pre class="moss">
+use math: pi, exp, sqrt
+use math.gauss: integral
+use math.na: pli
+
+
+# Optionally, cache the values by
+# piecewise linear interpolation.
+function cache(f,a,b,d)
+  return pli(a,d,list(a..b: d).map(f))
+end
+
+
+erf = |x| 2/sqrt(pi)*integral(0,x,|t| exp(-t^2))
+erf = cache(erf,-100,100,0.01)
+</pre>
 
 </body>
 </html>

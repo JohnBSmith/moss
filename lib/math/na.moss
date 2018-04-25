@@ -1,8 +1,8 @@
 
 begin
-global diffh, inv
+global diffh, inv, pli
 
-use math: nan
+use math: nan, floor
 
 function diffh(h)
   return fn diff|f,x|
@@ -29,6 +29,18 @@ function inv(f,x,a,b)
     return nan
   else
     return m
+  end
+end
+
+function pli(x0,d,a)
+  n = size(a)
+  return fn|x|
+    k = int(floor((x-x0)/d))
+    if k<0 or k+1>=n
+      return nan
+    else
+      return (a[k+1]-a[k])/d*(x-x0-k*d)+a[k]
+    end
   end
 end
 

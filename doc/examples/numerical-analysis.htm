@@ -21,7 +21,8 @@
 <li><a href="#simpson">Simpson's rule</a>
 <li><a href="#gauss">Gauss quadrature</a>
 <li><a href="#euler-method">Euler method</a>
-<li><a href="#fft">FFT</a>
+<li><a href="#fft">Fast fourier transform</a>
+<li><a href="#pli">Piecewise linear interpolation</a>
 </ol>
 </div>
 
@@ -89,7 +90,7 @@ end
 <h2 id="euler-method">Euler method</h2>
 
 <pre class="moss">
-use na: interpolate
+use math.na: interpolate
 
 # f'(x) = g(x,f(x))
 # h: step size
@@ -134,7 +135,7 @@ sin = euler_any_order(|x,y| -y[0],{
 })
 </pre>
 
-<h2 id="fft">FFT</h2>
+<h2 id="fft">Fast fourier transform</h2>
 
 <pre class="moss">
 use math: pi, exp
@@ -155,6 +156,26 @@ function fft(a)
 end
 </pre>
 
+<h2 id="pli">Piecewise linear interpolation</h2>
+
+<pre class="moss">
+use math: nan, floor
+
+# By equidistant nodes
+# [x0+k*d, y[k]]
+
+function pli(x0,d,y)
+  n = size(y)
+  return fn|x|
+    k = int(floor((x-x0)/d))
+    if k&lt;0 or k+1&gt;=n
+      return nan
+    else
+      return y[k]+(y[k+1]-y[k])/d*(x-x0-k*d)
+    end
+  end
+end
+</pre>
 
 </body>
 </html>
