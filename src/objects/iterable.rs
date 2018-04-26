@@ -235,7 +235,7 @@ fn list_comprehension(env: &mut Env, i: &Object, f: &Object) -> FnResult {
     let mut v: Vec<Object> = Vec::new();
     loop{
         let x = try!(env.call(i,&Object::Null,&[]));
-        if x == Object::Empty {break;}
+        if let Object::Empty = x {break;}
         let y = try!(env.call(f,&Object::Null,&[x]));
         if y != Object::Null {
             v.push(y);
@@ -251,7 +251,7 @@ pub fn to_list(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
             let mut v: Vec<Object> = Vec::new();
             loop{
                 let y = try!(env.call(i,&Object::Null,&[]));
-                if y == Object::Empty {
+                if let Object::Empty = y {
                     break;
                 }else{
                     v.push(y);
@@ -265,7 +265,7 @@ pub fn to_list(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
                     let mut v: Vec<Object> = Vec::new();
                     for _ in 0..n {
                         let y = try!(env.call(i,&Object::Null,&[]));
-                        if y == Object::Empty {
+                        if let Object::Empty = y {
                             break;
                         }else{
                             v.push(y);
@@ -293,7 +293,7 @@ fn map(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     let f = argv[0].clone();
     let g = Box::new(move |env: &mut Env, pself: &Object, argv: &[Object]| -> FnResult {
         let x = try!(env.call(&i,&Object::Null,&[]));
-        return if x == Object::Empty {
+        return if let Object::Empty = x {
             Ok(x)
         }else{
             let y = trace_err_try!(env.call(&f,&Object::Null,&[x]),
@@ -314,7 +314,7 @@ fn filter(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     let g = Box::new(move |env: &mut Env, pself: &Object, argv: &[Object]| -> FnResult {
         loop{
             let x = try!(env.call(&i,&Object::Null,&[]));
-            if x == Object::Empty {
+            if let Object::Empty = x {
                 return Ok(x);
             }else{
                 let y = trace_err_try!(env.call(&f,&Object::Null,&[x.clone()]),
@@ -338,7 +338,7 @@ fn each(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     if argv.len() == 1 {
         loop{
             let y = try!(env.call(i,&Object::Null,&[]));
-            if y == Object::Empty {
+            if let Object::Empty = y {
                 break;
             }else{
                 try!(env.call(&argv[0],&Object::Null,&[y]));
@@ -358,7 +358,7 @@ fn any(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     let p = &argv[0];
     loop{
         let x = try!(env.call(i,&Object::Null,&[]));
-        if x == Object::Empty {
+        if let Object::Empty = x {
             break;
         }else{
             let y = try!(env.call(p,&Object::Null,&[x]));
@@ -381,7 +381,7 @@ fn all(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     let p = &argv[0];
     loop{
         let x = try!(env.call(i,&Object::Null,&[]));
-        if x == Object::Empty {
+        if let Object::Empty = x {
             break;
         }else{
             let y = try!(env.call(p,&Object::Null,&[x]));
@@ -419,7 +419,7 @@ fn count(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     let mut k: i32 = 0;
     loop{
         let x = try!(env.call(i,&Object::Null,&[]));
-        if x == Object::Empty {
+        if let Object::Empty = x {
             break;
         }else{
             let y = try!(env.call(p,&Object::Null,&[x]));
@@ -454,7 +454,7 @@ fn chunks(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
         let mut v: Vec<Object> = Vec::with_capacity(n);
         for _ in 0..n {
             let y = try!(env.call(&i,&Object::Null,&[]));
-            if y==Object::Empty {empty=true; break;}
+            if let Object::Empty = y {empty=true; break;}
             v.push(y);
         }
         if v.len()==0 {
@@ -474,7 +474,7 @@ fn reduce(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
             let f = &argv[0];
             loop{
                 let x = try!(env.call(&i,&Object::Null,&[]));
-                if x == Object::Empty {break;}
+                if let Object::Empty = x {break;}
                 y = try!(env.call(f,&Object::Null,&[y,x]));
             }
             return Ok(y);
@@ -484,7 +484,7 @@ fn reduce(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
             let f = &argv[1];
             loop{
                 let x = try!(env.call(&i,&Object::Null,&[]));
-                if x == Object::Empty {break;}
+                if let Object::Empty = x {break;}
                 y = try!(env.call(f,&Object::Null,&[y,x]));
             }
             return Ok(y);
@@ -498,26 +498,26 @@ fn sum(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         0 => {
             let mut y = try!(env.call(&i,&Object::Null,&[]));
-            if y == Object::Empty {
+            if let Object::Empty = y {
                 return Ok(Object::Int(0));
             }
             loop{
                 let x = try!(env.call(&i,&Object::Null,&[]));
-                if x == Object::Empty {break;}
+                if let Object::Empty = x {break;}
                 y = try!(op_add(env,&y,&x));
             }
             return Ok(y);
         },
         1 => {
             let x = try!(env.call(&i,&Object::Null,&[]));
-            if x == Object::Empty {
+            if let Object::Empty = x {
                 return Ok(Object::Int(0));
             }
             let f = &argv[0];
             let mut y = try!(env.call(f,&Object::Null,&[x]));
             loop{
                 let x = try!(env.call(&i,&Object::Null,&[]));
-                if x == Object::Empty {break;}
+                if let Object::Empty = x {break;}
                 let u = try!(env.call(f,&Object::Null,&[x]));
                 y = try!(op_add(env,&y,&u));
             }
@@ -532,26 +532,26 @@ fn prod(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         0 => {
             let mut y = try!(env.call(&i,&Object::Null,&[]));
-            if y == Object::Empty {
+            if let Object::Empty = y {
                 return Ok(Object::Int(1));
             }
             loop{
                 let x = try!(env.call(&i,&Object::Null,&[]));
-                if x == Object::Empty {break;}
+                if let Object::Empty = x {break;}
                 y = try!(op_mpy(env,&y,&x));
             }
             return Ok(y);
         },
         1 => {
             let x = try!(env.call(&i,&Object::Null,&[]));
-            if x == Object::Empty {
+            if let Object::Empty = x {
                 return Ok(Object::Int(1));
             }
             let f = &argv[0];
             let mut y = try!(env.call(f,&Object::Null,&[x]));
             loop{
                 let x = try!(env.call(&i,&Object::Null,&[]));
-                if x == Object::Empty {break;}
+                if let Object::Empty = x {break;}
                 let u = try!(env.call(f,&Object::Null,&[x]));
                 y = try!(op_mpy(env,&y,&u));
             }
@@ -661,10 +661,7 @@ fn skip(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
         Object::Int(n) => {
             for _ in 0..n {
                 let x = try!(env.call(&i,&Object::Null,&[]));
-                match x {
-                    Object::Empty => return Ok(i),
-                    _ => {}
-                }
+                if let Object::Empty = x {return Ok(i);}
             }
             Ok(i)
         },

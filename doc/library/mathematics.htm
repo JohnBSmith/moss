@@ -250,7 +250,7 @@ positional notation above.
 <dd>Eulerian number.
 
 <dt>euler2(n,k)
-<dd>Eulerien number of the second order.
+<dd>Eulerian number of the second order.
 
 <dt>bell(n)
 <dd>Bell numbers.
@@ -282,6 +282,34 @@ parts.
 
 <dt>E(m), m=k^2
 <dd>Complete elliptic integral of the second kind.
+
+<dt>F(phi,m), m=k^2
+<dd>Incomplete elliptic integral of the first kind.
+
+<dt>E(phi,m), m=k^2
+<dd>Incomplete elliptic integral of the second kind.
+
+<dt>Pi(phi,n,m), m=k^2
+<dd>Incomplete elliptic integral of the third kind.
+
+<dt>RF(x,y,z)
+<dd>Carlson symmetric form
+<span class="math"><var>R</var><sub><var>F</var></sub>(<var>x</var>,&nbsp;<var>y</var>,&nbsp;<var>z<var>)</span>.
+
+<dt>RC(x,y)
+<dd>Carlson symmetric form
+<span class="math"><var>R</var><sub><var>C</var></sub>(<var>x</var>,&nbsp;</var>y</var>)
+= <var>R</var><sub><var>F</var></sub>(<var>x</var>,&nbsp;<var>y</var>,&nbsp;<var>y<var>)</span>.
+
+<dt>RJ(x,y,z,p)
+<dd>Carlson symmetric form
+<span class="math"><var>R</var><sub><var>J</var></sub>(<var>x</var>,&nbsp;<var>y</var>,&nbsp;<var>z</var>,&nbsp;<var>p</var>)</span>.
+
+<dt>RD(x,y,z)
+<dd>Carlson symmetric form
+<span class="math"><var>R</var><sub><var>D</var></sub>(<var>x</var>,&nbsp;<var>y</var>,&nbsp;<var>z<var>)
+= <var>R</var><sub><var>J</var></sub>(<var>x</var>,&nbsp;<var>y</var>,&nbsp;<var>z</var>,&nbsp;<var>z</var>)</span>.
+
 </dl>
 
 <h2 id="math-la">Module math.la</h2>
@@ -297,8 +325,8 @@ parts.
 <dd>Return a coordinate tensor of order <code>N</code>.
 Note that:
 <pre class="code">
-array(1,a) = vector.apply(a),
-array(2,a) = matrix.apply(a).
+array(1,a) = vector(*a),
+array(2,a) = matrix(*a).
 </pre>
 
 <dt>diag(a1,...,an)

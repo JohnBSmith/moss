@@ -24,16 +24,45 @@ function vline(s,x)
     [x].map(fstr))
 end
 
+function path_push(s,color,points)
+  s.a.push('<polyline fill="none" stroke="#{}" stroke-width="0.06"\npoints="{}"/>\n' % [
+    color, points.join(" ")
+  ])
+end
+
 function path(s,a,color)
   mx = 5/s.wx; px = s.px
   my = 5/s.wy; py = s.py
-  s.a.push('<polyline fill="none" stroke="#{}" stroke-width="0.06"\npoints="{}"/>\n' % [
-    color,
-    a.map(|[x,y]|
-      [fstr(5+(x-px)*mx),5].join(",") if isnan(y) or isinf(y) else
-      [fstr(5+(x-px)*mx),fstr(5-(y-py)*my)].join(",")
-    ).join(" ")
-  ])
+  points = []
+  for [x,y] in a
+    if isnan(y) or isinf(y)
+      if size(points)!=0
+        path_push(s,color,points)
+        points = []
+      end
+    else
+      vx = 5+(x-px)*mx
+      vy = 5-(y-py)*my
+      if -1000<vy and vy<1000
+        points.push([fstr(vx),fstr(vy)].join(","))
+      else
+        path_push(s,color,points)
+        points = []
+      end
+    end
+  end
+  if size(points)!=0
+    path_push(s,color,points)
+  end
+
+  #s.a.push('<polyline fill="none" stroke="#{}" stroke-width="0.06"\npoints="{}"/>\n' % [
+  #  color,
+  #  a.map(|[x,y]|
+  #    [fstr(5+(x-px)*mx),5].join(",") if isnan(y) or isinf(y) else
+  #    [fstr(5+(x-px)*mx),fstr(5-(y-py)*my)].join(",")
+  #  ).join(" ")
+  #])
+
 end
 
 function getfx(s)

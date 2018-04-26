@@ -141,3 +141,7 @@ div.img {
   margin-top: 2em;
   margin-bottom: 2em;
 }
+
+.math {
+  font-family: "DejaVu Serif", "Verdana", sans-serif;
+}

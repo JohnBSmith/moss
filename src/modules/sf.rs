@@ -1,6 +1,5 @@
 
 #![allow(unused_variables)]
-#![allow(dead_code)]
 #![allow(non_snake_case)]
 
 use std::f64::consts::{PI};
@@ -49,7 +48,7 @@ fn cE(m: f64) -> f64 {
 fn RF(mut x: f64, mut y: f64, mut z: f64) -> f64 {
     for _ in 0..26 {
         let a = (x*y).sqrt()+(x*z).sqrt()+(y*z).sqrt();
-        x=(x+a)/4.0; y=(y+a)/4.0; z=(z+a)/4.0;
+        x=0.25*(x+a); y=0.25*(y+a); z=0.25*(z+a);
     }
     return 1.0/(x).sqrt();
 }
@@ -72,10 +71,10 @@ fn RJ(mut x: f64, mut y: f64, mut z: f64, mut p: f64) -> f64 {
         let d = (rp+rx)*(rp+ry)*(rp+rz);
         let e = (4f64).powi(-3*k)/(d*d)*delta;
 
-        x = (x+a)/4.0;
-        y = (y+a)/4.0;
-        z = (z+a)/4.0;
-        p = (p+a)/4.0;
+        x = 0.25*(x+a);
+        y = 0.25*(y+a);
+        z = 0.25*(z+a);
+        p = 0.25*(p+a);
         s += (4f64).powi(-k)/d*RC(1.0,1.0+e);
     }
     return (x).powf(-3.0/2.0)*(4f64).powi(-n)+6.0*s;
@@ -98,7 +97,7 @@ fn eiE(phi: f64, m: f64) -> f64 {
     return s*RF(c*c,1.0-mss,1.0)-1.0/3.0*mss*s*RJ(c*c,1.0-mss,1.0,1.0);
 }
 
-fn eiPi(phi: f64,n: f64,m: f64) -> f64 {
+fn eiPi(phi: f64, n: f64, m: f64) -> f64 {
     let s = (phi).sin();
     let c = (phi).cos();
     let mss = m*s*s;
@@ -106,38 +105,181 @@ fn eiPi(phi: f64,n: f64,m: f64) -> f64 {
     return s*RF(c*c,1.0-mss,1.0)+1.0/3.0*nss*s*RJ(c*c,1.0-mss,1.0,1.0-nss);
 }
 
+#[inline(never)]
+fn type_error_int_float(env: &mut Env, fapp: &str, id: &str, x: &Object)
+-> FnResult
+{
+    env.type_error1(&format!(
+        "Type error in {}: {} shall be of type Int or Float",
+    fapp,id),id,x)
+}
+
 fn sf_K(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         1 => {}, n => return env.argc_error(n,1,1,"K")
     }
-    match argv[0] {
-        Object::Int(x) => {
-            Ok(Object::Float(cK(x as f64)))
-        },
-        Object::Float(x) => {
-            Ok(Object::Float(cK(x)))
-        },
-        ref x => env.type_error1(
-          "Type error in K(x): x is not a number.", "x", x
-        )
-    }
+    let m = match argv[0] {
+        Object::Int(m) => m as f64,
+        Object::Float(m) => m,
+        ref m => return type_error_int_float(env,"K(m)","m",m)
+    };
+    Ok(Object::Float(cK(m)))
 }
 
 fn sf_E(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
-        1 => {}, n => return env.argc_error(n,1,1,"E")
-    }
-    match argv[0] {
-        Object::Int(x) => {
-            Ok(Object::Float(cE(x as f64)))
+        1 => {
+            let m = match argv[0] {
+                Object::Int(m) => m as f64,
+                Object::Float(m) => m,
+                ref m => return type_error_int_float(env,"E(m)","m",m)
+            };
+            Ok(Object::Float(cE(m)))
         },
-        Object::Float(x) => {
-            Ok(Object::Float(cE(x)))
+        2 => {
+            let phi = match argv[0] {
+                Object::Int(x) => x as f64,
+                Object::Float(x) => x,
+                ref x => return type_error_int_float(env,"E(phi,m)","phi",x)
+            };
+            let m = match argv[1] {
+                Object::Int(m) => m as f64,
+                Object::Float(m) => m,
+                ref m => return type_error_int_float(env,"E(phi,m)","m",m)
+            };
+            Ok(Object::Float(eiE(phi,m)))
         },
-        ref x => env.type_error1(
-          "Type error in E(x): x is not a number.", "x", x
-        )
+        n => env.argc_error(n,1,2,"E")
     }
+}
+
+fn sf_F(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+    match argv.len() {
+        2 => {
+            let phi = match argv[0] {
+                Object::Int(x) => x as f64,
+                Object::Float(x) => x,
+                ref x => return type_error_int_float(env,"F(phi,m)","phi",x)
+            };
+            let m = match argv[1] {
+                Object::Int(m) => m as f64,
+                Object::Float(m) => m,
+                ref m => return type_error_int_float(env,"F(phi,m)","m",m)
+            };
+            Ok(Object::Float(eiF(phi,m)))
+        },
+        n => env.argc_error(n,2,2,"F")
+    }
+}
+
+fn sf_Pi(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+    match argv.len() {
+        3 => {}, n => return env.argc_error(n,3,3,"Pi")
+    }
+    let x = match argv[0] {
+        Object::Int(x) => x as f64,
+        Object::Float(x) => x,
+        ref x => return type_error_int_float(env,"RF(phi,n,m)","phi",x)
+    };
+    let y = match argv[1] {
+        Object::Int(y) => y as f64,
+        Object::Float(y) => y,
+        ref y => return type_error_int_float(env,"RF(phi,n,m)","n",y)
+    };
+    let z = match argv[2] {
+        Object::Int(z) => z as f64,
+        Object::Float(z) => z,
+        ref z => return type_error_int_float(env,"RF(phi,n,m)","m",z)
+    };
+    Ok(Object::Float(eiPi(x,y,z)))
+}
+
+fn sf_RF(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+    match argv.len() {
+        3 => {}, n => return env.argc_error(n,3,3,"RF")
+    }
+    let x = match argv[0] {
+        Object::Int(x) => x as f64,
+        Object::Float(x) => x,
+        ref x => return type_error_int_float(env,"RF(x,y,z)","x",x)
+    };
+    let y = match argv[1] {
+        Object::Int(y) => y as f64,
+        Object::Float(y) => y,
+        ref y => return type_error_int_float(env,"RF(x,y,z)","y",y)
+    };
+    let z = match argv[2] {
+        Object::Int(z) => z as f64,
+        Object::Float(z) => z,
+        ref z => return type_error_int_float(env,"RF(x,y,z)","z",z)
+    };
+    Ok(Object::Float(RF(x,y,z)))
+}
+
+fn sf_RC(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+    match argv.len() {
+        2 => {}, n => return env.argc_error(n,2,2,"RC")
+    }
+    let x = match argv[0] {
+        Object::Int(x) => x as f64,
+        Object::Float(x) => x,
+        ref x => return type_error_int_float(env,"RC(x,y)","x",x)
+    };
+    let y = match argv[1] {
+        Object::Int(y) => y as f64,
+        Object::Float(y) => y,
+        ref y => return type_error_int_float(env,"RC(x,y)","y",y)
+    };
+    Ok(Object::Float(RC(x,y)))
+}
+
+fn sf_RJ(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+    match argv.len() {
+        4 => {}, n => return env.argc_error(n,4,4,"RJ")
+    }
+    let x = match argv[0] {
+        Object::Int(x) => x as f64,
+        Object::Float(x) => x,
+        ref x => return type_error_int_float(env,"RJ(x,y,z,p)","x",x)
+    };
+    let y = match argv[1] {
+        Object::Int(y) => y as f64,
+        Object::Float(y) => y,
+        ref y => return type_error_int_float(env,"RJ(x,y,z,p)","y",y)
+    };
+    let z = match argv[2] {
+        Object::Int(z) => z as f64,
+        Object::Float(z) => z,
+        ref z => return type_error_int_float(env,"RJ(x,y,z,p)","z",z)
+    };
+    let p = match argv[3] {
+        Object::Int(p) => p as f64,
+        Object::Float(p) => p,
+        ref p => return type_error_int_float(env,"RJ(x,y,z,p)","p",p)
+    };
+    Ok(Object::Float(RJ(x,y,z,p)))
+}
+
+fn sf_RD(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+    match argv.len() {
+        3 => {}, n => return env.argc_error(n,3,3,"RD")
+    }
+    let x = match argv[0] {
+        Object::Int(x) => x as f64,
+        Object::Float(x) => x,
+        ref x => return type_error_int_float(env,"RD(x,y,z)","x",x)
+    };
+    let y = match argv[1] {
+        Object::Int(y) => y as f64,
+        Object::Float(y) => y,
+        ref y => return type_error_int_float(env,"RD(x,y,z)","y",y)
+    };
+    let z = match argv[2] {
+        Object::Int(z) => z as f64,
+        Object::Float(z) => z,
+        ref z => return type_error_int_float(env,"RD(x,y,z)","z",z)
+    };
+    Ok(Object::Float(RD(x,y,z)))
 }
 
 pub fn load_sf() -> Object {
@@ -145,8 +287,13 @@ pub fn load_sf() -> Object {
     {
         let mut m = sf.map.borrow_mut();
         m.insert_fn_plain("K",sf_K,1,1);
-        m.insert_fn_plain("E",sf_E,1,1);
-
+        m.insert_fn_plain("E",sf_E,1,2);
+        m.insert_fn_plain("F",sf_F,2,2);
+        m.insert_fn_plain("Pi",sf_Pi,3,3);
+        m.insert_fn_plain("RF",sf_RF,3,3);
+        m.insert_fn_plain("RC",sf_RC,2,2);
+        m.insert_fn_plain("RJ",sf_RJ,4,4);
+        m.insert_fn_plain("RD",sf_RD,3,3);
     }
     return Object::Table(Rc::new(sf));
 }
