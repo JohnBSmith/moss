@@ -1,0 +1,104 @@
+
+begin
+global runge_kutta
+
+use math.na: pli
+
+function runge_kutta_first_order(argm)
+  {f, h=0.001, w=10, unilateral=false} = argm
+  x0 = argm["t0"]
+  y0 = argm["y0"]
+ 
+  N = int(w/abs(h))+1
+  x=x0; y=y0
+  a = [y]
+
+  for k in 1..N
+    k1 = f(x,y)
+    k2 = f(x+0.5*h,y+0.5*h*k1)
+    k3 = f(x+0.5*h,y+0.5*h*k2)
+    k4 = f(x+h,y+h*k3)
+    y = y+h/6*(k1+2*(k2+k3)+k4)
+    x = x0+k*h
+    a.push(y)
+  end
+  if unilateral
+    return pli(x0,h,a)
+  end
+
+  x=x0; y=y0
+  b = [y]
+  for k in 1..N
+    k1 = f(x,y)
+    k2 = f(x-0.5*h,y-0.5*h*k1)
+    k3 = f(x-0.5*h,y-0.5*h*k2)
+    k4 = f(x-h,y-h*k3)
+    y = y-h/6*(k1+2*(k2+k3)+k4)
+    x = x0-k*h
+    b.push(y)
+  end
+  fp = pli(x0,h,a)
+  fm = pli(x0,-h,b)
+  return |x| fm(x) if x<x0 else fp(x)
+end
+
+function runge_kutta_system(argm)
+  {f, h=0.001, w=10, unilateral = false} = argm
+  x0 = argm["t0"]
+  y0 = argm["y0"]
+  N = int(w/abs(h))+1
+
+  x = x0; y = copy(y0)
+  a = [y]
+  f5 = |y,k| y+0.5*h*k
+  f1 = |y,k| y+h*k
+  fy = |y,k1,k2,k3,k4| y+h/6*(k1+2*(k2+k3)+k4)
+  for k in 1..N
+    k1 = f(x,y)
+    k2 = f(x+0.5*h,f5[y,k1])
+    k3 = f(x+0.5*h,f5[y,k2])
+    k4 = f(x+h,f1[y,k3])
+    y = fy[y,k1,k2,k3,k4]
+    x = x0+k*h
+    a.push(y)
+  end
+
+  if unilateral
+    return list(size(y0)).map(fn|k|
+      pli(x0,h,a.map(|y| y[k]))
+    end)
+  end
+
+  x = x0; y = copy(y0)
+  b = [y]
+  f5 = |y,k| y-0.5*h*k
+  f1 = |y,k| y-h*k
+  fy = |y,k1,k2,k3,k4| y-h/6*(k1+2*(k2+k3)+k4)
+  for k in 1..N
+    k1 = f(x,y)
+    k2 = f(x-0.5*h,f5[y,k1])
+    k3 = f(x-0.5*h,f5[y,k2])
+    k4 = f(x-h,f1[y,k3])
+    y = fy[y,k1,k2,k3,k4]
+    x = x0-k*h
+    b.push(y)
+  end
+
+  return list(size(y0)).map(fn|k|
+    fp = pli(x0,h,a.map(|y| y[k]))
+    fm = pli(x0,-h,b.map(|y| y[k]))
+    return |x| fm(x) if x<0 else fp(x)
+  end)
+end
+
+function runge_kutta(argm)
+  if argm["y0"]: List
+    return runge_kutta_system(argm)
+  else
+    return runge_kutta_first_order(argm)
+  end
+end
+
+end
+
+

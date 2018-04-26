@@ -2,7 +2,7 @@
 begin
 global system
 
-use math: isnan, isinf
+use math: pi, isnan, isinf
 
 color_table = [
   "002080",
@@ -25,9 +25,12 @@ function vline(s,x)
 end
 
 function path_push(s,color,points)
-  s.a.push('<polyline fill="none" stroke="#{}" stroke-width="0.06"\npoints="{}"/>\n' % [
-    color, points.join(" ")
-  ])
+  if size(points)!=0
+    s.a.push('<polyline fill="none" stroke="#{}" stroke-width="0.06"\npoints="{}"/>\n' % [
+      color, points.join(" ")
+    ])
+    points.clear()
+  end
 end
 
 function path(s,a,color)
@@ -36,10 +39,7 @@ function path(s,a,color)
   points = []
   for [x,y] in a
     if isnan(y) or isinf(y)
-      if size(points)!=0
-        path_push(s,color,points)
-        points = []
-      end
+      path_push(s,color,points)
     else
       vx = 5+(x-px)*mx
       vy = 5-(y-py)*my
@@ -47,22 +47,30 @@ function path(s,a,color)
         points.push([fstr(vx),fstr(vy)].join(","))
       else
         path_push(s,color,points)
-        points = []
       end
     end
   end
-  if size(points)!=0
-    path_push(s,color,points)
+  path_push(s,color,points)
+end
+
+function vpath(s,a,color)
+  mx = 5/s.wx; px = s.px
+  my = 5/s.wy; py = s.py
+  points = []
+  for [x,y] in a
+    if isnan(x) or isinf(x) or isnan(y) or isinf(y)
+      path_push(s,color,points)
+    else
+      vx = 5+(x-px)*mx
+      vy = 5-(y-py)*my
+      if abs(x)<1000 and abs(y)<1000
+        points.push([fstr(vx),fstr(vy)].join(","))
+      else
+        path_push(s,color,points)
+      end
+    end
   end
-
-  #s.a.push('<polyline fill="none" stroke="#{}" stroke-width="0.06"\npoints="{}"/>\n' % [
-  #  color,
-  #  a.map(|[x,y]|
-  #    [fstr(5+(x-px)*mx),5].join(",") if isnan(y) or isinf(y) else
-  #    [fstr(5+(x-px)*mx),fstr(5-(y-py)*my)].join(",")
-  #  ).join(" ")
-  #])
-
+  path_push(s,color,points)
 end
 
 function getfx(s)
@@ -184,6 +192,13 @@ Graphics = table{
       path(self,a.map(|x| [x,f(x)]),color)
     end
   end,
+
+  function vplot(f,argm={})
+    {t0 = self.t0, t1 = self.t1, n = self.n} = argm
+    a = list(t0..t1: 1/n)
+    color = self.color_it()
+    vpath(self,a.map(f),color)
+  end,
   
   function scatter(a,m = null)
     fx = getfx(self)
@@ -204,11 +219,11 @@ Graphics = table{
 }
 
 function system(d={})
-  {w=400, h=400, wx=5, wy=5, px=0, py=0, n=10} = d
+  {w=400, h=400, wx=5, wy=5, px=0, py=0, n=10, t0=0, t1=2*pi} = d
   s = table Graphics{
     a=[], w=w, h=h,
     wx=wx, wy=wy, px=px, py=py,
-    defs="", n=n,
+    defs="", n=n, t0=t0, t1=t1,
     color_it = cycle(color_table)
   }
   grid(s)

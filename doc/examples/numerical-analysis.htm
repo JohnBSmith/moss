@@ -17,14 +17,36 @@
 <div class="toc">
 <h2 id="toc">Table of contents</h2>
 <ol>
+<li><a href="#pli">Piecewise linear interpolation</a>
 <li><a href="#diff">Numerical derivative</a>
 <li><a href="#simpson">Simpson's rule</a>
 <li><a href="#gauss">Gauss quadrature</a>
 <li><a href="#euler-method">Euler method</a>
+<li><a href="#dynamical-systems">Dynamical systems</a>
 <li><a href="#fft">Fast fourier transform</a>
-<li><a href="#pli">Piecewise linear interpolation</a>
 </ol>
 </div>
+
+<h2 id="pli">Piecewise linear interpolation</h2>
+
+<pre class="moss">
+use math: nan, floor
+
+# By equidistant nodes
+# [x0+k*d, y[k]]
+
+function pli(x0,d,y)
+  n = size(y)
+  return fn|x|
+    k = int(floor((x-x0)/d))
+    if k&lt;0 or k+1&gt;=n
+      return nan
+    else
+      return y[k]+(y[k+1]-y[k])/d*(x-x0-k*d)
+    end
+  end
+end
+</pre>
 
 <h2 id="diff">Numerical derivative</h2>
 <pre class="moss">
@@ -90,20 +112,22 @@ end
 <h2 id="euler-method">Euler method</h2>
 
 <pre class="moss">
-use math.na: interpolate
+# piecewise linear interpolation
+use math.na: pli
+
 
 # f'(x) = g(x,f(x))
 # h: step size
 # N: number of steps
 function euler(g,{x0,y0,h,N})
   x = x0; y = y0
-  a = [[x,y]]
+  a = [y]
   for k in 1..N
     y = y+h*g(x,y)
     x = x0+k*h
-    a.push([x,y])
+    a.push(y)
   end
-  return interpolate(a)
+  return pli(x0,h,a)
 end
 
 
@@ -112,7 +136,7 @@ end
 function euler_any_order(g,{x0,y0,h,N})
   x = x0; y = copy(y0)
   m = size(y)
-  a = [[x,y[0]]]
+  a = [y[0]]
   for k in 1..N
     hg = h*g(x,y)
     for i in 0..m-2
@@ -120,9 +144,9 @@ function euler_any_order(g,{x0,y0,h,N})
     end
     y[m-1] = y[m-1]+hg
     x = x0+k*h
-    a.push([x,y[0]])
+    a.push(y[0])
   end
-  return interpolate(a)
+  return pli(x0,h,a)
 end
 
 
@@ -135,6 +159,34 @@ sin = euler_any_order(|x,y| -y[0],{
 })
 </pre>
 
+
+<h2 id="dynamical-systems">Dynamical systems</h2>
+
+<pre class="moss">
+use svg.plotlib: system
+use math.ode: runge_kutta
+
+# Lorenz attractor
+x,y,z = runge_kutta({
+  f = |t,[x,y,z]| [
+     10*(y-x),
+     x*(28-z)-y,
+     x*y-8/3*z
+  ],
+  t0=0, y0 = [1,1,1],
+  w=40, unilateral = true
+})
+
+s = system(wx=25, wy=25, py=25)
+s.vplot(|t| [x(t),z(t)], {t0=0, t1=40, n=200})
+print(s.flush())
+</pre>
+
+<div>
+<img src="../img/lorenz-attractor.png">
+</div>
+
+<br><br>
 <h2 id="fft">Fast fourier transform</h2>
 
 <pre class="moss">
@@ -152,27 +204,6 @@ function fft(a)
     T = L.map(|k| exp(-2i*pi*k/N)*odd[k])
     return (L.map(|k| even[k]+T[k])+
             L.map(|k| even[k]-T[k]))
-  end
-end
-</pre>
-
-<h2 id="pli">Piecewise linear interpolation</h2>
-
-<pre class="moss">
-use math: nan, floor
-
-# By equidistant nodes
-# [x0+k*d, y[k]]
-
-function pli(x0,d,y)
-  n = size(y)
-  return fn|x|
-    k = int(floor((x-x0)/d))
-    if k&lt;0 or k+1&gt;=n
-      return nan
-    else
-      return y[k]+(y[k+1]-y[k])/d*(x-x0-k*d)
-    end
   end
 end
 </pre>
