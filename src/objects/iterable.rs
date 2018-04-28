@@ -620,6 +620,70 @@ fn compare_by_value(a: &(Object,Object), b: &(Object,Object)) -> Ordering {
     compare(&a.1,&b.1)
 }
 
+fn sort_by(env: &mut Env, a: &mut [Object], fcmp: &Object) -> Option<FnResult> {
+    let mut err: Option<FnResult> = None;
+    {
+    let cmp = |x: &Object, y: &Object| -> Ordering {
+        let value = match env.call(fcmp,&Object::Null,&[x.clone(),y.clone()]) {
+            Ok(value) => value,
+            Err(e) => {
+                if let None = err {err = Some(Err(e));}
+                Object::Null
+            }
+        };
+        let value = match value {
+            Object::Bool(value) => value,
+            _ => {
+                if let None = err {
+                    err = Some(env.type_error(
+                        "Type error in a.sort(null,cmp): return value of cmp is not of type Bool."));
+                }
+                true
+            }
+        };
+        return if value {Ordering::Less} else {Ordering::Greater};
+    };
+    a.sort_by(cmp);
+    }
+    if let Some(e) = err {
+        return Some(e);
+    }else{
+        return None;
+    }
+}
+
+fn sort_by_key_by(env: &mut Env, a: &mut [(Object,Object)], fcmp: &Object) -> Option<FnResult> {
+    let mut err: Option<FnResult> = None;
+    {
+    let cmp = |tx: &(Object,Object), ty: &(Object,Object)| -> Ordering {
+        let value = match env.call(fcmp,&Object::Null,&[tx.1.clone(),ty.1.clone()]) {
+            Ok(value) => value,
+            Err(e) => {
+                if let None = err {err = Some(Err(e));}
+                Object::Null
+            }
+        };
+        let value = match value {
+            Object::Bool(value) => value,
+            _ => {
+                if let None = err {
+                    err = Some(env.type_error(
+                        "Type error in a.sort(null,cmp): return value of cmp is not of type Bool."));
+                }
+                true
+            }
+        };
+        return if value {Ordering::Less} else {Ordering::Greater};
+    };
+    a.sort_by(cmp);
+    }
+    if let Some(e) = err {
+        return Some(e);
+    }else{
+        return None;
+    }
+}
+
 fn sort(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
     let a = match *pself {
         Object::List(ref a) => a.clone(),
@@ -646,7 +710,30 @@ fn sort(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
                 v.sort_by(compare_by_value);
                 ba.v = v.into_iter().map(|x| x.0).collect();
             },
-            n => return env.argc_error(n,0,0,"sort")
+            2 => {
+                match argv[0] {
+                    Object::Null => {
+                        match sort_by(env,&mut ba.v,&argv[1]) {
+                            Some(e) => return e,
+                            None => {}
+                        }
+                    },
+                    ref p => {
+                        let mut v: Vec<(Object,Object)> = Vec::with_capacity(ba.v.len());
+                        for x in &ba.v {
+                            let y = try!(env.call(p,&Object::Null,&[x.clone()]));
+                            v.push((x.clone(),y));
+                        }
+                        v.sort_by(compare_by_value);
+                        match sort_by_key_by(env,&mut v,&argv[1]) {
+                            Some(e) => return e,
+                            None => {}
+                        }
+                        ba.v = v.into_iter().map(|x| x.0).collect();                    
+                    }
+                }
+            },
+            n => return env.argc_error(n,0,2,"sort")
         }
     }
     return Ok(Object::List(a));
@@ -908,7 +995,7 @@ pub fn init(t: &Table){
     m.insert_fn_plain("reduce",reduce,1,2);
     m.insert_fn_plain("sum",sum,1,2);
     m.insert_fn_plain("prod",prod,1,2);
-    m.insert_fn_plain("sort",sort,0,1);
+    m.insert_fn_plain("sort",sort,0,2);
     m.insert_fn_plain("map",map,1,1);
     m.insert_fn_plain("filter",filter,1,1);
     m.insert_fn_plain("chunks",chunks,1,1);

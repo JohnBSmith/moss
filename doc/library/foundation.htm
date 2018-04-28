@@ -357,7 +357,7 @@ predicate <code>p</code> is true.
 
 <dt>a.rev()
 <dd>Reverse <code>a</code> and return it.
-Does not construct a shallow copy, <code>a</code> itself will be
+Does not create a shallow copy, <code>a</code> itself will be
 modified.
 <pre class="moss">
 &gt; list(1..4).rev()
@@ -366,7 +366,7 @@ modified.
 
 <dt>a.shuffle()
 <dd>Shuffle <code>a</code> randomly and return it.
-Does not construct a shallow copy, <code>a</code> itself will be
+Does not create a shallow copy, <code>a</code> itself will be
 modified.
 <pre class="moss">
 &gt; list(1..10).shuffle()
@@ -384,26 +384,6 @@ of <code>a</code> are lists or ranges, these will be unpacked.
 [1, 2, 11, 12, 13, 14, 3, 4]
 </pre>
 
-<dt>a.sort(), a.sort(p), a.sort(p,cmp)
-<dd>Sort the list and return it. Does not construct a shallow
-copy, <code>a</code> itself will be modified. The function
-<code>p</code> is a projection on which the sorting is based.
-The function <code>cmp</code> is an alternative binary comparison
-function. The sorting algorithm is not required to be stable.
-<pre class="moss">
-&gt; a = ["oak", "Elm", "willow", "birch"]
-&gt; a.sort()
-["Elm", "birch", "oak", "willow"]
-
-&gt; a.sort(|x| x.lower())
-["birch", "Elm", "oak", "willow"]
-
-&gt; a.sort(size)
-["oak", "Elm", "birch", "willow"]
-
-&gt; a.sort(null,|x,y| x&gt;y)
-["willow", "oak", "birch", "Elm"]
-</pre>
 </dl>
 
 
@@ -447,13 +427,6 @@ if the key is not found.</dd>
 <pre class="moss">
 &gt; (|x| 2*x).orbit(2).list(10)
 [2, 4, 8, 16, 32, 64, 128, 256, 512, 1024]
-</pre>
-
-<dt>f.apply(a), f.apply(self_argument,a)
-<dd>Take a list as the function's arguments:
-<pre class="moss">
-f(a[0], ..., a[n-1]),
-f(self_argument; a[0], ..., a[n-1])
 </pre>
 
 <dt>f.argc()
@@ -620,6 +593,31 @@ are grouped to chunks of size <code>n</code>.
 <pre class="moss">
 &gt; (1..6).chunks(2).list()
 [[1, 2], [3, 4], [5, 6]]
+</pre>
+
+<dt>a.sort(), a.sort(p), a.sort(p,cmp)
+<dd>Sort the iterable and return it. If <code>a</code> is a list, it
+does not create a shallow copy, thus <code>a</code> itself will be
+modified. The function
+<code>p</code> is a projection on which the sorting is based,
+also known as key function.
+The function <code>cmp</code> is an alternative binary comparison
+function. The sorting algorithm is not required to be stable,
+and cannot be, as <code>cmp</code> does not return information
+about the equality case.
+<pre class="moss">
+&gt; a = ["oak", "Elm", "willow", "birch"]
+&gt; a.sort()
+["Elm", "birch", "oak", "willow"]
+
+&gt; a.sort(|x| x.lower())
+["birch", "Elm", "oak", "willow"]
+
+&gt; a.sort(size)
+["oak", "Elm", "birch", "willow"]
+
+&gt; a.sort(null,|x,y| x&gt;y)
+["willow", "oak", "birch", "Elm"]
 </pre>
 
 <!--

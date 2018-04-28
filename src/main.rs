@@ -19,13 +19,13 @@ Options:
 "#;
 
 const MATH: &'static str = r#"
-use math(
+use math{
   e, pi, nan, inf,
   floor, ceil, exp, sqrt, ln, lg,
   sin, cos, tan, sinh, cosh, tanh,
   asin, acos, atan, asinh, acosh, atanh,
-  gamma, hypot, atan2
-)
+  hypot, atan2, gamma, erf
+}
 "#;
 
 fn is_option(s: &str) -> bool {

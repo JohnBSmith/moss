@@ -741,11 +741,10 @@ true
 </pre>
 
 <p>But note that the elements of a set can be in any order.
-If you wish to pretty print a set, it should be converted into
-a list, so that it can be sorted.
+If you wish to pretty print a set, it should be sorted.
 <pre class="moss cmd-box">
 &gt; A = set(1..4)
-&gt; list(A).sort()
+&gt; A.sort()
 [1, 2, 3, 4]
 </pre>
 
@@ -1102,11 +1101,11 @@ use(math): pi, sin, cos
 
 
 # line breaks
-use math (
+use math{
   e, pi,
   exp, ln,
   sin, cos, tan
-)
+}
 
 
 # show what is contained in math

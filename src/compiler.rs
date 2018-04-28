@@ -2108,7 +2108,7 @@ fn qualification(&mut self, v: &mut Vec<Rc<AST>>, id: Rc<AST>,
                     i.index+=1;
                     continue;
                 }else if t2.value == Symbol::Newline || t2.value == Symbol::Terminal ||
-                    t2.value == Symbol::PRight
+                    t2.value == Symbol::CRight
                 {
                     break;
                 }else{
@@ -2124,7 +2124,7 @@ fn qualification(&mut self, v: &mut Vec<Rc<AST>>, id: Rc<AST>,
         if t2.value ==  Symbol::Comma {
             i.index+=1;
         }else if t2.value == Symbol::Newline || t2.value == Symbol::Terminal ||
-            t2.value == Symbol::PRight
+            t2.value == Symbol::CRight
         {
             break;
         }else{
@@ -2235,7 +2235,7 @@ fn use_statement(&mut self, i: &mut TokenIterator, t0: &Token)
             i.index+=1;
             try!(self.qualification(&mut v,id,i,t0));
             break;
-        }else if t.value == Symbol::PLeft {
+        }else if t.value == Symbol::CLeft {
             i.index+=1;
             self.parens+=1;
             self.syntax_nesting+=1;
@@ -2244,10 +2244,10 @@ fn use_statement(&mut self, i: &mut TokenIterator, t0: &Token)
             self.syntax_nesting-=1;
             let p = try!(i.next_token(self));
             let t = &p[i.index];
-            if t.value == Symbol::PRight {
+            if t.value == Symbol::CRight {
                 i.index+=1;
             }else{
-                return Err(self.syntax_error(t.line, t.col, "expected ')'."));         
+                return Err(self.syntax_error(t.line, t.col, "expected '}'."));
             }
             break;
         }else if t.value == Symbol::Newline || t.value == Symbol::Terminal {
