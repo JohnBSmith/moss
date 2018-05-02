@@ -60,11 +60,20 @@ mod sys;
 #[path = "modules/la.rs"]
 mod la;
 
+#[cfg(feature = "math-sf")]
 #[path = "modules/sf.rs"]
 mod sf;
 
 #[path = "modules/regex.rs"]
 mod regex;
+
+#[cfg(feature = "gx")]
+#[path = "modules/sdl.rs"]
+mod sdl;
+
+#[cfg(feature = "gx")]
+#[path = "modules/gx.rs"]
+mod gx;
 
 use std::rc::Rc;
 use std::cell::RefCell;

@@ -3246,13 +3246,27 @@ fn operator_get(env: &mut EnvPart,
 ) -> OperatorResult
 {
     'error: loop{
-        stack[sp] = if let Object::List(ref a) = stack[sp-1] {
-            a.borrow().v[index as usize].clone()
-        }else{
-            break 'error;
+    'clone: loop{
+        stack[sp] = match stack[sp-1] {
+            Object::List(ref a) => {
+                a.borrow().v[index as usize].clone()
+            },
+            _ => break 'clone
         };
         return Ok(());
     }
+        stack[sp] = match stack[sp-1].clone() {
+            Object::Interface(ref a) => {
+                let env = &mut Env{env,sp,stack};
+                match a.index(&[Object::Int(index as i32)],env) {
+                    Ok(x) => x,
+                    Err(e) => return Err(e)
+                }
+            },
+            _ => break 'error
+        };
+        return Ok(());
+    } // error:
     let a = stack[sp-1].clone();
     return Err(env.type_error1_plain(sp,stack,
         "Type error in x,y = a: a is not a list.","a",&a

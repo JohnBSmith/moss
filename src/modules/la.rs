@@ -148,12 +148,12 @@ impl Interface for Array {
                 Some(value) => return Ok(value),
                 None => {
                     env.index_error(&format!(
-                        "Index error in t.{0}: {0} not found.", key
+                        "Index error in Array.{0}: {0} not found.", key
                     ))
                 }
             }
         }else{
-            env.type_error("Type error in t.x: x is not a string.")
+            env.type_error("Type error in Array.x: x is not a string.")
         }
     }
     fn index(&self, indices: &[Object], env: &mut Env) -> FnResult {

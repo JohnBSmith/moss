@@ -279,6 +279,10 @@ fn load(env: &mut Env, id: Rc<U32String>, hot_plug: bool) -> FnResult{
         "cmath" => ::math::load_cmath(),
         "sys"   => ::sys::load_sys(env.rte()),
         "regex" => ::regex::load_regex(env),
+        
+        #[cfg(feature = "gx")]
+        "gx" => ::gx::load_gx(),
+
         _ => {
             try!(load_file(env,&s))
             // return index_error(&format!("Could not load module '{}'.",s));

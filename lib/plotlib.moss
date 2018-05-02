@@ -1,0 +1,138 @@
+
+
+begin
+global system
+
+use math: pi, hypot
+use cmath: re, im
+use gx: sleep
+
+function hline(canvas,w,y)
+  canvas.fill(0,y,w,2)
+end
+
+function vline(canvas,h,x)
+  canvas.fill(x,0,2,h)
+end
+
+function draw_line(s,x1,y1,x2,y2)
+  dx = x2-x1
+  dy = y2-y1
+  d = hypot(dx,dy)
+  step = 0.02/d
+  canvas = s.c
+  for t in 0..1: step
+    x = x1+dx*t
+    y = y1+dy*t
+    canvas.point(x/10,y/10)
+  end
+end
+
+function grid(canvas,w,h,csys,cgrid)
+  canvas.cset(*cgrid)
+  step = w//20
+  x = w//2
+  y = h//2
+  for k in -6..6
+    hline(canvas,w,y+k*step)
+  end
+  for k in -9..9
+    vline(canvas,h,x+k*step)
+  end
+  canvas.cset(*csys)
+  hline(canvas,w,y)
+  vline(canvas,h,x)
+end
+
+System = table{
+  function plot(f,argm={})
+    canvas = self.c
+    wx = self.wx; px = self.px
+    wy = self.wy; py = self.py
+    {n = self.n, point = canvas.point} = argm
+    step = wx/n
+    for x in px-wx..px+wx: step
+      y = f(x)
+      if y: Complex
+        point(canvas;(x-px)/wx,(re(y)-py)/wy)
+        point(canvas;(x-px)/wx,(im(y)-py)/wy)
+      else
+        point(canvas;(x-px)/wx,(y-py)/wy)
+      end
+    end
+  end,
+
+  function vplot(f,argm={})
+    canvas = self.c
+    wx = self.wx; px = self.px
+    wy = self.wy; py = self.py
+    {n=self.n, t0=0, t1=2*pi, point = canvas.point} = argm
+    step = 1/n
+    for t in t0..t1: step
+      x,y = f(t)
+      point(canvas;(x-px)/wx,(y-py)/wy)
+    end
+  end,
+
+  function line(x1,y1,x2,y2)
+    draw_line(self,x1,y1,x2,y2)
+  end,
+
+  function idle
+    canvas = self.c
+    canvas.lflush()
+    canvas.flush()
+    while true
+      key = canvas.key()
+      if key=="q" then break end
+      sleep(0.1)
+    end
+  end,
+
+  function animate(f)
+    canvas = self.c
+    w = self.w
+    h = self.h
+    a = 0
+    csys = [0.7,0.7,0.7]
+    cgrid = [0.9,0.9,0.9]
+    while true
+      canvas.clear(1,1,1)
+      grid(canvas,w,h,csys,cgrid)
+      canvas.cset(0,0,0.6)
+      f(a)
+      canvas.lflush()
+      canvas.flush()
+      a+=0.02
+      key = canvas.key()
+      if key=="q" then break end
+      sleep(0.01)
+    end
+  end
+}
+
+function system(argm = {})
+  {w=960,h=640,wx=10,wy=10,px=0,py=0,n=1000,dark=false} = argm
+  canvas = gx.canvas(w,h)
+  if dark
+    canvas.clear(0,0.02,0.06)
+    grid(canvas,w,h,[0.3,0.3,0.3],[0.1,0.1,0.1])
+    canvas.cset(0.8,0.8,0)
+  else
+    canvas.clear(1,1,1)
+    grid(canvas,w,h,[0.7,0.7,0.7],[0.9,0.9,0.9])
+    canvas.cset(0,0,0.6)
+  end
+  return table System{
+    c=canvas, w=w, h=h, n=n,
+    wx=wx, wy=wy, px=px, py=py,
+    point = canvas.point, needle = canvas.needle
+  }
+end
+
+end
+
+
+
+
+
