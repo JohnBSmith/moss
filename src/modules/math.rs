@@ -540,6 +540,24 @@ fn im(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     }
 }
 
+fn arg(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+    match argv.len() {
+        1 => {}, n => return env.argc_error(n,1,1,"arg")
+    }
+    match argv[0] {
+        Object::Complex(z) => {
+            Ok(Object::Float(z.arg()))
+        },
+        Object::Float(x) => {
+            Ok(Object::Float(0.0))
+        },
+        Object::Int(x) => {
+            Ok(Object::Float(0.0))
+        },
+        ref x => type_error_int_float_complex(env,"arg",x)
+    }
+}
+
 fn conj(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         1 => {}, n => return env.argc_error(n,1,1,"conj")
@@ -775,6 +793,7 @@ pub fn load_cmath() -> Object {
         m.insert_fn_plain("conj",conj,1,1);
         m.insert_fn_plain("ln",cln,1,1);
         m.insert_fn_plain("sqrt",csqrt,1,1);
+        m.insert_fn_plain("arg",arg,1,1);
     }
     return Object::Table(Rc::new(cmath));
 }

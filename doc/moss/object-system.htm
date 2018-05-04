@@ -40,19 +40,11 @@ a mixture of them.
 <pre class="moss indent">
 # imperative construction
 # vmax in kn
-Bristol = object()
+Bristol = table{}
 Bristol.id = "HMS Bristol"
 Bristol.color = "gray blue"
 Bristol.engine = "diesel"
 Bristol.vmax = 25
-
-# via map literal
-Bristol = object(null,{
-  id="HMS Bristol",
-  color="gray blue",
-  engine="diesel",
-  vmax=25
-})
 
 # via object literal
 Bristol = table{
@@ -80,7 +72,7 @@ now. Firstly we can simply delegate to HMS Bristol and shadow
 some of the member objects.
 
 <pre class="moss indent">
-Hermes = object(Bristol)
+Hermes = table Bristol{}
 Hermes.id = "HMS Hermes"
 Hermes.vmax = 25
 </pre>
@@ -89,7 +81,7 @@ Hermes.vmax = 25
 overwrite some of the member objects.
 
 <pre class="moss indent">
-Hermes = object()
+Hermes = table{}
 extend(Hermes,Bristol)
 Hermes.id = "HMS Hermes"
 Hermes.vmax = 25
@@ -124,20 +116,10 @@ regarded as a table of virtual methods and class variables.
 <p>The following ways to construct Hermes have the same result.
 
 <pre class="moss indent">
-Hermes = object(Bristol)
+Hermes = table Bristol{}
 Hermes.id = "HMS Hermes"
 Hermes.vmax = 25
 
-Hermes = object(Bristol,{
-  id = "HMS Hermes",
-  vmax = 24
-})
-
-Hermes = object(Bristol,{
-  "id": "HMS Hermes",
-  "vmax": 24
-})
-
 Hermes = table Bristol{
   id = "HMS Hermes",
   vmax = 24
@@ -147,6 +129,9 @@ Hermes = table Bristol{
   "id": "HMS Hermes",
   "vmax": 24
 }
+
+m = {id = "HMS Hermes", vmax = 24}
+Hermes = table Bristol(m)
 </pre>
 
 
@@ -163,10 +148,10 @@ The prototype stores the propertys and operations, that objects
 of some kind have in common.
 
 <pre class="moss cmd-box">
-&gt; a = object(null,{time="14:12"})
+&gt; a = table{time="14:12"}
 # a is a new object with prototype null
 
-&gt; b = object(a)
+&gt; b = table a{}
 # b is a new object with prototype a
 
 &gt; type(b) is a
@@ -186,9 +171,9 @@ true
 type or not.
 
 <pre class="moss cmd-box">
-&gt; T = object()
-&gt; S = object(T)
-&gt; a = object(S)
+&gt; T = table{}
+&gt; S = table T{}
+&gt; a = table S{}
 
 # T is not the direct prototype of a.
 &gt; type(a) is T
@@ -290,7 +275,7 @@ Iterable
 <p>Now, basic class construction is stated as follows:
 <pre class="moss indent">
 function class(name,prototype,properties)
-  object((Type,prototype,name),properties)
+  table(Type,prototype,name)(properties)
 end
 
 Bird = class("Bird",null,{
@@ -364,23 +349,29 @@ Bristol = table{color = "gray blue", engine = "diesel"}
 x = "color"; y = "engine"
 Bristol = table{x: "gray blue", y: "diesel"}
 
+# reflection, by a custom map
+x = "color"; y = "engine"
+m = {x: "gray blue", y: "diesel"}
+Bristol = table null(m)
+
 # direct access
 &gt; Bristol.engine
 "diesel"
 
 # reflection
-&gt; record(Bristol)["engine"]
+&gt; Bristol.("engine")
 "diesel"
 
 # direct method call
 &gt; Bristol.move()
 
 # reflection
-&gt; record(Bristol)["move"](Bristol;)
+&gt; Bristol.("move")()
+
+# inspect a type
+&gt; m == record(Bristol)
 </pre>
 
-<p>That argument before the semicolon is the
-<a href="Functions.htm#methods">self</a> argument.
 
 <h2 id="monkey">Monkey patching</h2>
 
@@ -575,7 +566,7 @@ to its methods can be achieved by a closure-binding of an interal
 private property table.
 
 <pre class="moss indent">
-Ship = object()
+Ship = table{}
 
 function ship
   private_tab = {color = "blue"}
@@ -605,7 +596,7 @@ properties. Only methods that belong to the object should be able
 to see the properties.
 
 <pre class="moss indent">
-Ship = object()
+Ship = table{}
 
 function ship
   private_tab = {color = "blue"}

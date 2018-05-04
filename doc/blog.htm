@@ -667,7 +667,7 @@ as follows:
 
 <pre class="moss indent">
 t = table prototype{x=value, y=value}
- == object(prototype,{x=value, y=value})
+ ≡≡ table prototype({x=value, y=value})
 </pre>
 
 <p>We can have multiple inheritance:
@@ -704,7 +704,7 @@ prototype = (type, prototype, object_name, hidden_properties)
 <p>A simple example:
 <pre class="moss indent">
 function class(name,prototype,properties)
-  object((Type,prototype,name),properties)
+  table(Type,prototype,name)(properties)
 end
 
 Bird = class("Bird",null,{
@@ -922,6 +922,24 @@ etc.
 
 <p>Thus we need to use the right hand side.
 
+<h3 data-date="20180503" id="table-literal"
+>Making table literals orthogonal</h3>
+
+<p>The function call
+<pre class="moss indent">
+object(prototype,properties)
+</pre>
+<p>is replaced by
+<pre class="moss indent">
+table prototype(properties)
+</pre>
+<p>Thus we have
+<pre class="moss indent">
+T = table{}
+m = {x=1,y=2}
+table{x=1,y=2}   ≡≡ table null(m)
+table T{x=1,y=2} ≡≡ table T(m)
+</pre>
 
 </body>
 </html>

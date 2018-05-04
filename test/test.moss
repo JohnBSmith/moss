@@ -205,6 +205,7 @@ end
 
 f = eval("|x,y| [x,y,a,b]",{a="a",b="b"})
 if [1,2,"a","b"]!=f(1,2)
+  print({a="a",b="b"})
   error("#10.3")
 end
 

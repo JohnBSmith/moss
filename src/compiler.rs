@@ -17,7 +17,7 @@ pub enum Value{
 
 #[derive(Copy,Clone,PartialEq)]
 enum SymbolType{
-    Operator, Separator, Bracket,
+    None, Operator, Separator, Bracket,
     Bool, Int, Float, Imag,
     String, Identifier, Keyword,
     Assignment
@@ -604,6 +604,9 @@ fn symbol_to_string(value: Symbol) -> &'static str {
 #[allow(dead_code)]
 fn print_token(x: &Token){
     match x.token_type {
+        SymbolType::None => {
+            print!("[none]");
+        },
         SymbolType::Identifier | SymbolType::Int | SymbolType::Float => {
             match x.item {
                 Item::String(ref s) => {
@@ -639,6 +642,9 @@ pub fn print_vtoken(v: &Vec<Token>){
 fn print_ast(t: &AST, indent: usize){
     print!("{:1$}","",indent);
     match t.symbol_type {
+        SymbolType::None => {
+            println!("none");
+        },
         SymbolType::Int => {
             match t.info {
                 Info::Int(x) => {println!("{}",x);},
@@ -892,6 +898,11 @@ fn atomic_literal(line: usize, col: usize, value: Symbol) -> Rc<AST>{
         value: value, info: Info::None, s: None, a: None})
 }
 
+fn symbol_none(line: usize, col: usize) -> Rc<AST>{
+    Rc::new(AST{line: line, col: col, symbol_type: SymbolType::None,
+        value: Symbol::None, info: Info::None, s: None, a: None})
+}
+
 fn identifier(id: &str, line: usize, col: usize) -> Rc<AST>{
     Rc::new(AST{line: line, col: col, symbol_type: SymbolType::Identifier,
         value: Symbol::None, info: Info::None, s: Some(id.to_string()), a: None})
@@ -1026,12 +1037,12 @@ fn map_literal(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error> {
             let p = try!(i.next_token(self));
             let t = &p[i.index];
             if t.value == Symbol::Comma {
-                let value = atomic_literal(t.line, t.col, Symbol::Null);
+                let value = symbol_none(t.line,t.col);
                 v.push(key);
                 v.push(value);
                 i.index+=1;
             }else if t.value == Symbol::CRight {
-                let value = atomic_literal(t.line, t.col, Symbol::Null);
+                let value = symbol_none(t.line,t.col);
                 v.push(key);
                 v.push(value);
                 i.index+=1;
@@ -1093,11 +1104,14 @@ fn table_literal(&mut self, i: &mut TokenIterator, t0: &Token) -> Result<Rc<AST>
     };
     let p = try!(i.next_token(self));
     let t = &p[i.index];
-    if t.value != Symbol::CLeft {
+    let map = if t.value == Symbol::CLeft {
+        i.index+=1;
+        try!(self.map_literal(i))
+    }else if t.value == Symbol::PLeft {
+        try!(self.atom(i))
+    }else{
         return Err(self.syntax_error(t.line, t.col, "expected '{'."));
-    }
-    i.index+=1;
-    let map = try!(self.map_literal(i));
+    };
     return Ok(Rc::new(AST{line: t0.line, col: t0.col, symbol_type: SymbolType::Keyword,
         value: Symbol::Table, info: Info::None, s: None, a: Some(Box::new([prototype,map]))}));
 }
@@ -2480,10 +2494,29 @@ fn ast(&mut self, i: &mut TokenIterator, value: Value) -> Result<Rc<AST>,Error>{
 
 fn compile_operator(&mut self, bv: &mut Vec<u32>,
     t: &Rc<AST>, byte_code: u8
-) -> Result<(),Error>{
+) -> Result<(),Error>
+{
     let a = ast_argv(t);
     for i in 0..a.len() {
         try!(self.compile_ast(bv,&a[i]));
+    }
+    push_bc(bv,byte_code,t.line,t.col);
+    return Ok(());
+}
+
+fn compile_map(&mut self, bv: &mut Vec<u32>,
+  t: &Rc<AST>, byte_code: u8
+) -> Result<(),Error>
+{
+    let a = ast_argv(t);
+    for i in 0..a.len()/2 {
+        try!(self.compile_ast(bv,&a[2*i]));
+        let value = &a[2*i+1];
+        if value.symbol_type == SymbolType::None {
+            push_bc(bv,bc::NULL,value.line,value.col);
+        }else{
+            try!(self.compile_ast(bv,value));
+        }
     }
     push_bc(bv,byte_code,t.line,t.col);
     return Ok(());
@@ -3287,7 +3320,7 @@ fn compile_left_hand_side(&mut self, bv: &mut Vec<u32>, t: &AST)
         let n = a.len();
         let mut i=0;
         while i<n {
-            if a[i+1].value == Symbol::Null {
+            if a[i+1].symbol_type == SymbolType::None {
                 try!(self.compile_ast(bv,&id));
                 if a[i].symbol_type == SymbolType::Identifier {
                     try!(self.compile_string(bv,&a[i]));
@@ -3430,7 +3463,7 @@ fn compile_ast(&mut self, bv: &mut Vec<u32>, t: &Rc<AST>)
             let size = match t.a {Some(ref a) => a.len() as u32, None => unreachable!()};
             push_u32(bv,size);
         }else if value == Symbol::Map {
-            try!(self.compile_operator(bv,t,bc::MAP));
+            try!(self.compile_map(bv,t,bc::MAP));
             let size = match t.a {Some(ref a) => a.len() as u32, None => unreachable!()};
             push_u32(bv,size);
         }else if value == Symbol::Application {

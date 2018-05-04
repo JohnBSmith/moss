@@ -3,9 +3,30 @@
 begin
 global system
 
-use math: pi, hypot
-use cmath: re, im
+use math: pi, hypot, tanh
+use cmath: re, im, arg
 use gx: sleep
+
+tau = 2.0*pi
+
+color_table = [
+  [0,0,0.6],
+  [0,0.4,0],
+  [0.6,0,0.4]
+]
+
+color_table_dark = [
+  [0.8,0.7,0],
+  [0.8,0,0.8],
+  [0,0.6,0.6]
+]
+
+function next_color(s)
+  index = s.color_index
+  color = s.ctab[index]
+  s.color_index = (index+1)%size(s.ctab)
+  return color
+end
 
 function hline(canvas,w,y)
   canvas.fill(0,y,w,2)
@@ -44,13 +65,22 @@ function grid(canvas,w,h,csys,cgrid)
   vline(canvas,h,x)
 end
 
+w = rand()
+
 System = table{
   function plot(f,argm={})
     canvas = self.c
     wx = self.wx; px = self.px
     wy = self.wy; py = self.py
-    {n = self.n, point = canvas.point} = argm
+    {n = self.n, point = canvas.point, color = null} = argm
     step = wx/n
+    if color is null
+      if not self.ani
+        canvas.cset(*next_color(self))
+      end
+    else
+      canvas.cset(*color)
+    end
     for x in px-wx..px+wx: step
       y = f(x)
       if y: Complex
@@ -66,16 +96,62 @@ System = table{
     canvas = self.c
     wx = self.wx; px = self.px
     wy = self.wy; py = self.py
-    {n=self.n, t0=0, t1=2*pi, point = canvas.point} = argm
+    { n=self.n, t0=0, t1=2*pi,
+      point = canvas.point, color = null
+    } = argm
     step = 1/n
+    if color is null
+      if not self.ani
+        canvas.cset(*next_color(self))
+      end
+    else
+      canvas.cset(*color)
+    end
     for t in t0..t1: step
       x,y = f(t)
       point(canvas;(x-px)/wx,(y-py)/wy)
     end
   end,
 
+  function scatter(a,argm=null)
+    canvas = self.c
+    wx = self.wx; px = self.px
+    wy = self.wy; py = self.py
+    if argm is null
+      mark = canvas.disc
+      radius = 0.008
+    else
+      {type = "disc", radius = 0.008} = argm
+      if type=="disc"
+        mark = canvas.disc
+      elif type=="circle"
+        mark = canvas.circle
+      elif type=="box"
+        mark = canvas.box
+      end
+    end
+    for x,y in a
+      mark(canvas;(x-px)/wx,(y-py)/wy,radius)
+    end
+  end,
+
   function line(x1,y1,x2,y2)
     draw_line(self,x1,y1,x2,y2)
+  end,
+
+  function polyline(a)
+    if size(a)!=0
+      x1,y1 = a[0]
+      for x,y in a[1..]
+        self.line(x1,y1,x,y)
+        x1,y1 = x,y
+      end
+    end
+  end,
+
+  function chain(a)
+    self.polyline(a)
+    self.scatter(a)
   end,
 
   function idle
@@ -89,15 +165,23 @@ System = table{
     end
   end,
 
-  function animate(f)
+  function cset(*a)
+     self.c.cset(*a)
+  end,
+
+  function animate(f,argm={})
     canvas = self.c
     w = self.w
     h = self.h
     a = 0
     csys = [0.7,0.7,0.7]
     cgrid = [0.9,0.9,0.9]
+    {clear = true} = argm
+    self.ani = true
     while true
-      canvas.clear(1,1,1)
+      if clear
+        canvas.clear(1,1,1)
+      end
       grid(canvas,w,h,csys,cgrid)
       canvas.cset(0,0,0.6)
       f(a)
@@ -108,25 +192,55 @@ System = table{
       if key=="q" then break end
       sleep(0.01)
     end
+    self.ani = false
+  end,
+
+  function cplot(f,argm={})
+    canvas = self.c
+    {n=4} = argm
+    W = self.w//n
+    H = self.h//n
+    ratio = H/W
+    ai = 2/(W-1)
+    aj = 2/(H-1)
+    wx = self.wx; px = self.px
+    wy = self.wy; py = self.py
+    grid(canvas,self.w,self.h,[0,0,0],[0,0,0,0.4])
+    for j in 0..H-1
+      for i in 0..W-1
+        x = px+(ai*i-1)*wx
+        y = py-(aj*j-1)*ratio*wy
+        w = f(x+y*1i)
+        phi = arg(w)
+        if phi<0 then phi=phi+tau end
+        r = tanh(0.1*abs(w))
+        canvas.hsl(phi,1,r,0.94)
+        canvas.fill(i*n,j*n,n,n)
+      end
+    end
+    # grid(canvas,self.w,self.h,[0.7,0.7,0.7,0.4],[0.9,0.9,0.9,0.2])
   end
 }
 
 function system(argm = {})
-  {w=960,h=640,wx=10,wy=10,px=0,py=0,n=1000,dark=false} = argm
+  { w=960,h=640,wx=10,wy=10,px=0,py=0,n=1000, dark=false
+  } = argm
   canvas = gx.canvas(w,h)
   if dark
     canvas.clear(0,0.02,0.06)
     grid(canvas,w,h,[0.3,0.3,0.3],[0.1,0.1,0.1])
-    canvas.cset(0.8,0.8,0)
+    ctab = color_table_dark
   else
     canvas.clear(1,1,1)
     grid(canvas,w,h,[0.7,0.7,0.7],[0.9,0.9,0.9])
-    canvas.cset(0,0,0.6)
+    ctab = color_table
   end
+  canvas.cset(*ctab[0])
   return table System{
     c=canvas, w=w, h=h, n=n,
     wx=wx, wy=wy, px=px, py=py,
-    point = canvas.point, needle = canvas.needle
+    point = canvas.point, needle = canvas.needle,
+    color_index = 0, ctab = ctab, ani = false
   }
 end
 
