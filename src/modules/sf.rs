@@ -2,10 +2,14 @@
 #![allow(unused_variables)]
 #![allow(non_snake_case)]
 
+use std::f64::NAN;
 use std::f64::consts::{PI};
 use std::rc::Rc;
 use object::{Object, FnResult, new_module};
 use vm::Env;
+use math::gamma;
+
+const SQRT_PI: f64 = 1.7724538509055159;
 
 fn agm(mut x: f64, mut y: f64) -> f64 {
     for _ in 0..20 {
@@ -104,6 +108,36 @@ fn eiPi(phi: f64, n: f64, m: f64) -> f64 {
     let nss = n*s*s;
     return s*RF(c*c,1.0-mss,1.0)+1.0/3.0*nss*s*RJ(c*c,1.0-mss,1.0,1.0-nss);
 }
+
+fn legendre_rec(n: i32, m: i32,x: f64) -> f64{
+    if n==m {
+        return SQRT_PI/gamma(0.5-n as f64)*(2.0*(1.0-x*x).sqrt()).powi(n);
+    }else if n-1==m {
+        return x*(2*n-1) as f64*legendre_rec(m,m,x);
+    }else{
+        let mut a = legendre_rec(m,m,x);
+        let mut b = legendre_rec(m+1,m,x);
+        let mf = m as f64;
+        for k in m+2..n+1 {
+            let k = k as f64;
+            let h = ((2.0*k-1.0)*x*b-(k-1.0+mf)*a)/(k-mf);
+            a=b; b=h;
+        }
+        return b;
+    }
+}
+
+pub fn legendre(n: i32, m: i32, x: f64) -> f64 {
+    let n = if n<0 {-n-1} else {n};
+    if m.abs()>n {
+        return 0.0;
+    }else if m<0 {
+        return NAN;
+    }else{
+        return legendre_rec(n,m,x);
+    }
+}
+
 
 #[inline(never)]
 fn type_error_int_float(env: &mut Env, fapp: &str, id: &str, x: &Object)
@@ -282,6 +316,26 @@ fn sf_RD(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     Ok(Object::Float(RD(x,y,z)))
 }
 
+fn sf_PP(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+    match argv.len() {
+        3 => {}, n => return env.argc_error(n,3,3,"PP")
+    }
+    let n = match argv[0] {
+        Object::Int(x) => x,
+        ref x => return type_error_int_float(env,"PP(n,m,x)","n",x)
+    };
+    let m = match argv[1] {
+        Object::Int(x) => x,
+        ref x => return type_error_int_float(env,"RD(n,m,x)","m",x)
+    };
+    let x = match argv[2] {
+        Object::Int(x) => x as f64,
+        Object::Float(x) => x,
+        ref x => return type_error_int_float(env,"RD(n,m,x)","x",x)
+    };
+    Ok(Object::Float(legendre(n,m,x)))
+}
+
 pub fn load_sf() -> Object {
     let sf = new_module("sf");
     {
@@ -294,6 +348,7 @@ pub fn load_sf() -> Object {
         m.insert_fn_plain("RC",sf_RC,2,2);
         m.insert_fn_plain("RJ",sf_RJ,4,4);
         m.insert_fn_plain("RD",sf_RD,3,3);
+        m.insert_fn_plain("PP",sf_PP,3,3);
     }
     return Object::Table(Rc::new(sf));
 }

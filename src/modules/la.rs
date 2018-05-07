@@ -837,6 +837,14 @@ fn shape(a: &Array) -> FnResult {
     return Ok(List::new_object(v));
 }
 
+fn unit_vector(n: usize, k: usize) -> Rc<Array> {
+    let mut v: Vec<Object> = Vec::with_capacity(n);
+    for i in 0..n {
+        v.push(Object::Int(if i==k {1} else {0}));
+    }
+    return Array::vector(v);
+}
+
 fn vector(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     return Ok(Object::Interface(Array::vector(Vec::from(argv))));
 }
@@ -896,6 +904,23 @@ fn scalar(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     let e = &argv[1];
     let z = &argv[2];
     return Ok(Object::Interface(scalar_matrix(n,e,z)));
+}
+
+fn unit(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+    match argv.len() {
+        2 => {}, argc => return env.argc_error(argc,2,2,"unit")
+    }
+    let n = match argv[0] {
+        Object::Int(x) => if x<0 {0 as usize} else {x as usize},
+        _ => return env.type_error1(
+            "Type error in unit(n,k): n is not an integer.","n",&argv[0])
+    };
+    let k = match argv[1] {
+        Object::Int(x) => if x<0 {0 as usize} else {x as usize},
+        _ => return env.type_error1(
+            "Type error in unit(n,k): k is not an integer.","k",&argv[1])
+    };
+    return Ok(Object::Interface(unit_vector(n,k)));
 }
 
 fn diag(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
@@ -969,6 +994,7 @@ pub fn load_la(env: &mut Env) -> Object
         m.insert_fn_plain("matrix",matrix,0,VARIADIC);
         m.insert_fn_plain("array",array,2,2);
         m.insert_fn_plain("scalar",scalar,3,3);
+        m.insert_fn_plain("unit",unit,2,2);
         m.insert_fn_plain("diag",diag,0,VARIADIC);
     }
 

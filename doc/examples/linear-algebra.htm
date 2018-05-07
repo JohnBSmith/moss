@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Linear algebra</title>
+  <link href="../css/main.css" rel="stylesheet">
+  <script src = "../js/moss-syntax.js">
+  </script>
+</head>
+<body>
+
+<table class="navigation">
+<tr><td><b>&uarr;</b> <a href="toc.htm">Up</a>
+</table>
+<h1>Linear algebra</h1>
+
+<div class="toc">
+<h2 id="toc">Table of contents</h2>
+<ol>
+<li><a href="#vector-algebra">Vector algebra</a>
+<li><a href="#matrix-algebra">Matrix algebra</a>
+<li><a href="#col-row">Column and row vectors</a>
+<li><a href="#complex-numbers">Complex numbers</a>
+</ol>
+</div>
+
+
+<h2 id="vector-algebra">Vector algebra</h2>
+<pre class="moss">
+use math.la: vector
+
+a = vector(1,2)
+b = vector(3,4)
+
+# Linear combination
+c = 2*a+4*b
+
+# Scalar product
+s = a*b
+</pre>
+
+
+<h2 id="matrix-algebra">Matrix algebra</h2>
+<pre class="moss">
+use math.la: vector, matrix
+use math: pi, sin, cos
+
+A = matrix([
+  [1,2],
+  [3,4]
+])
+
+rot = |phi| matrix([
+  [cos(phi),-sin(phi)],
+  [sin(phi),cos(phi)]
+])
+
+deg = pi/180
+B = rot(90*deg)
+
+# Multiplication matrix*vector
+v = vector(1,2)
+w = A*v
+
+# Multiplication matrix*matrix
+C = A*B
+
+# Transposition
+C = A.T
+</pre>
+
+
+<h2 id="col-row">Column and row vectors</h2> 
+<pre class="moss">
+use math.la: matrix
+
+# A row vector
+v = matrix([1,2])
+
+# A col vector
+w = matrix([3,4]).T
+
+# Scalar product
+s = v*w
+
+# Outer product
+M = w*v
+</pre>
+
+<h2 id="complex-numbers">Complex numbers</h2> 
+<pre class="moss">
+use math.la: vector, matrix
+
+v = vector(1+2i,3+4i)
+w = vector(5+6i,7+8i)
+
+# Scalar product
+s = v.conj*w
+
+A = matrix([
+  [1+2i, 3+4i]
+  [5+6i, 7+8i]
+])
+
+# Conjugate matrix
+B = A.conj
+
+# Conjugate transpose
+B = A.T.conj
+B = A.H
+
+# Bra-ket notation
+ketv = matrix([1+2i,3+4i]).T
+ketw = matrix([5+6i,7+8i]).T
+brav = ketv.H
+braw = ketw.H
+
+# Scalar product
+s = brav*ketw
+
+# Absolute value
+# (uses Frobenius norm for compability with vectors)
+r = ketv.abs
+</pre>
+
+</body>
+</html>
+

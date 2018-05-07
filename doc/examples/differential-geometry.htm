@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Differential geometry</title>
+  <link href="../css/main.css" rel="stylesheet">
+  <script src = "../js/moss-syntax.js">
+  </script>
+</head>
+<body>
+
+<table class="navigation">
+<tr><td><b>&uarr;</b> <a href="toc.htm">Up</a>
+</table>
+<h1>Differential geometry</h1>
+
+<div class="toc">
+<h2 id="toc">Table of contents</h2>
+<ol>
+<li><a href="#directional-derivative">Directional derivative</a>
+<li><a href="#gradient">Gradient</a>
+<li><a href="#jacobian">Jacobian matrix</a>
+</ol>
+</div>
+
+
+<h2 id="directional-derivative">Directional derivative</h2>
+<pre class="moss">
+use math.la: vector
+
+function diffvh(h)
+  return |v,f,x| (f(x+h*v)-f(x-h*v))/(2*h)
+end
+
+diffv = diffvh(0.001)
+
+# The standard basis
+e0 = vector(1,0)
+e1 = vector(0,1)
+
+
+# A scalar field
+f = |[x,y]| x*y
+
+# Value and partial derivatives at (x=2,y=4)
+p = vector(2,4)
+print(f(p))
+print(diffv(e0,f,p))
+print(diffv(e1,f,p))
+
+
+# A vector field
+F = |[x,y]| vector(x*y,x+y)
+
+# Value and partial derivatives at (x=2,y=4)
+p = vector(2,4)
+print(F(p))
+print(diffv(e0,F,p))
+print(diffv(e1,F,p))
+
+
+# Tangential plane of f at p
+T = |f,p| |x| f(p)+diffv(x-p,f,p)
+
+p = vector(2,4)
+g = T(f,p)
+G = T(F,p)
+</pre>
+
+<h2 id="gradient">Gradient</h2>
+<pre class="moss">
+use math.la: unit, vector
+
+# Nabla operator
+function nabla(f,p)
+  n = p.shape[0]
+  E = list(0..n-1).map(|k| unit(n,k))
+  return vector(*E.map(|e| diffv(e,f,p)))
+end
+
+# Tangential plane of f at p
+function T(f,p)
+  a = nabla(f,p)
+  y = f(p)
+  return |x| y+a*(x-p)
+end
+
+
+f = |[x,y]| x*y
+g = T(f,vector(2,4))
+
+
+# Taking the gradient of a vector valued function
+# is possible, because we use the polymorphic array
+# data type and thus can have vectors of vectors
+# (i.e. jagged arrays).
+F = |[x,y]| vector(x*y,x+y)
+G = T(F,vector(2,4))
+</pre>
+
+<h2 id="jacobian">Jacobian matrix</h2>
+<pre class="moss">
+use math.la: unit, vector, matrix
+
+
+# The Jacobian matrix is the transposed gradient
+function Jacobian(F,p)
+  return matrix(*nabla(F,p).list.map(|v| v.list)).T
+end
+
+
+# After simplification we obtain
+function Jacobian(F,p)
+  n = p.shape[0]
+  E = list(0..n-1).map(|k| unit(n,k))
+  return matrix(*E.map(|e| diffv(e,F,p).list)).T
+end
+
+
+# Tangential plane of F at p
+function T(F,p)
+  J = Jacobian(F,p)
+  y = F(p)
+  return |x| y+J*(x-p)
+end
+</pre>
+
+</body>
+</html>
+
