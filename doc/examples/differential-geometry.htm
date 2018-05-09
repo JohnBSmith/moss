@@ -20,6 +20,8 @@
 <li><a href="#directional-derivative">Directional derivative</a>
 <li><a href="#gradient">Gradient</a>
 <li><a href="#jacobian">Jacobian matrix</a>
+<li><a href="#volume">Volume</a>
+<li><a href="#area">Area</a>
 </ol>
 </div>
 
@@ -123,6 +125,67 @@ function T(F,p)
   y = F(p)
   return |x| y+J*(x-p)
 end
+</pre>
+
+<h2 id="volume">Volume</h2>
+<pre class="moss">
+use math.gauss: integral
+use math.la.inversion: det
+use math: pi, sin, cos
+
+function volume(F,[x0,x1],[y0,y1],[z0,z1])
+  return integral(x0,x1,|x| integral(y0,y1,|y| integral(z0,z1,|z|
+    abs(det(Jacobian(F,vector(x,y,z))))
+  )))
+end
+
+torus = |{R}| |[r,p,t]| vector(
+  (R+r*cos(p))*cos(t),
+  (R+r*cos(p))*sin(t),
+  r*sin(p)
+)
+
+F = torus(R=2)
+V = volume(F,[0,1],[0,2*pi],[0,2*pi])
+print(V)
+
+# R=2; r=1
+# V = 2*pi^2*r^2*R
+</pre>
+
+
+<h2 id="volume">Area</h2>
+<pre class="moss">
+use math.gauss: integral
+use math.la.inversion: det
+use math: sqrt, pi, sin, cos
+
+function metric_tensor(F)
+  return fn|p|
+    J = Jacobian(F,p)
+    return J.T*J
+  end
+end
+
+function area(F,[x0,x1],[y0,y1])
+  g = metric_tensor(F)
+  return integral(x0,x1,|x| integral(y0,y1,|y|
+    sqrt(det(g(vector(x,y))))
+  ))
+end
+
+torus = |{R,r}| |[p,t]| vector(
+  (R+r*cos(p))*cos(t),
+  (R+r*cos(p))*sin(t),
+  r*sin(p)
+)
+
+F = torus(R=2,r=1)
+A = area(F,[0,2*pi],[0,2*pi])
+print(A)
+
+# R=2; r=1
+# A = 4*pi^2*r*R
 </pre>
 
 </body>

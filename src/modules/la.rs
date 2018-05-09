@@ -246,9 +246,21 @@ impl Interface for Array {
                 if v.n != 1 || v.s[0].shape != self.s[0].shape {
                     return env.type_error("Type error in a[i]=v: shapes of a[i] and v do not match.");
                 }
-                let vbase = v.base as isize;
-                let vstride = v.s[0].stride;
-                let vdata = v.data.borrow();
+
+                let (pdata,vbase,vstride) = if Rc::ptr_eq(&self.data,&v.data) {
+                    let w = copy(&v);
+                    (w.data.clone(),w.base as isize,w.s[0].stride)
+                }else{
+                    (v.data.clone(),v.base as isize,v.s[0].stride)
+                };
+                // if Rc::ptr_eq(&self.data,&v.data) {
+                //     v = copy(&v);
+                // }
+                // let vbase = v.base as isize;
+                // let vstride = v.s[0].stride;
+                // let vdata = v.data.borrow();
+                let vdata = pdata.borrow();
+                
                 if i>=0 && (i as usize)<self.s[1].shape {
                     let base = self.base as isize+i*self.s[1].stride;
                     let stride = self.s[0].stride;
@@ -369,6 +381,9 @@ impl Interface for Array {
         }else{
             return Ok(Object::Bool(false));
         }
+    }
+    fn abs(&self, env: &mut Env) -> FnResult {
+        return abs(env,self);
     }
 }
 
@@ -976,6 +991,17 @@ fn trace(env: &mut Env, a: &Array) -> FnResult {
     }
 }
 
+fn la_copy(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+    match argv.len() {
+        1 => {}, argc => return env.argc_error(argc,1,1,"id")
+    }
+    if let Some(a) = Array::downcast(&argv[0]) {
+        return Ok(Object::Interface(copy(a)));
+    }else{
+        return Ok(argv[0].clone());
+    }
+}
+
 pub fn load_la(env: &mut Env) -> Object
 {
     let type_array = Table::new(Object::Null);
@@ -996,6 +1022,7 @@ pub fn load_la(env: &mut Env) -> Object
         m.insert_fn_plain("scalar",scalar,3,3);
         m.insert_fn_plain("unit",unit,2,2);
         m.insert_fn_plain("diag",diag,0,VARIADIC);
+        m.insert_fn_plain("id",la_copy,1,1);
     }
 
     return Object::Table(Rc::new(la));

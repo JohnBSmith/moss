@@ -23,6 +23,7 @@
 <li><a href="#gauss">Gauss quadrature</a>
 <li><a href="#euler-method">Euler method</a>
 <li><a href="#dynamical-systems">Dynamical systems</a>
+<li><a href="#vectorial-ode">Vectorial differential equations</a>
 <li><a href="#fft">Fast fourier transform</a>
 </ol>
 </div>
@@ -116,14 +117,14 @@ end
 use math.na: pli
 
 
-# f'(x) = g(x,f(x))
+# y'(x) = f(x,y(x))
 # h: step size
 # N: number of steps
-function euler(g,{x0,y0,h,N})
+function euler(f,{x0,y0,h,N})
   x = x0; y = y0
   a = [y]
   for k in 1..N
-    y = y+h*g(x,y)
+    y = y+h*f(x,y)
     x = x0+k*h
     a.push(y)
   end
@@ -131,18 +132,18 @@ function euler(g,{x0,y0,h,N})
 end
 
 
-# f^(m)(x) = g(x,y)
-# y = [f(x),f'(x),...,f^(m-1)(x)]
-function euler_any_order(g,{x0,y0,h,N})
+# y^(m)(x) = f(x,y)
+# y = [y(x),y'(x),...,y^(m-1)(x)]
+function euler_any_order(f,{x0,y0,h,N})
   x = x0; y = copy(y0)
   m = size(y)
   a = [y[0]]
   for k in 1..N
-    hg = h*g(x,y)
+    hf = h*f(x,y)
     for i in 0..m-2
       y[i] = y[i]+h*y[i+1]
     end
-    y[m-1] = y[m-1]+hg
+    y[m-1] = y[m-1]+hf
     x = x0+k*h
     a.push(y[0])
   end
@@ -186,7 +187,107 @@ print(s.flush())
 <img src="../img/lorenz-attractor.png">
 </div>
 
+<br></br>
+<h2 id="vectorial-ode">Vectorial differential equations</h2>
+
+<pre class="moss">
+use plotlib: system
+use math.la: vector
+use math.ode: runge_kutta
+
+# Motion around a fixed center of mass,
+# by Newton's law of gravitation:
+#   x''(t) = -GM*x/|x|^3.
+
+G=1; M=1
+
+x,v = runge_kutta({
+  f = |t,[x,v]| [v, -G*M*x/abs(x)^3],
+  y0 = [vector(4,3),vector(0,0.28)],
+  t0 = 0, h=0.01, w=100,
+  unilateral = true
+})
+
+s = system(dark = true, w=400, h=400, scale=2)
+
+s.animate(fn|tstep|
+  t = 40*tstep
+  s.scatter([x(t)])
+end, clear = false)
+
+s.idle()
+</pre>
+
+<div>
+<img src="../img/planetary-motion.png" style="border: 2px solid gray">
+</div>
 <br><br>
+<br><br>
+
+
+<pre class="moss">
+# n-body simulation,
+# by Newton's law of gravitation:
+#   x[i]''(t) = G*sum(k!=i) m[k]*(x[k]-x[i])/|x[k]-x[i]|^3.
+
+use plotlib: system
+use math.la: vector
+use math.ode: runge_kutta
+
+function nbody({G,m})
+  n = size(m)
+  vindex = vector(*list(0..n-1))
+  return |x| vindex.map(|i| G*(0..n-1).sum(|k|
+    vector(0,0) if k==i else
+    m[k]*(x[k]-x[i])/abs(x[k]-x[i])^3))
+end
+
+m,x0,v0 = list(zip(
+  # Star
+  [1, vector(0,0), vector(0,0)],
+  
+  # Planet
+  [0.01, vector(4,0), vector(0,0.4)],
+  
+  # Moon
+  [0.0001, vector(4.1,0), vector(0,0.2)]
+))
+
+x0 = vector(*x0)
+v0 = vector(*v0)
+g = nbody(G=1,m=m)
+
+x,v = runge_kutta({
+  f = |t,[x,v]| [v,g(x)],
+  y0 = [x0,v0],
+  t0 = 0, h=0.01, w=100,
+  unilateral = true
+})
+
+s = system(dark = true, w=720, h=480, scale=2)
+
+s.animate(fn|tstep|
+  t = 4*tstep
+  xt = x(t)
+
+  s.scatter([xt[0]], radius=0.002)
+  s.cset(0.6,0.6,0.8)
+
+  s.scatter([xt[1]], radius=0.001)
+  s.cset(0,0.6,0.6)
+
+  s.scatter([xt[2]], radius=0.0005)
+end, clear = false)
+
+s.idle()
+</pre>
+
+<div>
+<img src="../img/n-body.png" style="border: 2px solid gray">
+</div>
+<br><br>
+<br><br>
+
 <h2 id="fft">Fast fourier transform</h2>
 
 <pre class="moss">

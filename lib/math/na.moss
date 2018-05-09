@@ -34,10 +34,11 @@ end
 
 function pli(x0,d,a)
   n = size(a)
+  undefined = nan if n==0 else nan*a[0]
   return fn|x|
     k = int(floor((x-x0)/d))
     if k<0 or k+1>=n
-      return nan
+      return undefined
     else
       return (a[k+1]-a[k])/d*(x-x0-k*d)+a[k]
     end

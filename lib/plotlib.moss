@@ -79,16 +79,16 @@ function draw_vector(canvas,x1,y1,x2,y2)
   draw_line(canvas,x2,y2,x2-0.02*x,y2-0.02*y)
 end
 
-function grid(canvas,w,h,csys,cgrid)
+function grid(canvas,w,h,csys,cgrid,scale=1)
   canvas.cset(*cgrid)
-  step = w//20
+  step = w/20*scale
   x = w//2
   y = h//2
   for k in -6..6
-    hline(canvas,w,y+k*step)
+    hline(canvas,w,y+int(k*step))
   end
   for k in -9..9
-    vline(canvas,h,x+k*step)
+    vline(canvas,h,x+int(k*step))
   end
   canvas.cset(*csys)
   hline(canvas,w,y)
@@ -213,19 +213,22 @@ System = table{
 
   function animate(f,argm={})
     canvas = self.c
+    ctab = self.ctab
+    bg = self.bg
+    csys = self.csys
+    cgrid = self.cgrid
+    fscale = self.fscale
     w = self.w
     h = self.h
     a = 0
-    csys = [0.7,0.7,0.7]
-    cgrid = [0.9,0.9,0.9]
     {clear = true} = argm
     self.ani = true
     while true
       if clear
-        canvas.clear(1,1,1)
+        canvas.clear(*bg)
       end
-      grid(canvas,w,h,csys,cgrid)
-      canvas.cset(0,0,0.6)
+      grid(canvas,w,h,csys,cgrid,fscale)
+      canvas.cset(*ctab[0])
       f(a)
       canvas.lflush()
       canvas.flush()
@@ -321,28 +324,113 @@ System3d = table{
     end
     canvas.cset(0,0,0,0.8)
     sys3d(canvas,c,s)
+  end,
+
+  function splot(f,argm={})
+    {color = null,
+     u0=0, u1=1, v0=0, v1=1,
+     mu=5, mv=5, nu=200, nv=200
+    } = argm
+    canvas = self.c
+    wx = self.wx; wy = self.wy; wz = self.wz
+    px = self.px; py = self.py; pz = self.pz
+    mx = self.mx; my = self.my
+    nx = self.nx; ny = self.ny
+    phi = self.phi
+    m = 0.5
+    c = cos(phi)
+    s = sin(phi)
+
+    if color is null
+      canvas.cset(*next_color(self))
+    else
+      canvas.cset(*color)
+    end
+
+    for u in u0..u1: 1/mu
+      for v in v0..v1: 1/nv
+        x,y,z = f(u,v)
+        point3d(canvas,c,s,m*x/wx,m*y/wy,m*z/wz)
+      end
+    end
+    for v in v0..v1: 1/mv
+      for u in u0..u1: 1/nu
+        x,y,z = f(u,v)
+        point3d(canvas,c,s,m*x/wx,m*y/wy,m*z/wz)
+      end
+    end
+    canvas.cset(0,0,0,0.8)
+    sys3d(canvas,c,s)
+  end,
+
+  function vplot(f,argm={})
+    {color = null,
+     t0=0, t1=1, n=100
+    } = argm
+    canvas = self.c
+    wx = self.wx; wy = self.wy; wz = self.wz
+    px = self.px; py = self.py; pz = self.pz
+    mx = self.mx; my = self.my
+    nx = self.nx; ny = self.ny
+    phi = self.phi
+    m = 0.5
+    c = cos(phi)
+    s = sin(phi)
+
+    if color is null
+      canvas.cset(0,0,0.4)
+    else
+      canvas.cset(*color)
+    end
+
+    for t in t0..t1: 1/n
+      x,y,z = f(t)
+      point3d(canvas,c,s,m*x/wx,m*y/wy,m*z/wz)
+    end
+
+    canvas.cset(0,0,0,0.2)
+    for t in t0..t1: 1/n
+      x,y,z = f(t)
+      point3d(canvas,c,s,m*x/wx,m*y/wy,0)
+    end
+
+    canvas.cset(0,0,0,0.8)
+    sys3d(canvas,c,s)
   end
 }
 
 function system(argm = {})
-  { w=960,h=640,wx=10,wy=10,px=0,py=0,n=1000,dark=false
+  { w=960,h=640,wx=10,wy=10,px=0,py=0,n=1000,dark=false,
+    scale = null
   } = argm
   canvas = gx.canvas(w,h)
+  if scale is null
+    fscale = null
+  else
+    fscale = scale
+    canvas.scale(scale,scale)
+  end
   if dark
-    canvas.clear(0,0.02,0.06)
-    grid(canvas,w,h,[0.3,0.3,0.3],[0.1,0.1,0.1])
+    bg = [0,0.02,0.06]
+    csys = [0.3,0.3,0.3]
+    cgrid = [0.1,0.1,0.1]
     ctab = color_table_dark
   else
-    canvas.clear(1,1,1)
-    grid(canvas,w,h,[0.7,0.7,0.7],[0.9,0.9,0.9])
+    bg = [1,1,1]
+    csys = [0.7,0.7,0.7]
+    cgrid = [0.9,0.9,0.9]
     ctab = color_table
   end
+  canvas.clear(*bg)
+  grid(canvas,w,h,csys,cgrid,fscale)
   canvas.cset(*ctab[0])
   return table System{
     c=canvas, w=w, h=h, n=n,
     wx=wx, wy=wy, px=px, py=py,
     point = canvas.point, needle = canvas.needle,
-    color_index = 0, ctab = ctab, ani = false
+    color_index = 0, ctab = ctab, bg=bg,
+    csys=csys, cgrid=cgrid,
+    ani = false, fscale = fscale
   }
 end
 
@@ -354,23 +442,23 @@ function system3d(argm = {})
   } = argm
   canvas = gx.canvas(w,h)
   if dark
-    canvas.clear(0,0.02,0.06)
+    bg = [0,0.02,0.06]
     ctab = color_table_dark
   else
-    canvas.clear(1,1,1)
+    bg = [1,1,1]
     ctab = color_table3d
   end
+  canvas.clear(*bg)
   canvas.cset(0.2,0.4,0.6,0.4)
   return table System3d{
     c=canvas, w=w, h=h, mx=mx, my=my, nx=nx, ny=ny,
     wx=wx, wy=wy, wz=wz, px=px, py=py, pz=pz,
     point = canvas.point, needle = canvas.needle,
-    color_index = 0, ctab = ctab, phi = phi
+    color_index = 0, ctab = ctab, bg=bg, phi = phi
   }
 end
 
 end
-
 
 
 

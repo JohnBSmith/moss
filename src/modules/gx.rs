@@ -747,6 +747,30 @@ fn gx_sleep(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     return Ok(Object::Null);
 }
 
+fn canvas_scale(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+    match argv.len() {
+        2 => {}, n => return env.argc_error(n,2,2,"scale")
+    }
+    let x = match argv[0] {
+        Object::Int(x) => x as f64,
+        Object::Float(x) => x,
+        ref x => return type_error_int_float(env,"canvas.scale(x,y)","x",x)
+    };
+    let y = match argv[1] {
+        Object::Int(y) => y as f64,
+        Object::Float(y) => y,
+        ref y => return type_error_int_float(env,"cancas.scale(x,y)","y",y)
+    };
+    if let Some(canvas) = Canvas::downcast(pself) {
+        let mut canvas = canvas.canvas.borrow_mut();
+        canvas.wx = x*0.5*canvas.width as f64;
+        canvas.wy = y*0.5*canvas.width as f64;
+        Ok(Object::Null)
+    }else{
+        type_error_canvas(env,"canvas.scale(x,y)","canvas")
+    }
+}
+
 pub fn load_gx() -> Object
 {
     let type_canvas = Table::new(Object::Null);
@@ -764,6 +788,7 @@ pub fn load_gx() -> Object
         m.insert_fn_plain("hsl",canvas_hsl,3,4);
         m.insert_fn_plain("clear",canvas_clear,3,3);
         m.insert_fn_plain("fill",canvas_fill,4,4);
+        m.insert_fn_plain("scale",canvas_scale,2,2);
     }
 
     let gx = new_module("gx");
