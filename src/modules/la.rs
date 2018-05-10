@@ -864,13 +864,53 @@ fn vector(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     return Ok(Object::Interface(Array::vector(Vec::from(argv))));
 }
 
+fn matrix_from_vectors(env: &mut Env, n: usize, argv: &[Object]) -> FnResult {
+    let m = argv.len();
+    let mut v: Vec<Object> = Vec::with_capacity(m*n);
+    for t in argv {
+        if let Some(a) = Array::downcast(t) {
+            if a.n != 1 || a.s[0].shape != n {
+                return env.value_error(
+                "Vale error in matrix(*args): all args must be vectors of the same size.");
+            }
+            let base = a.base as isize;
+            let stride = a.s[0].stride;
+            let data = a.data.borrow();
+            for i in 0..n {
+                let index = (base+i as isize*stride) as usize;
+                v.push(data[index].clone());
+            }
+        }else{
+            return env.type_error(
+            "Type error in matrix(*args): expected args of type Array.");            
+        }
+    }
+    let y = Rc::new(Array{
+        n: 2, base: 0,
+        s: Box::new([
+            ShapeStride{shape: m, stride: n as isize},
+            ShapeStride{shape: n, stride: 1}
+        ]),
+        data: Rc::new(RefCell::new(v))
+    });
+    return Ok(Object::Interface(y));
+}
+
 fn matrix(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     'type_error: loop{
-        let m = argv.len();
         let n = match argv[0] {
             Object::List(ref a) => a.borrow().v.len(),
-            _ => break 'type_error
+            ref x => if let Some(x) = Array::downcast(x) {
+                if x.n==1 {
+                    return matrix_from_vectors(env,x.s[0].shape,argv);
+                }else{
+                    break 'type_error;
+                }
+            }else{
+                break 'type_error
+            }
         };
+        let m = argv.len();
         let mut v: Vec<Object> = Vec::with_capacity(m*n);
         for t in argv {
             if let Object::List(ref list) = *t {
@@ -884,7 +924,7 @@ fn matrix(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
         }
         return Ok(Object::Interface(Array::matrix(m,n,v)));
     }
-    return env.type_error("Type error in matrix(args): expected args of type list.");
+    return env.type_error("Type error in matrix(args): expected args of type List.");
 }
 
 fn array(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {

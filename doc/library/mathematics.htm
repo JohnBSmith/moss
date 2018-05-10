@@ -22,6 +22,7 @@
 <li><a href="#math-nt">Module <code>math.nt</code> &mdash; number theory</a>
 <li><a href="#math-cf">Module <code>math.cf</code> &mdash; combinatorical functions</a>
 <li><a href="#math-sf">Module <code>math.sf</code> &mdash; special functions</a>
+<li><a href="#math-sf-ei">Module <code>math.sf.ei</code> &mdash; elliptic integrals</a>
 <li><a href="#math-la">Module <code>math.la</code> &mdash; linear algebra</a>
 </ol>
 </div>
@@ -31,10 +32,10 @@
 
 <dl class="code">
 <dt>e
-<dd>Euler's number <code>2.71828...</code></dd>
+<dd>Euler's number: <code>2.71828...</code></dd>
 
 <dt>pi
-<dd><code>3.14159...</code></dd>
+<dd>Half length of the unit circle: <code>3.14159...</code></dd>
 
 <dt>nan
 <dd>Not a number.</dd>
@@ -277,6 +278,17 @@ parts.
 <p>Special functions.
 
 <dl class="code">
+<dt>PP(n,m,x)
+<dd>Associated Legendre function
+<span class="math"><var>P</var><sub><var>n</var>,<var>m</var></sub>(<var>x</var>)</span>.
+
+</dl>
+
+
+<h2 id="math-sf-ei">Module math.sf.ei</h2>
+<p>Elliptic integrals.
+
+<dl class="code">
 <dt>K(m), m=k^2
 <dd>Complete elliptic integral of the first kind.
 
@@ -310,20 +322,20 @@ parts.
 <span class="math"><var>R</var><sub><var>D</var></sub>(<var>x</var>,&nbsp;<var>y</var>,&nbsp;<var>z<var>)
 = <var>R</var><sub><var>J</var></sub>(<var>x</var>,&nbsp;<var>y</var>,&nbsp;<var>z</var>,&nbsp;<var>z</var>)</span>.
 
-<dt>PP(n,m,x)
-<dd>Associated Legendre function
-<span class="math"><var>P</var><sub><var>n</var>,<var>m</var></sub>(<var>x</var>)</span>.
-
 </dl>
 
 <h2 id="math-la">Module math.la</h2>
+<p>Linear algebra by polymorphic multidimensional arrays.
 
 <dl class="code">
 <dt>vector(a1,...,an)
-<dd>Return a coordinate vector.
+<dd>Build a coordinate vector.
 
 <dt>matrix([a11,...,a1n],...,[am1,...,amn])
-<dd>Return a matrix.
+<dd>Build a matrix.
+
+<dt>matrix(vector(a11,...,am1),...,vector(a1n,...,amn))
+<dd>Build a matrix from column vectors.
 
 <dt>array(N,data)
 <dd>Return a coordinate tensor of order <code>N</code>.
@@ -336,8 +348,11 @@ array(2,a) = matrix(*a).
 <dt>diag(a1,...,an)
 <dd>Return a diagonal matrix.
 
-<dt>scalar(a)
-<dd>Return a scalar matrix.
+<dt>scalar(n,lambda,zero)
+<dd>Return a scalar <var>n</var>&times;<var>n</var> matrix.
+
+<dt>scalar(n,1,0)
+<dd>Return the <var>n</var>&times;<var>n</var> identity matrix.
 
 <dt>a.T
 <dd>Transposed matrix.
@@ -363,12 +378,34 @@ array(2,a) = matrix(*a).
 <dt>a.list
 <dd>Convert the array into a list.
 
+<dt>impl abs(a)
+<dd>Absolute value of a vector. Frobenius norm of a matrix.
+
+<dt>a+b, a-b, -a, r*a, a/r
+<dd>Pointwise operations.
+
+<dt>v*w, v.conj*w
+<dd>Scalar product, scalar product of complex vectors.
+
+<dt>v.T*w, v.H*w
+<dd>Scalar product of column matrices, scalar product of complex
+column matrices.
+
+<dt> A*v, A*B
+<dd>Multiplication matrix*vector, multiplication matrix*matrix.
+
+<dt>A^n
+<dd>Matrix power.
+
 <dt>a.map(f)
-<dd>Return <code>(f(a[i,j]))</code>.
+<dd>Applies <code>f</code> to every element of <code>a</code>.
 
 <dt>a[k]
-<dd>Component of a vector (<code>k=0</code> upto <code>n-1</code>).
+<dd>Component of a vector (<code>k=0</code> upto <code>k=n-1</code>).
 Row of a matrix.
+
+<dt>a[i,j]
+<dd>Component of a matrix.
 </dl>
 
 </body>

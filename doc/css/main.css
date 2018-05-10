@@ -3,7 +3,7 @@ body{
   margin-left: 16%;
   margin-right: 4%;
   margin-top: 2em;
-  margin-bottom: 10em;
+  margin-bottom: 20em;
   max-width: 48em;
   color: #4a463a;
   font-family: "DejaVu Sans", "Verdana", sans-serif;
@@ -32,7 +32,7 @@ p{
 h1, h2, h3, h4{
   color: #403020;
 }
-p+h2, pre+h2 {
+p+h2, pre+h2, dl+h2 {
   margin-top: 40px;
 }
 a{

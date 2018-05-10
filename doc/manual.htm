@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Manual</title>
+  <link rel="stylesheet" href="css/main.css">
+</head>
+<body>
+
+<table class="navigation">
+<tr><td><b>&uarr;</b> <a href="../home.htm">Home</a>
+</table>
+<h1>Moss Manual</h1>
+
+<ul>
+<li><a href="#cmd">Command-line options</a>
+<li><a href="#building">Building</a>
+<li><a href="#installation">Installation</a>
+<li><a href="#dev-tools">Development tools</a>
+</ul>
+
+
+<h2 id="cmd">Command-line options</h2>
+<pre>
+<b>moss [options] [file] [arguments]</b>
+
+<b>Options</b>:
+-i file     Include and execute a file before normal execution.
+            Multiple files are possible: '-i file1 -i file2'.
+
+-m          Math mode: use moss as a calculator.
+
+-e "1+2"    Evaluate some Moss code inline.
+
+-d          Debug mode: compile assert statements.
+</pre>
+
+
+<h2 id="building">Building</h2>
+
+<p>Obtain Ubuntu, or else Debian, or else OpenSuse, or else another
+fancy Linux, or else a fancy POSIX system, or else Windows.
+If some dependency cannot be fulfilled, set up a minimal build
+and then add feature after feature until some error occurs.
+
+<p>Windows is currently not supported.
+If you want to port to Windows, edit the operating system interface:
+<p class="indent"><code>src/system/system.rs</code>
+<p>and send upstream pull request to:
+<p class="indent">
+<a href="https://github.com/JohnBSmith/moss">github.com/JohnBSmith/moss</a>
+<br><br>
+
+<pre>
+<b>Install dependencies</b>:
+sudo apt install rustc
+sudo apt install cargo
+
+
+<b>Install optional dependencies</b>:
+sudo apt install libgmp-dev
+sudo apt install libsdl2-dev
+sudo apt install libsdl2-ttf-dev
+
+
+<b>Currently unused optional dependencies</b>:
+sudo apt install libblas-dev
+sudo apt install liblapacke-dev
+
+
+<b>For the first compilation,
+Cargo needs network connection</b>:
+[dependencies]
+libc = "0.2"
+termios = "0.2"
+
+
+<b>Configure optional dependencies in <code>Cargo.toml</code></b>:
+# Minimal
+# default = []
+
+# Basic
+# default = ["math-la", "math-sf"]
+
+# Full
+default = ["long-gmp", "math-la", "math-sf", "gx"]
+
+
+<b>Run one of the following</b>:
+cargo check
+cargo build
+cargo build --release
+sh make.sh
+</pre>
+
+
+<h2 id="installation">Installation</h2>
+
+<p>Set up the latest development version:
+<ul>
+<li>build <code>moss</code>
+<li>run <code>sudo sh install.sh</code>
+</ul>
+
+<p>Maybe you need to switch your operating system account to have
+system administration access. Then also run
+<code>sh install-lib.sh</code> on your user account to install the
+moss library locally. The library will be found at:
+
+<p class="indent"><code>/home/account/.moss</code>
+
+<h2 id="dev-tools">Development tools</h2>
+<pre>
+# IDE
+apt install geany
+
+# Debugger, dynamic program analysis
+apt install valgrind
+apt install kcachegrind
+apt install gdb
+
+# Emulator for cross compiler output
+apt install wine
+
+# Compare a file and its modification
+apt install kompare
+
+# Find all occurrences of a pattern
+egrep -nrwi "regex" ./
+  () | [] . * ?
+  {n} {min,} {,max} {min,max}
+  ^ $ \&lt; \&gt; \w \b
+
+# GNU Scientific Library
+apt install libgsl-dev
+</pre>
+
+</body>
+</html>
+

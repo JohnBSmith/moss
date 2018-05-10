@@ -336,10 +336,10 @@ fn sf_PP(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     Ok(Object::Float(legendre(n,m,x)))
 }
 
-pub fn load_sf() -> Object {
-    let sf = new_module("sf");
+pub fn load_sf_ei() -> Object {
+    let ei = new_module("ei");
     {
-        let mut m = sf.map.borrow_mut();
+        let mut m = ei.map.borrow_mut();
         m.insert_fn_plain("K",sf_K,1,1);
         m.insert_fn_plain("E",sf_E,1,2);
         m.insert_fn_plain("F",sf_F,2,2);
@@ -348,6 +348,14 @@ pub fn load_sf() -> Object {
         m.insert_fn_plain("RC",sf_RC,2,2);
         m.insert_fn_plain("RJ",sf_RJ,4,4);
         m.insert_fn_plain("RD",sf_RD,3,3);
+    }
+    return Object::Table(Rc::new(ei));
+}
+
+pub fn load_sf() -> Object {
+    let sf = new_module("sf");
+    {
+        let mut m = sf.map.borrow_mut();
         m.insert_fn_plain("PP",sf_PP,3,3);
     }
     return Object::Table(Rc::new(sf));
