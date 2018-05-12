@@ -3505,6 +3505,7 @@ pub struct RTE{
 
     pub key_string: Object,
     pub key_iter: Object,
+    pub key_abs: Object,
     pub key_neg: Object,
     pub key_plus: Object,
     pub key_rplus: Object,
@@ -3558,6 +3559,7 @@ impl RTE{
 
             key_string: U32String::new_object_str("string"),
             key_iter:   U32String::new_object_str("iter"),
+            key_abs:    U32String::new_object_str("abs"),
             key_neg:    U32String::new_object_str("neg"),
             key_plus:   U32String::new_object_str("plus"),
             key_rplus:  U32String::new_object_str("rplus"),

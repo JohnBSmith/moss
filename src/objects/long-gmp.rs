@@ -352,7 +352,7 @@ impl Interface for Long {
             let a = Mpz::as_f64(&self.value);
             return Ok(Object::Float(a+b));
         }else{
-            return env.type_error("Type error in a+b: cannot add a: long and b.");
+            return Ok(Object::Table(env.rte().unimplemented.clone()));
         }
     }
 
@@ -369,7 +369,7 @@ impl Interface for Long {
             let a = Mpz::as_f64(&self.value);
             return Ok(Object::Float(a-b));
         }else{
-            return env.type_error("Type error in a+b: cannot add a: long and b.");
+            return Ok(Object::Table(env.rte().unimplemented.clone()));
         }
     }
 
@@ -386,7 +386,7 @@ impl Interface for Long {
             let a = Mpz::as_f64(&self.value);
             return Ok(Object::Float(a*b));
         }else{
-            return env.type_error("Type error in a+b: cannot add a: long and b.");
+            return Ok(Object::Table(env.rte().unimplemented.clone()));
         }
     }
 
@@ -399,7 +399,7 @@ impl Interface for Long {
             let b = Mpz::as_f64(&self.value);
             return Ok(Object::Float(a+b));
         }else{
-            return env.type_error("Type error in a+b: cannot add a and b: long.");
+            return env.type_error("Type error in a+b: cannot add a and b: Long.");
         }
     }
     
@@ -412,7 +412,7 @@ impl Interface for Long {
             let b = Mpz::as_f64(&self.value);
             return Ok(Object::Float(a-b));
         }else{
-            return env.type_error("Type error in a-b: cannot add a and b: long.");
+            return env.type_error("Type error in a-b: cannot subtract a and b: Long.");
         }
     }
 
@@ -425,7 +425,7 @@ impl Interface for Long {
             let b = Mpz::as_f64(&self.value);
             return Ok(Object::Float(a*b));
         }else{
-            return env.type_error("Type error in x*y: cannot multiply x and y: long.");
+            return env.type_error("Type error in x*y: cannot multiply x and y: Long.");
         }
     }
 
@@ -440,7 +440,7 @@ impl Interface for Long {
             let b = Mpz::as_f64(&b.value);
             return Ok(Object::Float(a/b));
         }
-        env.type_error1("Type error in x/y: cannot divide long integer x by y.","y",&b)
+        Ok(Object::Table(env.rte().unimplemented.clone()))
     }
     
     fn rdiv(&self, a: &Object, env: &mut Env) -> FnResult {
@@ -448,7 +448,7 @@ impl Interface for Long {
         return match *a {
             Object::Int(a) => Ok(Object::Float((a as f64)/b)),
             Object::Float(a) => Ok(Object::Float(a/b)),
-            ref x => env.type_error1("Type error in x/y: cannot divide x by long integer y.","x",x)
+            ref x => env.type_error1("Type error in x/y: cannot divide x by y: Long.","x",x)
         };
     }
 
@@ -496,7 +496,7 @@ impl Interface for Long {
             y.fdiv_rem(&self.value,&b.value);
             return Ok(Object::Interface(Rc::new(Long{value: y})));
         }else{
-            return env.type_error("Type error in a+b: cannot add a: long and b.");
+            return env.type_error("Type error in a%b: a: Long and b.");
         }
     }
     
@@ -507,7 +507,7 @@ impl Interface for Long {
             y.fdiv_rem(&a,&self.value);
             return Ok(Object::Interface(Rc::new(Long{value: y})));
         }else{
-            return env.type_error("Type error in a+b: cannot add a: long and b.");
+            return env.type_error("Type error in a%b: a: Long and b.");
         }
     }
     

@@ -157,10 +157,11 @@ fn sgn(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
     }
 }
 
-fn abs(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
-    if argv.len() != 1 {
-        return env.argc_error(argv.len(),1,1,"abs");
+fn abs(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+    match argv.len() {
+        1 => {}, n => return env.argc_error(n,1,1,"abs")
     }
+    'type_error: loop{
     match argv[0] {
         Object::Int(x) => {
             return Ok(Object::Int(x.abs()));
@@ -174,13 +175,20 @@ fn abs(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
         Object::Interface(ref x) => {
             return x.abs(env);
         },
-        _ => {
-            return env.type_error1(
-                "Type error in abs(x): x should be of type Int, Long, Float, Complex.",
-                "x",&argv[0]
-            );
-        }
+        Object::Table(ref x) => {
+            if let Some(f) = x.get(&env.rte().key_abs) {
+                return env.call(&f,&argv[0],&[]);
+            }else{
+                break 'type_error;
+            }
+        },
+        _ => break 'type_error
     }
+    } // type_error:
+    return env.type_error1(
+        "Type error in abs(x): x should be of type Int, Long, Float, Complex.",
+        "x",&argv[0]
+    );
 }
 
 fn eval(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{

@@ -1,4 +1,5 @@
 
+
 # Polymorphic type complex
 
 function complex(x,y)
@@ -79,6 +80,5 @@ Complex = table{
     return (1..n).prod(|k| a)
   end
 }
-
 
 

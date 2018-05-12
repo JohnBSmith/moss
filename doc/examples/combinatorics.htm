@@ -19,6 +19,7 @@
 <ol>
 <li><a href="#factorial">Factorial function</a>
 <li><a href="#permutations">Permutations</a>
+<li><a href="#bernoulli-numbers">Bernoulli numbers</a>
 </ol>
 </div>
 
@@ -168,6 +169,50 @@ end
 
 # Take any iterable
 perm = |a| permutations(list(a))
+</pre>
+
+
+<h2 id="bernoulli-numbers">Bernoulli numbers</h2>
+
+<p>There is a recursive formula for the Bernoulli numbers:
+<div class="indent">
+<img src="../img/Bn.png" width="260">
+</div>
+
+<p>This formula can be implemented directly, taking advantage
+of exact rational numbers in combination with long integers.
+
+<pre class="moss">
+# memoizing fixed point combinator
+use functional: fix
+
+# rational numbers
+use math.rational: rat
+
+# binomial coefficient
+use math.cf: bc
+
+
+B = fix(|B,n| 1 if n==0 else
+  1-rat(1,n+1)*(0..n-1).sum(|k| B(k)*bc(n+1,k)))
+
+
+for n in 0..8
+  print([n,B(n)])
+end
+# [0, 1]
+# [1, 1/2]
+# [2, 1/6]
+# [3, 0]
+# [4, -1/30]
+# [5, 0]
+# [6, 1/42]
+# [7, 0]
+# [8, -1/30]
+
+
+print(B(60))
+# -1215233140483755572040304994079820246041491/56786730
 </pre>
 
 </body>

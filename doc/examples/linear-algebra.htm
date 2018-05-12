@@ -23,6 +23,7 @@
 <li><a href="#complex-numbers">Complex numbers</a>
 <li><a href="#gauss-jordan">Gauss-Jordan elimination</a>
 <li><a href="#det">Determinant of a matrix</a>
+<li><a href="#rat">Rational numbers</a>
 </ol>
 </div>
 
@@ -221,6 +222,37 @@ function det(A)
   end
   return y
 end
+</pre>
+
+
+<h2 id="rat">Rational numbers</h2>
+<pre class="moss">
+use math.rational: rat
+use math.la: matrix
+use math.la.inversion: det, inv
+
+A = matrix(
+  [1,2,3],
+  [4,5,6],
+  [7,7,9]
+).map(rat)
+
+print(det(A))
+# -6
+
+print(inv(A))
+# matrix(
+#   [-1/2, -1/2, 1/2],
+#   [-1, 2, -1],
+#   [7/6, -7/6, 1/2]
+# )
+
+print(inv(A)*A)
+# matrix(
+#   [1, 0, 0],
+#   [0, 1, 0],
+#   [0, 0, 1]
+# )
 </pre>
 
 </body>

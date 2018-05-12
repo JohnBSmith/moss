@@ -1,17 +1,19 @@
 
+begin
+global rat, Rat
 
 function gcd(a,b)
   while b!=0 do a,b=b,a%b end
   return a
 end
 
-function rat(n,d)
-  t = gcd(n,d)
-  return table Rat{n=n//t, d=d//t}
+function rat_int(n)
+  return table Rat{n=n,d=1}
 end
 
-function rat_int(n)
-  return rat(n,1)
+function rat(n,d=1)
+  t = gcd(n,d)
+  return table Rat{n=n//t, d=d//t}
 end
 
 Rat = table{
@@ -33,8 +35,8 @@ Rat = table{
       n = a.n*b.d+b.n*a.d
       d = a.d*b.d
       return rat(n,d)
-    # elif b: Int or b: Long
-    #   return rat(a.n+b*a.d,a.d)
+    elif b: Int or b: Long
+      return rat(a.n+b*a.d,a.d)
     else
       return b+a
     end
@@ -49,8 +51,8 @@ Rat = table{
       n = a.n*b.d-b.n*a.d
       d = a.d*b.d
       return rat(n,d)
-    #elif b: Int or b: Long
-    #  return rat(a.n-b*a.d,a.d)
+    elif b: Int or b: Long
+      return rat(a.n-b*a.d,a.d)
     else
       return -(b-a)
     end
@@ -65,8 +67,8 @@ Rat = table{
       n = a.n*b.n
       d = a.d*b.d
       return rat(n,d)
-    #elif b: Int or b: Long
-    #  return rat(a.n*b,a.d)
+    elif b: Int or b: Long
+      return rat(a.n*b,a.d)
     else
       return b*a
     end
@@ -86,15 +88,15 @@ Rat = table{
     end
   end,
 
-  function rdiv(b)
-    return rat(self*b.d,b.n)
+  function rdiv(a;b)
+    return rat(a*b.d,b.n)
   end,
 
-  function pow(b)
+  function pow(a;b)
     if b>0
-      return rat(self.n^b, self.d^b)
+      return rat(a.n^b, a.d^b)
     elif b<0
-      return rat(self.d^(-b), self.n^(-b))
+      return rat(a.d^(-b), a.n^(-b))
     else
       return rat(1,1)
     end
@@ -106,8 +108,11 @@ Rat = table{
     else
       return sgn(a.d)*a.n < b*abs(a.d)
     end
+  end,
+
+  abs = fn|a;|
+    return table Rat{n=abs(a.n), d=abs(a.d)}
   end
 }
 
-
-
+end
