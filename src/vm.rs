@@ -351,7 +351,7 @@ impl Hash for Object{
             },
             Object::Table(ref t) => {
                 let p: &Table = t;
-                (p as *const _).hash(state);
+                (p as *const _ as usize).hash(state);
             },
             Object::Interface(ref x) => {
                 state.write_u64(x.hash());

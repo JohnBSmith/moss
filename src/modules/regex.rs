@@ -4,6 +4,8 @@
 
 use std::rc::Rc;
 use std::any::Any;
+
+#[allow(unused_imports)]
 use std::ascii::AsciiExt;
 
 use object::{

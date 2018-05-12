@@ -1,6 +1,7 @@
 
-
+#[allow(unused_imports)]
 use std::ascii::AsciiExt;
+
 use std::rc::Rc;
 use std::collections::HashMap;
 use std::mem::replace;

@@ -8,6 +8,10 @@ use complex::c64;
 use object::{Object, FnResult, Function, new_module};
 use vm::Env;
 
+const SQRT_2PI: f64 = 2.5066282746310002;
+const LN_PI: f64 = 1.1447298858494002;
+const LN_2PI: f64 = 1.8378770664093453;
+
 fn lanczos_gamma(x: f64) -> f64 {
     let p=[
         0.99999999999980993, 676.5203681218851, -1259.1392167224028,
@@ -21,7 +25,7 @@ fn lanczos_gamma(x: f64) -> f64 {
     y+=p[5]/(x+5.0); y+=p[6]/(x+6.0);
     y+=p[7]/(x+7.0); y+=p[8]/(x+8.0);
     let t=x+7.5;
-    return (2.0*PI).sqrt()*t.powf(x+0.5)*(-t).exp()*y;
+    return SQRT_2PI*t.powf(x+0.5)*(-t).exp()*y;
 }
 
 pub fn gamma(x: f64) -> f64 {
@@ -29,6 +33,38 @@ pub fn gamma(x: f64) -> f64 {
         return PI/(x*PI).sin()/lanczos_gamma(1.0-x);
     }else{
         return lanczos_gamma(x);
+    }
+}
+
+fn lanczos_lgamma(x: f64) -> f64 {
+    let p=[
+        0.99999999999980993, 676.5203681218851, -1259.1392167224028,
+        771.32342877765313, -176.61502916214059, 12.507343278686905,
+        -0.13857109526572012, 9.9843695780195716e-6, 1.5056327351493116e-7
+    ];
+    let x = x-1.0;
+    let mut y = p[0];
+    y+=p[1]/(x+1.0); y+=p[2]/(x+2.0);
+    y+=p[3]/(x+3.0); y+=p[4]/(x+4.0);
+    y+=p[5]/(x+5.0); y+=p[6]/(x+6.0);
+    y+=p[7]/(x+7.0); y+=p[8]/(x+8.0);
+    let t=x+7.5;
+    return 0.5*LN_2PI+(x+0.5)*t.ln()-t+y.ln();
+}
+
+pub fn lgamma(x: f64) -> f64 {
+    if x<0.5 {
+        return LN_PI-(x*PI).sin().abs().ln()-lanczos_lgamma(1.0-x);
+    }else{
+        return lanczos_lgamma(x);
+    }
+}
+
+pub fn sgngamma(x: f64) -> f64 {
+    if x<0.0 {
+        return (x*PI).sin().signum();
+    }else{
+        return 1.0;
     }
 }
 
@@ -45,7 +81,7 @@ fn lanczos_cgamma(z: c64) -> c64 {
     y=y+p[5]/(z+5.0); y=y+p[6]/(z+6.0);
     y=y+p[7]/(z+7.0); y=y+p[8]/(z+8.0);
     let t=z+7.5;
-    return (2.0*PI).sqrt()*t.powc(z+0.5)*(-t).exp()*y;
+    return SQRT_2PI*t.powc(z+0.5)*(-t).exp()*y;
 }
 
 pub fn cgamma(z: c64) -> c64 {
@@ -379,7 +415,7 @@ fn atanh(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     }
 }
 
-fn fgamma(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+fn math_gamma(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         1 => {}, n => return env.argc_error(n,1,1,"gamma")
     }
@@ -395,6 +431,30 @@ fn fgamma(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
         },
         ref x => type_error_int_float_complex(env,"gamma",x)
     }
+}
+
+fn math_lgamma(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+    match argv.len() {
+        1 => {}, n => return env.argc_error(n,1,1,"lgamma")
+    }
+    let x = match argv[0] {
+        Object::Int(x) => x as f64,
+        Object::Float(x) => x,
+        ref x => return type_error_int_float(env,"lgamma",x)
+    };
+    Ok(Object::Float(lgamma(x)))
+}
+
+fn math_sgngamma(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+    match argv.len() {
+        1 => {}, n => return env.argc_error(n,1,1,"sgngamma")
+    }
+    let x = match argv[0] {
+        Object::Int(x) => x as f64,
+        Object::Float(x) => x,
+        ref x => return type_error_int_float(env,"sgngamma",x)
+    };
+    Ok(Object::Float(sgngamma(x)))
 }
 
 fn hypot(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
@@ -459,7 +519,7 @@ fn atan2(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     }
 }
 
-fn ferf(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+fn math_erf(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         1 => {}, n => return env.argc_error(n,1,1,"erf")
     }
@@ -759,10 +819,12 @@ pub fn load_math() -> Object {
         m.insert_fn_plain("acosh",acosh,1,1);
         m.insert_fn_plain("atanh",atanh,1,1);
 
-        m.insert_fn_plain("gamma",fgamma,1,1);
+        m.insert_fn_plain("gamma",math_gamma,1,1);
+        m.insert_fn_plain("lgamma",math_lgamma,1,1);
+        m.insert_fn_plain("sgngamma",math_sgngamma,1,1);
         m.insert_fn_plain("hypot",hypot,2,2);
         m.insert_fn_plain("atan2",atan2,2,2);
-        m.insert_fn_plain("erf",ferf,1,1);
+        m.insert_fn_plain("erf",math_erf,1,1);
         m.insert_fn_plain("isnan",isnan,1,1);
         m.insert_fn_plain("isinf",isinf,1,1);
     }
