@@ -110,6 +110,16 @@ Rat = table{
     end
   end,
 
+  function eq(a;b)
+    if b: Rat
+      return (abs(a.n)==abs(b.n) and abs(a.d)==abs(b.d) and
+        sgn(a.n)*sgn(a.d) == sgn(b.n)*sgn(b.d))
+    else
+      return (abs(a.n)==abs(b) and abs(a.d)==1 and
+        sgn(a.n)*sgn(a.d) == sgn(b))
+    end
+  end,
+
   abs = fn|a;|
     return table Rat{n=abs(a.n), d=abs(a.d)}
   end

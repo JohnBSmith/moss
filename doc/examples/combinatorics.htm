@@ -215,6 +215,28 @@ print(B(60))
 # -1215233140483755572040304994079820246041491/56786730
 </pre>
 
+<p>Alternatively:
+<pre class="moss">
+# factorial,
+# Eulerian numbers of the first order,
+# Stirling numbers of the second kind
+use math.cf: fac, euler1, stirling2
+
+B = |n| rat(
+  n*(0..n-1).sum(|k| (-1)^k*euler1(n-1,k)),
+  2^n*(2^n-1)
+)
+
+B = |n| (0..n).sum(|k|
+  rat((-1)^k*fac(k)*stirling2(n+1,k+1),k+1))
+
+B = |n| rat(1,2) if n==1 else (0..n).sum(|k|
+  rat((-1)^k*fac(k)*stirling2(n,k),k+1))
+
+B = |n| rat(n,2^(n+1)-2)*(0..n-1).sum(|k|
+  rat(fac(k)*stirling2(n,k+1),(-2)^k))
+</pre>
+
 </body>
 </html>
 

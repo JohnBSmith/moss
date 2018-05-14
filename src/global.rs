@@ -137,13 +137,13 @@ fn sgn(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
     }
     match argv[0] {
         Object::Int(x) => {
-            return Ok(Object::Int(if x<0 {-1} else {1}));
+            return Ok(Object::Int(if x<0 {-1} else if x==0 {0} else {1}));
         },
         Object::Float(x) => {
-            return Ok(Object::Float(if x<0.0 {-1.0} else {1.0}));
+            return Ok(Object::Float(x.signum()));
         },
         Object::Complex(z) => {
-            return Ok(Object::Float(z.abs()));
+            return Ok(Object::Complex(z/z.abs()));
         },
         Object::Interface(ref x) => {
             return x.sgn(env);

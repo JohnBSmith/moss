@@ -24,6 +24,7 @@ table.bt td {
 <h2 id="toc">Table of contents</h2>
 <ol>
 <li><a href="#notations">Notations</a>
+<li><a href="#integer-division">Integer division</a>
 <li><a href="#rational">Rational numbers</a>
 <li><a href="#la">Linear algebra</a>
 </ol>
@@ -259,6 +260,49 @@ integral(a,b,|x| f(x))
 <td><code class="moss">re(z), im(z)</code>
 <td>real part, imaginary part
 </table>
+
+
+<h2 id="integer-division">Integer division</h2>
+
+<p>There are different forms of integer division.
+<pre class="moss indent">
+# Floor division
+div_floor = |x,y| x//y
+mod_floor = |x,y| x%y
+
+
+# Euclidean division
+div_euc = |x,y| sgn(y)*(x//abs(y))
+mod_euc = |x,y| x%abs(y)
+
+
+# Truncating division
+div_trunc = |x,y| sgn(x)*sgn(y)*(abs(x)//abs(y))
+mod_trunc = |x,y| x%(sgn(x)*abs(y))
+</pre>
+
+<p>In case of <code>y&gt;0</code>, flooring division and Euclidean
+division coincide. In case of <code>x&gt;0</code> and
+<code>y&gt;0</code>, all of them coincide.
+
+<p>Furthermore, there are floating point counterparts:
+<pre class="moss indent">
+use math: floor, trunc
+
+# Floor division
+div_floor = |x,y| floor(x/y)
+mod_floor = |x,y| x-y*floor(x/y)
+
+
+# Euclidean division
+div_euc = |x,y| sgn(y)*floor(x/abs(y))
+mod_euc = |x,y| x-abs(y)*floor(x/abs(y))
+
+
+# Truncating division
+div_trunc = |x,y| trunc(x/y)
+mod_trunc = |x,y| x-y*trunc(x/y)
+</pre>
 
 <h2 id="rational">Rational numbers</h2>
 <p>Module <code>math.rational</code> provides rational numbers.

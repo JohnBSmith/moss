@@ -153,6 +153,18 @@ fn ceil(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     }
 }
 
+fn trunc(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+    match argv.len() {
+        1 => {}, n => return env.argc_error(n,1,1,"trunc")
+    }
+    let x = match argv[0] {
+        Object::Int(x) => x as f64,
+        Object::Float(x) => x,
+        ref x => return type_error_int_float(env,"trunc",x)
+    };
+    Ok(Object::Float(x.trunc()))
+}
+
 fn sqrt(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         1 => {}, n => return env.argc_error(n,1,1,"sqrt")
@@ -800,6 +812,7 @@ pub fn load_math() -> Object {
 
         m.insert_fn_plain("floor",floor,1,1);
         m.insert_fn_plain("ceil",ceil,1,1);
+        m.insert_fn_plain("trunc",trunc,1,1);
         m.insert_fn_plain("sqrt",sqrt,1,1);
         m.insert_fn_plain("exp",exp,1,1);
         m.insert_fn_plain("ln",ln,1,1);

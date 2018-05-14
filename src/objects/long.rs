@@ -5,7 +5,7 @@ use std::cmp::{min};
 use std::fmt;
 
 type Digit = u8;
-const HEX_COUNT: usize=2;
+const HEX_COUNT: usize = 2;
 
 pub struct Long{
     v: Vec<Digit>,

@@ -12,6 +12,9 @@ impl Long {
     pub fn add_int_int(_a: i32, _b: i32) -> Object {
         panic!("Overflow in a+b.")
     }
+    pub fn sub_int_int(a: i32, b: i32) -> Object {
+        panic!("Overflow in a-b.")
+    }
     pub fn mpy_int_int(_a: i32, _b: i32) -> Object {
         panic!("Overflow in a+b.")
     }

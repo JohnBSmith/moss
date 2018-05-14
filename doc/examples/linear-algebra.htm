@@ -24,6 +24,7 @@
 <li><a href="#gauss-jordan">Gauss-Jordan elimination</a>
 <li><a href="#det">Determinant of a matrix</a>
 <li><a href="#rat">Rational numbers</a>
+<li><a href="#rand">Random numbers</a>
 </ol>
 </div>
 
@@ -253,6 +254,21 @@ print(inv(A)*A)
 #   [0, 1, 0],
 #   [0, 0, 1]
 # )
+</pre>
+
+<h2 id="rand">Random numbers</h2>
+<pre class="moss">
+function random_vector(n,rng)
+  return vector(*rng.list(n))
+end
+
+function random_matrix(m,n,rng)
+  return matrix(*rng.chunks(n).list(m))
+end
+
+v = random_vector(4,rand(1..6))
+A = random_matrix(4,4,rand(1..6))
+B = random_matrix(4,4,rand())
 </pre>
 
 </body>

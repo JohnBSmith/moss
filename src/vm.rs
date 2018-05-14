@@ -689,13 +689,11 @@ pub fn op_le(env: &mut Env, x: &Object, y: &Object) -> FnResult {
 }
 
 pub fn op_eq(env: &mut Env, x: &Object, y: &Object) -> FnResult {
-    /*
     env.stack[env.sp] = x.clone();
     env.stack[env.sp+1] = y.clone();
     try!(::vm::operator_eq(env.env,env.sp+2,env.stack));
     return Ok(replace(&mut env.stack[env.sp],Object::Null));
-    */
-    return Ok(Object::Bool(x==y));
+    // return Ok(Object::Bool(x==y));
 }
 
 fn operator_neg(env: &mut EnvPart, sp: usize, stack: &mut [Object])
@@ -778,7 +776,7 @@ fn operator_plus(env: &mut EnvPart, sp: usize, stack: &mut [Object])
                 Object::Int(y) => {
                     stack[sp-2] = match x.checked_add(y) {
                         Some(z) => Object::Int(z),
-                        None => {Long::add_int_int(x,y)}
+                        None => Long::add_int_int(x,y)
                     };
                     return Ok(());
                 },
@@ -940,7 +938,7 @@ fn operator_minus(env: &mut EnvPart, sp: usize, stack: &mut [Object])
                 Object::Int(y) => {
                     stack[sp-2] = match x.checked_sub(y) {
                         Some(z) => Object::Int(z),
-                        None => panic!()
+                        None => Long::sub_int_int(x,y)
                     };
                     Ok(())
                 },
@@ -1427,6 +1425,71 @@ fn operator_div(env: &mut EnvPart, sp: usize, stack: &mut [Object])
     }
 }
 
+#[inline]
+pub fn div_floor(x: i32, y: i32) -> i32 {
+    let q = x/y;
+    let r = x%y;
+    if r != 0 && (r<0) != (y<0) {q-1} else {q}
+}
+
+#[inline]
+pub fn mod_floor(x: i32, y: i32) -> i32 {
+    let r = x%y;
+    if r != 0 && (r<0) != (y<0) {r+y} else {r}
+}
+
+#[inline]
+fn checked_div_floor(x: i32, y: i32) -> Option<i32> {
+    if y==0 || (x == i32::min_value() && y == -1) {
+        None
+    }else{
+        Some(div_floor(x,y))
+    }
+}
+
+#[inline]
+fn checked_mod_floor(x: i32, y: i32) -> Option<i32> {
+    if y == 0 || (x == i32::min_value() && y == -1) {
+        None
+    }else{
+        Some(mod_floor(x,y))
+    }
+}
+
+/*
+#[inline]
+fn div_euc(x: i32, y: i32) -> i32 {
+    let q = x/y;
+    if x%y<0 {
+        if y>0 {q-1} else {q+1}
+    }else{q}
+}
+
+#[inline]
+fn checked_div_euc(x: i32, y: i32) -> Option<i32> {
+    if y==0 || (x == i32::min_value() && y == -1) {
+        None
+    }else{
+        Some(div_euc(x,y))
+    }
+}
+
+#[inline]
+fn mod_euc(x: i32, y: i32) -> i32 {
+    let r = x%y;
+    if r<0 {r+y.abs()} else {r}
+}
+
+#[inline]
+fn checked_mod_euc(x: i32, y: i32) -> Option<i32> {
+    if y == 0 || (x == i32::min_value() && y == -1) {
+        None
+    }else{
+        Some(mod_euc(x,y))
+    }
+}
+*/
+
 fn operator_idiv(env: &mut EnvPart, sp: usize, stack: &mut [Object])
 -> OperatorResult
 {
@@ -1438,7 +1501,11 @@ fn operator_idiv(env: &mut EnvPart, sp: usize, stack: &mut [Object])
                     if y==0 {
                         return Err(env.value_error_plain("Value error in a//b: b==0."));
                     }
-                    stack[sp-2] = Object::Int(x/y);
+                    if let Some(value) = checked_div_floor(x,y) {
+                        stack[sp-2] = Object::Int(value);
+                    }else{
+                        stack[sp-2] = Long::add_int_int(i32::max_value(),1);
+                    }
                     Ok(())
                 },
                 _ => {break 'r;}
@@ -1517,7 +1584,15 @@ fn operator_mod(env: &mut EnvPart, sp: usize, stack: &mut [Object])
         Object::Int(x) => {
             return match stack[sp-1] {
                 Object::Int(y) => {
-                    stack[sp-2] = Object::Int(x%y);
+                    if y==0 {
+                        return Err(env.value_error_plain(
+                            "Value error in x%y: y==0."));
+                    }
+                    if let Some(value) = checked_mod_floor(x,y) {
+                        stack[sp-2] = Object::Int(value);
+                    }else{
+                        stack[sp-2] = Object::Int(0);
+                    }
                     Ok(())
                 },
                 _ => {break 'r;}
@@ -1994,6 +2069,19 @@ fn operator_eq(env: &mut EnvPart, sp: usize, stack: &mut [Object])
                     }
                 },
                 Err(e) => Err(e)
+            }
+        },
+        Object::Table(a) => {
+            match a.get(&env.rte.key_eq) {
+                Some(ref f) => {
+                    let x = replace(&mut stack[sp-2],Object::Null);
+                    let y = replace(&mut stack[sp-1],Object::Null);
+                    match (Env{env,sp,stack}).call(f,&x,&[y]) {
+                        Ok(y) => {stack[sp-2] = y; Ok(())},
+                        Err(e) => Err(e)
+                    }
+                },
+                None => {break 'r;}
             }
         },
         _ => {break 'r;}
@@ -3524,7 +3612,8 @@ pub struct RTE{
     pub key_lt: Object,
     pub key_rlt: Object,
     pub key_le: Object,
-    pub key_rle: Object
+    pub key_rle: Object,
+    pub key_eq: Object
 }
 
 impl RTE{
@@ -3569,16 +3658,17 @@ impl RTE{
             key_rmpy:   U32String::new_object_str("rmpy"),
             key_div:    U32String::new_object_str("div"),
             key_rdiv:   U32String::new_object_str("rdiv"),
-            key_idiv:    U32String::new_object_str("div"),
-            key_ridiv:   U32String::new_object_str("rdiv"),
+            key_idiv:   U32String::new_object_str("div"),
+            key_ridiv:  U32String::new_object_str("rdiv"),
             key_mod:    U32String::new_object_str("mod"),
             key_rmod:   U32String::new_object_str("rmod"),
             key_pow:    U32String::new_object_str("pow"),
             key_rpow:   U32String::new_object_str("rpow"),
             key_lt:     U32String::new_object_str("lt"),
-            key_rlt:     U32String::new_object_str("rlt"),
+            key_rlt:    U32String::new_object_str("rlt"),
             key_le:     U32String::new_object_str("le"),
-            key_rle:     U32String::new_object_str("rle")
+            key_rle:    U32String::new_object_str("rle"),
+            key_eq:     U32String::new_object_str("eq")
         })
     }
     pub fn clear_at_exit(&self, gtab: Rc<RefCell<Map>>){
