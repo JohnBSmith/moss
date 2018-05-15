@@ -20,7 +20,7 @@ use complex::Complex64;
 use long::Long;
 use tuple::Tuple;
 use format::u32string_format;
-use global::type_name;
+use global::{type_name,list};
 use rand::Rand;
 use list::cartesian_power;
 use iterable::iter;
@@ -441,7 +441,7 @@ fn table_to_string(env: &mut Env, t: &Rc<Table>)
         let s = try!(env.call(&f,&Object::Table(t.clone()),&[]));
         return s.string(env);
     }
-    let left = if t.prototype == Object::Null {
+    let left = if let Object::Null = t.prototype {
         "table{"
     }else{
         "table(...){"
@@ -637,18 +637,19 @@ fn function_id_to_string(f: &Function) -> String {
     }
 }
 
+// Todo: does env.sp leap one index?
 #[allow(dead_code)]
 pub fn op_neg(env: &mut Env, x: &Object) -> FnResult {
     env.stack[env.sp] = x.clone();
     try!(::vm::operator_neg(env.env,env.sp+1,env.stack));
-    return Ok(replace(&mut env.stack[env.sp],Object::Null));
+    return Ok(env.stack[env.sp].take());
 }
 
 pub fn op_add(env: &mut Env, x: &Object, y: &Object) -> FnResult {
     env.stack[env.sp] = x.clone();
     env.stack[env.sp+1] = y.clone();
     try!(::vm::operator_plus(env.env,env.sp+2,env.stack));
-    return Ok(replace(&mut env.stack[env.sp],Object::Null));
+    return Ok(env.stack[env.sp].take());
 }
 
 #[allow(dead_code)]
@@ -656,14 +657,14 @@ pub fn op_sub(env: &mut Env, x: &Object, y: &Object) -> FnResult {
     env.stack[env.sp] = x.clone();
     env.stack[env.sp+1] = y.clone();
     try!(::vm::operator_minus(env.env,env.sp+2,env.stack));
-    return Ok(replace(&mut env.stack[env.sp],Object::Null));
+    return Ok(env.stack[env.sp].take());
 }
 
 pub fn op_mpy(env: &mut Env, x: &Object, y: &Object) -> FnResult {
     env.stack[env.sp] = x.clone();
     env.stack[env.sp+1] = y.clone();
     try!(::vm::operator_mpy(env.env,env.sp+2,env.stack));
-    return Ok(replace(&mut env.stack[env.sp],Object::Null));
+    return Ok(env.stack[env.sp].take());
 }
 
 #[allow(dead_code)]
@@ -671,28 +672,28 @@ pub fn op_div(env: &mut Env, x: &Object, y: &Object) -> FnResult {
     env.stack[env.sp] = x.clone();
     env.stack[env.sp+1] = y.clone();
     try!(::vm::operator_div(env.env,env.sp+2,env.stack));
-    return Ok(replace(&mut env.stack[env.sp],Object::Null));
+    return Ok(env.stack[env.sp].take());
 }
 
 pub fn op_lt(env: &mut Env, x: &Object, y: &Object) -> FnResult {
     env.stack[env.sp] = x.clone();
     env.stack[env.sp+1] = y.clone();
     try!(::vm::operator_lt(env.env,env.sp+2,env.stack));
-    return Ok(replace(&mut env.stack[env.sp],Object::Null));
+    return Ok(env.stack[env.sp].take());
 }
 
 pub fn op_le(env: &mut Env, x: &Object, y: &Object) -> FnResult {
     env.stack[env.sp] = x.clone();
     env.stack[env.sp+1] = y.clone();
     try!(::vm::operator_le(env.env,env.sp+2,env.stack));
-    return Ok(replace(&mut env.stack[env.sp],Object::Null));
+    return Ok(env.stack[env.sp].take());
 }
 
 pub fn op_eq(env: &mut Env, x: &Object, y: &Object) -> FnResult {
     env.stack[env.sp] = x.clone();
     env.stack[env.sp+1] = y.clone();
     try!(::vm::operator_eq(env.env,env.sp+2,env.stack));
-    return Ok(replace(&mut env.stack[env.sp],Object::Null));
+    return Ok(env.stack[env.sp].take());
     // return Ok(Object::Bool(x==y));
 }
 
@@ -714,7 +715,7 @@ fn operator_neg(env: &mut EnvPart, sp: usize, stack: &mut [Object])
         },
         _ => {}
     }
-    match replace(&mut stack[sp-1],Object::Null) {
+    match stack[sp-1].take() {
         Object::Table(t) => {
             match t.get(&env.rte.key_neg) {
                 Some(ref f) => {
@@ -851,8 +852,8 @@ fn operator_plus(env: &mut EnvPart, sp: usize, stack: &mut [Object])
         Object::Table(a) => {
             match a.get(&env.rte.key_plus) {
                 Some(ref f) => {
-                    let x = replace(&mut stack[sp-2],Object::Null);
-                    let y = replace(&mut stack[sp-1],Object::Null);
+                    let x = stack[sp-2].take();
+                    let y = stack[sp-1].take();
                     match (Env{env,sp,stack}).call(f,&x,&[y]) {
                         Ok(y) => {stack[sp-2] = y; Ok(())},
                         Err(e) => Err(e)
@@ -879,9 +880,9 @@ fn operator_plus(env: &mut EnvPart, sp: usize, stack: &mut [Object])
         _ => {break 'r;}
     };
     } // 'r
-    match replace(&mut stack[sp-1],Object::Null) {
+    match stack[sp-1].take() {
         Object::Interface(a) => {
-            let b = replace(&mut stack[sp-2],Object::Null);
+            let b = stack[sp-2].take();
             match a.radd(&b,&mut Env{env: env, sp: sp, stack: stack}) {
                 Ok(y) => {
                     if env.is_unimplemented(&y) {
@@ -898,7 +899,7 @@ fn operator_plus(env: &mut EnvPart, sp: usize, stack: &mut [Object])
         Object::Table(a) => {
             match a.get(&env.rte.key_rplus) {
                 Some(ref f) => {
-                    let x = replace(&mut stack[sp-2],Object::Null);
+                    let x = stack[sp-2].take();
                     match (Env{env,sp,stack}).call(f,&x,&[Object::Table(a)]) {
                         Ok(y) => {stack[sp-2] = y; Ok(())},
                         Err(e) => Err(e)
@@ -1012,8 +1013,8 @@ fn operator_minus(env: &mut EnvPart, sp: usize, stack: &mut [Object])
         Object::Table(a) => {
             match a.get(&env.rte.key_minus) {
                 Some(ref f) => {
-                    let x = replace(&mut stack[sp-2],Object::Null);
-                    let y = replace(&mut stack[sp-1],Object::Null);
+                    let x = stack[sp-2].take();
+                    let y = stack[sp-1].take();
                     match (Env{env,sp,stack}).call(f,&x,&[y]) {
                         Ok(y) => {stack[sp-2] = y; Ok(())},
                         Err(e) => Err(e)
@@ -1040,9 +1041,9 @@ fn operator_minus(env: &mut EnvPart, sp: usize, stack: &mut [Object])
         _ => {break 'r;}
     };
     } // 'r
-    match replace(&mut stack[sp-1],Object::Null) {
+    match stack[sp-1].take() {
         Object::Interface(a) => {
-            let b = replace(&mut stack[sp-2],Object::Null);
+            let b = stack[sp-2].take();
             match a.rsub(&b,&mut Env{env: env, sp: sp, stack: stack}) {
                 Ok(y) => {
                     if env.is_unimplemented(&y) {
@@ -1059,7 +1060,7 @@ fn operator_minus(env: &mut EnvPart, sp: usize, stack: &mut [Object])
         Object::Table(a) => {
             match a.get(&env.rte.key_rminus) {
                 Some(ref f) => {
-                    let x = replace(&mut stack[sp-2],Object::Null);
+                    let x = stack[sp-2].take();
                     match (Env{env,sp,stack}).call(f,&x,&[Object::Table(a)]) {
                         Ok(y) => {stack[sp-2] = y; Ok(())},
                         Err(e) => Err(e)
@@ -1185,8 +1186,8 @@ fn operator_mpy(env: &mut EnvPart, sp: usize, stack: &mut [Object])
         Object::Table(a) => {
             match a.get(&env.rte.key_mpy) {
                 Some(ref f) => {
-                    let x = replace(&mut stack[sp-2],Object::Null);
-                    let y = replace(&mut stack[sp-1],Object::Null);
+                    let x = stack[sp-2].take();
+                    let y = stack[sp-1].take();
                     match (Env{env,sp,stack}).call(f,&x,&[y]) {
                         Ok(y) => {stack[sp-2] = y; Ok(())},
                         Err(e) => Err(e)
@@ -1213,9 +1214,9 @@ fn operator_mpy(env: &mut EnvPart, sp: usize, stack: &mut [Object])
         _ => {break 'r;}
     };
     } // 'r
-    return match replace(&mut stack[sp-1],Object::Null) {
+    return match stack[sp-1].take() {
         Object::Interface(a) => {
-            let b = replace(&mut stack[sp-2],Object::Null);
+            let b = stack[sp-2].take();
             match a.rmpy(&b,&mut Env{env: env, sp: sp, stack: stack}) {
                 Ok(y) => {
                     if env.is_unimplemented(&y) {
@@ -1232,7 +1233,7 @@ fn operator_mpy(env: &mut EnvPart, sp: usize, stack: &mut [Object])
         Object::Table(a) => {
             match a.get(&env.rte.key_rmpy) {
                 Some(ref f) => {
-                    let x = replace(&mut stack[sp-2],Object::Null);
+                    let x = stack[sp-2].take();
                     match (Env{env,sp,stack}).call(f,&x,&[Object::Table(a)]) {
                         Ok(y) => {stack[sp-2] = y; Ok(())},
                         Err(e) => Err(e)
@@ -1266,7 +1267,7 @@ fn operator_mpy(env: &mut EnvPart, sp: usize, stack: &mut [Object])
         Object::Int(i) => i,
         _ => unreachable!()
     };
-    let s = match replace(&mut stack[sp-1],Object::Null) {
+    let s = match stack[sp-1].take() {
         Object::String(s) => s,
         _ => unreachable!()
     };
@@ -1278,7 +1279,7 @@ fn operator_mpy(env: &mut EnvPart, sp: usize, stack: &mut [Object])
         Object::Int(x) => if x<0 {0 as usize} else {x as usize},
         _ => unreachable!()
     };
-    let a = match replace(&mut stack[sp-1],Object::Null) {
+    let a = match stack[sp-1].take() {
         Object::List(a) => a,
         _ => unreachable!()
     };
@@ -1348,8 +1349,8 @@ fn operator_div(env: &mut EnvPart, sp: usize, stack: &mut [Object])
         Object::Table(a) => {
             match a.get(&env.rte.key_div) {
                 Some(ref f) => {
-                    let x = replace(&mut stack[sp-2],Object::Null);
-                    let y = replace(&mut stack[sp-1],Object::Null);
+                    let x = stack[sp-2].take();
+                    let y = stack[sp-1].take();
                     match (Env{env,sp,stack}).call(f,&x,&[y]) {
                         Ok(y) => {stack[sp-2] = y; Ok(())},
                         Err(e) => Err(e)
@@ -1376,9 +1377,9 @@ fn operator_div(env: &mut EnvPart, sp: usize, stack: &mut [Object])
         _ => {break 'r;}
     };
     } // 'r
-    match replace(&mut stack[sp-1],Object::Null) {
+    match stack[sp-1].take() {
         Object::Interface(a) => {
-            let b = replace(&mut stack[sp-2],Object::Null);
+            let b = stack[sp-2].take();
             match a.rdiv(&b,&mut Env{env: env, sp: sp, stack: stack}) {
                 Ok(y) => {
                     if env.is_unimplemented(&y) {
@@ -1395,7 +1396,7 @@ fn operator_div(env: &mut EnvPart, sp: usize, stack: &mut [Object])
         Object::Table(a) => {
             match a.get(&env.rte.key_rdiv) {
                 Some(ref f) => {
-                    let x = replace(&mut stack[sp-2],Object::Null);
+                    let x = stack[sp-2].take();
                     match (Env{env,sp,stack}).call(f,&x,&[Object::Table(a)]) {
                         Ok(y) => {stack[sp-2] = y; Ok(())},
                         Err(e) => Err(e)
@@ -1515,7 +1516,7 @@ fn operator_idiv(env: &mut EnvPart, sp: usize, stack: &mut [Object])
     }
     return match stack[sp-2].clone() {
         Object::Interface(a) => {
-            let b = replace(&mut stack[sp-1],Object::Null);
+            let b = stack[sp-1].take();
             match a.idiv(&b,&mut Env{env: env, sp: sp, stack: stack}) {
                 Ok(y) => {
                     stack[sp-2] = y;
@@ -1527,9 +1528,9 @@ fn operator_idiv(env: &mut EnvPart, sp: usize, stack: &mut [Object])
         _ => {break 'r;}
     };
     } // 'r
-    match replace(&mut stack[sp-1],Object::Null) {
+    match stack[sp-1].take() {
         Object::Interface(a) => {
-            let b = replace(&mut stack[sp-2],Object::Null);
+            let b = stack[sp-2].take();
             match a.ridiv(&b,&mut Env{env: env, sp: sp, stack: stack}) {
                 Ok(y) => {
                     if env.is_unimplemented(&y) {
@@ -1546,7 +1547,7 @@ fn operator_idiv(env: &mut EnvPart, sp: usize, stack: &mut [Object])
         Object::Table(a) => {
             match a.get(&env.rte.key_ridiv) {
                 Some(ref f) => {
-                    let x = replace(&mut stack[sp-2],Object::Null);
+                    let x = stack[sp-2].take();
                     match (Env{env,sp,stack}).call(f,&x,&[Object::Table(a)]) {
                         Ok(y) => {stack[sp-2] = y; Ok(())},
                         Err(e) => Err(e)
@@ -1604,8 +1605,8 @@ fn operator_mod(env: &mut EnvPart, sp: usize, stack: &mut [Object])
         Object::Table(a) => {
             match a.get(&env.rte.key_mod) {
                 Some(ref f) => {
-                    let x = replace(&mut stack[sp-2],Object::Null);
-                    let y = replace(&mut stack[sp-1],Object::Null);
+                    let x = stack[sp-2].take();
+                    let y = stack[sp-1].take();
                     match (Env{env,sp,stack}).call(f,&x,&[y]) {
                         Ok(y) => {stack[sp-2] = y; Ok(())},
                         Err(e) => Err(e)
@@ -1615,14 +1616,14 @@ fn operator_mod(env: &mut EnvPart, sp: usize, stack: &mut [Object])
             }
         },
         Object::Interface(a) => {
-            let b = replace(&mut stack[sp-1],Object::Null);
+            let b = stack[sp-1].take();
             match a.imod(&b,&mut Env{env: env, sp: sp, stack: stack}) {
                 Ok(y) => {stack[sp-2]=y; Ok(())},
                 Err(e) => Err(e)
             }    
         },
         Object::String(s) => {
-            let a = replace(&mut stack[sp-1],Object::Null);
+            let a = stack[sp-1].take();
             match u32string_format(&mut Env{env: env, sp: sp, stack: stack},&s,&a) {
                 Ok(y) => {stack[sp-2]=y; Ok(())},
                 Err(e) => Err(e)
@@ -1631,9 +1632,9 @@ fn operator_mod(env: &mut EnvPart, sp: usize, stack: &mut [Object])
         _ => {break 'r;}
     };
     } // 'r
-    match replace(&mut stack[sp-1],Object::Null) {
+    match stack[sp-1].take() {
         Object::Interface(a) => {
-            let b = replace(&mut stack[sp-2],Object::Null);
+            let b = stack[sp-2].take();
             match a.rimod(&b,&mut Env{env: env, sp: sp, stack: stack}) {
                 Ok(y) => {
                     if env.is_unimplemented(&y) {
@@ -1650,7 +1651,7 @@ fn operator_mod(env: &mut EnvPart, sp: usize, stack: &mut [Object])
         Object::Table(a) => {
             match a.get(&env.rte.key_rmod) {
                 Some(ref f) => {
-                    let x = replace(&mut stack[sp-2],Object::Null);
+                    let x = stack[sp-2].take();
                     match (Env{env,sp,stack}).call(f,&x,&[Object::Table(a)]) {
                         Ok(y) => {stack[sp-2] = y; Ok(())},
                         Err(e) => Err(e)
@@ -1773,7 +1774,7 @@ fn operator_pow(env: &mut EnvPart, sp: usize, stack: &mut [Object])
             };
         },
         Object::Function(f) => {
-            let n = replace(&mut stack[sp-1],Object::Null);
+            let n = stack[sp-1].take();
             match ::function::iterate(&mut Env{env,sp,stack},&Object::Function(f),&n) {
                 Ok(y) => {stack[sp-2] = y; Ok(())},
                 Err(e) => Err(e)
@@ -1782,8 +1783,8 @@ fn operator_pow(env: &mut EnvPart, sp: usize, stack: &mut [Object])
         Object::Table(a) => {
             match a.get(&env.rte.key_pow) {
                 Some(ref f) => {
-                    let x = replace(&mut stack[sp-2],Object::Null);
-                    let y = replace(&mut stack[sp-1],Object::Null);
+                    let x = stack[sp-2].take();
+                    let y = stack[sp-1].take();
                     match (Env{env,sp,stack}).call(f,&x,&[y]) {
                         Ok(y) => {stack[sp-2] = y; Ok(())},
                         Err(e) => Err(e)
@@ -1793,7 +1794,7 @@ fn operator_pow(env: &mut EnvPart, sp: usize, stack: &mut [Object])
             }
         },
         Object::Interface(a) => {
-            let b = replace(&mut stack[sp-1],Object::Null);
+            let b = stack[sp-1].take();
             match a.pow(&b,&mut Env{env: env, sp: sp, stack: stack}) {
                 Ok(y) => {stack[sp-2] = y; Ok(())},
                 Err(e) => Err(e)
@@ -1802,10 +1803,10 @@ fn operator_pow(env: &mut EnvPart, sp: usize, stack: &mut [Object])
         _ => {break 'r;}
     };
     } // 'r
-    match replace(&mut stack[sp-1],Object::Null) {
+    match stack[sp-1].take() {
         Object::Interface(a) => {
-            let b = replace(&mut stack[sp-2],Object::Null);
-            match a.rpow(&b,&mut Env{env: env, sp: sp, stack: stack}) {
+            let b = stack[sp-2].take();
+            match a.rpow(&b,&mut Env{env,sp,stack}) {
                 Ok(y) => {stack[sp-2] = y; Ok(())},
                 Err(e) => Err(e)
             }      
@@ -1813,7 +1814,7 @@ fn operator_pow(env: &mut EnvPart, sp: usize, stack: &mut [Object])
         Object::Table(a) => {
             match a.get(&env.rte.key_rpow) {
                 Some(ref f) => {
-                    let x = replace(&mut stack[sp-2],Object::Null);
+                    let x = stack[sp-2].take();
                     match (Env{env,sp,stack}).call(f,&x,&[Object::Table(a)]) {
                         Ok(y) => {stack[sp-2] = y; Ok(())},
                         Err(e) => Err(e)
@@ -2074,8 +2075,8 @@ fn operator_eq(env: &mut EnvPart, sp: usize, stack: &mut [Object])
         Object::Table(a) => {
             match a.get(&env.rte.key_eq) {
                 Some(ref f) => {
-                    let x = replace(&mut stack[sp-2],Object::Null);
-                    let y = replace(&mut stack[sp-1],Object::Null);
+                    let x = stack[sp-2].take();
+                    let y = stack[sp-1].take();
                     match (Env{env,sp,stack}).call(f,&x,&[y]) {
                         Ok(y) => {stack[sp-2] = y; Ok(())},
                         Err(e) => Err(e)
@@ -2087,9 +2088,9 @@ fn operator_eq(env: &mut EnvPart, sp: usize, stack: &mut [Object])
         _ => {break 'r;}
     };
     } // 'r
-    return match replace(&mut stack[sp-1],Object::Null) {
+    return match stack[sp-1].take() {
         Object::Interface(x) => {
-            let a = replace(&mut stack[sp-2],Object::Null);
+            let a = stack[sp-2].take();
             match x.req(&a,&mut Env{env, sp, stack}) {
                 Ok(y) => {
                     if env.is_unimplemented(&y) {
@@ -2154,8 +2155,8 @@ fn operator_lt(env: &mut EnvPart, sp: usize, stack: &mut [Object])
             }
         },
         Object::Interface(x) => {
-            let b = replace(&mut stack[sp-1],Object::Null);
-            match x.lt(&b,&mut Env{env: env, sp: sp, stack: stack}) {
+            let b = stack[sp-1].take();
+            match x.lt(&b,&mut Env{env,sp,stack}) {
                 Ok(value) => {stack[sp-2] = value; Ok(())},
                 Err(e) => Err(e)
             }
@@ -2163,8 +2164,8 @@ fn operator_lt(env: &mut EnvPart, sp: usize, stack: &mut [Object])
         Object::Table(a) => {
             match a.get(&env.rte.key_lt) {
                 Some(ref f) => {
-                    let x = replace(&mut stack[sp-2],Object::Null);
-                    let y = replace(&mut stack[sp-1],Object::Null);
+                    let x = stack[sp-2].take();
+                    let y = stack[sp-1].take();
                     match (Env{env,sp,stack}).call(f,&x,&[y]) {
                         Ok(y) => {stack[sp-2] = y; Ok(())},
                         Err(e) => Err(e)
@@ -2176,10 +2177,10 @@ fn operator_lt(env: &mut EnvPart, sp: usize, stack: &mut [Object])
         _ => {break 'r;}
     };
     } // 'r
-    return match replace(&mut stack[sp-1],Object::Null) {
+    return match stack[sp-1].take() {
         Object::Interface(x) => {
-            let a = replace(&mut stack[sp-2],Object::Null);
-            match x.rlt(&a,&mut Env{env: env, sp: sp, stack: stack}) {
+            let a = stack[sp-2].take();
+            match x.rlt(&a,&mut Env{env,sp,stack}) {
                 Ok(value) => {stack[sp-2] = value; Ok(())},
                 Err(e) => Err(e)
             }
@@ -2187,7 +2188,7 @@ fn operator_lt(env: &mut EnvPart, sp: usize, stack: &mut [Object])
         Object::Table(a) => {
             match a.get(&env.rte.key_rlt) {
                 Some(ref f) => {
-                    let x = replace(&mut stack[sp-2],Object::Null);
+                    let x = stack[sp-2].take();
                     match (Env{env,sp,stack}).call(f,&x,&[Object::Table(a)]) {
                         Ok(y) => {stack[sp-2] = y; Ok(())},
                         Err(e) => Err(e)
@@ -2255,8 +2256,8 @@ fn operator_gt(env: &mut EnvPart, sp: usize, stack: &mut [Object])
             }
         },
         Object::Interface(x) => {
-            let b = replace(&mut stack[sp-1],Object::Null);
-            match x.gt(&b,&mut Env{env: env, sp: sp, stack: stack}) {
+            let b = stack[sp-1].take();
+            match x.gt(&b,&mut Env{env,sp,stack}) {
                 Ok(value) => {stack[sp-2] = value; Ok(())},
                 Err(e) => Err(e)
             }
@@ -2264,10 +2265,10 @@ fn operator_gt(env: &mut EnvPart, sp: usize, stack: &mut [Object])
         _ => {break 'r;}
     };
     } // 'r
-    return match replace(&mut stack[sp-1],Object::Null) {
+    return match stack[sp-1].take() {
         Object::Interface(x) => {
-            let a = replace(&mut stack[sp-2],Object::Null);
-            match x.rgt(&a,&mut Env{env: env, sp: sp, stack: stack}) {
+            let a = stack[sp-2].take();
+            match x.rgt(&a,&mut Env{env,sp,stack}) {
                 Ok(value) => {stack[sp-2] = value; Ok(())},
                 Err(e) => Err(e)
             }
@@ -2326,8 +2327,8 @@ fn operator_le(env: &mut EnvPart, sp: usize, stack: &mut [Object])
             }
         },
         Object::Interface(x) => {
-            let b = replace(&mut stack[sp-1],Object::Null);
-            match x.le(&b,&mut Env{env: env, sp: sp, stack: stack}) {
+            let b = stack[sp-1].take();
+            match x.le(&b,&mut Env{env,sp,stack}) {
                 Ok(value) => {stack[sp-2] = value; Ok(())},
                 Err(e) => Err(e)
             }
@@ -2335,10 +2336,10 @@ fn operator_le(env: &mut EnvPart, sp: usize, stack: &mut [Object])
         _ => {break 'r;}
     };
     } // 'r
-    return match replace(&mut stack[sp-1],Object::Null) {
+    return match stack[sp-1].take() {
         Object::Interface(x) => {
-            let a = replace(&mut stack[sp-2],Object::Null);
-            match x.rle(&a,&mut Env{env: env, sp: sp, stack: stack}) {
+            let a = stack[sp-2].take();
+            match x.rle(&a,&mut Env{env,sp,stack}) {
                 Ok(value) => {stack[sp-2] = value; Ok(())},
                 Err(e) => Err(e)
             }
@@ -2397,8 +2398,8 @@ fn operator_ge(env: &mut EnvPart, sp: usize, stack: &mut [Object])
             }
         },
         Object::Interface(x) => {
-            let b = replace(&mut stack[sp-1],Object::Null);
-            match x.le(&b,&mut Env{env: env, sp: sp, stack: stack}) {
+            let b = stack[sp-1].take();
+            match x.le(&b,&mut Env{env,sp,stack}) {
                 Ok(value) => {stack[sp-2] = value; Ok(())},
                 Err(e) => Err(e)
             }
@@ -2406,10 +2407,10 @@ fn operator_ge(env: &mut EnvPart, sp: usize, stack: &mut [Object])
         _ => {break 'r;}
     };
     } // 'r
-    return match replace(&mut stack[sp-1],Object::Null) {
+    return match stack[sp-1].take() {
         Object::Interface(x) => {
-            let a = replace(&mut stack[sp-2],Object::Null);
-            match x.rge(&a,&mut Env{env: env, sp: sp, stack: stack}) {
+            let a = stack[sp-2].take();
+            match x.rge(&a,&mut Env{env,sp,stack}) {
                 Ok(value) => {stack[sp-2] = value; Ok(())},
                 Err(e) => Err(e)
             }
@@ -2475,9 +2476,9 @@ fn operator_is(sp: usize, stack: &mut [Object]) -> OperatorResult {
         },
         _ => {}
     }
-    match replace(&mut stack[sp-2],Object::Null) {
+    match stack[sp-2].take() {
         Object::Table(ref a) => {
-            match replace(&mut stack[sp-1],Object::Null) {
+            match stack[sp-1].take() {
                 Object::Table(ref b) => {
                     stack[sp-2] = Object::Bool(Rc::ptr_eq(a,b));
                     Ok(())
@@ -2499,7 +2500,7 @@ fn operator_is(sp: usize, stack: &mut [Object]) -> OperatorResult {
 fn operator_of(env: &mut EnvPart, sp: usize, stack: &mut [Object])
 -> OperatorResult
 {
-    let type_obj = replace(&mut stack[sp-1],Object::Null);
+    let type_obj = stack[sp-1].take();
     let value: bool;
     'ret: loop{
     match stack[sp-2] {
@@ -2540,7 +2541,7 @@ fn operator_of(env: &mut EnvPart, sp: usize, stack: &mut [Object])
         },
         _ => {}
     }
-    match replace(&mut stack[sp-2],Object::Null) {
+    match stack[sp-2].take() {
         Object::String(x) => {
             value = match type_obj {
                 Object::Table(ref t) => {
@@ -2617,8 +2618,8 @@ fn operator_of(env: &mut EnvPart, sp: usize, stack: &mut [Object])
 fn operator_in(env: &mut EnvPart, sp: usize, stack: &mut [Object])
 -> OperatorResult
 {
-    let key = replace(&mut stack[sp-2],Object::Null);
-    match replace(&mut stack[sp-1],Object::Null) {
+    let key = stack[sp-2].take();
+    match stack[sp-1].take() {
         Object::List(a) => {
             for x in &a.borrow().v {
                 if key==*x {
@@ -2688,9 +2689,9 @@ fn operator_in(env: &mut EnvPart, sp: usize, stack: &mut [Object])
 
 fn operator_range(sp: usize, stack: &mut [Object]) -> OperatorResult {
     let r = Object::Range(Rc::new(Range{
-        a: replace(&mut stack[sp-3],Object::Null),
-        b: replace(&mut stack[sp-2],Object::Null),
-        step: replace(&mut stack[sp-1],Object::Null)
+        a: stack[sp-3].take(),
+        b: stack[sp-2].take(),
+        step: stack[sp-1].take()
     }));
     stack[sp-3] = r;
     Ok(())
@@ -2700,7 +2701,7 @@ fn operator_list(sp: usize, stack: &mut [Object], size: usize) -> usize {
     let mut sp = sp;
     let mut v: Vec<Object> = Vec::new();
     for i in 0..size {
-        v.push(replace(&mut stack[sp-size+i],Object::Null));
+        v.push(stack[sp-size+i].take());
     }
     sp-=size;
     stack[sp] = List::new_object(v);
@@ -2712,7 +2713,7 @@ fn operator_tuple(sp: usize, stack: &mut [Object], size: usize) -> usize {
     let mut sp = sp;
     let mut v: Vec<Object> = Vec::new();
     for i in 0..size {
-        v.push(replace(&mut stack[sp-size+i],Object::Null));
+        v.push(stack[sp-size+i].take());
     }
     sp-=size;
     stack[sp] = Tuple::new_object(v);
@@ -2726,8 +2727,8 @@ fn operator_map(sp: usize, stack: &mut [Object], size: usize) -> usize {
     let mut i=0;
     while i<size {
         m.insert(
-            replace(&mut stack[sp-size+i],Object::Null),
-            replace(&mut stack[sp-size+i+1],Object::Null)
+            stack[sp-size+i].take(),
+            stack[sp-size+i+1].take()
         );
         i+=2;
     }
@@ -2803,7 +2804,7 @@ fn operator_index(env: &mut EnvPart, argc: usize,
                 };
                 return Ok(());
             }
-            match replace(&mut stack[sp-1],Object::Null) {
+            match stack[sp-1].take() {
                 Object::Range(r) => {
                     let n = a.v.len() as i32;
                     let step = match r.step {
@@ -2880,7 +2881,7 @@ fn operator_index(env: &mut EnvPart, argc: usize,
                 };
                 return Ok(());
             }
-            match replace(&mut stack[sp-1],Object::Null) {
+            match stack[sp-1].take() {
                 Object::Range(r) => {
                     let n = s.v.len() as i32;
                     let step = match r.step {
@@ -2949,7 +2950,7 @@ fn operator_index(env: &mut EnvPart, argc: usize,
             }
         },
         Object::Interface(x) => {
-            let key = replace(&mut stack[sp-1],Object::Null);
+            let key = stack[sp-1].take();
             match x.index(&[key],&mut Env{env,sp,stack}) {
                 Ok(value) => {
                     stack[sp-2] = value;
@@ -2959,7 +2960,7 @@ fn operator_index(env: &mut EnvPart, argc: usize,
             }
         },
         Object::Function(f) => {
-            let a = replace(&mut stack[sp-1],Object::Null);
+            let a = stack[sp-1].take();
             match ::list::map_fn(&mut Env{env,sp,stack},&Object::Function(f),&[a]) {
                 Ok(value) => {
                     stack[sp-2] = value;
@@ -3027,7 +3028,7 @@ fn index_assignment(env: &mut EnvPart, argc: usize,
     }
     match stack[sp-2].clone() {
         Object::List(a) => {
-            match replace(&mut stack[sp-1],Object::Null) {
+            match stack[sp-1].take() {
                 Object::Int(i) => {
                     let mut a = a.borrow_mut();
                     if a.frozen {
@@ -3047,7 +3048,7 @@ fn index_assignment(env: &mut EnvPart, argc: usize,
                     };
                     match a.v.get_mut(index) {
                         Some(x) => {
-                            *x = replace(&mut stack[sp-3],Object::Null);
+                            *x = stack[sp-3].take();
                             stack[sp-2] = Object::Null;
                         },
                         None => {
@@ -3059,7 +3060,7 @@ fn index_assignment(env: &mut EnvPart, argc: usize,
                     Ok(())          
                 },
                 Object::Range(r) => {
-                    let b = replace(&mut stack[sp-3],Object::Null);
+                    let b = stack[sp-3].take();
                     match slice_assignment(
                       &mut Env{env,sp,stack},
                       &mut a.borrow_mut(),&r,&b
@@ -3072,8 +3073,8 @@ fn index_assignment(env: &mut EnvPart, argc: usize,
             }
         },
         Object::Map(m) => {
-            let key = replace(&mut stack[sp-1],Object::Null);
-            let value = replace(&mut stack[sp-3],Object::Null);
+            let key = stack[sp-1].take();
+            let value = stack[sp-3].take();
             let mut m = m.borrow_mut();
             if m.frozen {
                 return Err(env.value_error_plain("Value error in m[key]=value: m is frozen."));
@@ -3085,8 +3086,8 @@ fn index_assignment(env: &mut EnvPart, argc: usize,
             Ok(())
         },
         Object::Interface(x) => {
-            let key = replace(&mut stack[sp-1],Object::Null);
-            let value = replace(&mut stack[sp-3],Object::Null);
+            let key = stack[sp-1].take();
+            let value = stack[sp-3].take();
             return match x.set_index(&[key],&value,&mut Env{env,sp,stack}) {
                 Ok(y) => {
                     stack[sp-2] = Object::Null;
@@ -3280,8 +3281,8 @@ fn operator_dot(env: &mut EnvPart, sp: usize, stack: &mut [Object])
             }      
         },
         Object::Interface(x) => {
-            let key = replace(&mut stack[sp-1],Object::Null);
-            match x.get(&key,&mut Env{env, sp, stack}) {
+            let key = stack[sp-1].take();
+            match x.get(&key,&mut Env{env,sp,stack}) {
                 Ok(value) => {
                     stack[sp-2] = value;
                     return Ok(());
@@ -3310,8 +3311,8 @@ fn operator_dot_set(env: &mut EnvPart, sp: usize, stack: &mut [Object])
 {
     match stack[sp-2].clone() {
         Object::Table(t) => {
-            let key = replace(&mut stack[sp-1],Object::Null);
-            let value = replace(&mut stack[sp-3],Object::Null);
+            let key = stack[sp-1].take();
+            let value = stack[sp-3].take();
             let mut m = t.map.borrow_mut();
             if m.frozen {
                 return Err(env.value_error_plain("Value error in a.x=value: a is frozen."));
@@ -3376,7 +3377,7 @@ fn operate(op: u32, env: &mut EnvPart, sp: usize, stack: &mut [Object],
         bc::BOR  => {try!(operator_bor  (env,sp+2,stack));},
         _ => {panic!();}
     }
-    *p = replace(&mut stack[sp],Object::Null);
+    *p = stack[sp].take();
     return Ok(());
 }
 
@@ -3386,7 +3387,7 @@ fn compound_assignment(key_op: u32, op: u32,
 {
     match key_op as u8 {
         bc::AOP_INDEX => {
-            match replace(&mut stack[sp-3],Object::Null) {
+            match stack[sp-3].take() {
                 Object::List(a) => {
                     let i = match stack[sp-2] {
                         Object::Int(x) => x,
@@ -3419,11 +3420,11 @@ fn compound_assignment(key_op: u32, op: u32,
                         }
                     };
 
-                    let x = replace(&mut stack[sp-1],Object::Null);
+                    let x = stack[sp-1].take();
                     return operate(op,env,sp,stack,p,x);
                 },
                 Object::Map(m) => {
-                    let key = replace(&mut stack[sp-2],Object::Null);
+                    let key = stack[sp-2].take();
                     let mut m = m.borrow_mut();
                     if m.frozen {
                         return Err(env.value_error_plain("Value error in assignment to m[key]: m is frozen."));            
@@ -3434,7 +3435,7 @@ fn compound_assignment(key_op: u32, op: u32,
                             return Err(env.index_error_plain("Index error in m[key]: key is not in m."));
                         }
                     };
-                    let x = replace(&mut stack[sp-1],Object::Null);
+                    let x = stack[sp-1].take();
                     return operate(op,env,sp,stack,p,x);
                 },
                 _ => {
@@ -3443,9 +3444,9 @@ fn compound_assignment(key_op: u32, op: u32,
             }
         },
         bc::DOT => {
-            match replace(&mut stack[sp-3],Object::Null) {
+            match stack[sp-3].take() {
                 Object::Table(t) => {
-                    let key = replace(&mut stack[sp-2],Object::Null);
+                    let key = stack[sp-2].take();
                     let mut m = t.map.borrow_mut();
                     if m.frozen {
                         return Err(env.value_error_plain("Value error in assignment to t.(key): t is frozen."));            
@@ -3456,7 +3457,7 @@ fn compound_assignment(key_op: u32, op: u32,
                             return Err(env.index_error_plain("Index error in assignment to t.(key): key is not in t."));
                         }
                     };
-                    let x = replace(&mut stack[sp-1],Object::Null);
+                    let x = stack[sp-1].take();
                     return operate(op,env,sp,stack,p,x);
                 },
                 _ => {
@@ -3469,19 +3470,32 @@ fn compound_assignment(key_op: u32, op: u32,
 }
 
 fn apply(env: &mut EnvPart, sp: usize, stack: &mut [Object])
-    -> OperatorResult
+-> OperatorResult
 {
-    match replace(&mut stack[sp-1],Object::Null) {
+    let f = stack[sp-3].take();
+    let pself = stack[sp-2].take();
+    match stack[sp-1].take() {
         Object::List(ref a) => {
-            let f = replace(&mut stack[sp-3],Object::Null);
-            let pself = replace(&mut stack[sp-2],Object::Null);
             match (Env{env,sp,stack}).call(&f,&pself,&a.borrow().v) {
                 Ok(y) => {stack[sp-3]=y; Ok(())},
                 Err(e) => Err(e)
             }
         },
         ref a => {
-            Err(env.type_error1_plain(sp,stack,"Type error in f(*a): a is not a list.","a",a))
+            match list(&mut Env{env,sp,stack},a) {
+                Ok(a) => if let Object::List(ref a) = a {
+                    match (Env{env,sp,stack}).call(&f,&pself,&a.borrow().v) {
+                        Ok(y) => {stack[sp-3]=y; Ok(())},
+                        Err(e) => Err(e)
+                    }
+                }else{
+                    unreachable!()
+                },
+                Err(mut e) => {
+                    e.traceback_push("f(*a)");
+                    Err(e)
+                }
+            }
         }
     }
 }
@@ -3797,7 +3811,7 @@ fn vm_loop(
       bc::STORE_LOCAL => {
           sp-=1;
           let index = load_u32(&a,ip+BCSIZE) as usize;
-          stack[bp+index] = replace(&mut stack[sp],Object::Null);
+          stack[bp+index] = stack[sp].take();
           ip+=BCASIZE;
       },
       bc::FNSELF => {
@@ -4044,7 +4058,7 @@ fn vm_loop(
                     let n = argc-f.argc_min as usize;
                     let mut v: Vec<Object> = Vec::with_capacity(n);
                     for x in &mut stack[sp-n..sp] {
-                        v.push(replace(x,Object::Null));
+                        v.push(x.take());
                     }
                     argc=argc-n+1;
                     sp = sp-n+1;
@@ -4156,7 +4170,7 @@ fn vm_loop(
           ret = frame.ret;
           catch = frame.catch;
 
-          let y = replace(&mut stack[sp-1],Object::Null);
+          let y = stack[sp-1].take();
           let n = frame.argc+2+frame.var_count;
           sp-=n;
           for x in stack[sp..sp+n].iter_mut() {
@@ -4194,21 +4208,21 @@ fn vm_loop(
       bc::STORE => {
           let index = load_u32(&a,ip+BCSIZE);
           let key = module.data[index as usize].clone();
-          gtab.borrow_mut().m.insert(key,replace(&mut stack[sp-1],Object::Null));
+          gtab.borrow_mut().m.insert(key,stack[sp-1].take());
           sp-=1;
           ip+=BCASIZE;
       },
       bc::STORE_ARG => {
           sp-=1;
           let index = load_u32(&a,ip+BCSIZE) as usize;
-          stack[argv_ptr+index] = replace(&mut stack[sp],Object::Null);
+          stack[argv_ptr+index] = stack[sp].take();
           ip+=BCASIZE;
       },
       bc::STORE_CONTEXT => {
           let index = load_u32(&a,ip+BCSIZE) as usize;
           match fnself.f {
               EnumFunction::Std(ref sf) => {
-                  sf.context.borrow_mut().v[index] = replace(&mut stack[sp-1],Object::Null);
+                  sf.context.borrow_mut().v[index] = stack[sp-1].take();
               },
               _ => panic!()
           }
@@ -4233,13 +4247,13 @@ fn vm_loop(
           let argc_min = load_u32(&a,ip-3);
           let argc_max = load_u32(&a,ip-2);
           let var_count = load_u32(&a,ip-1);
-          let context = match replace(&mut stack[sp-2],Object::Null) {
+          let context = match stack[sp-2].take() {
               Object::List(a) => a,
               Object::Null => Rc::new(RefCell::new(List::new())),
               _ => panic!()
           };
           sp-=1;
-          let id = replace(&mut stack[sp],Object::Null);
+          let id = stack[sp].take();
           stack[sp-1] = Function::new(StandardFn{
               address: Cell::new(address),
               module: module.clone(),
@@ -4329,7 +4343,7 @@ fn vm_loop(
           ret = frame.ret;
           catch = frame.catch;
 
-          let y = replace(&mut stack[sp-1],Object::Null);
+          let y = stack[sp-1].take();
           let n = frame.argc+2+frame.var_count;
           sp-=n;
           for x in stack[sp..sp+n].iter_mut() {
@@ -4339,7 +4353,7 @@ fn vm_loop(
           stack[sp-1] = y;
       },
       bc::ELSE => {
-          if stack[sp-1]==Object::Null {
+          if let Object::Null = stack[sp-1] {
               sp-=1;
               ip+=BCASIZE;
           }else{
@@ -4354,8 +4368,8 @@ fn vm_loop(
       bc::TABLE => {
           sp-=1;
           stack[sp-1] = new_table(
-              replace(&mut stack[sp],Object::Null),
-              replace(&mut stack[sp-1],Object::Null)
+              stack[sp].take(),
+              stack[sp-1].take()
           );
           ip+=BCSIZE;
       },
@@ -4370,7 +4384,7 @@ fn vm_loop(
       bc::RAISE => {
           sp-=1;
           exception = Err(Exception::raise(
-              replace(&mut stack[sp],Object::Null)
+              stack[sp].take()
           ));
           break;
       },
@@ -4571,10 +4585,11 @@ fn object_call(env: &mut EnvPart, f: &Object,
             if argv.len()!=3 {
                 return Err(env.argc_error_plain(argv.len()-2,1,1,"sloppy index"));
             }
-            if argv[1]!=Object::Null {
-                argv[1] = Object::Null;
+            match argv[1] {
+                Object::Null => {},
+                _ => {argv[1] = Object::Null}
             }
-            let key = replace(&mut argv[2],Object::Null);
+            let key = argv[2].take();
             argv[0] = match m.borrow().m.get(&key) {
                 Some(x) => x.clone(),
                 None => Object::Null
@@ -4781,7 +4796,7 @@ pub fn call(&mut self, fobj: &Object,
               let n = argc-f.argc_min as usize;
               let mut v: Vec<Object> = Vec::with_capacity(n);
               for x in &mut self.stack[self.sp-n..self.sp] {
-                v.push(replace(x,Object::Null));
+                v.push(x.take());
               }
               self.sp = self.sp-n+1;
               self.stack[self.sp-1] = List::new_object(v);
@@ -4809,7 +4824,7 @@ pub fn call(&mut self, fobj: &Object,
               return Err(e);
             }
           }
-          let y = replace(&mut self.stack[self.sp-1],Object::Null);
+          let y = self.stack[self.sp-1].take();
           for x in &mut self.stack[sp..self.sp-1] {
             *x = Object::Null;
           }

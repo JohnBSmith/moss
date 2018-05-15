@@ -225,7 +225,7 @@ is exhausted.
 
 Note that, for a list of lists, <code>zip</code> is an involution:
 <pre class="moss">
-a == zip(*zip(*a).list()).list()
+a == zip(*zip(*a)).list()
 </pre>
 
 <dt>eval(s), eval(s,m)

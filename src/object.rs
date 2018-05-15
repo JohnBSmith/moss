@@ -8,6 +8,7 @@ use std::collections::HashMap;
 use std::fmt;
 use std::any::Any;
 use std::ops;
+use std::mem::replace;
 
 use complex::Complex64;
 use vm::{Module,RTE};
@@ -41,6 +42,11 @@ impl Object{
 
     pub fn to_repr(&self) -> String {
         ::vm::object_to_repr_plain(self)
+    }
+
+    #[inline(always)]
+    pub fn take(&mut self) -> Object {
+        replace(self,Object::Null)
     }
 }
 

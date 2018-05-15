@@ -13,27 +13,6 @@ use object::{
 use vm::Env;
 use iterable::new_iterator;
 
-fn apply(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
-    if argv.len()==1 {
-        match argv[0] {
-            Object::List(ref a) => {
-                env.call(pself,&Object::Null,&a.borrow().v)
-            },
-            ref a => env.type_error1(
-                "Type error in f.apply(a): a is not a list.","a",a)
-        }
-    }else if argv.len()==2 {
-        match argv[1] {
-            Object::List(ref a) => {
-                env.call(pself,&argv[0],&a.borrow().v)
-            },
-            ref a => env.type_error1(
-                "Type error in f.apply(a): a is not a list.","a",a)
-        }
-    }else{
-        return env.argc_error(argv.len(),1,1,"apply");
-    }
-}
 
 fn orbit(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     if argv.len()!=1 {
@@ -95,7 +74,6 @@ pub fn iterate(env: &mut Env, f: &Object, n: &Object) -> FnResult {
 
 pub fn init(t: &Table){
     let mut m = t.map.borrow_mut();
-    m.insert_fn_plain("apply",apply,1,1);
     m.insert_fn_plain("orbit",orbit,1,1);
     m.insert_fn_plain("argc", argc,0,0);
 }

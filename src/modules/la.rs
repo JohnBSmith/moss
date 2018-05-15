@@ -915,6 +915,10 @@ fn matrix(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
         for t in argv {
             if let Object::List(ref list) = *t {
                 let a = &list.borrow().v;
+                if v.len() != n {
+                    return env.value_error(
+                    "Value error in matrix(*args): each args[k] must have the same size.");
+                }
                 for x in a {
                     v.push(x.clone());
                 }
@@ -924,7 +928,7 @@ fn matrix(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
         }
         return Ok(Object::Interface(Array::matrix(m,n,v)));
     }
-    return env.type_error("Type error in matrix(args): expected args of type List.");
+    return env.type_error("Type error in matrix(*args): expected args of type List.");
 }
 
 fn array(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
