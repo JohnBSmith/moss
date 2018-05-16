@@ -144,20 +144,20 @@ if [2,4,6,8]!=counter(1,4).map(fn|x| u=2*x; u end).list()
   error("#7.3")
 end
 
-if [2,4]!=List.map.apply([1,2],[|x| 2*x])
+if [2,4]!=List.map([1,2];*[|x| 2*x])
   error("#8.1")
 end
 
-if [2,4]!=List.map.apply([1,2],[fn|x| u=2*x; u end])
+if [2,4]!=List.map([1,2];*[fn|x| u=2*x; u end])
   error("#8.2")
 end
 
 a = [1,2]
-if [2,4]!=a.map.apply(a,[|x| 2*x])
+if [2,4]!=a.map(a;*[|x| 2*x])
   error("#8.3")
 end
 
-if [2,4]!=a.map.apply(a,[fn|x| u=2*x; u end])
+if [2,4]!=a.map(a;*[fn|x| u=2*x; u end])
   error("#8.4")
 end
 
@@ -255,27 +255,27 @@ fn||
 end()
 
 f = || []
-if [] != f.apply([])
+if [] != f(*[])
   error("#12.0")
 end
 
 f = |x| [x]
-if [100] != f.apply([100])
+if [100] != f(*[100])
   error("#12.1")
 end
 
 f = |x,y| [x,y]
-if [101,102] != f.apply([101,102])
+if [101,102] != f(*[101,102])
   error("#12.2")
 end
 
 f = |x,y,z| [x,y,z]
-if [103,104,105] != f.apply([103,104,105])
+if [103,104,105] != f(*[103,104,105])
   error("#12.3")
 end
 
 f = |x,y,z,w| [x,y,z,w]
-if [106,107,108,109] != f.apply([106,107,108,109])
+if [106,107,108,109] != f(*[106,107,108,109])
   error("#12.4")
 end
 
@@ -283,33 +283,33 @@ if [2,4] != List.map([1,2];|x| 2*x)
   error("#12.5")
 end
 
-if [2,4] != List.map.apply([1,2],[|x| 2*x])
+if [2,4] != List.map([1,2];*[|x| 2*x])
   error("#12.6")
 end
 
 fn||
   f = || []
-  if [] != f.apply([])
+  if [] != f(*[])
     error("#12.7")
   end
 
   f = |x| [x]
-  if [100] != f.apply([100])
+  if [100] != f(*[100])
     error("#12.8")
   end
 
   f = |x,y| [x,y]
-  if [101,102] != f.apply([101,102])
+  if [101,102] != f(*[101,102])
     error("#12.9")
   end
 
   f = |x,y,z| [x,y,z]
-  if [103,104,105]!=f.apply([103,104,105])
+  if [103,104,105]!=f(*[103,104,105])
     error("#12.10")
   end
 
   f = |x,y,z,w| [x,y,z,w]
-  if [106,107,108,109]!=f.apply([106,107,108,109])
+  if [106,107,108,109]!=f(*[106,107,108,109])
     error("#12.11")
   end
 
@@ -317,7 +317,7 @@ fn||
     error("#12.12")
   end
 
-  if [2,4] != List.map.apply([1,2],[|x| 2*x])
+  if [2,4] != List.map([1,2];*[|x| 2*x])
     error("#12.13")
   end
 end()
@@ -331,7 +331,7 @@ curry = fn|f|
   n = f.argc()
   a = list(0..n-1)
   return (2..n).reduce(
-    fn|x| a[n-1]=x; f.apply(a) end,
+    fn|x| a[n-1]=x; f(*a) end,
     |g,i| fn|x| a[n-i]=x; g end)
 end
 
@@ -372,7 +372,7 @@ end
 curry = fn|n,f|
   a = list(0..n-1)
   return (2..n).reduce(
-    fn|x| a[n-1]=x; f.apply(a) end,
+    fn|x| a[n-1]=x; f(*a) end,
     |g,i| fn|x| a[n-i]=x; g end)
 end
 
@@ -388,7 +388,7 @@ end
 function main
   n = 20
   u = list(1..n)
-  if u != uncurry(curry(n,|*a| a)).apply(u)
+  if u != uncurry(curry(n,|*a| a))(*u)
     error("#14.10")
   end
 end

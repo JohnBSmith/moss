@@ -279,7 +279,7 @@ fn load(env: &mut Env, id: Rc<U32String>, hot_plug: bool) -> FnResult{
         "math"  => ::math::load_math(),
 
         #[cfg(feature = "math-la")]
-        "math/la" => ::la::load_la(env),
+        "math/la" => ::math_la::load_math_la(env),
 
         #[cfg(feature = "math-sf")]
         "math/sf"    => ::sf::load_sf(),

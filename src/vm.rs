@@ -3578,6 +3578,19 @@ fn new_stamp(ptype: &Rc<Table>, prototype: &Object, s: &str) -> Object {
     return Tuple::new_object(v);
 }
 
+pub fn interface_types_set(env: &mut Env, index: usize, x: Rc<Table>) {
+    let mut v = env.rte().interface_types.borrow_mut();
+    if index<v.len() {
+        v[index] = x;
+    }else{
+        let unimplemented = &env.rte().unimplemented;
+        while v.len()<index {
+            v.push(unimplemented.clone());
+        }
+        v.push(x);
+    }
+}
+
 // Runtime environment: globally accessible information.
 pub struct RTE{
     pub type_bool: Rc<Table>,

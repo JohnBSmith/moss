@@ -57,8 +57,8 @@ mod format;
 mod sys;
 
 #[cfg(feature = "math-la")]
-#[path = "modules/la.rs"]
-mod la;
+#[path = "modules/math-la.rs"]
+mod math_la;
 
 #[cfg(feature = "math-sf")]
 #[path = "modules/sf.rs"]

@@ -15,7 +15,7 @@ function callcc(f,*a)
     raise Callcc
   end
   try
-    return f.apply([callback]+a)
+    return f(*([callback]+a))
   catch e if e is Callcc
     return a[0]
   end

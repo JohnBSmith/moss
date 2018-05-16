@@ -9,11 +9,11 @@ use std::cell::RefCell;
 use std::any::Any;
 use object::{Object, FnResult, Function, List, Table, Interface,
     Exception, new_module, VARIADIC};
-use vm::{Env, op_neg, op_add, op_sub, op_mpy, op_div, op_eq};
+use vm::{Env, op_neg, op_add, op_sub, op_mpy, op_div, op_eq,
+  interface_types_set};
 use complex::Complex64;
 
-use std::sync::atomic::{AtomicUsize, Ordering, ATOMIC_USIZE_INIT};
-static INDEX: AtomicUsize = ATOMIC_USIZE_INIT;
+const INDEX: usize = 0;
 
 struct ShapeStride{
     shape: usize,
@@ -143,7 +143,7 @@ impl Interface for Array {
                 },
                 _ => {}
             }
-            let t = &env.rte().interface_types.borrow()[INDEX.load(Ordering::SeqCst)];
+            let t = &env.rte().interface_types.borrow()[INDEX];
             match t.get(key) {
                 Some(value) => return Ok(value),
                 None => {
@@ -915,7 +915,7 @@ fn matrix(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
         for t in argv {
             if let Object::List(ref list) = *t {
                 let a = &list.borrow().v;
-                if v.len() != n {
+                if a.len() != n {
                     return env.value_error(
                     "Value error in matrix(*args): each args[k] must have the same size.");
                 }
@@ -1046,16 +1046,14 @@ fn la_copy(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     }
 }
 
-pub fn load_la(env: &mut Env) -> Object
+pub fn load_math_la(env: &mut Env) -> Object
 {
     let type_array = Table::new(Object::Null);
     {
         let mut m = type_array.map.borrow_mut();
         m.insert_fn_plain("map",map,1,1);
     }
-    let mut v = env.rte().interface_types.borrow_mut();
-    INDEX.store(v.len(),Ordering::SeqCst);
-    v.push(type_array);
+    interface_types_set(env,INDEX,type_array);
 
     let la = new_module("la");
     {
