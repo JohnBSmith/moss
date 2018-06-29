@@ -39,18 +39,24 @@ fn fade_needle(x: f64) -> i32 {
     return (255.0*(-2.0*x*x*x).exp()) as i32;
 }
 
+#[inline(always)]
+fn mod_floor(x: f64, m: f64) -> f64 {
+    return x-m*(x/m).floor();
+}
+
 #[allow(non_snake_case)]
 fn hsl_to_rgb(H: f64, S: f64, L: f64) -> (u8,u8,u8) {
+    const TAU: f64 = 2.0*PI;
     let C = (1.0-(2.0*L-1.0).abs())*S;
-    let Hp = 3.0*H/PI;
+    let Hp = 3.0*(mod_floor(H,TAU))/PI;
     let X = C*(1.0-(Hp%2.0-1.0).abs());
     let (R1,G1,B1)
-    =    if 0.0<=Hp && Hp<1.0 {(C,X,0.0)}
-    else if 1.0<=Hp && Hp<2.0 {(X,C,0.0)}
-    else if 2.0<=Hp && Hp<3.0 {(0.0,C,X)}
-    else if 3.0<=Hp && Hp<4.0 {(0.0,X,C)}
-    else if 4.0<=Hp && Hp<5.0 {(X,0.0,C)}
-    else if 5.0<=Hp && Hp<6.0 {(C,0.0,X)}
+    =    if Hp<1.0 {(C,X,0.0)}
+    else if Hp<2.0 {(X,C,0.0)}
+    else if Hp<3.0 {(0.0,C,X)}
+    else if Hp<4.0 {(0.0,X,C)}
+    else if Hp<5.0 {(X,0.0,C)}
+    else if Hp<6.1 {(C,0.0,X)}
     else{(0.0,0.0,0.0)};
     let m = L-C/2.0;
     let R = 255.0*(R1+m);

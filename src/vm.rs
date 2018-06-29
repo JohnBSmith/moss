@@ -5018,6 +5018,14 @@ pub fn type_error2(&mut self,
     return Err(self.env.type_error2_plain(self.sp,self.stack,s,sx,sy,x,y));
 }
 
+pub fn type_error_plain(&self, s: &str) -> Box<Exception> {
+    self.env.type_error_plain(s)
+}
+
+pub fn value_error_plain(&self, s: &str) -> Box<Exception> {
+    self.env.value_error_plain(s)
+}
+
 pub fn exception_to_string(&mut self, e: &Exception) -> String {
     exception_to_string(self,e)
 }

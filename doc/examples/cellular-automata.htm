@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Cellular automata</title>
+  <link href="../css/main.css" rel="stylesheet">
+  <script src = "../js/moss-syntax.js">
+  </script>
+</head>
+<body>
+
+<table class="navigation">
+<tr><td><b>&uarr;</b> <a href="toc.htm">Up</a>
+</table>
+<h1>Cellular Automata</h1>
+
+<h2>Table of contents</h2>
+<ol>
+<li><a href="#game-of-life">Conway's Game of Life</a>
+<li><a href="#replicator-world">Replicator world</a>
+</ol>
+
+<h2 id="game-of-life">Conway's Game of Life</h2>
+
+<pre class="moss">
+use gx: canvas, sleep
+
+function neighbourhood(indices)
+  |a,y,x,w,h| indices.count(|[i,j]| a[(y+i)%h][(x+j)%w]==1)
+end
+
+function game(argv={})
+  {w=40, h=40, csize=8, speed=1, color=[0.6,0.6,0.4],
+   f0 = |count| 1 if count==3 else 0,
+   f1 = |count| 1 if count in 2..3 else 0,
+   count = neighbourhood([-1,0,1]*[-1,1]+[[-1,0],[1,0]]),
+   a = list(h).map(|y| rand(0..1).list(w))
+  } = argv
+  psize = csize-2
+  b = list(h).map(|y| [0]*w)
+  c = canvas(csize*w,csize*h)
+  while true
+    for i in 0..h-1
+      for j in 0..w-1
+        c.cset(*(color if a[i][j]==1 else [0,0,0]))
+        c.fill(csize*j,csize*i,psize,psize)
+        n = count(a,i,j,w,h)
+        b[i][j] = (f0 if a[i][j]==0 else f1)(n)
+      end
+    end
+    c.flush()
+    sleep(0.1/speed)
+    if c.key()=="q"
+      break
+    end
+    a,b = b,a
+  end
+end
+
+game()
+</pre>
+
+<div>
+<img src="../img/ca/game-of-life.png" style="border: 2px solid gray">
+</div>
+
+<br><br>
+<h2 id="replicator-world">Replicator world</h2>
+
+<pre class="moss">
+function insert(a,x,y,data)
+  line=0; col=0
+  for c in data
+    if c=='x'
+      a[y+line][x+col]=1
+    end
+    if c=='\n'
+      line+=1; col=0
+    else
+      col+=1
+    end
+  end
+end
+
+a = list(80).map(|y| [0]*80)
+
+insert(a,30,36,"
+x .x.xxx.x...x....xx
+x..x.x...x...x...x..x
+xxxx.xxx.x...x...x..x
+x..x.x...x...x...x..x
+x..x.xxx.xxx.xxx..xx
+")
+
+game({
+  w=80, h=80, csize=6,
+  f0 = |count| 1 if count%2==1 else 0,
+  f1 = |count| 1 if count%2==1 else 0,
+  a=a, speed=0.1
+})
+</pre>
+
+<div>
+<img src="../img/ca/replicator-world-1.png" style="border: 2px solid gray">
+</div>
+
+<div>
+<img src="../img/ca/replicator-world-2.png" style="border: 2px solid gray">
+</div>
+
+</body>
+</html>
+

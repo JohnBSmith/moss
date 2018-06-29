@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Linear algebra</title>
+  <link rel="stylesheet" href="../css/main.css">
+  <script src = "../js/moss-syntax.js">
+  </script>
+  <style>
+table.bt td {
+  padding-top: 0.8em;
+  padding-bottom: 0.8em;
+}
+  </style>
+</head>
+<body>
+
+<table class="navigation">
+<tr><td><b>&uarr;</b> <a href="toc.htm">Up</a>
+</table>
+<h1>Linear algebra</h1>
+
+<div class="toc">
+<h2 id="toc">Table of contents</h2>
+<ol>
+<li><a href="monomorphic-arrays">Monomorphic arrays</a>
+<li><a href="polymorphic-arrays">Polymorphic arrays</a>
+</ol>
+</div>
+
+<h2 id="monomorphic-arrays">Monomorphic arrays</h2>
+<p>Module <code>la</code> provides an array data type which can be
+used to calculate with coordinate vectors and matrices.
+
+<pre class="moss indent">
+use la: vector, matrix
+
+v = vector(1,2)
+
+A = matrix(
+  [1,2],
+  [3,4]
+)
+
+print(A*v)
+</pre>
+
+<h2 id="polymorphic-arrays">Polymorphic arrays</h2>
+Module <code>math.la</code> provides the polymorphic version
+of the array data type.
+
+<pre class="moss indent">
+use math.la: matrix
+
+A = matrix(
+  [1,2],
+  [3,4]
+)
+
+print(A^40)
+
+# Output (long integers instead of floating point numbers):
+# matrix(
+#   [38418114959269691024862069751, 55991602170538933080248818850],
+#   [83987403255808399620373228275, 122405518215078090645235298026]
+# )
+</pre>
+
+<p>It is possible to combine this with rational numbers.
+A rational number <var>a</var>/<var>b</var> is denoted as
+<code>rat(a,b)</code>.
+
+<pre class="moss indent">
+use math.la: matrix
+use math.rational: rat
+
+A = matrix(
+  [rat(4,1),rat(2,3)],
+  [rat(9,5),rat(1,2)]
+)
+
+print(A^2)
+
+# Output:
+# matrix(
+#   [86/5, 3],
+#   [81/10, 29/20]
+# )
+</pre>
+
+
+</body>
+</html>

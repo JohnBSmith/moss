@@ -25,6 +25,7 @@
 <li><a href="#dynamical-systems">Dynamical systems</a>
 <li><a href="#vectorial-ode">Vectorial differential equations</a>
 <li><a href="#fft">Fast fourier transform</a>
+<li><a href="#fn">Function implementations</a>
 </ol>
 </div>
 
@@ -307,6 +308,46 @@ function fft(a)
             L.map(|k| even[k]-T[k]))
   end
 end
+</pre>
+
+<h2 id="fn">Function implementations</h2>
+<p>What follows is an approximation of the complex Riemann
+zeta function <var>&zeta;</var>(<var>s</var>) by an application
+of the Euler-MacLaurin formula, which yields:
+
+<div class="indent">
+<img src="../img/zeta-euler-maclaurin.png" width="540">
+</div>
+
+<p>At next this calculation will be implemented without
+further ado. Finally the functional equation of the zeta function
+(a.k.a. reflection formula) is used for Re(<var>s</var>)&lt;0.
+
+<pre class="moss">
+use math: pi, sin, gamma
+use math.sf: B
+use cmath: re
+
+function new_zeta({N,m})
+  function Euler_MacLaurin_term(s,N,m)
+    return (1..m).sum(|n| B(2*n)/gamma(2*n+1)
+      *N^(1-2*n-s)*(0..2*n-2).prod(|k| (s+k)))
+  end
+  function zeta_Euler_MacLaurin(s,N,m)
+    return ((1..N-1).sum(|k| 1/k^s)+N^(1-s)/(s-1)
+      +0.5*N^(-s)+Euler_MacLaurin_term(s,N,m))
+  end
+  return fn zeta|s|
+    if re(s)&lt;0
+      return (2^s*pi^(s-1)*sin(pi*s/2)
+        *gamma(1-s)*zeta_Euler_MacLaurin(1-s,N,m))
+    else
+      return zeta_Euler_MacLaurin(s,N,m)
+    end
+  end
+end
+
+zeta = new_zeta(N=12,m=6)
 </pre>
 
 </body>

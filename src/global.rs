@@ -276,6 +276,9 @@ fn load(env: &mut Env, id: Rc<U32String>, hot_plug: bool) -> FnResult{
     }
     let s: String = id.v.iter().collect();
     let y = match &s[..] {
+        #[cfg(feature = "la")]
+        "la" => ::la::load_la(env),
+
         "math"  => ::math::load_math(),
 
         #[cfg(feature = "math-la")]

@@ -16,7 +16,8 @@ use std::f64::consts::{PI};
 use std::rc::Rc;
 use object::{Object, FnResult, new_module};
 use vm::Env;
-use math::{gamma, lgamma, sgngamma};
+use math::{gamma, lgamma, sgngamma, cgamma};
+use complex::c64;
 
 const SQRT_PI: f64 = 1.7724538509055159;
 
@@ -248,11 +249,40 @@ fn hurwitz_zeta(s: f64, a: f64) -> f64 {
 
 // by reflection formula (Riemann functional equation)
 fn zeta(s: f64) -> f64 {
-    if s>-1.0 {
+    if s>60.0 {
+        return 1.0;
+    }else if s>-1.0 {
         return hurwitz_zeta(s,1.0);
     }else{
         let a = 2.0*(2.0*PI).powf(s-1.0)*(0.5*PI*s).sin();
         return a*gamma(1.0-s)*hurwitz_zeta(1.0-s,1.0);
+    }
+}
+
+fn czeta_em(s: c64) -> c64 {
+    let N = 18;
+    let mut y = c64{re: 1.0, im: 0.0};
+    for k in 2..N {
+        y = y+(-s).expf(k as f64);
+    }
+    let Nf = N as f64;
+    let s2 = s*(s+1.0)*(s+2.0);
+    let s4 = s2*(s+3.0)*(s+4.0);
+    let s6 = s4*(s+5.0)*(s+6.0);
+    return y
+    +(1.0-s).expf(Nf)/(s-1.0)+0.5*(-s).expf(Nf)
+    + s*(-s-1.0).expf(Nf)/12.0
+    - s2*(-s-3.0).expf(Nf)/720.0
+    + s4*(-s-5.0).expf(Nf)/30240.0
+    - s6*(-s-7.0).expf(Nf)/1209600.0;
+}
+
+fn czeta(s: c64) -> c64 {
+    if s.re > -1.0 {
+        return czeta_em(s);
+    }else{
+        let a = 2.0*(s-1.0).expf(2.0*PI)*(0.5*PI*s).sin();
+        return a*cgamma(1.0-s)*czeta_em(1.0-s);
     }
 }
 
@@ -551,6 +581,9 @@ fn sf_zeta(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     let x = match argv[0] {
         Object::Int(x) => x as f64,
         Object::Float(x) => x,
+        Object::Complex(z) => {
+            return Ok(Object::Complex(czeta(z)));
+        },
         ref x => return type_error_int_float(env,"zeta(x)","x",x)
     };
     Ok(Object::Float(zeta(x)))
