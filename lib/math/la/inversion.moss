@@ -4,12 +4,13 @@ global det, solve, inv
 
 use math.la: id, scalar
 
-function pivoting(A,B,n,j)
-  m = abs(A[j,j])
+
+function pivoting(A,B,n,j,ord)
+  m = ord(A[j,j])
   k = j
   for i in j+1..n-1
-    if m<abs(A[i,j])
-      m = abs(A[i,j])
+    if m<ord(A[i,j])
+      m = ord(A[i,j])
       k = i
     end
   end
@@ -18,8 +19,9 @@ function pivoting(A,B,n,j)
 end
 
 function gauss_jordan(A,B,n)
+  ord = getattr(A[0,0],"ord") else abs
   for j in 0..n-1
-    pivoting(A,B,n,j)
+    pivoting(A,B,n,j,ord)
     B[j] = B[j]/A[j,j]
     A[j] = A[j]/A[j,j]
     for i in j+1..n-1
@@ -32,20 +34,20 @@ function gauss_jordan(A,B,n)
 
   for i in 0..n-2
     for j in i+1..n-1
-      B[i] = B[i]-A[i,j]*B[j]
-      A[i] = A[i]-A[i,j]*A[j]
+      B[i] = B[i]-B[j]*A[i,j]
+      A[i] = A[i]-A[j]*A[i,j]
     end
   end
 
   return B
 end
 
-function pivoting_det(A,n,j)
-  m = abs(A[j,j])
+function pivoting_det(A,n,j,ord)
+  m = ord(A[j,j])
   k = j
   for i in j+1..n-1
-    if m<abs(A[i,j])
-      m = abs(A[i,j])
+    if m<ord(A[i,j])
+      m = ord(A[i,j])
       k = i
     end
   end
@@ -61,8 +63,9 @@ function det(A)
   n = A.shape[0]
   A = A.copy
   y = 1
+  ord = getattr(A[0,0],"ord") else abs
   for j in 0..n-1
-    if pivoting_det(A,n,j)
+    if pivoting_det(A,n,j,ord)
       y = -y
     end
     for i in j+1..n-1

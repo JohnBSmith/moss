@@ -9,7 +9,7 @@ use std::char;
 use std::str::FromStr;
 use std::f64::NAN;
 
-use vm::{object_to_string, object_to_repr, RTE, Env, op_lt};
+use vm::{object_to_string, object_to_repr, RTE, Env, op_lt, table_get};
 use object::{
     Object, Map, Table, List, Range,
     FnResult, U32String, Function, EnumFunction,
@@ -956,6 +956,21 @@ fn panic(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     }
 }
 
+fn getattr(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+    match argv.len() {
+        2 => {}, n => return env.argc_error(n,2,2,"getattr")
+    }
+    Ok(match argv[0] {
+        Object::Table(ref t) => {
+            match table_get(&t,&argv[1]) {
+                Some(x) => x,
+                _ => Object::Null
+            }
+        },
+        _ => Object::Null
+    })
+}
+
 pub fn init_rte(rte: &RTE){
     let mut gtab = rte.gtab.borrow_mut();
     gtab.insert_fn_plain("print",print,0,VARIADIC);
@@ -992,6 +1007,7 @@ pub fn init_rte(rte: &RTE){
     gtab.insert_fn_plain("extend",extend,2,VARIADIC);
     gtab.insert_fn_plain("long",long,1,1);
     gtab.insert_fn_plain("panic",panic,0,1);
+    gtab.insert_fn_plain("getattr",getattr,2,2);
     gtab.insert("empty", Object::Empty);
 
     let type_bool = rte.type_bool.clone();

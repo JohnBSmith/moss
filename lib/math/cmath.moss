@@ -2,6 +2,11 @@
 
 # Polymorphic type complex
 
+begin
+global complex, Complex
+
+use math: sqrt
+
 function complex(x,y)
   return table Complex{re=x, im=y}
 end
@@ -78,7 +83,17 @@ Complex = table{
 
   function pow(a;n)
     return (1..n).prod(|k| a)
+  end,
+
+  function abs(a;)
+    return sqrt(a.re*a.re+a.im*a.im)
+  end,
+
+  function ord(a)
+    return a.re*a.re+a.im*a.im
   end
 }
+
+end
 
 

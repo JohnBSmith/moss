@@ -199,6 +199,13 @@ is equivalent to <code>copy(1,x)</code>.
 <dt>record(x)
 <dd>Slot table of <code>x</code>.
 
+<dt>getattr(x,key)
+<dd>The same as <code>x.(key)</code>, but returns <code>null</code>
+instead of an exception, in case the property was not found. Usage pattern:
+<pre class="moss indent">
+y = getattr(x,key) else default_value
+</pre>
+
 <dt>extend(a,b)
 <dd>Insert all slots of <code>b</code> into the slot
 table of <code>a</code>. Already existent slots

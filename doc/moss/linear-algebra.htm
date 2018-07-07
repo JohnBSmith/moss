@@ -25,6 +25,13 @@ table.bt td {
 <ol>
 <li><a href="monomorphic-arrays">Monomorphic arrays</a>
 <li><a href="polymorphic-arrays">Polymorphic arrays</a>
+<li><a href="#vector-algebra">Vector algebra</a>
+<li><a href="#matrix-algebra">Matrix algebra</a>
+<li><a href="#col-row">Column and row vectors</a>
+<li><a href="#complex-numbers">Complex numbers</a>
+<li><a href="#matrix-inversion">Matrix inversion</a>
+<li><a href="#type-conversion">Type conversion</a>
+<li><a href="#indexing">Indexing</a>
 </ol>
 </div>
 
@@ -88,6 +95,188 @@ print(A^2)
 # )
 </pre>
 
+
+<h2 id="vector-algebra">Vector algebra</h2>
+<p>Basic operations are stated directly.
+<pre class="moss indent">
+use math.la: vector
+
+a = vector(1,2)
+b = vector(3,4)
+
+# Linear combination
+c = 2*a+4*b
+
+# Scalar product
+s = a*b
+
+# Absolute value
+r = abs(a)
+
+# Unit vector
+e = a/abs(a)
+</pre>
+
+<p>The orthogonal projection of <code>v</code> onto a line of
+direction <code>u</code> is given by:
+<pre class="moss indent">
+P = |u,v| (u*v)/(u*u)*u
+</pre>
+
+
+<h2 id="matrix-algebra">Matrix algebra</h2>
+<p>Basic operations are stated directly.
+<pre class="moss indent">
+use math.la: vector, matrix, scalar
+use math: pi, sin, cos
+
+A = matrix(
+  [1,2],
+  [3,4]
+)
+
+rot = |phi| matrix(
+  [cos(phi),-sin(phi)],
+  [sin(phi),cos(phi)]
+)
+
+deg = pi/180
+B = rot(90*deg)
+
+# Multiplication matrix*vector
+v = vector(1,2)
+w = A*v
+
+# Multiplication matrix*matrix
+C = A*B
+
+# Matrix power
+C = A^2
+
+# Transposition
+C = A.T
+
+# Trace
+t = A.tr
+
+# n×n identity matrix
+E = scalar(n,1,0)
+</pre>
+
+
+<h2 id="col-row">Column and row vectors</h2> 
+
+<p>Column and row matrices may be used as coordinate vectors.
+<pre class="moss indent">
+use math.la: matrix
+
+# A row vector
+v = matrix([1,2])
+
+# A col vector
+w = matrix([3,4]).T
+
+# Scalar product
+s = v*w
+
+# Outer product
+M = w*v
+</pre>
+
+<h2 id="complex-numbers">Complex numbers</h2> 
+<p>Vectors and matrices of complex numbers are handled almost like the
+real versions, with the difference that scalar products need an
+explicit conjugation operation.
+
+<pre class="moss indent">
+use math.la: vector, matrix
+
+v = vector(1+2i,3+4i)
+w = vector(5+6i,7+8i)
+
+# Scalar product
+s = v.conj*w
+
+# Absolute value
+r = abs(v)
+
+A = matrix(
+  [1+2i, 3+4i]
+  [5+6i, 7+8i]
+)
+
+# Conjugate matrix
+B = A.conj
+
+# Conjugate transpose
+B = A.T.conj
+B = A.H
+
+# Bra-ket notation
+ketv = matrix([1+2i,3+4i]).T
+ketw = matrix([5+6i,7+8i]).T
+brav = ketv.H
+braw = ketw.H
+
+# Scalar product
+s = brav*ketw
+
+# Absolute value
+# (uses Frobenius norm for compability with vectors)
+r = abs(ketv)
+</pre>
+
+<h2 id="matrix-inversion">Matrix inversion</h2>
+
+<p>There are functions, providing computation of determinant and
+inverse of a matrix.
+<pre class="moss indent">
+use math.la: matrix
+use math.la.inversion: det, inv
+
+A = matrix(
+  [1,2,3],
+  [4,5,6],
+  [7,7,9]
+)
+
+print(det(A))
+print(inv(A))
+</pre>
+
+<h2 id="conversion">Type conversion</h2>
+
+<p>Often one needs to convert between different representations.
+<pre class="moss indent">
+use math.la: vector, matrix, array
+
+# Turning a list into a vector
+v = vector(*a)
+
+# Turning a vector into a list
+a = v.list
+
+# Turning a ragged array into a matrix
+A = matrix(*a)
+</pre>
+
+<h2 id="indexing">Indexing</h2>
+<p>Vectors are indexed like lists.
+<pre class="moss indent">
+v = vector(1,2)
+print(v[0])
+</pre>
+
+<p>Sometimes, rather than indexing a vector, the elements should be
+unpacked into named coordinates.
+<pre class="moss indent">
+# Unpacking an indexed object of unknown type
+[x,y] = v
+
+# Unpacking a function's argument
+f = |[x,y]| x^2+y^2
+print(f(vector(1,2)))
+</pre>
 
 </body>
 </html>

@@ -29,13 +29,13 @@ function neighbourhood(indices)
   |a,y,x,w,h| indices.count(|[i,j]| a[(y+i)%h][(x+j)%w]==1)
 end
 
-function game(argv={})
+function game(argm={})
   {w=40, h=40, csize=8, speed=1, color=[0.6,0.6,0.4],
    f0 = |count| 1 if count==3 else 0,
    f1 = |count| 1 if count in 2..3 else 0,
    count = neighbourhood([-1,0,1]*[-1,1]+[[-1,0],[1,0]]),
    a = list(h).map(|y| rand(0..1).list(w))
-  } = argv
+  } = argm
   psize = csize-2
   b = list(h).map(|y| [0]*w)
   c = canvas(csize*w,csize*h)

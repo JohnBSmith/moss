@@ -1,6 +1,7 @@
 
 = TODO LIST =
 == Interpreter kernel ==
+* get property or null
 * tracebacks
 * in a coroutine let all exit paths
   perform a loop as "yield; return empty"

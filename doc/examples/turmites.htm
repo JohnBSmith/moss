@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Turmites</title>
+  <link href="../css/main.css" rel="stylesheet">
+  <script src = "../js/moss-syntax.js">
+  </script>
+</head>
+<body>
+
+<table class="navigation">
+<tr><td><b>&uarr;</b> <a href="toc.htm">Up</a>
+</table>
+<h1>Turmites</h1>
+
+<h2>Table of contents</h2>
+<ol>
+<li><a href="#ant">Langton's ant</a>
+</ol>
+
+<h2 id="ant">Langton's ant</h2>
+
+<pre class="moss">
+use gx: canvas, sleep
+
+function turmite(argm={})
+  {speed,skip,w=120,h=80} = argm
+  a = list(h).map(|y| w*[0])
+  d=0; px=w//2; py=h//2
+  c = canvas(4*w,4*h)
+  for k in cycle(1..skip)
+    if a[py][px]==0
+      d=(d+1)%4; a[py][px]=1
+      c.cset(0.6,0.6,0.4)
+    else
+      d=(d-1)%4; a[py][px]=0
+      c.cset(0.0,0.1,0.1)
+    end
+    c.fill(4*px,4*py,3,3);
+    if k==1
+      c.flush()
+      sleep(1/speed)
+      if c.key()=="q" then break end
+    end
+    if   d==0 then px=(px+1)%w
+    elif d==1 then py=(py-1)%h
+    elif d==2 then px=(px-1)%w
+    else py=(py+1)%h
+    end
+  end
+end
+
+turmite(speed=50,skip=40)
+</pre>
+
+<div>
+<img src="../img/ant.png" style="border: 2px solid gray">
+</div>
+
+</body>
+</html>
+

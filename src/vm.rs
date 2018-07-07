@@ -3136,7 +3136,7 @@ fn list_get(a: &Rc<RefCell<List>>, key: &Object) -> Option<Object> {
     return None;
 }
 
-fn table_get(t: &Table, key: &Object) -> Option<Object> {
+pub fn table_get(t: &Table, key: &Object) -> Option<Object> {
     let mut p = t;
     loop{
         if let Some(y) = p.map.borrow().m.get(key) {
