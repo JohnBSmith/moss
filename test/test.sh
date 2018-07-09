@@ -11,3 +11,7 @@ moss-test test-exceptions
 moss-test test-cf
 moss-test test-la-inv
 
+# moss-test test-la-inv-complex
+# too slow in debug mode
+
+

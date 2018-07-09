@@ -43,6 +43,7 @@ programming language.</i>
 <li><a href="#partial-application">Partial application
 <li><a href="#set-theory">Set theory</a>
 <li><a href="#mandelbrot">Mandelbrot set</a>
+<li><a href="#fizz-buzz">Fizz buzz</a>
 </ol>
 <br>
 
@@ -132,6 +133,12 @@ print(P({0,1,2}))
     "*" if abs(((|z| z^2+c)^10)(0))&lt;2 else "\s"
   end).join()).each(print)
 
+</pre>
+
+<h3 id="fizz-buzz">Fizz buzz</h3>
+<pre class="moss">
+(1..100).map(|i| [i]+[3,5].map(|d| int(i%d==0))).map(|[i,x,y]|
+  i if x+y==0 else "Fizz"*x+"Buzz"*y).each(print)
 </pre>
 
 </body>

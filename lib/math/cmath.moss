@@ -91,6 +91,14 @@ Complex = table{
 
   function ord(a)
     return a.re*a.re+a.im*a.im
+  end,
+
+  function eq(a;b)
+    if b: Complex
+      return a.re==b.re and a.im==b.im
+    else
+      return a.re==b and a.im==0
+    end
   end
 }
 

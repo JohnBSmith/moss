@@ -1,0 +1,42 @@
+
+
+use math.la: vector, matrix, scalar
+use math.la.inversion: det, inv
+use math.rational: rat
+use math.cmath: complex
+use sys: exit
+
+function error(A)
+  print("Error in test-la-inv:\n",A)
+  exit(1)
+end
+
+i = complex(0,1)
+
+function random_matrix(m,n,rng)
+  return matrix(*rng.chunks(n).list(m))
+end
+
+function check(n,N,a,b)
+  E = scalar(n,1,0)
+  for k in 1..N
+    A = random_matrix(n,n,rand(a..b)).map(rat)
+    B = random_matrix(n,n,rand(a..b)).map(rat)
+    C = A+B*i
+    # print(C)
+    if det(C)!=0
+      if C*inv(C)!=E
+        error(C)
+      end
+    end
+  end
+end
+
+check(2,400,-10,10)
+check(3,200,-10,10)
+check(4,100,-10,10)
+check(5,40,-10,10)
+check(6,20,-10,10)
+
+
+

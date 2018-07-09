@@ -64,7 +64,7 @@ print(template % time.time())
 size <code>n</code>. This is used to have unlimited recursion
 depth.
 <pre class="moss">
-use sys
+use sys: call
 
 f = |n| 0 if n==0 else f(n-1)+1
 
@@ -72,7 +72,7 @@ function main
   print(f(100000))
 end
 
-sys.call(1000000,main)
+call(1000000,main)
 </pre>
 
 <dt>exit(n)

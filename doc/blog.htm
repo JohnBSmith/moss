@@ -941,6 +941,49 @@ table{x=1,y=2}   ≡≡ table null(m)
 table T{x=1,y=2} ≡≡ table T(m)
 </pre>
 
+<h3 data-date="20180709" id="list-comprehensions"
+>List comprehensions</h3>
+
+<p>In the last week I mused about adding generator comprehensions
+to the language. From that we receive list, set and dictionary
+comprehensions as a gift.
+
+<p>The most simple implementation is reduction to syntactic sugar.
+For example
+
+<pre class="moss indent">
+[f(x) for x in a] ≡≡ list(f(x) for x in a)
+</pre>
+
+<p>will be transformed into:
+<pre class="moss indent">
+list(fn*|| for x in a do yield f(x) end end)
+</pre>
+
+<p>The more complicated expression
+<pre class="moss indent">
+[f(x,y) for x in a if p(x) for y in b if q(x,y)]
+</pre>
+
+<p>will be transformed into:
+<pre class="moss indent">
+list(fn*||
+  for x in a
+    if p(x)
+      for y in b
+        if q(x,y)
+          yield f(x,y)
+        end
+      end
+    end
+  end
+end)
+</pre>
+
+<p>This could be done directly during syntactic analysis,
+and done elegantly, the compiler would become only slightly
+slightly larger by 100 upto 200 lines.
+
 </body>
 </html>
 
