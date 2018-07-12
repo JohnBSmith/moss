@@ -12,6 +12,7 @@ use self::termios::{
     Termios, tcsetattr, TCSANOW, ICANON, ECHO
 };
 const STDIN_FILENO: i32 = 0;
+const TAB: i32 = 9;
 const NEWLINE: i32 = 10;
 const ESC: i32 = 27;
 const ARROW: i32 = 91;
@@ -78,6 +79,26 @@ fn getchar() -> i32 {
     unsafe{libc::getchar()}
 }
 
+fn flush() {
+    io::stdout().flush().ok();
+}
+
+fn print_flush(s: &str) {
+    print!("{}",s);
+    io::stdout().flush().ok();
+}
+
+fn clear(cols: usize, prompt: &str, a: &Vec<char>){
+    let lines = number_of_lines(cols,prompt,&a);
+    clear_input(lines);
+}
+
+fn print_prompt_flush(prompt: &str, a: &Vec<char>) {
+    print!("{}",prompt);
+    for x in a {print!("{}",x);}
+    flush();
+}
+
 fn number_of_bytes(c: u8) -> usize {
     let x=c;
     let mut i: i32 =7;
@@ -100,21 +121,57 @@ fn clear_input(lines: usize){
     }
 }
 
-pub fn getline_history(prompt: &str, history: &History)
--> io::Result<String>
-{
+fn complete_u32_char(c: i32) -> char {
+    if c>127 {
+        let mut buffer: [u8;8] = [0,0,0,0,0,0,0,0];
+        let bytes = number_of_bytes(c as u8);
+        match bytes {
+            2 => {
+                buffer[0]=c as u8;
+                buffer[1]=getchar() as u8;
+            },
+            3 => {
+                buffer[0]=c as u8;
+                buffer[1]=getchar() as u8;
+                buffer[2]=getchar() as u8;
+            },
+            4 => {
+                buffer[0]=c as u8;
+                buffer[1]=getchar() as u8;
+                buffer[2]=getchar() as u8;
+                buffer[3]=getchar() as u8;          
+            },
+            _ => panic!()
+        };
+        let s = match str::from_utf8(&buffer[0..bytes]) {
+            Ok(s) => s, Err(_) => "?"
+        };
+        return match s.chars().next() {
+            Some(x) => x, None => '?'
+        };
+    }else{
+        return c as u8 as char;
+    }
+}
+
+
+pub fn getline_history(prompt: &str, history: &History) -> io::Result<String> {
     let fd: RawFd = STDIN_FILENO;
     let tio_backup = try!(Termios::from_fd(fd));
     let mut tio = tio_backup.clone();
 
     tio.c_lflag &= !(ICANON|ECHO);
     try!(tcsetattr(fd, TCSANOW, &tio));
-    let mut a: Vec<char> = Vec::new();
-    let mut history_index=0;
     print!("{}",prompt);
-    io::stdout().flush().ok();
-    let mut i=0;
-    let mut n=0;
+    flush();
+
+    let mut history_index=0;
+    let cols = get_cols();
+
+    let mut a: Vec<char> = Vec::new();
+    let mut i: usize = 0;
+    let mut n: usize = 0;
+
     loop{
         let c = getchar();
         if c==NEWLINE {
@@ -126,32 +183,46 @@ pub fn getline_history(prompt: &str, history: &History)
                 if c2==ARROW {
                     let c3 = getchar();
                     if c3==LEFT {
-                        if i>0 {i-=1;}
+                        if i>0 {i-=1; print_flush("\x1b[1D");}
+                        continue;
                     }else if c3==RIGHT {
-                        if i<n {i+=1;}
+                        if i<n {i+=1; print_flush("\x1b[1C");}
+                        continue;
                     }else if c3==UP {
                         if let Some(x) = history.get(history_index+1) {
+                            clear(cols,prompt,&a);
                             a = x.chars().collect();
                             n = a.len(); i=n;
                             history_index+=1;
+                            print_prompt_flush(prompt,&a);
                         }
+                        continue;
                     }else if c3==DOWN {
                         if history_index>0 {
                             if history_index==1 {
+                                clear(cols,prompt,&a);
                                 history_index=0;
                                 a = vec![];
-                                i=0; n=0;                  
+                                i=0; n=0;
+                                print_prompt_flush(prompt,&a);
                             }else if let Some(x) = history.get(history_index-1) {
+                                clear(cols,prompt,&a);
                                 history_index-=1;
                                 a = x.chars().collect();
                                 n = a.len(); i=n;
+                                print_prompt_flush(prompt,&a);
                             }else{
                                 panic!();
                             }
                         }
+                        continue;
+                    }else{
+                        continue;
                     }
+                }else{
+                    continue;
                 }
-            }else{
+            }else if c != TAB {
                 continue;
             }
         }else if c==BACKSPACE {
@@ -161,58 +232,35 @@ pub fn getline_history(prompt: &str, history: &History)
                 }
                 a.pop();
                 n-=1; i-=1;
-            }
-        }else{
-            let cu32 = if c>127 {
-                let mut buffer: [u8;8] = [0,0,0,0,0,0,0,0];
-                let bytes = number_of_bytes(c as u8);
-                match bytes {
-                    2 => {
-                        buffer[0]=c as u8;
-                        buffer[1]=getchar() as u8;
-                    },
-                    3 => {
-                        buffer[0]=c as u8;
-                        buffer[1]=getchar() as u8;
-                        buffer[2]=getchar() as u8;
-                    },
-                    4 => {
-                        buffer[0]=c as u8;
-                        buffer[1]=getchar() as u8;
-                        buffer[2]=getchar() as u8;
-                        buffer[3]=getchar() as u8;          
-                    },
-                    _ => panic!()
-                };
-                let s = match str::from_utf8(&buffer[0..bytes]) {
-                    Ok(s) => s, Err(_) => "?"
-                };
-                match s.chars().next() {
-                    Some(x) => x, None => '?'
+                print!("\x1b[D");
+                for j in i..n {
+                    print!("{}",a[j]);
                 }
-            }else{
-                c as u8 as char
-            };
-            a.push('0');
-            for j in (i..n).rev() {
-                a[j+1]=a[j];
+                print!(" ");
+                for _ in i..n+1 {
+                    print!("\x1b[D");
+                }
+                flush();
             }
-            a[i] = cu32;
-            n+=1; i+=1;
+            continue;
         }
-        let cols = get_cols();
-        let lines = number_of_lines(cols,prompt,&a);
-        clear_input(lines);
-        print!("{}",prompt);
-        for x in &a {print!("{}",x);}
+        let cu32 = complete_u32_char(c);
+        a.push('0');
+        for j in (i..n).rev() {
+            a[j+1]=a[j];
+        }
+        a[i] = cu32;
+        i+=1; n+=1;
+        for j in i-1..n {
+            print!("{}",a[j]);
+        }
 
         // Bug: a hanzi, say 0x4567, hampers the cursor
         // to move backward by one character.
         // (GNOME Terminal 3.18.3)
         for _ in i..n {print!("\x1b[D");}
-        io::stdout().flush().ok();
+        flush();
     }
-
     try!(tcsetattr(fd, TCSANOW, &tio_backup));
     let s: String = a.into_iter().collect();
     return Ok(s);
