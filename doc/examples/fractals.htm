@@ -31,10 +31,10 @@ function fractal(f,z0,argm={})
     for x in w
       c = (4*x/h-3)-(4*y/h-2)*1i
       z = z0(c)
-      for i in n
+      for k in n
         z = f(z,c)
         if abs(z)>2
-          cv.hsl(0,0,1-i/n)
+          cv.hsl(0,0,1-k/n)
           cv.fill(x,y,1,1)
           break
         end
