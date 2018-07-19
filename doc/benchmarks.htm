@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Benchmarks</title>
+  <link rel="stylesheet" href="css/main.css">
+</head>
+<body>
+
+<table class="navigation">
+<tr><td><b>&uarr;</b> <a href="../home.htm">Home</a>
+</table>
+<h2>Benchmarks</h2>
+
+<h3>Arithmetic and recursion</h3>
+<pre>
+<b>Task:</b> Let
+  fib(1) := 1, fib(2) := 1,
+  fib(n) := fib(n-1) + fib(n-2).
+Calculate fib(36) naively.
+</pre>
+
+<table class="bt">
+<tr>
+<th>Time
+<th>Language
+<th>Compiler, Interpreter
+<th>Remarks
+
+<tr>
+<td><code>00.058s</code>
+<td>C
+<td><code>gcc 5.4.0</code>
+<td><code>gcc -O3</code>
+
+<tr>
+<td><code>00.12s</code>
+<td>Java
+<td><code>HotSpot, OpenJDK 1.8.0</code>
+<td>
+
+<tr>
+<td><code>00.18s</code>
+<td>SML
+<td><code>SML/NJ 110.78</code>
+<td>
+
+<tr>
+<td><code>00.19s</code>
+<td>Rust
+<td><code>rustc 1.17, LLVM 4.0</code>
+<td><code>rustc -C opt-level=3</code>
+
+<tr>
+<td><code>00.21s</code>
+<td>C
+<td><code>clang 3.5, LLVM 3.5</code>
+<td><code>clang -Ofast</code>
+
+<tr>
+<td><code>00.21s</code>
+<td>SML
+<td><code>Poly/ML 5.6</code>
+<td>
+
+<tr>
+<td><code>00.22s</code>
+<td>C
+<td><code>gcc 5.4.0</code>
+<td>not optimized
+
+<tr>
+<td><code>00.23s</code>
+<td>Pascal
+<td><code>fpc 3.0.0</code>
+<td>
+
+<tr>
+<td><code>00.24s</code>
+<td>C
+<td><code>clang 3.5, LLVM 3.5</code>
+<td><code>clang -O3</code>
+
+<tr>
+<td><code>00.41s</code>
+<td>JavaScript
+<td><code>node.js 4.2, V8 4.5</code>
+<td>
+
+<tr>
+<td><code>03.0s</code>
+<td>Ruby
+<td><code>ruby 2.3.1</code>
+<td>
+
+<tr>
+<td><code>03.4s</code>
+<td>Moss
+<td><code>moss, gcc 5.4</code>
+<td><code>gcc -O3</code>
+
+<tr>
+<td><code>03.6s</code>
+<td>Lua
+<td><code>lua 5.2.4</code>
+<td>
+
+<tr>
+<td><code>08.4s</code>
+<td>Python
+<td><code>python 2.7</code>
+<td>
+
+<tr>
+<td><code>09.5s</code>
+<td>Moss
+<td><code>rustc 1.17, LLVM 4.0</code>
+<td>type safe<sup>1</sup>
+
+<tr>
+<td><code>10.3s</code>
+<td>Scheme
+<td><code>guile 1.8.8</code>
+<td>
+
+<tr>
+<td><code>10.4s</code>
+<td>Python
+<td><code>python 3.5</code>
+<td>
+
+<tr>
+<td><code>13.3s</code>
+<td>Perl
+<td><code>perl 5.22</code>
+<td>
+
+<tr>
+<td><code>17min</code>
+<td>Octave
+<td><code>octave 4.0.0</code>
+<td>
+
+</table>
+<pre>
+Ubuntu 16.04 LTS, 32 Bit, Linux Kernel 4.4.
+Pentium Dual-Core T4400 at 2.20GHz.
+</pre>
+
+<p><b>Footnotes:</b>
+<ol>
+<li>This implementation is (should be) completely type safe, using array bounds
+checking, <code>Rc&lt;T&gt;</code> and
+<code>Rc&lt;RefCell&lt;T&gt;&gt;</code>. There are no unsafe
+blocks in the interpreter kernel.
+</ol>
+
+<h3>Source code</h3>
+
+<h4>C</h4>
+<pre>
+#include &lt;stdio.h&gt;
+
+int fib(int n){
+    return n&lt;3? 1: fib(n-1)+fib(n-2);
+}
+
+int main(){
+    int i;
+    for(i=0; i&lt;100; i++){
+        printf("%i\n",fib(36));
+    }
+    return 0;
+}
+</pre>
+<br>
+
+<h4>Rust</h4>
+<pre>
+fn fib(n: i32) -&gt; i32{
+    if n&lt;3 {1} else {fib(n-1)+fib(n-2)}
+}
+
+fn main(){
+    for _ in 0..100 {
+        println!("{}",fib(36));
+    }
+}
+</pre>
+<br>
+
+<h4>Standard ML</h4>
+<pre>
+fun fib n = if n&lt;3 then 1 else fib(n-1)+fib(n-2);
+
+val i = ref 0;
+while !i&lt;&gt;100 do
+  (print(Int.toString(fib 36)^"\n"); i := !i+1);
+</pre>
+<br>
+
+<h4>Pascal</h4>
+<pre>
+program pas;
+
+function fib(n: longint): longint;
+begin
+  if n&lt;3 then
+    fib := 1
+  else
+    fib := fib(n-1)+fib(n-2)
+end;
+
+  var i: integer;
+begin
+  for i:=1 to 10 do
+    writeln(fib(36));
+end.
+</pre>
+<br>
+
+<h4>Java</h4>
+<pre>
+public class Fib{
+    static int fib(int n){
+        return n&lt;3? 1 : fib(n-1)+fib(n-2);
+    }
+    public static void main(String[] args){
+        for(int i=0; i&lt;100; i++){
+            System.out.println(fib(36));
+        }
+    }
+}
+</pre>
+<br>
+
+<h4>JavaScript</h4>
+<pre>
+function fib(n){
+    return n&lt;3? 1 : fib(n-1)+fib(n-2);
+}
+
+console.log(fib(36));
+</pre>
+<br>
+
+<h4>Ruby</h4>
+<pre>
+def fib(n)
+  if n&lt;3 then 1 else fib(n-1)+fib(n-2) end
+end
+
+puts fib(36)
+</pre>
+<br>
+
+<h4>Moss</h4>
+<pre>
+function fib(n)
+  1 if n&lt;3 else fib(n-1)+fib(n-2)
+end
+
+print(fib(36))
+</pre>
+<br>
+
+<h4>Lua</h4>
+<pre>
+function fib(n)
+  if n&lt;3 then
+    return 1
+  else
+    return fib(n-1)+fib(n-2)
+  end
+end
+
+print(fib(36))
+</pre>
+<br>
+
+<h4>Python</h4>
+<pre>
+def fib(n):
+    return 1 if n&lt;3 else fib(n-1)+fib(n-2)
+
+print(fib(36))
+</pre>
+<br>
+
+<h4>Scheme</h4>
+<pre>
+(define (fib n)
+  (if (&lt; n 3) 1 (+ (fib (- n 1)) (fib (- n 2)))))
+
+(display (fib 36))
+(newline)
+</pre>
+<br>
+
+<h4>Perl</h4>
+<pre>
+sub fib {
+  # my $n = shift;
+  return $_[0]&lt;3? 1 : fib($_[0]-1) + fib($_[0]-2);
+}
+
+print fib(36), "\n"
+</pre>
+<br>
+
+<h4>Octave</h4>
+<pre>
+function y = fib(n)
+  if (n&lt;3)
+    y = 1;
+  else
+    y = fib(n-1)+fib(n-2);
+  endif
+endfunction
+
+disp(fib(36));
+</pre>
+
+</body>
+</html>
+
