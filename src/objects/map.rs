@@ -171,6 +171,18 @@ fn add(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     }
 }
 
+pub fn subseteq(a: &Map, b: &Map) -> bool {
+    let bm = &b.m;
+    for (key,value) in &a.m {
+        if !bm.contains_key(key) {return false;} 
+    }
+    return true;
+}
+
+pub fn subset(a: &Map, b: &Map) -> bool {
+    return a.m.len()<b.m.len() && subseteq(a,b);
+}
+
 pub fn init(t: &Table){
     let mut m = t.map.borrow_mut();
     m.insert_fn_plain("update",update,1,1);

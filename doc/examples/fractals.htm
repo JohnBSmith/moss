@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Fractals</title>
+  <link href="../css/main.css" rel="stylesheet">
+  <script src = "../js/moss-syntax.js">
+  </script>
+</head>
+<body>
+
+<table class="navigation">
+<tr><td><b>&uarr;</b> <a href="toc.htm">Up</a>
+</table>
+<h1>Fractals</h1>
+
+<h2>Table of contents</h2>
+<ol>
+<li><a href="#complex-dynamics">Complex dynamics</a>
+</ol>
+
+<h2 id="complex-dynamics">Complex dynamics</h2>
+
+<pre class="moss">
+use gx: canvas, sleep
+
+function fractal(f,z0,argm={})
+  {w=720, h=480, n=40} = argm
+  cv = canvas(w,h)
+  for y in h
+    for x in w
+      c = (4*x/h-3)-(4*y/h-2)*1i
+      z = z0(c)
+      for i in n
+        z = f(z,c)
+        if abs(z)>2
+          cv.hsl(0,0,1-i/n)
+          cv.fill(x,y,1,1)
+          break
+        end
+      end
+    end
+    cv.flush()
+  end
+  while cv.key()!="q"
+    sleep(0.1)
+  end
+end
+
+# Mandelbrot set
+fractal(|z,c| z^2+c, |c| 0)
+
+# Julia set of f(z) = z^2-0.6+0.5i
+fractal(|z,c| z^2-0.6+0.5i, |c| c, n=80)
+</pre>
+<br>
+
+<div>
+<img src="../img/fractals/Mandelbrot-set.png"
+  style="border: 2px solid #d0d0d0">
+</div>
+
+<div>
+<img src="../img/fractals/Julia-set-minus0p6plus0p5i.png"
+  style="border: 2px solid #d0d0d0">
+</div>
+</body>
+</html>
+

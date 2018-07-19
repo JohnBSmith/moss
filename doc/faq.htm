@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>FAQ</title>
+  <link rel="stylesheet" href="css/main.css">
+</head>
+<body>
+
+<table class="navigation">
+<tr><td><b>&uarr;</b> <a href="../home.htm">Home</a>
+</table>
+<h1>FAQ</h1>
+<p>Answers to questions that are asked frequently or might be
+asked frequently in the future.
+
+<h2>Table of contents</h2>
+<ol>
+<li><a href="#what-is-moss">What is Moss?</a>
+<li><a href="#what-is-moss-suitable-for">What is Moss suitable for?</a>
+<li><a href="#what-is-the-goal">What is the project goal?</a>
+</ol>
+
+<h3 id="what-is-moss">What is Moss?</h3>
+<p>Moss is a dynamically typed programming language, that allows
+functional and object oriented programming.
+
+<h3 id="what-is-this-suitable-for">What is Moss suitable for?</h3>
+<p>Moss is meant to be a general purpose programming language, but
+it is certainly not suitable for everything. Most well suited would
+it be for scripting or as an interface language to performant programs.
+
+<p>For example, Moss is developed together with a scientific library,
+a matrix caculator and a plotting library, serving purposes similar to
+SciPy, Matlab/Octave, Gnuplot and Matplotlib.
+
+<p>Moss is not suitable for programs that should run
+performant on the bare metal cold or for large complex systems,
+due to its lack of a static type system and optimizations.
+
+<p>Be aware that callback functions written in a dynamically typed
+language might slow down systems written in a performant
+language. If callback functions occur at critical locations, it might
+be necessary to reformulate the whole procedure in the performant
+language.
+
+<h3 id="what-is-the-goal">What is the project goal?</h3>
+
+<p>The project goals are so far:
+<ul>
+<li>Showing that a type safe and memory safe
+  implementation is possible.
+<li>Determining a design of a Rust-Moss ecosystem.
+<li>Doing research in the design of interpreter kernels.
+<li>A first language for teaching computer programming.
+<li>An enhanced calculator, providing long integers, exact rational
+numbers, multiple-precision floating point numbers, matrix
+calculations and a large number of numerical routines and special
+functions.
+</ul>
+
+</body>
+</html>
+

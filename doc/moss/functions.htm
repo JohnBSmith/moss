@@ -333,6 +333,28 @@ end
 "(1, 2)"
 </pre>
 
+<p>In many situations it is desirable to check for invalid arguments, but this
+must be done explicitely.
+
+<pre class="moss indent">
+ArgumentError = table{}
+
+function valid_argm(argm,valid)
+  for key in argm
+    if not key in valid
+      raise table ArgumentError{
+        value = "Unexpected named argument: {}." % [key]}
+    end
+  end
+  return argm
+end
+
+p_valid = {"x","y","sep"}
+function p(argm)
+  return "({x}{sep}{y})" % valid_argm(argm,p_valid)
+end
+</pre>
+
 
 <h2 id="unpacking">Argument list unpacking</h2>
 

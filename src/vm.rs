@@ -24,6 +24,7 @@ use global::{type_name,list};
 use rand::Rand;
 use list::cartesian_power;
 use iterable::iter;
+use map::{subseteq,subset};
 
 // use ::Interpreter;
 use system;
@@ -2154,6 +2155,16 @@ fn operator_lt(env: &mut EnvPart, sp: usize, stack: &mut [Object])
                 _ => {break 'r;}
             }
         },
+        Object::Map(x) => {
+            match stack[sp-1].clone() {
+                Object::Map(y) => {
+                    stack[sp-1] = Object::Null;
+                    stack[sp-2] = Object::Bool(subset(&x.borrow(),&y.borrow()));
+                    Ok(())
+                },
+                _ => {break 'r;}
+            }
+        },
         Object::Interface(x) => {
             let b = stack[sp-1].take();
             match x.lt(&b,&mut Env{env,sp,stack}) {
@@ -2255,6 +2266,16 @@ fn operator_gt(env: &mut EnvPart, sp: usize, stack: &mut [Object])
                 _ => {break 'r;}
             }
         },
+        Object::Map(x) => {
+            match stack[sp-1].clone() {
+                Object::Map(y) => {
+                    stack[sp-1] = Object::Null;
+                    stack[sp-2] = Object::Bool(subset(&y.borrow(),&x.borrow()));
+                    Ok(())
+                },
+                _ => {break 'r;}
+            }
+        },
         Object::Interface(x) => {
             let b = stack[sp-1].take();
             match x.gt(&b,&mut Env{env,sp,stack}) {
@@ -2326,6 +2347,16 @@ fn operator_le(env: &mut EnvPart, sp: usize, stack: &mut [Object])
                 _ => {break 'r;}
             }
         },
+        Object::Map(x) => {
+            match stack[sp-1].clone() {
+                Object::Map(y) => {
+                    stack[sp-1] = Object::Null;
+                    stack[sp-2] = Object::Bool(subseteq(&x.borrow(),&y.borrow()));
+                    Ok(())
+                },
+                _ => {break 'r;}
+            }
+        },
         Object::Interface(x) => {
             let b = stack[sp-1].take();
             match x.le(&b,&mut Env{env,sp,stack}) {
@@ -2392,6 +2423,16 @@ fn operator_ge(env: &mut EnvPart, sp: usize, stack: &mut [Object])
                 Object::String(y) => {
                     stack[sp-1] = Object::Null;
                     stack[sp-2] = Object::Bool(x.v>=y.v);
+                    Ok(())
+                },
+                _ => {break 'r;}
+            }
+        },
+        Object::Map(x) => {
+            match stack[sp-1].clone() {
+                Object::Map(y) => {
+                    stack[sp-1] = Object::Null;
+                    stack[sp-2] = Object::Bool(subseteq(&y.borrow(),&x.borrow()));
                     Ok(())
                 },
                 _ => {break 'r;}
