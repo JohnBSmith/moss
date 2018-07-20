@@ -17,10 +17,15 @@
 <h2>Table of contents</h2>
 <ol>
 <li><a href="#complex-dynamics">Complex dynamics</a>
+  <ol>
+  <li><a href="#mandelbrot">Mandelbrot set, Julia sets</a>
+  <li><a href="#newton">Newton fractals</a>
+  </ol>
 </ol>
 
 <h2 id="complex-dynamics">Complex dynamics</h2>
 
+<h3 id="mandelbrot">Mandelbrot set, Julia sets</h3>
 <pre class="moss">
 use gx: canvas, sleep
 
@@ -64,6 +69,53 @@ fractal(|z,c| z^2-0.6+0.5i, |c| c, n=80)
 <img src="../img/fractals/Julia-set-minus0p6plus0p5i.png"
   style="border: 2px solid #d0d0d0">
 </div>
+
+<br>
+<h3 id="newton">Newton fractals</h3>
+
+<pre class="moss">
+use gx: canvas, sleep
+use math: tanh
+use math.na: diffh
+use cmath: arg
+
+function basin_fractal(f,z0,argm={})
+  {w=720, h=480, n=100, dim=10} = argm
+  cv = canvas(w,h)
+  for y in h
+    for x in w
+      c = (4*x/h-3)-(4*y/h-2)*1i
+      z = z0(c)
+      for k in n
+        p = z
+        z = f(z,c) 
+        if abs(z-p)&lt;0.01
+          cv.hsl(arg(z),0.2,1-tanh(k/dim)^2)
+          break
+        end
+      end
+      cv.fill(x,y,1,1)
+    end
+    cv.flush()
+  end
+  while cv.key()!="q"
+    sleep(0.1)
+  end
+end
+
+function newton(f,argm={})
+  diff = diffh(0.001)
+  basin_fractal(|z,c| z-f(z)/diff(f,z), |c| c, argm)
+end
+
+newton(|z| z^3-1)
+</pre>
+
+<div>
+<img src="../img/fractals/Newton.png"
+  style="border: 2px solid #d0d0d0">
+</div>
+
 </body>
 </html>
 

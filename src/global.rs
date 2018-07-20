@@ -293,6 +293,7 @@ fn load(env: &mut Env, id: Rc<U32String>, hot_plug: bool) -> FnResult{
         "cmath" => ::math::load_cmath(),
         "sys"   => ::sys::load_sys(env.rte()),
         "regex" => ::regex::load_regex(env),
+        "data" => ::data::load_data(env),
         
         #[cfg(feature = "gx")]
         "gx" => ::gx::load_gx(),
