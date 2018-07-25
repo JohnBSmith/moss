@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Graphics</title>
+  <link href="../css/main.css" rel="stylesheet">
+  <script src="../js/moss-syntax.js"></script>
+</head>
+<body>
+
+<table class="navigation">
+<tr><td><b>&uarr;</b> <a href="toc.htm">Up</a>
+</table>
+<h1>Graphics</h1>
+
+<div class="toc">
+<h2 id="toc">Table of contents</h2>
+<ol>
+<li><a href="#time">Module <code>gx</code> &mdash; computer graphics</a>
+</ol>
+</div>
+
+<h2 id="time">Module gx</h2>
+<p>Computer graphics interface.
+
+<dl class="code">
+<dt>sleep(x)
+<dd>Sleep <code>x</code> seconds. Note that <code>x</code> may
+be a floating point number und thus parts of a second are possible.
+</dl>
+
+<h3>gx.canvas</h3>
+<dl class="code">
+<dt>canvas(w,h)
+<dd>Create a new canvas of width <code>w</code> and
+height <code>h</code> pixels.
+
+<dt>c.clear(r,g,b)
+<dd>Clear the canvas <code>c</code> by RGB color.
+Note: <code>r,g,b</code>&in;[0,1].
+
+<dt>c.flush()
+<dd>Flush the written data of canvas <code>c</code> to the screen.
+This operation is somewhat time consuming and thus should
+not be done before a larger bunch of pixels is drawn.
+
+<dt>c.fill(x,y,w,h)
+<dd>Fill a rect of width <code>w</code> and height <code>h</code>
+pixels at pixel <code>(x,y)</code>.
+
+<dt>c.rgb(r,g,b,a=1)
+<dd>Set the color state using the RGB color model.
+Note: <code>r,g,b,a</code>&in;[0,1].
+
+<dt>c.hsl(h,s,l)
+<dd>Set the color state using the HSL color model.
+Note: <code>h</code>&in;[0,2&pi;] and <code>s,l</code>&in;[0,1].
+
+<dt>c.key()
+<dd>Pick the next key of the keyboard input queue.
+
+<dt>c.point(x,y)
+<dd>Draw a smooth point at position <code>(x,y)</code>.
+This operation uses the device independent coordinate system
+instead of pixel coordinates.
+
+<dt>c.circle(x,y,r)
+<dd>Draw a circle of radius <code>r</code> at position
+<code>(x,y)</code>. This operation uses the device independent
+coordinate system instead of pixel coordinates.
+
+<dt>c.disc(x,y,r)
+<dd>Draw a disc of radius <code>r</code> at position
+<code>(x,y)</code>. This operation uses the device independent
+coordinate system instead of pixel coordinates.
+
+<dt>c.box(x,y,r)
+<dd>Draw a box of incircle radius <code>r</code> at position
+<code>(x,y)</code>. This operation uses the device independent
+coordinate system instead of pixel coordinates.
+
+<dt>c.scale(sx,sy)
+<dd>Set the scale of the device independent coordinate system.
+
+<dt>c.origin(x,y)
+<dd>Set the origin of the device independent coordinate system.
+</dl>
+
+
+</body>
+</html>
+

@@ -266,7 +266,7 @@ impl MutableCanvas {
         }
     }
 
-    fn cset(&mut self, r: f64, g: f64, b: f64, a: Option<f64>) {
+    fn rgb(&mut self, r: f64, g: f64, b: f64, a: Option<f64>) {
         let ri = ((255.0*r) as i32).max(0).min(255) as u8;
         let gi = ((255.0*g) as i32).max(0).min(255) as u8;
         let bi = ((255.0*b) as i32).max(0).min(255) as u8;
@@ -614,37 +614,37 @@ fn canvas_box(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     }
 }
 
-fn canvas_cset(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+fn canvas_rgb(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     let a = match argv.len() {
         3 => None,
         4 => match argv[3] {
             Object::Int(a) => Some(a as f64),
             Object::Float(a) => Some(a),
-            ref a => return type_error_int_float(env,"c.cset(r,g,b,a)","a",a)
+            ref a => return type_error_int_float(env,"c.rgb(r,g,b,a)","a",a)
         },
-        n => return env.argc_error(n,3,4,"cset")
+        n => return env.argc_error(n,3,4,"rgb")
     };
     let r = match argv[0] {
         Object::Int(r) => r as f64,
         Object::Float(r) => r,
-        ref r => return type_error_int_float(env,"c.cset(r,g,b)","r",r)
+        ref r => return type_error_int_float(env,"c.rgb(r,g,b)","r",r)
     };
     let g = match argv[1] {
         Object::Int(g) => g as f64,
         Object::Float(g) => g,
-        ref g => return type_error_int_float(env,"c.cset(r,g,b)","g",g)
+        ref g => return type_error_int_float(env,"c.rgb(r,g,b)","g",g)
     };
     let b = match argv[2] {
         Object::Int(b) => b as f64,
         Object::Float(b) => b,
-        ref b => return type_error_int_float(env,"c.cset(r,g,b)","b",b)
+        ref b => return type_error_int_float(env,"c.rgb(r,g,b)","b",b)
     };
     if let Some(canvas) = Canvas::downcast(pself) {
         let mut canvas = canvas.canvas.borrow_mut();
-        canvas.cset(r,g,b,a);
+        canvas.rgb(r,g,b,a);
         Ok(Object::Null)
     }else{
-        type_error_canvas(env,"c.cset(r,g,b)","c")
+        type_error_canvas(env,"c.rgb(r,g,b)","c")
     }
 }
 
@@ -790,7 +790,7 @@ pub fn load_gx() -> Object
         m.insert_fn_plain("circle",canvas_circle,3,3);
         m.insert_fn_plain("disc",canvas_disc,3,3);
         m.insert_fn_plain("box",canvas_box,3,3);
-        m.insert_fn_plain("cset",canvas_cset,3,4);
+        m.insert_fn_plain("rgb",canvas_rgb,3,4);
         m.insert_fn_plain("hsl",canvas_hsl,3,4);
         m.insert_fn_plain("clear",canvas_clear,3,3);
         m.insert_fn_plain("fill",canvas_fill,4,4);

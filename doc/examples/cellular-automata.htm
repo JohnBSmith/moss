@@ -42,7 +42,7 @@ function game(argm={})
   while true
     for i in 0..h-1
       for j in 0..w-1
-        c.cset(*(color if a[i][j]==1 else [0,0,0]))
+        c.rgb(*(color if a[i][j]==1 else [0,0,0]))
         c.fill(csize*j,csize*i,psize,psize)
         n = count(a,i,j,w,h)
         b[i][j] = (f0 if a[i][j]==0 else f1)(n)

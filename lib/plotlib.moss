@@ -80,7 +80,7 @@ function draw_vector(canvas,x1,y1,x2,y2)
 end
 
 function grid(canvas,w,h,csys,cgrid,scale=1)
-  canvas.cset(*cgrid)
+  canvas.rgb(*cgrid)
   step = w/20*scale
   x = w//2
   y = h//2
@@ -90,7 +90,7 @@ function grid(canvas,w,h,csys,cgrid,scale=1)
   for k in -9..9
     vline(canvas,h,x+int(k*step))
   end
-  canvas.cset(*csys)
+  canvas.rgb(*csys)
   hline(canvas,w,y)
   vline(canvas,h,x)
 end
@@ -106,10 +106,10 @@ System = table{
     step = wx/n
     if color is null
       if not self.ani
-        canvas.cset(*next_color(self))
+        canvas.rgb(*next_color(self))
       end
     else
-      canvas.cset(*color)
+      canvas.rgb(*color)
     end
     for x in px-wx..px+wx: step
       y = f(x)
@@ -132,10 +132,10 @@ System = table{
     step = 1/n
     if color is null
       if not self.ani
-        canvas.cset(*next_color(self))
+        canvas.rgb(*next_color(self))
       end
     else
-      canvas.cset(*color)
+      canvas.rgb(*color)
     end
     for t in t0..t1: step
       x,y = f(t)
@@ -165,13 +165,13 @@ System = table{
     end
   end,
 
-  function line(x1,y1,x2,y2)
+  function line([x1,y1],[x2,y2])
     wx = self.wx; px = self.px
     wy = self.wy; py = self.py
     draw_line(self.c,(x1-px)/wx,(y1-py)/wy,(x2-px)/wx,(y2-py)/wy)
   end,
 
-  function dotted_line(x1,y1,x2,y2)
+  function dotted_line([x1,y1],[x2,y2])
     wx = self.wx; px = self.px
     wy = self.wy; py = self.py
     draw_dotted_line(self.c,(x1-px)/wx,(y1-py)/wy,(x2-px)/wx,(y2-py)/wy)
@@ -190,7 +190,7 @@ System = table{
     end
   end,
 
-  function vector(x1,y1,x2,y2)
+  function vector([x1,y1],[x2,y2])
     wx = self.wx; px = self.px
     wy = self.wy; py = self.py
     draw_vector(self.c,(x1-px)/wx,(y1-py)/wy,(x2-px)/wx,(y2-py)/wy)
@@ -207,8 +207,8 @@ System = table{
     end
   end,
 
-  function cset(*a)
-     self.c.cset(*a)
+  function rgb(*a)
+     self.c.rgb(*a)
   end,
 
   function animate(f,argm={})
@@ -228,7 +228,7 @@ System = table{
         canvas.clear(*bg)
       end
       grid(canvas,w,h,csys,cgrid,fscale)
-      canvas.cset(*ctab[0])
+      canvas.rgb(*ctab[0])
       f(a)
       canvas.lflush()
       canvas.flush()
@@ -291,7 +291,7 @@ end
 
 System3d = table{
   idle = System.idle,
-  cset = System.cset,
+  rgb = System.rgb,
   function plot(f,argm={})
     {color = null} = argm
     canvas = self.c
@@ -305,9 +305,9 @@ System3d = table{
     s = sin(phi)
 
     if color is null
-      canvas.cset(*next_color(self))
+      canvas.rgb(*next_color(self))
     else
-      canvas.cset(*color)
+      canvas.rgb(*color)
     end
 
     for x in -wx..wx: wx/mx
@@ -322,7 +322,7 @@ System3d = table{
         point3d(canvas,c,s,m*x/wx,m*y/wy,m*z/wz)
       end
     end
-    canvas.cset(0,0,0,0.8)
+    canvas.rgb(0,0,0,0.8)
     sys3d(canvas,c,s)
   end,
 
@@ -342,9 +342,9 @@ System3d = table{
     s = sin(phi)
 
     if color is null
-      canvas.cset(*next_color(self))
+      canvas.rgb(*next_color(self))
     else
-      canvas.cset(*color)
+      canvas.rgb(*color)
     end
 
     for u in u0..u1: 1/mu
@@ -359,7 +359,7 @@ System3d = table{
         point3d(canvas,c,s,m*x/wx,m*y/wy,m*z/wz)
       end
     end
-    canvas.cset(0,0,0,0.8)
+    canvas.rgb(0,0,0,0.8)
     sys3d(canvas,c,s)
   end,
 
@@ -378,9 +378,9 @@ System3d = table{
     s = sin(phi)
 
     if color is null
-      canvas.cset(0,0,0.4)
+      canvas.rgb(0,0,0.4)
     else
-      canvas.cset(*color)
+      canvas.rgb(*color)
     end
 
     for t in t0..t1: 1/n
@@ -388,13 +388,13 @@ System3d = table{
       point3d(canvas,c,s,m*x/wx,m*y/wy,m*z/wz)
     end
 
-    canvas.cset(0,0,0,0.2)
+    canvas.rgb(0,0,0,0.2)
     for t in t0..t1: 1/n
       x,y,z = f(t)
       point3d(canvas,c,s,m*x/wx,m*y/wy,0)
     end
 
-    canvas.cset(0,0,0,0.8)
+    canvas.rgb(0,0,0,0.8)
     sys3d(canvas,c,s)
   end
 }
@@ -403,6 +403,7 @@ function system(argm = {})
   { w=960,h=640,wx=10,wy=10,px=0,py=0,n=1000,dark=false,
     scale = null
   } = argm
+  show_grid = argm("grid") else true
   canvas = gx.canvas(w,h)
   if scale is null
     fscale = null
@@ -422,8 +423,10 @@ function system(argm = {})
     ctab = color_table
   end
   canvas.clear(*bg)
-  grid(canvas,w,h,csys,cgrid,fscale)
-  canvas.cset(*ctab[0])
+  if show_grid
+    grid(canvas,w,h,csys,cgrid,fscale)
+  end
+  canvas.rgb(*ctab[0])
   return table System{
     c=canvas, w=w, h=h, n=n,
     wx=wx, wy=wy, px=px, py=py,
@@ -449,7 +452,7 @@ function system3d(argm = {})
     ctab = color_table3d
   end
   canvas.clear(*bg)
-  canvas.cset(0.2,0.4,0.6,0.4)
+  canvas.rgb(0.2,0.4,0.6,0.4)
   return table System3d{
     c=canvas, w=w, h=h, mx=mx, my=my, nx=nx, ny=ny,
     wx=wx, wy=wy, wz=wz, px=px, py=py, pz=pz,

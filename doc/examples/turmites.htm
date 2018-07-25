@@ -32,10 +32,10 @@ function turmite(argm={})
   for k in cycle(1..skip)
     if a[py][px]==0
       d=(d+1)%4; a[py][px]=1
-      c.cset(0.6,0.6,0.4)
+      c.rgb(0.6,0.6,0.4)
     else
       d=(d-1)%4; a[py][px]=0
-      c.cset(0.0,0.1,0.1)
+      c.rgb(0.0,0.1,0.1)
     end
     c.fill(4*px,4*py,3,3);
     if k==1

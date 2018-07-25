@@ -21,6 +21,10 @@
   <li><a href="#mandelbrot">Mandelbrot set, Julia sets</a>
   <li><a href="#newton">Newton fractals</a>
   </ol>
+<li><a href="#l-systems">L-systems</a>
+  <ol>
+  <li><a href="#snowflake">Koch snowflake</a>
+  </ol>
 </ol>
 
 <h2 id="complex-dynamics">Complex dynamics</h2>
@@ -113,6 +117,57 @@ newton(|z| z^3-1)
 
 <div>
 <img src="../img/fractals/Newton.png"
+  style="border: 2px solid #d0d0d0">
+</div>
+
+<br><br>
+<h2 id="l-systems">L-systems</h2>
+<h3 id="snowflake">Koch snowflake</h3>
+
+<pre class="moss">
+use plotlib: system
+use math.la: vector, matrix
+use math: pi, sin, cos, sqrt
+
+rot = |phi| matrix(
+  [cos(phi),-sin(phi)],
+  [sin(phi), cos(phi)]
+)
+deg = pi/180
+R60 = rot(60*deg)
+Rm60 = rot(-60*deg)
+Rm120 = rot(-120*deg)
+
+function snowflake_rec(s,p,v,n)
+  if n==0
+    s.line(p,p+v)
+  else
+    snowflake_rec(s,p,v/3,n-1)
+    snowflake_rec(s,p+v/3,R60*(v/3),n-1)
+    snowflake_rec(s,p+v/3+R60*(v/3),Rm60*(v/3),n-1)
+    snowflake_rec(s,p+2/3*v,v/3,n-1)
+  end
+end
+
+function snowflake(s,p,scale,n)
+  v = scale*vector(1,0)
+  p = p-sqrt(3)/3*rot(-30*deg)*v
+  for k in 3
+    snowflake_rec(s,p,v,n)
+    p = p+v
+    v = Rm120*v
+  end
+end
+
+s = system(w=400,h=400,grid=false)
+s.rgb(0,0,0)
+snowflake(s,vector(0,0),16,4)
+
+s.idle()
+</pre>
+
+<div>
+<img src="../img/fractals/snowflake.png"
   style="border: 2px solid #d0d0d0">
 </div>
 
