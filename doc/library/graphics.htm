@@ -16,11 +16,12 @@
 <div class="toc">
 <h2 id="toc">Table of contents</h2>
 <ol>
-<li><a href="#time">Module <code>gx</code> &mdash; computer graphics</a>
+<li><a href="#gx">Module <code>gx</code> &mdash; computer graphics</a>
+<li><a href="#plotlib">Module <code>plotlib</code> &mdash; graphing data and functions</a>
 </ol>
 </div>
 
-<h2 id="time">Module gx</h2>
+<h2 id="gx">Module gx</h2>
 <p>Computer graphics interface.
 
 <dl class="code">
@@ -84,6 +85,77 @@ coordinate system instead of pixel coordinates.
 
 <dt>c.origin(x,y)
 <dd>Set the origin of the device independent coordinate system.
+</dl>
+
+<h2 id="plotlib">Module plotlib</h2>
+<p>Graphing data and functions.
+
+<h3>plotlib.system</h3>
+<dl class="code">
+<dt>system({w=960, h=640, n=1000, scale=1, px=0, py=0,<br>
+wx=10/scale, wy=10/scale, dark=false, grid=true})
+<dd>Create a new coordinate system with center <code>(px,py)</code>
+where the visible range is <code>x&in;[px-wx,px+wx]</code>
+and <code>y&in;[py-wy,py+wy]</code>.
+The resolution will be <code>w*h</code> pixels.
+
+<dt>s.idle()
+<dd>Idle until <code>"q"</code> (quit) is pressed.
+
+<dt>s.plot(f,{n=s.n})
+<dd>Graph a function <code>f</code> as <code>y=f(x)</code>,
+using <code>n</code> points for <code>x&in;[px-wx,0]</code> and
+<code>n</code> points for <code>x&in;[0,px+wx]</code>.
+
+<dt>s.vplot(f,{n=s.n, t0=0, t1=2*pi})
+<dd>Graph a vector curve <code>f</code> as <code>[x,y]=f(t)</code>
+using <code>n</code> points for <code>t&in;[t0,t1]</code>.
+
+<dt>s.cplot(f,{n=4})
+<dd>Graph a complex function <code>f</code> as <code>w=f(x+y*1i)</code>
+where the color (HSL) is <code>H=arg(w)</code> and
+<code>L</code> depends on <code>abs(w)</code>. The integer number
+<code>n</code> is the raster size in pixels. 
+
+<dt>s.line(p1,p2)
+<dd>Draw a line from <code>[x1,y1]=p1</code> to <code>[x2,y2]=p2</code>.
+
+<dt>s.vector(p1,p2)
+<dd>Draw a vector arrow from <code>[x1,y1]=p1</code>
+to <code>[x2,y2]=p2</code>.
+
+<dt>s.scatter(a,{type="disc", radius=0.008})
+<dd>Draw a list scatter points <code>[x,y]=a[k]</code>.
+The <code>type</code> is <code>"disc"</code>, <code>"circle"</code>
+or <code>"box"</code>.
+
+<dt>s.animte(callback,{clear=true})
+<dd>Animate <code>callback(tstep)</code> until <code>"q"</code> (quit)
+is pressed. The argument <code>tstep</code> is a stroboscope that
+you can scale to obtain your preferred time parameter.
+Note that if the FPS is too slow, you might want to compute
+an animated gif instead. That is currently not supported, but planned for
+the future.
+<dd>
+
+<dt>s.color(n)
+<dd>Set the color state. Use color <code>n&ge;0</code> from
+the color palette. If <code>n</code> is out of bounds,
+<code>n%size</code> is used.
+
+<dt>s.rgb(r,g,b)
+<dd>Set the color state by the RGB color model.
+
+<dt>s.hsl(h,s,l)
+<dd>Set the color state by the HSL color model.
+
+<dt>s.palette
+<dd>The color palette, containing <code>[r,g,b]</code> colors.
+A random color is picked this way:
+<pre class="moss">
+rng = rand(s.palette)
+s.rgb(*rng())
+</pre>
 </dl>
 
 

@@ -34,15 +34,15 @@
 use gx: canvas, sleep
 
 function fractal(f,z0,argm={})
-  {w=720, h=480, n=40} = argm
+  {w=720, h=480, n=40, p=0, r=2} = argm
   cv = canvas(w,h)
   for y in h
     for x in w
-      c = (4*x/h-3)-(4*y/h-2)*1i
+      c = p+r/h*((2*x-w)-(2*y-h)*1i)
       z = z0(c)
       for k in n
         z = f(z,c)
-        if abs(z)>2
+        if abs(z)&gt;2
           cv.hsl(0,0,1-k/n)
           cv.fill(x,y,1,1)
           break
@@ -84,16 +84,16 @@ use math.na: diffh
 use cmath: arg
 
 function basin_fractal(f,z0,argm={})
-  {w=720, h=480, n=100, dim=10} = argm
+  {w=720, h=480, n=100, dim=10, p=0, r=2} = argm
   cv = canvas(w,h)
   for y in h
     for x in w
-      c = (4*x/h-3)-(4*y/h-2)*1i
+      c = p+r/h*((2*x-w)-(2*y-h)*1i)
       z = z0(c)
       for k in n
-        p = z
+        zp = z
         z = f(z,c) 
-        if abs(z-p)&lt;0.01
+        if abs(z-zp)&lt;0.01
           cv.hsl(arg(z),0.2,1-tanh(k/dim)^2)
           break
         end

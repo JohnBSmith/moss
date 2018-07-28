@@ -107,7 +107,7 @@ function For(a,b,f)
   i=a
   while i&lt;=b
     f(i)
-    i++
+    i+=1
   end
 end
 
@@ -511,7 +511,7 @@ end
 <h2 id="app">Function application</h2>
 
 <p>As just said, in Moss there is no invisible times. Instead
-of <code>ab</code> or <code>a&nbsp;b</code> one must write
+of <code>ab</code> or <code>a&nbsp;b</code> one has to write
 <code>a*b</code>. But the function application operator is
 invisible. The expression <code>f(x,y)</code> means
 <pre class="indent">
@@ -519,7 +519,7 @@ f applied to (x,y).
 </pre>
 
 <p>The parenthesis pair on the right hand side is obligatory.
-Now note, that the left hand side of this operator can itself
+Now note, that the left hand side of this operator may itself
 be an expression. If <code>e</code> is some expression, then
 <code>(e)(x,y)</code> means
 <pre class="indent">
@@ -540,11 +540,11 @@ Function.plus = |f;g| |x| f(x)+g(x)
 <p>Now one can write <code>(f+g)(x)</code>
 instead of <code>f(x)+g(x)</code>.
 
-<p>If <code>t</code> is a pair, one can write
+<p>If <code>t</code> is a pair, one may write
 <code>f(*t)</code> instead of <code>f(t[0],t[1])</code>.
 That is a more general way of function application,
-because one can always write <code>f(*[t[0],t[1]])</code>.
-In general one has
+because we can always write <code>f(*[t[0],t[1]])</code>.
+In general we have
 <pre class="moss indent">
   f(x,y) ≡≡ f(null;x,y) ≡≡   f(*[x,y]) ≡≡ f(null;*[x,y]),
 a.m(x,y) ≡≡ a.m(a;x,y)  ≡≡ a.m(*[x,y]) ≡≡ a.m(a;*[x,y]).
@@ -567,7 +567,7 @@ x=360; y=240
 <p>But there is more going on here. Actually it is a shorthand.
 Firstly the numbers on the right hand side are bundled, so that a
 list is constructed. The square brackets are simply omitted.
-Secondly the list is deconstructed on the right hand side.
+Secondly the list is deconstructed on the left hand side.
 The long, more powerful, form of this statement is as follows:
 <pre class="moss indent">
 [x,y] = [360,240]
