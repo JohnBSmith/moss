@@ -1006,7 +1006,9 @@ fn map_literal(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error> {
     if t.value == Symbol::CRight {
         i.index+=1;
     }else{
-        loop{
+        'cycle: loop{
+            'cright_after_comma: loop{
+            'comma_or_cright: loop {
             let p = try!(i.next_token(self));
             let t = &p[i.index];
             let key = if t.value == Symbol::Function {
@@ -1021,17 +1023,7 @@ fn map_literal(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error> {
                 });
                 v.push(key);
                 v.push(a[1].clone());
-
-                let p2 = try!(i.next_token(self));
-                let t2 = &p2[i.index];
-                if t2.value == Symbol::CRight {
-                    i.index+=1;
-                    break;
-                }else if t2.value != Symbol::Comma {
-                    return Err(self.syntax_error(t2.line, t2.col, "expected ',' or '}'."));
-                }
-                i.index+=1;
-                continue;
+                break 'comma_or_cright;
             }else{
                 try!(self.union(i))
             };
@@ -1042,26 +1034,18 @@ fn map_literal(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error> {
                 v.push(key);
                 v.push(value);
                 i.index+=1;
+                break 'cright_after_comma;
             }else if t.value == Symbol::CRight {
                 let value = symbol_none(t.line,t.col);
                 v.push(key);
                 v.push(value);
                 i.index+=1;
-                break;
+                break 'cycle;
             }else if t.value == Symbol::Colon {
                 i.index+=1;
                 let value = try!(self.expression(i));
-                let p2 = try!(i.next_token(self));
-                let t2 = &p2[i.index];
                 v.push(key);
                 v.push(value);
-                if t2.value == Symbol::CRight {
-                    i.index+=1;
-                    break;
-                }else if t2.value != Symbol::Comma {
-                    return Err(self.syntax_error(t2.line, t2.col, "expected ',' or '}'."));
-                }
-                i.index+=1;
             }else if t.value== Symbol::Assignment {
                 i.index+=1;
                 if key.symbol_type != SymbolType::Identifier {
@@ -1075,17 +1059,27 @@ fn map_literal(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error> {
                 });
                 v.push(skey);
                 v.push(value);
-                let p2 = try!(i.next_token(self));
-                let t2 = &p2[i.index];
-                if t2.value == Symbol::CRight {
-                    i.index+=1;
-                    break;
-                }else if t2.value != Symbol::Comma {
-                    return Err(self.syntax_error(t2.line, t2.col, "expected ',' or '}'."));
-                }
-                i.index+=1;
             }else{
                 return Err(self.syntax_error(t.line, t.col, "expected ',' or '=' or ':' or '}'."));
+            }
+
+            break;} // comma_or_cright:
+            let p2 = try!(i.next_token(self));
+            let t2 = &p2[i.index];
+            if t2.value == Symbol::CRight {
+                i.index+=1;
+                break 'cycle;
+            }else if t2.value != Symbol::Comma {
+                return Err(self.syntax_error(t2.line, t2.col, "expected ',' or '}'."));
+            }
+            i.index+=1;
+
+            break;} // cright_after_comma:
+            let p = try!(i.next_token(self));
+            let t = &p[i.index];
+            if t.value == Symbol::CRight {
+                i.index+=1;
+                break;
             }
         }
     }
