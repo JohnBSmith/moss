@@ -869,11 +869,11 @@ impl TokenIterator{
     }
 }
 
-fn operator(line: usize, col: usize,
-    value: Symbol, a: Box<[Rc<AST>]>
-) -> Rc<AST> {
-    Rc::new(AST{line: line, col: col, symbol_type: SymbolType::Operator,
-        value: value, info: Info::None, s: None, a: Some(a)})
+fn operator(value: Symbol, a: Box<[Rc<AST>]>, line: usize, col: usize)
+-> Rc<AST>
+{
+    Rc::new(AST{line, col, symbol_type: SymbolType::Operator,
+        value, info: Info::None, s: None, a: Some(a)})
 }
 
 fn unary_operator(line: usize, col: usize,
@@ -944,6 +944,15 @@ fn binary_node(line: usize, col: usize,
     Rc::new(AST{line: line, col: col, symbol_type, value,
         info: Info::None, s: None, a: Some(Box::new([x,y]))})
 }
+
+fn ast_node(line: usize, col: usize,
+    symbol_type: SymbolType, value: Symbol, a: Box<[Rc<AST>]>
+) -> Rc<AST>
+{
+    Rc::new(AST{line: line, col: col, symbol_type, value,
+        info: Info::None, s: None, a: Some(a)})
+}
+
 
 impl<'a> Compilation<'a>{
 
@@ -1241,10 +1250,7 @@ fn function_literal(&mut self, i: &mut TokenIterator,
         }
     };
     let args = if terminator == Symbol::Newline {
-        Rc::new(AST{line: t0.line, col: t0.col,
-            symbol_type: SymbolType::Operator, value: Symbol::List,
-            info: Info::None, s: None, a: Some(Box::new([]))
-        })
+        operator(Symbol::List,Box::new([]),t0.line,t0.col)
     }else{
         try!(self.arguments_list(i,t0,terminator))
     };
@@ -1677,10 +1683,10 @@ fn range(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
         if t2.value == Symbol::Colon {
             i.index+=1;
             let d = try!(self.union(i));
-            return Ok(operator(t.line,t.col,Symbol::Range,Box::new([x,y,d])));
+            return Ok(operator(Symbol::Range,Box::new([x,y,d]),t.line,t.col));
         }else{
             let d = atomic_literal(t.line,t.col,Symbol::Null);
-            return Ok(operator(t.line,t.col,Symbol::Range,Box::new([x,y,d])));
+            return Ok(operator(Symbol::Range,Box::new([x,y,d]),t.line,t.col));
         }
     }else{
         return Ok(x);
@@ -1779,16 +1785,66 @@ fn disjunction(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
     }
 }
 
-fn if_expression(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
+fn rec_for_if(&mut self, i: &mut TokenIterator, mut expr: Rc<AST>)
+-> Result<Rc<AST>,Error>
+{
+    let p = try!(i.next_any_token(self));
+    let t = &p[i.index];
+    if t.value == Symbol::For {
+        i.index+=1;
+        let mut variable = try!(self.atom(i));
+        let p = try!(i.next_token(self));
+        let t = &p[i.index];
+        if t.value == Symbol::Comma {
+            variable = try!(self.comma_list(i,t,variable));
+        }
+        let p = try!(i.next_token(self));
+        let t = &p[i.index];
+        if t.value != Symbol::In {
+            return Err(self.syntax_error(t.line,t.col,"expected 'in'."));
+        }
+        i.index+=1;
+        let a = try!(self.disjunction(i));
+        expr = try!(self.rec_for_if(i,expr));
+        return Ok(ast_node(t.line,t.col,SymbolType::Keyword,
+          Symbol::For, Box::new([variable,a,expr])))
+    }else if t.value == Symbol::If {
+        i.index+=1;
+        let condition = try!(self.disjunction(i));
+        expr = try!(self.rec_for_if(i,expr));
+        return Ok(binary_node(t.line,t.col,
+            SymbolType::Keyword,Symbol::If,condition,expr));
+    }else{
+        return Ok(expr);
+    }
+}
+
+fn for_expression(&mut self, i: &mut TokenIterator, mut expr: Rc<AST>)
+-> Result<Rc<AST>,Error>
+{
+    expr = unary_node(expr.line,expr.col,
+        SymbolType::Keyword,Symbol::Yield,expr);
+    expr = try!(self.rec_for_if(i,expr));
+    let args = operator(Symbol::List,Box::new([]),expr.line,expr.col);
+    let empty = atomic_literal(expr.line,expr.col,Symbol::Empty);
+    expr = binary_node(expr.line, expr.col,
+        SymbolType::Keyword, Symbol::Block, expr, empty);
+    expr = Rc::new(AST{line: expr.line, col: expr.col,
+        symbol_type: SymbolType::Keyword, value: Symbol::Fn,
+        info: Info::Coroutine, s: None, a: Some(Box::new([args,expr]))});
+    return Ok(expr);
+}
+
+fn if_expression(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error> {
     let x = try!(self.disjunction(i));
     let p = try!(i.next_token_optional(self));
     let t = &p[i.index];
-    if t.value==Symbol::If {
+    if t.value == Symbol::If {
         i.index+=1;
         let condition = try!(self.disjunction(i));
         let p2 = try!(i.next_token_optional(self));
         let t2 = &p2[i.index];
-        if t2.value==Symbol::Else {
+        if t2.value == Symbol::Else {
             i.index+=1;
             let y = try!(self.expression(i));
             return Ok(Rc::new(AST{
@@ -1799,10 +1855,12 @@ fn if_expression(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
         }else{
             return Ok(binary_operator(t.line,t.col,Symbol::If,condition,x));
         }
-    }else if t.value==Symbol::Else {
+    }else if t.value == Symbol::Else {
         i.index+=1;
         let y = try!(self.disjunction(i));
         return Ok(binary_operator(t.line,t.col,Symbol::Else,x,y));
+    }else if t.value == Symbol::For {
+        return self.for_expression(i,x);
     }else{
         return Ok(x);
     }
@@ -1915,7 +1973,7 @@ fn for_statement(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error> {
     }
     let body = try!(self.statements(i,Value::None));
     return Ok(Rc::new(AST{line: t.line, col: t.col, symbol_type: SymbolType::Keyword,
-        value: Symbol::For, info: Info::None, s: None, a: Some(Box::new([variable,a,body]))}));  
+        value: Symbol::For, info: Info::None, s: None, a: Some(Box::new([variable,a,body]))}));
 }
 
 fn if_statement(&mut self, i: &mut TokenIterator, t0: &Token) -> Result<Rc<AST>,Error>{
@@ -3328,9 +3386,9 @@ fn compile_left_hand_side(&mut self, bv: &mut Vec<u32>, t: &AST)
                 push_u32(bv,1);
             }else{
                 let app = apply(t.line,t.col,Box::new([id.clone(),a[i].clone()]));
-                let null_coalescing = operator(t.line,t.col,
-                    Symbol::Else,Box::new([app,a[i+1].clone()])
-                );
+                let null_coalescing = operator(
+                    Symbol::Else, Box::new([app,a[i+1].clone()]),
+                t.line,t.col);
                 try!(self.compile_ast(bv,&null_coalescing));
             }
             try!(self.compile_assignment(bv,&a[i],t.line,t.col));

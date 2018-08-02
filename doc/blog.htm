@@ -984,6 +984,47 @@ end)
 and done elegantly, the compiler would become only slightly
 slightly larger by 100 up to 200 lines.
 
+
+<h3 data-date="20180802" id="security-model"
+>A first security model</h3>
+
+<p>After musing for some time about a capability based security
+model, I decided to compose a model of irreversible restrictions
+instead.
+
+<p>Capabilities are the most fine grained model, but are complicated
+to use because a system environment object has to be given to every
+function that shall have rights for system access. And this object
+has to be invisible for other functions. It would be a security hole,
+if this object is a global variable that could be made visible by
+an untrusted module.
+
+<p>Because of the emerging complexity, I decided to use a simpler
+security model, which allows system access in the old fashion.
+Basically, every system access needs to have a right (a capability),
+which is stored in <code>env</code>, the internal environment pointer
+used in the interpreter. As per default, any file can be read, but
+all other system access is prohibited. But running
+"<code>moss --unsafe</code>" instead of "<code>moss</code>" enters
+root mode, allowing for everything. Now, calls to the runtime system
+(ordinary Moss functions) place irreversible restriction locks,
+that cannot be unlocked anymore. There might be different of such
+locks, for example for running shell commands, writing/reading
+files, network access and so on. Note that unrestricted call of
+shell commands implies writing files and network access too.
+
+<p>If such first few lines of a Moss program are written
+in a standard style, it is very easy to reason about what the
+program is allowed to and what not. The interface that these
+few lines provide, should be as easy and failure tolerant
+as possible. All default parameters should perform the most
+restriction.
+
+<p>The insistent drawback of this system is, that it is insecure
+to load untrusted modules in an authorized program. That is,
+one cannot have untrusted modules and authorization at the same
+time.
+
 </body>
 </html>
 
