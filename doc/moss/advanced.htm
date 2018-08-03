@@ -21,6 +21,7 @@
 <li><a href="#memoisation">Memoisation</a>
 <li><a href="#uniq">Unique</a>
 <li><a href="#multiple-dispatch">Multiple dispatch</a>
+<li><a href="#call-stack-size">Call stack size</a>
 </ol>
 </div>
 
@@ -94,7 +95,7 @@ constant. If <code>t</code> is the amount of time
 a call would take, the computer spends <code>t*N(n)</code>
 for the computation.
 
-<p>But <code>fib</code> is so simple, it is obvious, that
+<p>But <code>fib</code> is so simple, it is obvious that
 the computation should take only <code>N(n)=c+n</code> calls.
 
 <p>The following memoizing fixed point combinator achieves this.
@@ -196,6 +197,58 @@ print(f("x",2))
 # (1,y) [Int,Str]
 # (x,2) [Str,Int]
 </pre>
+
+<h2 id="call-stack-size">Call stack size</h2>
+
+<p>You might want to load a large array or map from a text
+file as a Moss program, for example to initialize a database.
+But then something like this happens:
+<pre class="cmd-box">
+<span class="moss">&gt; eval(str(list(1..10000)))</span>
+thread 'main' panicked at 'index out of bounds: the
+len is 3997 but the index is 3997', src/vm.rs:3829:11
+note: Run with `RUST_BACKTRACE=1` for a backtrace.
+</pre>
+
+<p>Whoops. We have produced a stack overflow of the
+object stack, a part of the internal call stack system.
+
+<p>The same happens if you try to call a recursive function,
+but the recursion depth is too high:
+
+<pre class="cmd-box">
+<span class="moss">&gt; f = |n| 0 if n==0 else 1+f(n-1)</span>
+<span class="moss">&gt; f(10000)</span>
+thread 'main' panicked at 'index out of bounds: the
+len is 4000 but the index is 4000', src/vm.rs:3829:11
+note: Run with `RUST_BACKTRACE=1` for a backtrace.
+</pre>
+
+<p>To solve this issue, at any point in a program, a subprogram
+can be run on a new object stack of greater size.
+There is a function <code>call(n,main)</code>, with the purpose
+to run <code>main</code> on a new object stack of size
+<code>n</code>.
+
+<pre class="moss indent">
+use sys: call
+
+f = |n| 0 if n==0 else 1+f(n-1)
+
+function main
+  a = eval(str(list(1..10000)))
+  print(f(10000))
+end
+
+call(100000,main)
+</pre>
+
+<p>Even in <code>call(n,main)</code> by sufficient <code>n</code>
+you might suffer a stack overflow of the actual machine stack,
+in case the recursion involves higher order functions built-in
+in the interpreter. To circumvent this, there is a module called
+<code>stackless</code>. Loading this module replaces (monkey patches)
+the built-in higher order functions with Moss code.
 
 </body>
 </html>
