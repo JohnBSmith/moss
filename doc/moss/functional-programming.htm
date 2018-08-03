@@ -28,6 +28,14 @@
   <ol>
   <li><a href="#zip">Zip</a>
   </ol>
+<li><a href="#comprehensions">Comprehensions</a>
+  <ol>
+  <li><a href="#preliminary-remark">Preliminary remark</a>
+  <li><a href="#list-comprehensions">List comprehensions</a>
+  <li><a href="#set-comprehensions">Set comprehensions</a>
+  <li><a href="#map-comprehensions">Map comprehensions</a>
+  <li><a href="#generator-comprehensions">Generator comprehensions</a>
+  </ol>
 </ol>
 </div>
 
@@ -125,14 +133,24 @@ binary operator between the elements of <code>a</code>.
 55
 </pre>
 
+<p>Note that <code>reduce</code> works not just on lists,
+but on any iterable:
+
+<pre class="moss cmd-box">
+&gt; (1..10).reduce(|x,y| x+y)
+55
+</pre>
+
 <p>A start element may be specified.
 <pre class="moss cmd-box">
 &gt; 1000+1+2+3+4
 1010
 
-&gt; list(1..4).reduce(1000,|x,y| x+y)
+&gt; (1..4).reduce(1000,|x,y| x+y)
 1010
 </pre>
+
+
 
 <h3 id="count">Count</h3>
 
@@ -172,6 +190,178 @@ binary operator between the elements of <code>a</code>.
 &gt; "abcd".enum(1).list()
 [[1, "a"], [2, "b"], [3, "c"], [4, "d"]]
 </pre>
+
+<h2 id="comprehensions">Comprehensions</h2>
+
+<h3 id="preliminary-remark">Preliminary remark</h3>
+<p>In Moss, if we want to list the square numbers <var>x</var><sup>2</sup>
+for <var>x</var> from 1 to 10, we have the following choices:
+<pre class="moss indent">
+a = list(1..10).map(|x| x^2)
+
+a = list(x^2 for x in 1..10)
+
+a = (|x| x^2)[1..10]
+
+a = (1..).map(|x| x^2).list(10)
+
+a = (x^2 for x in 1..).list(10)
+
+a = list((1..10).map(|x| x^2))
+</pre>
+
+<p>You might ask why there are so many ways to achieve this.
+Let me explain how the following three forms have a slightly different
+purpose.
+
+<table class="bt">
+<tr>
+<td><pre class="moss">a.map(f)</pre>
+<td>Maps a function <code>f</code> to each element of <code>a</code>.
+This is abstract and will work even for matrix data types.
+
+<tr>
+<td><pre class="moss">f(x) for x in a</pre>
+<td>Creates an iterator that can be turned into a list, set or map.
+This allows multiple for- and if-clauses. Thus it can be used for
+constructions involving subsets of cartesian products.
+
+<tr>
+<td><pre class="moss">f[a,b,c,...]</pre>
+<td>Performs an implicit zip-operation. Reflects the notation
+<code>f[X]</code> for the image of the set <code>X</code>
+under <code>f</code>.
+</table>
+
+<p>For example, a cartesian product is created this way:
+<pre class="moss indent">
+prod = |a,b| list([x,y] for x in a for y in b)
+
+prod = |a,b| a.map(|x| b.map(|y| [x,y])).chain()
+
+prod = |a,b| (|x| (|y| [x,y])[a])[b].chain()
+
+prod = |a,b| a*b
+</pre>
+
+<p>The addition of two lists as if they would be
+vectors is achieved this way:
+<pre class="moss indent">
+add = |v,w| list(zip(v,w).map(|[x,y]| x+y))
+
+add = |v,w| list(x+y for x,y in zip(v,w))
+
+add = |v,w| (|x,y| x+y)[v,w]
+</pre>
+
+<br>
+<h3 id="list-comprehensions">List comprehensions</h3>
+
+<p>A list comprehension is basically <code>filter</code>,
+<code>map</code> or chaining both:
+<pre class="moss indent">
+a = list(1..10).filter(|x| x%2==0).map(|x| x^2)
+
+a = list(x^2 for x in 1..10 if x%2==0)
+</pre>
+
+<p>Abstractly, we have:
+<pre class="moss indent">
+a = list(r).filter(p).map(f)
+
+a = list(f(x) for x in r if p(x))
+</pre>
+<p>In these expressions, <code>r</code> is some range or iterable,
+<code>p</code> is a predicate and <code>f</code> is a function/mapping.
+A predicate is a function that returns values of type <code>Bool</code>.
+
+<p>The predicate may be omitted:
+<pre class="moss indent">
+a = list(r).map(f)
+
+a = list(f(x) for x in r)
+</pre>
+
+<p>The mapping may be omitted:
+<pre class="moss indent">
+a = list(r).filter(p)
+
+a = list(x for x in r if p(x))
+</pre>
+
+<br>
+<h3 id="set-comprehensions">Set comprehensions</h3>
+
+<p>In mathematics sets are stated by set-builder notation:
+<p class="indent">{<var>f</var>(<var>x</var>) |
+<var>x</var> &in; <var>A</var> &and; <var>p</var>(<var>x</var>)}
+
+<p>For finite sets this can be stated in Moss:
+<pre class="moss indent">
+set(f(x) for x in A if p(x))
+</pre>
+
+<p>For infinite sets you might at least want a function that depends on
+a number <code>n</code>, examining finite subsets:
+<pre class="moss indent">
+B = |n| set((f(x) for x in A() if p(x)).take(n))
+</pre>
+
+<br>
+<h3 id="map-comprehensions">Map comprehensions</h3>
+
+<p>A map comprehension allows us to inverse a map:
+<pre class="moss indent">
+inv = |m| map([value,key] for key,value in m.items())
+</pre>
+
+<p>An imperative formulation of <code>inv</code> is slightly longer:
+<pre class="moss indent">
+function inv(m)
+  m2 = {}
+  for key in m
+    m2[m[key]] = key
+  end
+  return m2
+end
+</pre>
+
+<p>Another example. The numbers from 0 to 25 are shuffled and
+a random permutation map of the latin alphabet is obtained
+from that:
+
+<pre class="moss indent">
+m = map([chr(x+ord('a')),chr(y+ord('a'))]
+  for x,y in zip(0..25,list(0..25).shuffle()))
+</pre>
+
+<p>For convenience:
+<pre class="moss indent">
+m = map(zip("a".."z",list("a".."z").shuffle()))
+</pre>
+
+<br>
+<h3 id="generator-comprehensions">Generator comprehensions</h3>
+
+<p>We want to find solutions
+of the Diophantine equation
+<p class="indent"><var>x</var><sup>3</sup>
++ <var>y</var><sup>3</sup> + <var>z</var><sup>3</sup>
+= <var>w</var><sup>3</sup>.
+
+<p>A generator comprehension prevents the program from memory
+  exhaustion and allows us to print found solutions instantly.  
+
+<pre class="moss indent">
+g = |n| ([x,y,z,w]
+  for x in 1..n for y in 1..n
+  for z in 1..n for w in 1..n
+  if x^3+y^3+z^3 == w^3)
+
+g(200).each(print)
+</pre>
+
+
 
 </body>
 </html>

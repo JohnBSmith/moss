@@ -18,6 +18,7 @@
 <h2 id="toc">Table of contents</h2>
 <ol>
 <li><a href="#zeller">Zeller's congruence</a>
+<li><a href="#pythagorean-triples">Pythagorean triples</a>
 </ol>
 </div>
 
@@ -39,6 +40,23 @@ end
 </pre>
 
 
+<h2 id="pythagorean-triples">Pythagorean triples</h2>
+
+<pre class="moss">
+triples = |n| list([x,y,z]
+  for x in 1..n
+  for y in x..n
+  for z in y..n
+  if x^2+y^2==z^2)
+
+triples(20).each(print)
+# [3, 4, 5]
+# [5, 12, 13]
+# [6, 8, 10]
+# [8, 15, 17]
+# [9, 12, 15]
+# [12, 16, 20]
+</pre>
 
 </body>
 </html>

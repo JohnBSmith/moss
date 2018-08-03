@@ -231,19 +231,6 @@ pub fn cycle(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     }
 }
 
-fn list_comprehension(env: &mut Env, i: &Object, f: &Object) -> FnResult {
-    let mut v: Vec<Object> = Vec::new();
-    loop{
-        let x = try!(env.call(i,&Object::Null,&[]));
-        if let Object::Empty = x {break;}
-        let y = try!(env.call(f,&Object::Null,&[x]));
-        if y != Object::Null {
-            v.push(y);
-        }
-    }
-    Ok(List::new_object(v))
-}
-
 pub fn to_list(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     let i = &try!(iter(env,pself));
     match argv.len() {
@@ -273,11 +260,8 @@ pub fn to_list(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
                     }
                     return Ok(List::new_object(v));
                 },
-                Object::Function(ref f) => {
-                    return list_comprehension(env,i,&argv[0]);
-                },
                 _ => return env.type_error("Type error in i.list(n): n is not an integer.")
-            }    
+            }
         },
         n => {
             return env.argc_error(n,1,1,"list");

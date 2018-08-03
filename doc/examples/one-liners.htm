@@ -36,6 +36,7 @@ programming language.</i>
 <h2>Table of contents</h2>
 <ol>
 <li><a href="#map-filter-reduce">Map, filter, reduce</a>
+<li><a href="#chaining-lists">Chaining lists</a>
 <li><a href="#qsort">Quicksort</a>
 <li><a href="#permutations">Permutations</a>
 <li><a href="#nt">Number theory</a>
@@ -60,6 +61,15 @@ List.reduce = |a;e,f| e if a==[] else f(a[0],a[1..].reduce(e,f))
 List.map = |a;f| a.reduce([],|t,x| t+[f(x)])
 
 List.filter = |a;p| a.reduce([],|t,x| t+[x] if p(x) else t)
+</pre>
+<br>
+
+<h3 id="chaining-lists">Chaining lists</h3>
+<pre class="moss">
+chain = |a| list(x for t in a for x in t)
+
+a = list((1..10).chunks(2))
+print(chain(a))
 </pre>
 <br>
 

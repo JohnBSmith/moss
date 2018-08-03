@@ -19,6 +19,7 @@
 <ol>
 <li><a href="#factorial">Factorial function</a>
 <li><a href="#permutations">Permutations</a>
+<li><a href="#cartesian-product">Cartesian product</a>
 <li><a href="#bernoulli-numbers">Bernoulli numbers</a>
 </ol>
 </div>
@@ -169,6 +170,26 @@ end
 
 # Take any iterable
 perm = |a| permutations(list(a))
+</pre>
+
+
+<h2 id="cartesian-product">Cartesian product</h2>
+
+<pre class="moss">
+# as a list
+prod = |*a| [[]] if a==[] else list(
+  [x]+t for x in a[0] for t in prod(*a[1..]))
+  
+# as a set
+prod = |*a| {[]} if a==[] else set(
+  [x]+t for x in a[0] for t in prod(*a[1..]))
+
+# as an iterator
+prod = |*a| iter([[]]) if a==[] else (
+  [x]+t for x in a[0] for t in prod(*a[1..]))
+
+# as a list
+prod = |*a| a.reduce([[]],|x,y| (x*list(y)).map(|[t,s]| t+[s]))
 </pre>
 
 
