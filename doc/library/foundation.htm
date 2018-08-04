@@ -81,6 +81,12 @@ s = str(math.pi,"f",4)
 <dt>chr(x)
 <dd>Take an integer value <code>x</code> and return the Unicode
   character at code point&nbsp;<code>x</code>.
+  Return <code>null</code> if <code>x</code> is out of domain.
+  A default value may be specified by null coalescing operation:
+
+<pre class="moss">
+c = chr(x) else '?'
+</pre>
 
 <dt>list(x)
 <dd>Convert the iterable object <code>x</code> into a list.

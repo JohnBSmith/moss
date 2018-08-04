@@ -168,6 +168,7 @@ pub fn getline_history(prompt: &str, history: &History) -> io::Result<String> {
     let mut history_index=0;
     let cols = get_cols();
 
+    let mut a0: Vec<char> = Vec::new();
     let mut a: Vec<char> = Vec::new();
     let mut i: usize = 0;
     let mut n: usize = 0;
@@ -189,6 +190,9 @@ pub fn getline_history(prompt: &str, history: &History) -> io::Result<String> {
                         if i<n {i+=1; print_flush("\x1b[1C");}
                         continue;
                     }else if c3==UP {
+                        if history_index == 0 {
+                            a0 = a.clone();
+                        }
                         if let Some(x) = history.get(history_index+1) {
                             clear(cols,prompt,&a);
                             a = x.chars().collect();
@@ -202,8 +206,8 @@ pub fn getline_history(prompt: &str, history: &History) -> io::Result<String> {
                             if history_index==1 {
                                 clear(cols,prompt,&a);
                                 history_index=0;
-                                a = vec![];
-                                i=0; n=0;
+                                a = a0.clone();
+                                n = a.len(); i=n;
                                 print_prompt_flush(prompt,&a);
                             }else if let Some(x) = history.get(history_index-1) {
                                 clear(cols,prompt,&a);

@@ -450,9 +450,9 @@ pub fn list(env: &mut Env, obj: &Object) -> FnResult {
                 Object::Float(x) => {
                     return float_range_to_list(env,r);
                 },
-                _ => return env.type_error1(
-                    "Type error in list(a..b): a is not an integer.",
-                    "a",&r.a)
+                _ => {
+                    return ::iterable::to_list(env,obj,&[])
+                }
             };
             let b = match r.b {
                 Object::Int(x)=>x,
@@ -864,12 +864,13 @@ fn chr(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     }
     match argv[0] {
         Object::Int(n) => {
-            let c = match char::from_u32(n as u32) {
-                Some(c) => c, None => '?'
-            };
-            Ok(U32String::new_object_char(c))
+            Ok(match char::from_u32(n as u32) {
+                Some(c) => U32String::new_object_char(c),
+                None => Object::Null
+            })
         },
-        ref n => env.type_error1("Type error in chr(n): n is not an integer.","n",n)
+        ref n => env.type_error1(
+            "Type error in chr(n): n is not an integer.","n",n)
     }
 }
 

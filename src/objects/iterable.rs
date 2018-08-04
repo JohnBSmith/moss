@@ -4,6 +4,7 @@
 use std::rc::Rc;
 use std::cell::RefCell;
 use std::cmp::Ordering;
+use std::char;
 
 use object::{
     Object, Table, List, U32String,
@@ -22,7 +23,7 @@ pub fn new_iterator(f: MutableFn) -> Object {
     }))
 }
 
-fn float_range_to_iterator(env: &mut Env, r: &Range) -> FnResult {
+fn float_range_iterator(env: &mut Env, r: &Range) -> FnResult {
     let a = match r.a {
         Object::Int(x) => x as f64,
         Object::Float(x) => x,
@@ -73,6 +74,39 @@ fn int_range_iterator(mut a: i32, b: i32, d: i32) -> MutableFn {
     })
 }
 
+fn char_range_iterator(env: &mut Env, r: &Range) -> FnResult {
+    let mut a = if let Object::String(ref s) = r.a {
+        if s.v.len()==1 {s.v[0] as u32} else {
+            return env.value_error("
+            Value error in iter(a..b): a is not a string of size 1.")
+        }
+    }else{
+        unreachable!()
+    };
+    let b = if let Object::String(ref s) = r.b {
+        if s.v.len()==1 {s.v[0] as u32} else {
+            return env.value_error(
+            "Value error in iter(a..b): b is not a string of size 1.")
+        }
+    }else{
+        return env.type_error(
+        "Type error in iter(a..b): b is not of type String.")
+    };
+    let f = Box::new(move |env: &mut Env, pself: &Object, argv: &[Object]| -> FnResult {
+        return Ok(if a<=b {
+            let value = match char::from_u32(a) {
+                Some(c) => U32String::new_object_char(c),
+                None=> Object::Null
+            };
+            a+=1;
+            value
+        }else{
+            Object::Empty
+        });
+    });
+    return Ok(new_iterator(f));
+}
+
 fn not_iterable(env: &mut Env) -> FnResult {
    env.type_error("Type error in iter(x): x is not iterable.")
 }
@@ -88,12 +122,13 @@ pub fn iter(env: &mut Env, x: &Object) -> FnResult {
         Object::Range(ref r) => {
             let mut a = match r.a {
                 Object::Int(a)=>a,
-                Object::Float(_) => return float_range_to_iterator(env,r),
+                Object::Float(_) => return float_range_iterator(env,r),
+                Object::String(_) => return char_range_iterator(env,r),
                 _ => {return env.type_error("Type error in iter(a..b): a is not an integer.");}
             };
             let d = match r.step {
                 Object::Null => 1,
-                Object::Float(_) => return float_range_to_iterator(env,r),
+                Object::Float(_) => return float_range_iterator(env,r),
                 Object::Int(x)=>x,
                 _ => return env.type_error1(
                     "Type error in iter(a..b: d): d is not an integer.",
