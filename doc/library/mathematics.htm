@@ -17,13 +17,14 @@
 <h2 id="toc">Table of contents</h2>
 <ol>
 <li><a href="#math">Module <code>math</code> &mdash; elementary functions</a>
-<li><a href="#cmath">Module <code>cmath</code> &mdash; complex numbers</a>
+<li><a href="#cmath">Module <code>cmath</code> &mdash; complex functions</a>
 <li><a href="#math-rational">Module <code>math.rational</code> &mdash; rational numbers</a>
 <li><a href="#math-nt">Module <code>math.nt</code> &mdash; number theory</a>
 <li><a href="#math-cf">Module <code>math.cf</code> &mdash; combinatorical functions</a>
 <li><a href="#math-sf">Module <code>math.sf</code> &mdash; special functions</a>
 <li><a href="#math-sf-ei">Module <code>math.sf.ei</code> &mdash; elliptic integrals</a>
 <li><a href="#math-la">Module <code>math.la</code> &mdash; linear algebra</a>
+<li><a href="#math-na">Module <code>math.na</code> &mdash; numerical algorithms</a>
 </ol>
 </div>
 
@@ -431,6 +432,37 @@ Row of a matrix.
 
 <dt>a[i,j]
 <dd>Component of a matrix.
+</dl>
+
+<h2 id="math-na">Module math.na</h2>
+<p>Numerical algorithms.
+
+<dl class="code">
+<dt>diffh({h=0.001,order=false})
+<dd>Create a numerical derivative operation <code>diff=diffh()</code>.
+Apply <code>diff(f,a)</code> to calculate <code>f'(x)</code>
+at <code>x=a</code>. If <code>order</code> is true,
+apply <code>diff(f,a,n)</code> instead to calculate the nth
+derivative. Note that <code>f</code> may also be a complex function
+or a vector valued function.
+<br><br>
+For a given smooth function, a smaller <code>h</code> leads to
+a better approximation, unless <code>h</code> is too small.
+A too small <code>h</code> is especially problematic for
+a large order <code>n</code>.
+
+<dt>pli(x0,d,a)
+<dd>Return a function that computes a piecewise linear interpolation
+of the given equidistant nodes <code>[x[k],y[k]]=[x0+k*d,a[k]]</code>
+for <code>k</code> in <code>0..size(a)-1</code>. Note that
+<code>a</code> may contain vectors or a matrices. Vectors are
+interpolated componentwise.
+
+<dt>inv(f,y,a,b)
+<dd>Calculate the preimage <code>x0</code> by bisection
+such that <code>y</code>&approx;<code>f(x0)</code>. The function
+<code>f(x)-y</code> should change its sign on <code>x&in;[a,b]</code>
+only once at <code>x=x0</code>.
 </dl>
 
 </body>

@@ -62,7 +62,7 @@ uncurry = |f| |*a| a.reduce(f,|g,x| g(x))
 <h2 id="fix">Fixed-point combinator</h2>
 
 <pre class="moss">
-# Y-combinator
+# Y combinator
 fix = |F| (|x| x(x))(|x| F(|n| x(x)(n)))
 
 

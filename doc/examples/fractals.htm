@@ -108,7 +108,7 @@ function basin_fractal(f,z0,argm={})
 end
 
 function newton(f,argm={})
-  diff = diffh(0.001)
+  diff = diffh(h=0.001)
   basin_fractal(|z,c| z-f(z)/diff(f,z), |c| c, argm)
 end
 

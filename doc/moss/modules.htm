@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Modules</title>
+  <link href="../css/main.css" rel="stylesheet">
+  <script src = "../js/moss-syntax.js">
+  </script>
+</head>
+<body>
+
+<table class="navigation">
+<tr><td><b>&uarr;</b> <a href="toc.htm">Up</a>
+</table>
+<h1>Modules</h1>
+<div class="toc">
+<h2>Table of contents</h2>
+<ol>
+<li><a href="#">Splitting a program into modules</a>
+<li><a href="#dynamic-loading">Dynamic loading</a>
+</ol>
+</div>
+
+<h2 id="splitting">Splitting a program into modules</h2>
+<p>Two or more programs might use the same functionality.
+In this case, if possible, this functionality should be moved into
+a separate module which can be reused. As an example, let <code>tools</code>
+be a module and let us put a function <code>mean</code>
+(average, arithmetic mean) in it.
+
+<pre class="moss">
+# File "tools.moss"
+# =================
+
+function mean(a)
+  return a.sum()/size(a)
+end
+
+
+# Main file "m.moss"
+# ==================
+
+use tools: mean
+
+a = [1,2,3,4]
+print(mean(a))
+</pre>
+
+<h2 id="dynamic-loading">Dynamic loading</h2>
+<p>Sometimes specific functionality is only needed irregularly.
+In certain cases it could be favourable to not load it
+until it is needed.
+
+<p>In Moss, loading modules is naturally dynamic.
+For example, we want to state a function that transforms
+a color name into its RGB value. Only if the name exceeds a
+certain range, the color will be taken from a larger table
+that is not loaded until needed.
+
+<pre class="moss">
+# File "extended_colors.moss"
+# ===========================
+
+# This could be a very large table:
+extended_color_table = {
+  "magenta": [0.5,0,0.2],
+  "brown": [0.4,0.2,0]
+}
+
+print("(Extended colors loaded)")
+
+
+# Main file "m.moss"
+# ==================
+
+color_table = {
+  "black": [0,0,0],
+  "white": [1,1,1],
+  "gray": [0.4,0.4,0.4],
+  "red": [0.5,0.0,0],
+  "green": [0,0.4,0],
+  "blue": [0,0,0.8]
+}
+state = table{extended=false}
+ColorException = table{}
+
+function color(name)
+  while true
+    if name in color_table
+      return color_table[name]
+    else
+      if state.extended
+        raise table ColorException{
+          value = "Unknown color: "+name}
+      else
+        use extended_colors: extended_color_table
+        color_table.update(extended_color_table)
+        state.extended = true
+      end
+    end
+  end
+end
+
+while true
+  s = input("A color name please: ")
+  try
+    print(color(s),"\n")
+  catch e if e: ColorException
+    print(e.value,"\n")
+  end
+end
+</pre>
+
+<p>Crucial is the line:
+<pre class="moss indent">
+use extended_colors: extended_color_table
+</pre>
+<p>This line is executed at runtime, like an ordinary statement.
+In fact it is equivalent to:
+<pre class="moss indent">
+extended_colors = load("extended_colors")
+extended_color_table = extended_colors.extended_color_table
+</pre>
+
+<p>Please take in mind that any module may be loaded dynamically, not
+only static data.
+
+</body>
+</html>
+

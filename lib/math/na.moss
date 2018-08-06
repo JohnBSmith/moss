@@ -4,9 +4,22 @@ global diffh, inv, pli
 
 use math: nan, floor
 
-function diffh(h)
-  return fn diff|f,x|
-    return (f(x+h)-f(x-h))/(2*h)
+function diffh(argm={})
+  {h=0.001,order=false} = argm
+  if order
+    return fn diff|f,x,n|
+      if n>1
+        return (diff(f,x+h,n-1)-diff(f,x-h,n-1))/(2*h)
+      elif n==1
+        return (f(x+h)-f(x-h))/(2*h)
+      else
+        return f(x)
+      end
+    end
+  else
+    return fn diff|f,x|
+      return (f(x+h)-f(x-h))/(2*h)
+    end
   end
 end
 
