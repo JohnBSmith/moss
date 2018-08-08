@@ -90,13 +90,24 @@ coordinate system instead of pixel coordinates.
 <h2 id="plotlib">Module plotlib</h2>
 <p>Graphing data and functions.
 
+<p>A basic example:
+
+<pre class="moss indent">
+use plotlib: system
+use math: pi, sin
+
+s = system()
+s.plot(|x| sin(pi*x))
+s.idle()
+</pre>
+
 <h3>plotlib.system</h3>
 <dl class="code">
 <dt>system({w=960, h=640, n=1000, scale=1, px=0, py=0,<br>
 wx=10/scale, wy=10/scale, dark=false, grid=true})
 <dd>Create a new coordinate system with center <code>(px,py)</code>
 where the visible range is <code>x&in;[px-wx,px+wx]</code>
-and <code>y&in;[py-wy,py+wy]</code>.
+and <code>y&in;[py-wy,py+wy]</code> by assuming <code>w==h</code>.
 The resolution will be <code>w*h</code> pixels.
 
 <dt>s.idle()
@@ -137,6 +148,14 @@ Note that if the FPS is too slow, you might want to compute
 an animated gif instead. That is currently not supported, but planned for
 the future.
 <dd>
+
+<dt>s.lock_color(lock=true)
+<dd>After <code>s.plot(f)</code> and <code>s.vplot(f)</code>
+the color is changed automatically to the next one in the palette.
+This is turned off by <code>s.lock_color()</code> in order
+to achieve unimpaired manual control over the color state.
+Note that <code>s.animate(callback)</code>
+automatically applies <code>s.lock_color()</code>.
 
 <dt>s.color(n)
 <dd>Set the color state. Use color <code>n&ge;0</code> from

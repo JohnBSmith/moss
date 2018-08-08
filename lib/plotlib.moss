@@ -30,9 +30,9 @@ palette_3d = [
 ]
 
 function next_color(s)
-  index = s.color_index
+  index = (s.color_index+1)%size(s.palette)
+  s.color_index = index
   color = s.palette[index]
-  s.color_index = (index+1)%size(s.palette)
   return color
 end
 
@@ -104,22 +104,21 @@ System = table{
     canvas = self.c
     wx = self.wx; px = self.px
     wy = self.wy; py = self.py
-    {n = self.n, point = canvas.point, color = null} = argm
+    {n = self.n, point = canvas.point} = argm
     step = wx/n
-    if color is null
-      #if not self.ani
-      #  canvas.rgb(*next_color(self))
-      #end
-    else
-      canvas.rgb(*color)
-    end
-    for x in px-wx..px+wx: step
-      y = f(x)
-      if y: Complex
-        point(canvas;(x-px)/wx,(re(y)-py)/wy)
-        point(canvas;(x-px)/wx,(im(y)-py)/wy)
-      else
-        point(canvas;(x-px)/wx,(y-py)/wy)
+    a = [f] if f: Function else f
+    for f in a
+      for x in px-wx..px+wx: step
+        y = f(x)
+        if y: Complex
+          point(canvas;(x-px)/wx,(re(y)-py)/wy)
+          point(canvas;(x-px)/wx,(im(y)-py)/wy)
+        else
+          point(canvas;(x-px)/wx,(y-py)/wy)
+        end
+      end
+      if not self.lock
+        canvas.rgb(*next_color(self))
       end
     end
   end,
@@ -129,19 +128,18 @@ System = table{
     wx = self.wx; px = self.px
     wy = self.wy; py = self.py
     { n=self.n, t0=0, t1=2*pi,
-      point = canvas.point, color = null
+      point = canvas.point
     } = argm
     step = 1/n
-    if color is null
-      if not self.ani
+    a = [f] if f: Function else f
+    for f in a
+      for t in t0..t1: step
+        x,y = f(t)
+        point(canvas;(x-px)/wx,(y-py)/wy)
+      end
+      if not self.lock
         canvas.rgb(*next_color(self))
       end
-    else
-      canvas.rgb(*color)
-    end
-    for t in t0..t1: step
-      x,y = f(t)
-      point(canvas;(x-px)/wx,(y-py)/wy)
     end
   end,
 
@@ -209,6 +207,10 @@ System = table{
     end
   end,
 
+  function lock_color(lock=true)
+    self.lock = lock
+  end,
+
   function color(n)
     a = self.palette
     self.rgb(*a[n%size(a)])
@@ -233,12 +235,14 @@ System = table{
     h = self.h
     a = 0
     {clear = true} = argm
-    self.ani = true
+    self.lock = true
     while true
       if clear
         canvas.clear(*bg)
       end
-      grid(canvas,w,h,csys,cgrid,fscale)
+      if self.grid
+        grid(canvas,w,h,csys,cgrid,fscale)
+      end
       canvas.rgb(*palette[0])
       f(a)
       canvas.lflush()
@@ -248,7 +252,6 @@ System = table{
       if key=="q" then break end
       sleep(0.01)
     end
-    self.ani = false
   end,
 
   function cplot(f,argm={})
@@ -441,8 +444,8 @@ function system(argm = {})
     wx=wx, wy=wy, px=px, py=py,
     point = canvas.point, needle = canvas.needle,
     color_index = 0, palette = palette, bg=bg,
-    csys=csys, cgrid=cgrid,
-    ani = false, fscale = fscale
+    csys=csys, cgrid=cgrid, grid = show_grid,
+    lock = false, fscale = fscale
   }
 end
 
