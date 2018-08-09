@@ -110,7 +110,23 @@ impl MutableCanvas {
         unsafe{SDL_RenderPresent(self.rdr);}
     }
 
-    fn flush_line_buffer(&mut self) {
+    fn flush_vg_buffer(&mut self) {
+        let mut index=0;
+        for y in 0..self.height {
+            for x in 0..self.width {
+                let c = self.buffer[index];
+                if c.a != 0 {
+                    unsafe{
+                        SDL_SetRenderDrawColor(self.rdr,c.r,c.g,c.b,c.a);
+                        SDL_RenderDrawPoint(self.rdr,x as c_int,y as c_int);
+                    }
+                }
+                index+=1;
+            }
+        }
+    }
+
+    fn flush_clear_vg_buffer(&mut self) {
         let mut index=0;
         for y in 0..self.height {
             for x in 0..self.width {
@@ -474,13 +490,23 @@ fn canvas_flush(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     }
 }
 
-fn canvas_lflush(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+fn canvas_vflush(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     if let Some(canvas) = Canvas::downcast(pself) {
         let mut canvas = canvas.canvas.borrow_mut();
-        canvas.flush_line_buffer();
+        canvas.flush_vg_buffer();
         Ok(Object::Null)
     }else{
-        type_error_canvas(env,"c.lflush()","c")
+        type_error_canvas(env,"c.vflush()","c")
+    }
+}
+
+fn canvas_vcflush(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+    if let Some(canvas) = Canvas::downcast(pself) {
+        let mut canvas = canvas.canvas.borrow_mut();
+        canvas.flush_clear_vg_buffer();
+        Ok(Object::Null)
+    }else{
+        type_error_canvas(env,"c.vcflush()","c")
     }
 }
 
@@ -784,7 +810,8 @@ pub fn load_gx() -> Object
         let mut m = type_canvas.map.borrow_mut();
         m.insert_fn_plain("key",canvas_key,0,0);
         m.insert_fn_plain("flush",canvas_flush,0,0);
-        m.insert_fn_plain("lflush",canvas_lflush,0,0);
+        m.insert_fn_plain("vflush",canvas_vflush,0,0);
+        m.insert_fn_plain("vcflush",canvas_vcflush,0,0);
         m.insert_fn_plain("point",canvas_point,2,2);
         m.insert_fn_plain("needle",canvas_needle,2,2);
         m.insert_fn_plain("circle",canvas_circle,3,3);

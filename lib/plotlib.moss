@@ -1,7 +1,7 @@
 
 
 begin
-global system, system3d
+global system, system3d, System
 
 use math: pi, hypot, tanh, atan2, sin, cos
 use cmath: re, im, arg
@@ -28,13 +28,6 @@ palette_3d = [
   [0.8,0.2,0.6,0.4],
   [0,0.4,0,0.4]
 ]
-
-function next_color(s)
-  index = (s.color_index+1)%size(s.palette)
-  s.color_index = index
-  color = s.palette[index]
-  return color
-end
 
 function hline(canvas,w,y)
   canvas.fill(0,y,w,2)
@@ -118,7 +111,7 @@ System = table{
         end
       end
       if not self.lock
-        canvas.rgb(*next_color(self))
+        self.next_color()
       end
     end
   end,
@@ -138,7 +131,7 @@ System = table{
         point(canvas;(x-px)/wx,(y-py)/wy)
       end
       if not self.lock
-        canvas.rgb(*next_color(self))
+        self.next_color()
       end
     end
   end,
@@ -198,12 +191,20 @@ System = table{
 
   function idle
     canvas = self.c
-    canvas.lflush()
+    canvas.vcflush()
     canvas.flush()
     while true
       key = canvas.key()
       if key=="q" then break end
       sleep(0.1)
+    end
+  end,
+
+  function system
+    if self.grid
+      grid(self.c,self.w,self.h,
+        self.csys,self.cgrid,self.fscale)
+      self.color(0)
     end
   end,
 
@@ -213,7 +214,16 @@ System = table{
 
   function color(n)
     a = self.palette
-    self.rgb(*a[n%size(a)])
+    index = n%size(a)
+    self.rgb(*a[index])
+    self.color_index = index
+  end,
+
+  function next_color
+    a = self.palette
+    index = (self.color_index+1)%size(a)
+    self.color_index = index
+    self.c.rgb(*a[index])
   end,
 
   function rgb(*t)
@@ -245,7 +255,7 @@ System = table{
       end
       canvas.rgb(*palette[0])
       f(a)
-      canvas.lflush()
+      canvas.vcflush()
       canvas.flush()
       a+=0.02
       key = canvas.key()
@@ -318,9 +328,7 @@ System3d = table{
     c = cos(phi)
     s = sin(phi)
 
-    if color is null
-      canvas.rgb(*next_color(self))
-    else
+    if not color is null
       canvas.rgb(*color)
     end
 
@@ -355,9 +363,7 @@ System3d = table{
     c = cos(phi)
     s = sin(phi)
 
-    if color is null
-      canvas.rgb(*next_color(self))
-    else
+    if not color is null
       canvas.rgb(*color)
     end
 
@@ -379,7 +385,7 @@ System3d = table{
 
   function vplot(f,argm={})
     {color = null,
-     t0=0, t1=1, n=100
+     t0=0, t1=10, n=100
     } = argm
     canvas = self.c
     wx = self.wx; wy = self.wy; wz = self.wz
@@ -474,7 +480,5 @@ function system3d(argm = {})
 end
 
 end
-
-
 
 

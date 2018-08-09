@@ -18,6 +18,7 @@
 <ol>
 <li><a href="#gx">Module <code>gx</code> &mdash; computer graphics</a>
 <li><a href="#plotlib">Module <code>plotlib</code> &mdash; graphing data and functions</a>
+<li><a href="#plotlib-implicit">Module <code>plotlib.implicit</code> &mdash; graphing zero sets</a>
 </ol>
 </div>
 
@@ -85,6 +86,12 @@ coordinate system instead of pixel coordinates.
 
 <dt>c.origin(x,y)
 <dd>Set the origin of the device independent coordinate system.
+
+<dt>c.vflush()
+<dd>Flush the vector graphics buffer.
+
+<dt>c.vcflush()
+<dd>Flush and clear the vector graphics buffer.
 </dl>
 
 <h2 id="plotlib">Module plotlib</h2>
@@ -177,6 +184,27 @@ s.rgb(*rng())
 </pre>
 </dl>
 
+<h2 id="plotlib-implicit">Module plotlib.implicit</h2>
+<p>Patches plotlib with functionality to draw zero sets.
+
+<p>A basic example:
+<pre class="moss indent">
+use plotlib: system
+use plotlib.implicit
+
+s = system()
+
+s.plot_zero_set(|x,y| x^2-y^2-1)
+
+s.idle()
+</pre>
+
+<dl class="code">
+<dt>s.plot_zero_set(F,{n=1000,m=10,method="bisection"})
+<dd>Draw the solutions of <code>F(x,y)=0</code>.
+A large line density needs a large <code>m</code>.
+If there are gaps, try to increase <code>m</code> to 20 or 100.
+</dl>
 
 </body>
 </html>

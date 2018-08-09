@@ -1,0 +1,9 @@
+
+use plotlib: system
+use plotlib.implicit
+
+s = system()
+s.plot_zero_set(|x,y| x*y-1)
+
+s.idle()
+
