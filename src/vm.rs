@@ -1600,6 +1600,15 @@ fn operator_mod(env: &mut EnvPart, sp: usize, stack: &mut [Object])
                 _ => {break 'r;}
             };
         },
+        Object::Float(x) => {
+            let m = match stack[sp-1] {
+                Object::Int(y) => {y as f64},
+                Object::Float(y) => {y},
+                _ => {break 'r;}
+            };
+            stack[sp-2] = Object::Float(x-m*(x/m).floor());
+            return Ok(());
+        },
         _ => {}
     }
     return match stack[sp-2].clone() {

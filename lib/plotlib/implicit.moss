@@ -1,6 +1,7 @@
 
 use plotlib: System
 use elib.optimizer: zeroes_bisection
+use math: pi, floor, cos
 
 extend(System,{
   function plot_zero_set(f,argm={})
@@ -38,6 +39,32 @@ extend(System,{
     end
     if not self.lock
       self.next_color()
+    end
+  end,
+
+  function plot_level(f,argm={})
+    canvas = self.c
+    {n=4,freq=1,alpha=0.4} = argm
+    W = self.w//n
+    H = self.h//n
+    ratio = H/W
+    ai = 2/(W-1)
+    aj = 2/(H-1)
+    wx = self.wx; px = self.px
+    wy = self.wy; py = self.py
+    # grid(canvas,self.w,self.h,[0,0,0],[0,0,0,0.4],self.fscale)
+    tau = 2*pi
+    for j in 0..H-1
+      for i in 0..W-1
+        x = px+(ai*i-1)*wx
+        y = py-(aj*j-1)*ratio*wy
+        z = freq*f(x,y)
+        # L = 0.5-0.5*cos(tau*z)
+        # canvas.hsl(3.4,sat,0.1,L*alpha)
+        phi = z-tau*floor(z/tau)
+        canvas.hsl(phi,1,0.5,alpha)
+        canvas.fill(i*n,j*n,n,n)
+      end
     end
   end
 })

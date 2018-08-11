@@ -554,7 +554,7 @@ fn copy(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
 fn rand_float(env: &mut Env) -> FnResult {
     let seed = env.rte().seed_rng.borrow_mut().rand();
     let mut rng = Rand::new(seed);
-    let f = Box::new(move |env: &mut Env, pself: &Object, argv: &[Object]| -> FnResult {
+    let f = Box::new(move |_: &mut Env, _: &Object, _: &[Object]| -> FnResult {
         Ok(Object::Float(rng.rand_float()))
     });
     return Ok(Function::mutable(f,0,0));
@@ -575,10 +575,24 @@ fn rand_range(env: &mut Env, r: &Range) -> FnResult {
     };
     let seed = env.rte().seed_rng.borrow_mut().rand();
     let mut rng = Rand::new(seed);
-    let f = Box::new(move |env: &mut Env, pself: &Object, argv: &[Object]| -> FnResult {
+    let f = Box::new(move |_: &mut Env, _: &Object, _: &[Object]| -> FnResult {
         Ok(Object::Int(rng.rand_range(a,b)))
     });
     return Ok(Function::mutable(f,0,0));
+}
+
+fn rand_list(env: &mut Env, a: Rc<RefCell<List>>) -> FnResult {
+    let len = a.borrow_mut().v.len();
+    let n = if len>0 {(len-1) as i32} else {
+        return env.value_error("Value error in rand(a): size(a)==0.");
+    };
+    let seed = env.rte().seed_rng.borrow_mut().rand();
+    let mut rng = Rand::new(seed);
+    let f = Box::new(move |_: &mut Env, _: &Object, _: &[Object]| -> FnResult {
+        let index = rng.rand_range(0,n) as usize;
+        Ok(a.borrow_mut().v[index].clone())
+    });
+    return Ok(Function::mutable(f,0,0));    
 }
 
 fn frand(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
@@ -587,13 +601,14 @@ fn frand(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
         1 => {
             match argv[0] {
                 Object::Range(ref r) => rand_range(env,r),
+                Object::List(ref a) => rand_list(env,a.clone()),
                 ref x => env.type_error1(
                     "Type error in rand(r): r is not a range.",
                     "r",x
                 )
             }
         },
-        n => env.argc_error(n,1,1,"rand")
+        n => env.argc_error(n,0,1,"rand")
     }
 }
 

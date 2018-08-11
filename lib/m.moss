@@ -1,9 +1,16 @@
 
 use plotlib: system
 use plotlib.implicit
+use math: pi, sin, cos, gamma
 
 s = system()
-s.plot_zero_set(|x,y| x*y-1)
+
+f = |x,y| sin(x)*y+cos(y)*x-1
+# f = |x,y| sin(x)-cos(y)
+s.plot_level(f)
+
+s.color(0)
+# s.plot_zero_set(f,m=10)
 
 s.idle()
 

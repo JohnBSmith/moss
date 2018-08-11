@@ -11,6 +11,7 @@ use vm::Env;
 const SQRT_2PI: f64 = 2.5066282746310002;
 const LN_PI: f64 = 1.1447298858494002;
 const LN_2PI: f64 = 1.8378770664093453;
+const TAU: f64 = 2.0*PI;
 
 fn lanczos_gamma(x: f64) -> f64 {
     let p=[
@@ -806,6 +807,7 @@ pub fn load_math() -> Object {
     {
         let mut m = math.map.borrow_mut();
         m.insert("pi",  Object::Float(PI));
+        m.insert("tau", Object::Float(TAU));
         m.insert("e",   Object::Float(E));
         m.insert("nan", Object::Float(::std::f64::NAN));
         m.insert("inf", Object::Float(::std::f64::INFINITY));
