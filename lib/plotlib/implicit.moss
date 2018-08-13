@@ -6,8 +6,10 @@ use math: pi, floor, cos
 extend(System,{
   function plot_zero_set(f,argm={})
     canvas = self.c
-    wx = self.wx; px = self.px
-    wy = self.wy; py = self.py
+    wx = self.wx; px = self.px; ax = self.ax
+    wy = self.wy; py = self.py; ay = self.ay
+    px = px-ax*wx
+    py = py-ay*wy
     {m=10, point = canvas.point, r=0.02, method="bisection"} = argm
     if method=="bisection"
       {n=1000} = argm
@@ -44,21 +46,23 @@ extend(System,{
 
   function plot_level(f,argm={})
     canvas = self.c
-    {n=4,freq=1,alpha=0.4} = argm
+    {n=4,freq=1,alpha=0.4,phi0=4*pi/3} = argm
     W = self.w//n
     H = self.h//n
     ratio = H/W
     ai = 2/(W-1)
     aj = 2/(H-1)
-    wx = self.wx; px = self.px
-    wy = self.wy; py = self.py
+    wx = self.wx; px = self.px; ax = self.ax
+    wy = self.wy; py = self.py; ay = self.ay
+    px = px-ax*wx
+    py = py-ay*wy
     # grid(canvas,self.w,self.h,[0,0,0],[0,0,0,0.4],self.fscale)
     tau = 2*pi
     for j in 0..H-1
       for i in 0..W-1
         x = px+(ai*i-1)*wx
         y = py-(aj*j-1)*ratio*wy
-        z = freq*f(x,y)
+        z = phi0-freq*f(x,y)
         # L = 0.5-0.5*cos(tau*z)
         # canvas.hsl(3.4,sat,0.1,L*alpha)
         phi = z-tau*floor(z/tau)
