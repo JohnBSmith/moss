@@ -631,12 +631,48 @@ fn fgtab(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     }
 }
 
-fn stoi(a: &[char]) -> i32 {
+enum ParseError{Invalid,Overflow}
+
+fn parse_int(a: &[char]) -> Result<i32,ParseError> {
+    let n = a.len();
+    if n==0 {return Err(ParseError::Invalid);}
+    let mut sgn: i32 = 1;
+    let mut i = 0;
+    if a[i]=='-' {i+=1; sgn = -1;}
     let mut y = 0;
-    for x in a {
-        y = 10*y+(*x as i32)-('0' as i32);
+    for x in &a[i..] {
+        match 10i32.checked_mul(y) {
+            Some(value) => {y=value;},
+            None => return Err(ParseError::Overflow)
+        }
+        match (y).checked_add((*x as i32)-('0' as i32)) {
+            Some(value) => {y=value;},
+            None => return Err(ParseError::Overflow)
+        }
     }
-    return y;
+    match sgn.checked_mul(y) {
+        Some(y) => Ok(y),
+        None => Err(ParseError::Overflow)
+    }
+}
+
+fn stoi(env: &mut Env, a: &[char]) -> FnResult {
+    loop{
+        match parse_int(a) {
+            Ok(x) => return Ok(Object::Int(x)),
+            Err(e) => match e {
+                ParseError::Invalid => break,
+                ParseError::Overflow => {
+                    match Long::object_from_string(a) {
+                        Ok(value) => return Ok(value),
+                        Err(()) => break
+                    }
+                }
+            }
+        }
+    }
+    return env.value_error(
+    "Value error in int(s): could not convert s into an integer.")
 }
 
 fn fint(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
@@ -644,14 +680,21 @@ fn fint(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
         1 => {}, n => return env.argc_error(n,1,1,"int")
     }
     match argv[0] {
-        Object::Bool(x) => Ok(Object::Int(x as i32)),
-        Object::Int(n) => Ok(Object::Int(n)),
-        Object::Float(x) => Ok(Object::Int(x.round() as i32)),
-        Object::String(ref s) => Ok(Object::Int(stoi(&s.v))),
-        _ => env.type_error1(
-            "Type error in int(x): cannot convert x to int.",
-            "x", &argv[0])
+        Object::Bool(x) => return Ok(Object::Int(x as i32)),
+        Object::Int(n) => return Ok(Object::Int(n)),
+        Object::Float(x) => return Ok(Object::Int(x.round() as i32)),
+        Object::String(ref s) => return stoi(env,&s.v),
+        _ => {}
     }
+    if let Some(x) = Long::downcast(&argv[0]) {
+        match Long::try_as_int(x) {
+            Ok(x) => return Ok(Object::Int(x)),
+            Err(()) => return Ok(argv[0].clone())
+        }
+    }
+    env.type_error1(
+        "Type error in int(x): cannot convert x to int.",
+        "x", &argv[0])
 }
 
 fn float(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
@@ -672,8 +715,8 @@ fn float(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
         },
         _ => {}
     }
-    if let Some(b) = Long::downcast(&argv[0]) {
-        return Ok(Object::Float(b.as_f64()));
+    if let Some(x) = Long::downcast(&argv[0]) {
+        return Ok(Object::Float(x.as_f64()));
     }
     env.type_error1(
         "Type error in float(x): cannot convert x to float.",

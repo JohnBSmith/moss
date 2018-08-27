@@ -47,10 +47,12 @@ extern "C" {
 
     fn __gmpz_get_str(s: *mut c_char, base: c_int, op: mpz_srcptr) -> *mut c_char;
     fn __gmpz_get_ui(op: mpz_srcptr) -> c_ulong;
+    fn __gmpz_get_si(op: mpz_srcptr) -> c_long;
     fn __gmpz_get_d(op: mpz_srcptr) -> c_double;
     fn __gmpz_neg(rop: mpz_ptr, op: mpz_srcptr);
     fn __gmpz_abs(rop: mpz_ptr, op: mpz_srcptr);
     fn __gmpz_sizeinbase (op: mpz_srcptr, base: c_int) -> libc::size_t;
+    fn __gmpz_fits_slong_p(op: mpz_srcptr) -> c_int;
 }
 
 extern "C" {
@@ -208,6 +210,14 @@ impl Mpz {
     fn as_ui(&self) -> c_ulong {
         unsafe {__gmpz_get_ui(&self.mpz)}
     }
+    
+    fn try_as_si(&self) -> Result<i32,()> {
+        if unsafe{__gmpz_fits_slong_p(&self.mpz)}!=0 {
+            return Ok(unsafe{__gmpz_get_si(&self.mpz)});
+        }else{
+            return Err(());
+        }
+    }
 
     fn as_f64(&self) -> f64 {
         unsafe {__gmpz_get_d(&self.mpz)}
@@ -270,6 +280,16 @@ impl Long {
     pub fn object_from_int(x: i32) -> Object {
         Object::Interface(Rc::new(Long{value: Mpz::from_int(x)}))
     }
+    
+    pub fn object_from_string(a: &[char]) -> Result<Object,()> {
+        let s: String = a.iter().collect();
+        match Mpz::from_string(s) {
+            Ok(y) => {
+                Ok(Object::Interface(Rc::new(Long{value: y})))
+            },
+            Err(()) => Err(())
+        }    
+    }
 
     pub fn to_long(x: &Object) -> Result<Object,()> {
         return match *x {
@@ -277,13 +297,7 @@ impl Long {
                 Ok(Long::object_from_int(x))
             },
             Object::String(ref s) => {
-                let s: String = s.v.iter().collect();
-                match Mpz::from_string(s) {
-                    Ok(y) => {
-                        Ok(Object::Interface(Rc::new(Long{value: y})))
-                    },
-                    Err(()) => Err(())
-                }
+                Long::object_from_string(&s.v)
             },
             Object::Interface(ref x) => {
                 if let Some(_) = x.as_any().downcast_ref::<Long>() {
@@ -298,6 +312,9 @@ impl Long {
 
     pub fn as_f64(&self) -> f64 {
         Mpz::as_f64(&self.value)
+    }
+    pub fn try_as_int(&self) -> Result<i32,()> {
+        Mpz::try_as_si(&self.value)
     }
 
     pub fn downcast(x: &Object) -> Option<&Long> {

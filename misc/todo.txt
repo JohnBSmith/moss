@@ -50,6 +50,14 @@
 * search for "as usize", "as isize", "as i32", "as u32", etc.
 
 
+= Problems =
+* getattr(x,key) cannot differentiate between null
+  and non-existence.
+* m.(key) looks like m(key), but behaves differently.
+  The former raises an exception, the latter returns null if
+  a key is not found. Maybe m.[key] is a better syntax.
+
+
 = DONE =
 == Interpreter kernel ==
 * format strings
