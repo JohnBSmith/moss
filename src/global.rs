@@ -641,19 +641,23 @@ fn parse_int(a: &[char]) -> Result<i32,ParseError> {
     if a[i]=='-' {i+=1; sgn = -1;}
     let mut y = 0;
     for x in &a[i..] {
-        match 10i32.checked_mul(y) {
-            Some(value) => {y=value;},
-            None => return Err(ParseError::Overflow)
-        }
-        match (y).checked_add((*x as i32)-('0' as i32)) {
-            Some(value) => {y=value;},
-            None => return Err(ParseError::Overflow)
-        }
+        match (*x).to_digit(10) {
+            Some(digit) => {
+                match 10i32.checked_mul(y) {
+                    Some(value) => {y=value;},
+                    None => return Err(ParseError::Overflow)
+                }
+                match (y).checked_add(digit as i32) {
+                    Some(value) => {y=value;},
+                    None => return Err(ParseError::Overflow)
+                }
+            },
+            None => {
+                return Err(ParseError::Invalid);
+            }
+        };
     }
-    match sgn.checked_mul(y) {
-        Some(y) => Ok(y),
-        None => Err(ParseError::Overflow)
-    }
+    return Ok(sgn*y);
 }
 
 fn stoi(env: &mut Env, a: &[char]) -> FnResult {
