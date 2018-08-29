@@ -39,41 +39,10 @@ function inv(f,x,a,b)
   end
 end
 
-diff_tab = [
-[1],
-[-1/60,3/20,-3/4,0,3/4,-3/20,1/60],
-[1/90,-3/20,3/2,-49/18,3/2,-3/20,1/90],
-[-7/240,3/10,-169/120,61/30,0,-61/30,169/120,-3/10,7/240],
-[7/240,-2/5,169/60,-122/15,91/8,-122/15,169/60,-2/5,7/240],
-[139/12096,-121/756,3125/3024,-3011/756,33853/4032,-1039/126,0,
- 1039/126,-33853/4032,3011/756,-3125/3024,121/756,-139/12096],
-[-139/12096,121/630,-3125/2016,3011/378,-33853/1344,1039/21,-44473/720,
- 1039/21,-33853/1344,3011/378,-3125/2016,121/630,-139/12096]
-]
-
-function diff_rec(f,x,n,h)
-  if n<7
-    a = diff_tab[n]
-    m = size(a)//2
-    return (-m..m).sum(|k| a[m+k]*f(x+k*h))/h^n
-  else
-    return diff_rec(|x| diff_rec(f,x,6,h),x,n-6,h)
-  end
-end
-
-function tab_diff(h)
-  return fn diff|f,x,n|
-    if n==0
-      return f(x)
-    else
-      return diff_rec(f,x,n,h^(1/n))
-    end
-  end
-end
-
 function diffh(argm={})
   {h=0.001,order=false,fast=false} = argm
   if order
+    use math.na.difftab: tab_diff
     return tab_diff(h)
   elif fast
     return fn diff|f,x|
