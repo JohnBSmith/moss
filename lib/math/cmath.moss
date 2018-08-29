@@ -22,7 +22,7 @@ Complex = table{
     return table Complex{re = -a.re, im = -a.im}
   end,
 
-  function plus(a;b)
+  function add(a;b)
     if b: Complex
       return table Complex{re=a.re+b.re, im=a.im+b.im}
     else
@@ -30,11 +30,11 @@ Complex = table{
     end
   end,
 
-  function rplus(a;b)
+  function radd(a;b)
     return table Complex{re=a+b.re, im=b.im}
   end,
 
-  function minus(a;b)
+  function sub(a;b)
     if b: Complex
       return table Complex{re=a.re-b.re, im=a.im-b.im}
     else
@@ -42,11 +42,11 @@ Complex = table{
     end
   end,
 
-  function rminus(a;b)
+  function rsub(a;b)
     return table Complex{re=a-b.re, im=-b.im}
   end,
 
-  function mpy(a;b)
+  function mul(a;b)
     if b: Complex
       return table Complex{
         re = a.re*b.re-a.im*b.im,
@@ -57,7 +57,7 @@ Complex = table{
     end
   end,
 
-  function rmpy(a;b)
+  function rmul(a;b)
     return table Complex{re = a*b.re, im = a*b.im}
   end,
 

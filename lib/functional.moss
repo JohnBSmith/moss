@@ -27,4 +27,10 @@ function lazy(f)
   return table Lazy{f=f,x=null}
 end
 
+Function.add = |f;g| |x| f(x)+g(x)
+Function.sub = |f;g| |x| f(x)-g(x)
+Function.mul = |f;g| |x| f(x)*g(x)
+Function.div = |f;r| |x| f(x)/r
+Function.rmul = |r;f| |x| r*f(x)
+
 

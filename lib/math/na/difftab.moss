@@ -1,6 +1,6 @@
 
 begin
-global tab_diff
+global tab_diff, tab_diffv
 
 diff_tab = [
 [1],
@@ -185,6 +185,19 @@ function tab_diff(h)
       m = size(a)//2
       d = h^(1/n)
       return (-m..m).sum(|k| a[m+k]*f(x+k*d))/h
+    end
+  end
+end
+
+function tab_diffv(h)
+  return fn diffv|v,f,x,n|
+    if n==0
+      return f(x)
+    else
+      a = diff_tab[n]
+      m = size(a)//2
+      dv = h^(1/n)*v
+      return (-m..m).sum(|k| a[m+k]*f(x+k*dv))/h
     end
   end
 end

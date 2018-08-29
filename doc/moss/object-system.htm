@@ -399,16 +399,16 @@ splits the list into pairs.
   <th>right
 <tr>
   <td class="r"><code>a+b</code>
-  <td><code>plus</code>
-  <td><code>rplus</code>
+  <td><code>add</code>
+  <td><code>radd</code>
 <tr>
   <td class="r"><code>a-b</code>
-  <td><code>minus</code>
-  <td><code>rminus</code>
+  <td><code>sub</code>
+  <td><code>rsub</code>
 <tr>
   <td class="r"><code>a*b</code>
-  <td><code>mpy</code>
-  <td><code>rmpy</code>
+  <td><code>mul</code>
+  <td><code>rmul</code>
 <tr>
   <td class="r"><code>a/b</code>
   <td><code>div</code>
@@ -475,7 +475,7 @@ Complex = table{
     return table Complex{re = -self.re, im = -self.im}
   end,
 
-  function plus(a;b)
+  function add(a;b)
     if b: Complex
       return table Complex{re = a.re+b.re, im = a.im+b.im}
     else
@@ -483,11 +483,11 @@ Complex = table{
     end
   end,
 
-  function rplus(a;b)
+  function radd(a;b)
     return table Complex{re = a+b.re, im = b.im}
   end,
 
-  function minus(a;b)
+  function sub(a;b)
     if b: Complex
       return table Complex{re = a.re-b.re, im = a.im-b.im}
     else
@@ -495,11 +495,11 @@ Complex = table{
     end
   end,
 
-  function rminus(a;b)
+  function rsub(a;b)
     return table Complex{re = a-b.re, im = -b.im}
   end,
 
-  function mpy(a;b)
+  function mul(a;b)
     if b: Complex
       return table Complex{
         re = a.re*b.re-a.im*b.im,
@@ -510,7 +510,7 @@ Complex = table{
     end
   end,
 
-  function rmpy(a;b)
+  function rmul(a;b)
     return table Complex{re = a*b.re, im = a*b.im}
   end,
 

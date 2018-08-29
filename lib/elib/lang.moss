@@ -7,7 +7,7 @@
 # L1|L2, L1&L2, L1-L2, L1*L2, L^n, L.star(n), L.plus(n).
 
 extend(Map,{
-  function mpy(L1;L2)
+  function mul(L1;L2)
     set((list(L1)*list(L2)).map(|[x,y]| x+y))
   end,
   function pow(L;n)

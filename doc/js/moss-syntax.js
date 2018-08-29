@@ -9,7 +9,7 @@ function isdigit(s){
 }
 
 var keyword = {
-  "sub": 0, "end": 0, "begin": 0,
+  "end": 0, "begin": 0,
   "if": 0, "then": 0, "elif": 0, "else": 0,
   "while": 0, "do": 0, "for": 0, "in": 0, "is": 0,
   "break": 0, "continue": 0,

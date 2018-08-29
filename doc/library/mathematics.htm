@@ -465,6 +465,11 @@ be a complex function or a vector-valued function.
 For a given smooth function, a smaller <code>h</code> leads to
 a better approximation, unless <code>h</code> is too small.
 
+<dt>diffvh({h=0.001,order=false,fast=false})
+<dd>Create a directional derivative operation
+<code>diffv=diffvh()</code>. Apply <code>diffv(v,f,a)</code>
+to calculate <code>diff(|t| f(a+t*v),0)</code>.
+
 <dt>integral(a,b,f,n=1)
 <dd>Calculate the definite integral of <code>f(x)</code>
 for <code>x=a</code> to <code>x=b</code>. Uses a Gauss-Legendre

@@ -67,7 +67,17 @@ T = |f,p| |x| f(p)+diffv(x-p,f,p)
 p = vector(2,4)
 g = T(f,p)
 G = T(F,p)
+
+
+# Note that diffv may be used as Gâteaux differential.
+# One just needs to define the arithmetic operators
+# for functions:
+Function.add = |f;g| |x| f(x)+g(x)
+Function.sub = |f;g| |x| f(x)-g(x)
+Function.rmul= |r;f| |x| r*f(x)
+Function.div = |f;r| |x| f(x)/r
 </pre>
+
 
 <h2 id="gradient">Gradient</h2>
 <pre class="moss">

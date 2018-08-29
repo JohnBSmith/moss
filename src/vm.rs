@@ -649,7 +649,7 @@ pub fn op_neg(env: &mut Env, x: &Object) -> FnResult {
 pub fn op_add(env: &mut Env, x: &Object, y: &Object) -> FnResult {
     env.stack[env.sp] = x.clone();
     env.stack[env.sp+1] = y.clone();
-    try!(::vm::operator_plus(env.env,env.sp+2,env.stack));
+    try!(::vm::operator_add(env.env,env.sp+2,env.stack));
     return Ok(env.stack[env.sp].take());
 }
 
@@ -657,14 +657,14 @@ pub fn op_add(env: &mut Env, x: &Object, y: &Object) -> FnResult {
 pub fn op_sub(env: &mut Env, x: &Object, y: &Object) -> FnResult {
     env.stack[env.sp] = x.clone();
     env.stack[env.sp+1] = y.clone();
-    try!(::vm::operator_minus(env.env,env.sp+2,env.stack));
+    try!(::vm::operator_sub(env.env,env.sp+2,env.stack));
     return Ok(env.stack[env.sp].take());
 }
 
 pub fn op_mpy(env: &mut Env, x: &Object, y: &Object) -> FnResult {
     env.stack[env.sp] = x.clone();
     env.stack[env.sp+1] = y.clone();
-    try!(::vm::operator_mpy(env.env,env.sp+2,env.stack));
+    try!(::vm::operator_mul(env.env,env.sp+2,env.stack));
     return Ok(env.stack[env.sp].take());
 }
 
@@ -768,7 +768,7 @@ fn string_add(a: &U32String, b: &U32String) -> Object {
     return U32String::new_object(v);
 }
 
-fn operator_plus(env: &mut EnvPart, sp: usize, stack: &mut [Object])
+fn operator_add(env: &mut EnvPart, sp: usize, stack: &mut [Object])
 -> OperatorResult
 {
     'r: loop{
@@ -851,7 +851,7 @@ fn operator_plus(env: &mut EnvPart, sp: usize, stack: &mut [Object])
             }
         },
         Object::Table(a) => {
-            match a.get(&env.rte.key_plus) {
+            match a.get(&env.rte.key_add) {
                 Some(ref f) => {
                     let x = stack[sp-2].take();
                     let y = stack[sp-1].take();
@@ -898,7 +898,7 @@ fn operator_plus(env: &mut EnvPart, sp: usize, stack: &mut [Object])
             }      
         },
         Object::Table(a) => {
-            match a.get(&env.rte.key_rplus) {
+            match a.get(&env.rte.key_radd) {
                 Some(ref f) => {
                     let x = stack[sp-2].take();
                     match (Env{env,sp,stack}).call(f,&x,&[Object::Table(a)]) {
@@ -916,7 +916,7 @@ fn operator_plus(env: &mut EnvPart, sp: usize, stack: &mut [Object])
         },
         a => {
             let x = stack[sp-2].clone();
-            if let Some(f) = dispatch_leftover(env,&x,&a,&env.rte.key_plus) {
+            if let Some(f) = dispatch_leftover(env,&x,&env.rte.key_add) {
                 match (Env{env,sp,stack}).call(&f,&x,&[a]) {
                     Ok(y) => {stack[sp-2] = y; Ok(())},
                     Err(e) => Err(e)
@@ -930,7 +930,7 @@ fn operator_plus(env: &mut EnvPart, sp: usize, stack: &mut [Object])
     }
 }
 
-fn operator_minus(env: &mut EnvPart, sp: usize, stack: &mut [Object])
+fn operator_sub(env: &mut EnvPart, sp: usize, stack: &mut [Object])
 -> OperatorResult
 {
     'r: loop{
@@ -1012,7 +1012,7 @@ fn operator_minus(env: &mut EnvPart, sp: usize, stack: &mut [Object])
             }
         },
         Object::Table(a) => {
-            match a.get(&env.rte.key_minus) {
+            match a.get(&env.rte.key_sub) {
                 Some(ref f) => {
                     let x = stack[sp-2].take();
                     let y = stack[sp-1].take();
@@ -1059,7 +1059,7 @@ fn operator_minus(env: &mut EnvPart, sp: usize, stack: &mut [Object])
             }      
         },
         Object::Table(a) => {
-            match a.get(&env.rte.key_rminus) {
+            match a.get(&env.rte.key_rsub) {
                 Some(ref f) => {
                     let x = stack[sp-2].take();
                     match (Env{env,sp,stack}).call(f,&x,&[Object::Table(a)]) {
@@ -1077,7 +1077,7 @@ fn operator_minus(env: &mut EnvPart, sp: usize, stack: &mut [Object])
         },
         a => {
             let x = stack[sp-2].clone();
-            if let Some(f) = dispatch_leftover(env,&x,&a,&env.rte.key_minus) {
+            if let Some(f) = dispatch_leftover(env,&x,&env.rte.key_sub) {
                 match (Env{env,sp,stack}).call(&f,&x,&[a]) {
                     Ok(y) => {stack[sp-2] = y; Ok(())},
                     Err(e) => Err(e)
@@ -1091,7 +1091,7 @@ fn operator_minus(env: &mut EnvPart, sp: usize, stack: &mut [Object])
     }
 }
 
-fn operator_mpy(env: &mut EnvPart, sp: usize, stack: &mut [Object])
+fn operator_mul(env: &mut EnvPart, sp: usize, stack: &mut [Object])
 -> OperatorResult
 {
     'list: loop{
@@ -1185,7 +1185,7 @@ fn operator_mpy(env: &mut EnvPart, sp: usize, stack: &mut [Object])
             }
         },
         Object::Table(a) => {
-            match a.get(&env.rte.key_mpy) {
+            match a.get(&env.rte.key_mul) {
                 Some(ref f) => {
                     let x = stack[sp-2].take();
                     let y = stack[sp-1].take();
@@ -1232,7 +1232,7 @@ fn operator_mpy(env: &mut EnvPart, sp: usize, stack: &mut [Object])
             }
         },
         Object::Table(a) => {
-            match a.get(&env.rte.key_rmpy) {
+            match a.get(&env.rte.key_rmul) {
                 Some(ref f) => {
                     let x = stack[sp-2].take();
                     match (Env{env,sp,stack}).call(f,&x,&[Object::Table(a)]) {
@@ -1250,7 +1250,12 @@ fn operator_mpy(env: &mut EnvPart, sp: usize, stack: &mut [Object])
         },
         a => {
             let x = stack[sp-2].clone();
-            if let Some(f) = dispatch_leftover(env,&x,&a,&env.rte.key_mpy) {
+            if let Some(f) = dispatch_leftover(env,&x,&env.rte.key_mul) {
+                match (Env{env,sp,stack}).call(&f,&x,&[a]) {
+                    Ok(y) => {stack[sp-2] = y; Ok(())},
+                    Err(e) => Err(e)
+                }
+            }else if let Some(f) = dispatch_leftover(env,&a,&env.rte.key_rmul) {
                 match (Env{env,sp,stack}).call(&f,&x,&[a]) {
                     Ok(y) => {stack[sp-2] = y; Ok(())},
                     Err(e) => Err(e)
@@ -1413,7 +1418,7 @@ fn operator_div(env: &mut EnvPart, sp: usize, stack: &mut [Object])
         },
         a => {
             let x = stack[sp-2].clone();
-            if let Some(f) = dispatch_leftover(env,&x,&a,&env.rte.key_plus) {
+            if let Some(f) = dispatch_leftover(env,&x,&env.rte.key_div) {
                 match (Env{env,sp,stack}).call(&f,&x,&[a]) {
                     Ok(y) => {stack[sp-2] = y; Ok(())},
                     Err(e) => Err(e)
@@ -1564,7 +1569,7 @@ fn operator_idiv(env: &mut EnvPart, sp: usize, stack: &mut [Object])
         },
         a => {
             let x = stack[sp-2].clone();
-            if let Some(f) = dispatch_leftover(env,&x,&a,&env.rte.key_plus) {
+            if let Some(f) = dispatch_leftover(env,&x,&env.rte.key_idiv) {
                 match (Env{env,sp,stack}).call(&f,&x,&[a]) {
                     Ok(y) => {stack[sp-2] = y; Ok(())},
                     Err(e) => Err(e)
@@ -1840,7 +1845,7 @@ fn operator_pow(env: &mut EnvPart, sp: usize, stack: &mut [Object])
         },
         a => {
             let x = stack[sp-2].clone();
-            if let Some(f) = dispatch_leftover(env,&x,&a,&env.rte.key_pow) {
+            if let Some(f) = dispatch_leftover(env,&x,&env.rte.key_pow) {
                 match (Env{env,sp,stack}).call(&f,&x,&[a]) {
                     Ok(y) => {stack[sp-2] = y; Ok(())},
                     Err(e) => Err(e)
@@ -3211,7 +3216,7 @@ pub fn table_get(t: &Table, key: &Object) -> Option<Object> {
 
 #[inline(never)]
 fn dispatch_leftover(
-    env: &EnvPart, x: &Object, y: &Object, key: &Object
+    env: &EnvPart, x: &Object, key: &Object
 ) -> Option<Object>
 {
     let (type_object, iterable) = match *x {
@@ -3226,7 +3231,8 @@ fn dispatch_leftover(
         None => {
             if iterable {
                 match env.rte.type_iterable.map.borrow().m.get(key) {
-                    Some(y) => Some(y.clone()), None => None
+                    Some(y) => Some(y.clone()),
+                    None => None
                 }
             }else {None}
         }
@@ -3418,13 +3424,13 @@ fn operate(op: u32, env: &mut EnvPart, sp: usize, stack: &mut [Object],
     stack[sp] = p.clone();
     stack[sp+1] = x;
     match op as u8 {
-        bc::ADD  => {try!(operator_plus (env,sp+2,stack));},
-        bc::SUB  => {try!(operator_minus(env,sp+2,stack));},
-        bc::MPY  => {try!(operator_mpy  (env,sp+2,stack));},
-        bc::DIV  => {try!(operator_div  (env,sp+2,stack));},
-        bc::IDIV => {try!(operator_idiv (env,sp+2,stack));},
-        bc::BAND => {try!(operator_band (env,sp+2,stack));},
-        bc::BOR  => {try!(operator_bor  (env,sp+2,stack));},
+        bc::ADD  => {try!(operator_add (env,sp+2,stack));},
+        bc::SUB  => {try!(operator_sub (env,sp+2,stack));},
+        bc::MPY  => {try!(operator_mul (env,sp+2,stack));},
+        bc::DIV  => {try!(operator_div (env,sp+2,stack));},
+        bc::IDIV => {try!(operator_idiv(env,sp+2,stack));},
+        bc::BAND => {try!(operator_band(env,sp+2,stack));},
+        bc::BOR  => {try!(operator_bor (env,sp+2,stack));},
         _ => {panic!();}
     }
     *p = stack[sp].take();
@@ -3672,13 +3678,13 @@ pub struct RTE{
     pub key_iter: Object,
     pub key_abs: Object,
     pub key_neg: Object,
-    pub key_plus: Object,
-    pub key_rplus: Object,
-    pub key_minus: Object,
-    pub key_rminus: Object,
-    pub key_mpy: Object,
-    pub key_rmpy: Object,
+    pub key_add: Object,
+    pub key_sub: Object,
+    pub key_mul: Object,
     pub key_div: Object,
+    pub key_radd: Object,
+    pub key_rsub: Object,
+    pub key_rmul: Object,
     pub key_rdiv: Object,
     pub key_idiv: Object,
     pub key_ridiv: Object,
@@ -3687,8 +3693,8 @@ pub struct RTE{
     pub key_pow: Object,
     pub key_rpow: Object,
     pub key_lt: Object,
-    pub key_rlt: Object,
     pub key_le: Object,
+    pub key_rlt: Object,
     pub key_rle: Object,
     pub key_eq: Object
 }
@@ -3727,16 +3733,16 @@ impl RTE{
             key_iter:   U32String::new_object_str("iter"),
             key_abs:    U32String::new_object_str("abs"),
             key_neg:    U32String::new_object_str("neg"),
-            key_plus:   U32String::new_object_str("plus"),
-            key_rplus:  U32String::new_object_str("rplus"),
-            key_minus:  U32String::new_object_str("minus"),
-            key_rminus: U32String::new_object_str("rminus"),
-            key_mpy:    U32String::new_object_str("mpy"),
-            key_rmpy:   U32String::new_object_str("rmpy"),
+            key_add:   U32String::new_object_str("add"),
+            key_radd:  U32String::new_object_str("radd"),
+            key_sub:  U32String::new_object_str("sub"),
+            key_rsub: U32String::new_object_str("rsub"),
+            key_mul:    U32String::new_object_str("mul"),
+            key_rmul:   U32String::new_object_str("rmul"),
             key_div:    U32String::new_object_str("div"),
             key_rdiv:   U32String::new_object_str("rdiv"),
-            key_idiv:   U32String::new_object_str("div"),
-            key_ridiv:  U32String::new_object_str("rdiv"),
+            key_idiv:   U32String::new_object_str("idiv"),
+            key_ridiv:  U32String::new_object_str("ridiv"),
             key_mod:    U32String::new_object_str("mod"),
             key_rmod:   U32String::new_object_str("rmod"),
             key_pow:    U32String::new_object_str("pow"),
@@ -3889,21 +3895,21 @@ fn vm_loop(
           ip+=BCSIZE;
       },
       bc::ADD => {
-          match operator_plus(env, sp, &mut stack) {
+          match operator_add(env, sp, &mut stack) {
               Ok(())=>{}, Err(e)=>{exception=Err(e); break;}
           }
           sp-=1;
           ip+=BCSIZE;
       },
       bc::SUB => {
-          match operator_minus(env, sp, &mut stack) {
+          match operator_sub(env, sp, &mut stack) {
               Ok(())=>{}, Err(e)=>{exception=Err(e); break;}
           }
           sp-=1;
           ip+=BCSIZE;
       },
       bc::MPY => {
-          match operator_mpy(env, sp, &mut stack) {
+          match operator_mul(env, sp, &mut stack) {
               Ok(())=>{}, Err(e)=>{exception=Err(e); break;}
           }
           sp-=1;

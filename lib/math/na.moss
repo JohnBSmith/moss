@@ -1,6 +1,6 @@
 
 begin
-global pli, inv, diffh, integral
+global pli, inv, diffh, diffvh, integral
 
 use math: nan, floor
 
@@ -51,6 +51,24 @@ function diffh(argm={})
   else
     return fn diff|f,x|
       return (f(x-2*h)-8*f(x-h)+8*f(x+h)-f(x+2*h))/(12*h)
+    end
+  end
+end
+
+function diffvh(argm={})
+  {h=0.001,order=false,fast=false} = argm
+  if order
+    use math.na.difftab: tab_diffv
+    return tab_diffv(h)
+  elif fast
+    return fn diffv|v,f,x|
+      hv = h*v
+      return (f(x+hv)-f(x-hv))/(2*h)
+    end
+  else
+    return fn diffv|v,f,x|
+      hv = h*v
+      return (f(x-2*hv)-8*f(x-hv)+8*f(x+hv)-f(x+2*hv))/(12*h)
     end
   end
 end

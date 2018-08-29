@@ -30,7 +30,7 @@ Rat = table{
     return table Rat{n=-a.n,d=a.d}
   end,
 
-  function plus(a;b)
+  function add(a;b)
     if b: Rat
       n = a.n*b.d+b.n*a.d
       d = a.d*b.d
@@ -42,11 +42,11 @@ Rat = table{
     end
   end,
 
-  function rplus(a;b)
+  function radd(a;b)
     return rat(a*b.d+b.n,b.d)
   end,
 
-  function minus(a;b)
+  function sub(a;b)
     if b: Rat
       n = a.n*b.d-b.n*a.d
       d = a.d*b.d
@@ -58,11 +58,11 @@ Rat = table{
     end
   end,
 
-  function rminus(a;b)
+  function rsub(a;b)
     return rat(a*b.d-b.n,b.d)
   end,
 
-  function mpy(a;b)
+  function mul(a;b)
     if b: Rat
       n = a.n*b.n
       d = a.d*b.d
@@ -74,7 +74,7 @@ Rat = table{
     end
   end,
 
-  function rmpy(a;b)
+  function rmul(a;b)
     return rat(a*b.n,b.d)
   end,
 
