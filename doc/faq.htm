@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <title>FAQ</title>
   <link rel="stylesheet" href="css/main.css">
+  <script src="js/moss-syntax.js"></script>
 </head>
 <body>
 
@@ -16,12 +17,20 @@ asked frequently in the future.
 
 <h2>Table of contents</h2>
 <ol>
-<li><a href="#what-is-moss">What is Moss?</a>
-<li><a href="#what-is-moss-suitable-for">What is Moss suitable for?</a>
-<li><a href="#what-is-the-goal">What is the project goal?</a>
-<li><a href="#how-fast-is-moss">How fast is moss?</a>
+<li><a href="#general">General questions</a>
+  <ol>
+  <li><a href="#what-is-moss">What is Moss?</a>
+  <li><a href="#what-is-moss-suitable-for">What is Moss suitable for?</a>
+  <li><a href="#what-is-the-goal">What is the project goal?</a>
+  <li><a href="#how-fast-is-moss">How fast is moss?</a>
+  </ol>
+<li><a href="#programming">Programming</a>
+  <ol>
+  <li><a href="#async">Is async available?</a>
+  </ol>
 </ol>
 
+<h2 id="general">General questions</h2>
 <h3 id="what-is-moss">What is Moss?</h3>
 <p>Moss is a dynamically typed programming language, which allows
 functional and object oriented programming.
@@ -68,6 +77,53 @@ functions.
 <h3 id="how-fast-is-moss">How fast is moss?</h3>
 <p>Have a look on these micro benchmarks:
 <p class="indent">&rarr;&nbsp;<a href="benchmarks.htm">Benchmarks</a>.
+
+<br>
+<h2 id="programming">Programming</h2>
+<h3 id="async">Is async available?</h3>
+<p>Asynchronous functions are currently not implemented, but planned
+for the future. It is easy to implement async-await as a syntactic
+sugar, once the coroutine/continuation system is completed.
+
+<p>Alternatively, to be more minimalistic, <code>async</code> might
+be provided as a library module, dispensing with syntacic sugar,
+as coroutine syntax is versatile enough. Currently possible is the
+following toy implementation of <code>async</code>:
+<pre class="moss indent">
+async_list = []
+
+function async(f)
+  return fn|*a|
+    async_list.push(f(*a))
+  end
+end
+
+function scheduler
+  for fp in cycle(async_list)
+    fp()
+  end
+end
+
+f = async(|text| fn*||
+  while true
+    print(text)
+    yield
+  end
+end)
+
+g = async(|text| fn*||
+  while true
+    print(text)
+    print(text)
+    yield
+  end
+end)
+
+f("la")
+g("dup")
+
+scheduler()
+</pre>
 
 </body>
 </html>

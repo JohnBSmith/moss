@@ -19,6 +19,7 @@
 <ol>
 <li><a href="#basic-concept">The basic concept</a>
 <li><a href="#generators">Generators</a>
+<li><a href="#send">Sending data into a coroutine</a>
 </ol>
 </div>
 
@@ -146,6 +147,79 @@ end
 (1..).filter(isprime).each(print)
 </pre>
 
+<h2 id="send">Sending data into a coroutine</h2>
+
+<p>A coroutine, that we can send data to, takes and additional
+argument. If this argument <code>x</code> is made optional,
+the coroutine may be used like an ordinary generator:
+
+<pre class="moss indent">
+g = |a,b| fn*|x=null|
+  for k in a..b
+    yield [x,k]
+  end
+end
+
+g(1,4).each(print)
+
+# Output:
+# [null, 1]
+# [null, 2]
+# [null, 3]
+# [null, 4]
+</pre>
+
+<p>Now, let us send data into it:
+<pre class="moss indent">
+i = g(1,2)
+print(i("a"))
+print(i("b"))
+print(i("c"))
+print(i("d"))
+
+# Output:
+# ["a", 1]
+# ["b", 2]
+# empty
+# empty
+</pre>
+
+<p>It may be used this way:
+<pre class="moss indent">
+i = g(1,4)
+for x in "a".."z"
+  y = i(x)
+  if y==empty then break end
+  print(y)
+end
+</pre>
+
+<p>Or more elaborately:
+<pre class="moss indent">
+for x in ("a".."z").map(g(1,4))
+  print(x)
+end
+
+# Output:
+# ["a", 1]
+# ["b", 2]
+# ["c", 3]
+# ["d", 4]
+</pre>
+
+<p>Reaching the upper bound of the range fed into coroutine
+<code>g(1,n)</code> implicates the iterator to be exhausted too:
+<pre class="moss indent">
+for x in ("a".."d").map(g(1,100))
+  print(x)
+end
+
+# Output:
+# ["a", 1]
+# ["b", 2]
+# ["c", 3]
+# ["d", 4]
+</pre>
 
 </body>
 

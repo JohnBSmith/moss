@@ -3676,6 +3676,7 @@ pub struct RTE{
 
     pub key_string: Object,
     pub key_iter: Object,
+    pub key_call: Object,
     pub key_abs: Object,
     pub key_neg: Object,
     pub key_add: Object,
@@ -3731,6 +3732,7 @@ impl RTE{
 
             key_string: U32String::new_object_str("string"),
             key_iter:   U32String::new_object_str("iter"),
+            key_call:   U32String::new_object_str("call"),
             key_abs:    U32String::new_object_str("abs"),
             key_neg:    U32String::new_object_str("neg"),
             key_add:   U32String::new_object_str("add"),
@@ -4663,12 +4665,24 @@ fn object_call(env: &mut EnvPart, f: &Object,
                 Some(x) => x.clone(),
                 None => Object::Null
             };
-            Ok(())
+            return Ok(());
         },
-        _ => Err(env.type_error1_plain(sp,stack,
-            "Type error in f(...): f is not callable.",
-            "f", f))
+        _ => {
+            match object_get(f,&env.rte.key_call) {
+                Some(fobj) => {
+                    let (s1,s2) = stack.split_at_mut(sp);
+                    let mut env = Env{sp: 0, stack: s2, env: env};
+                    return match env.call(&fobj,&f,&s1[sp-argc..sp]) {
+                        Ok(y) => {s1[sp-argc-2]=y; Ok(())},
+                        Err(e) => Err(e)
+                    };
+                },
+                None => {}
+            }    
+        }
     }
+    Err(env.type_error1_plain(sp,stack,
+        "Type error in f(...): f is not callable.", "f", f))
 }
 
 fn bounded_repr(env: &mut Env, x: &Object) -> Result<String,Box<Exception>> {
@@ -4816,10 +4830,10 @@ impl EnvPart{
 }
 
 fn call_object(env: &mut Env,
-    f: &Object, pself: &Object, argv: &[Object]
+    fobj: &Object, pself: &Object, argv: &[Object]
 ) -> FnResult
 {
-    match *f {
+    match *fobj {
         Object::Map(ref m) => {
             match argv.len() {
                 1 => {}, n => return env.argc_error(n,1,1,"sloppy index")
@@ -4829,10 +4843,15 @@ fn call_object(env: &mut Env,
                 None => Object::Null
             });
         },
-        _ => env.type_error1(
-            "Type error in f(...): f is not callable.",
-            "f", f)
+        _ => {
+            match object_get(fobj,&env.rte().key_call) {
+                Some(f) => return env.call(&f,fobj,argv),
+                None => {}
+            }
+        }
     }
+    env.type_error1(
+        "Type error in f(...): f is not callable.", "f", fobj)
 }
 
 // Calling environment of a function call
