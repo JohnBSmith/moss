@@ -18,6 +18,7 @@
 <ol>
 <li><a href="#time">Module <code>time</code> &mdash; time measurement</a>
 <li><a href="#sys">Module <code>sys</code> &mdash; runtime system interface</a>
+<li><a href="#io">Module <code>io</code> &mdash; input, output</a>
 </ol>
 </div>
 
@@ -87,6 +88,21 @@ But note that relative paths are problematic, if the current
 working directory changes. That <code>path[0]</code> should be the
 absolute path of the directory where <code>argv[0]</code>
 is found.</dd>
+</dl>
+
+<h2 id="io">Module io</h2>
+<dl class="code">
+<dt>open(path)
+<dd>Open a binary file and return a file object of type <code>File</code>.
+</dl>
+
+<b>Type File, <code>f: File</code></b>
+<dl class="code">
+<dt>f.read()
+<dd>Read the whole file and return it as a byte list.
+
+<dt>f.read(n)
+<dd>Read at most <code>n</code> bytes and return them as a byte list.
 </dl>
 
 </body>

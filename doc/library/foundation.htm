@@ -132,6 +132,7 @@ should be a data structure that has this property.
 <dt>rand(a..b), rand(a..b,seed)
 <dd>Return a random number generator that returns random integers
 from <code>a</code> inclusive to <code>b</code> inclusive.
+Currently the generator is not cryptographically secure.
 <pre class="moss">
 &gt; r = rand(1..4)
 &gt; [r(),r(),r(),r()]

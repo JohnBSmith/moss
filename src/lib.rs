@@ -74,6 +74,9 @@ mod regex;
 #[path = "modules/data.rs"]
 mod data;
 
+#[path = "modules/io.rs"]
+mod io;
+
 #[cfg(feature = "gx")]
 #[path = "modules/sdl.rs"]
 mod sdl;

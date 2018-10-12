@@ -211,6 +211,9 @@ pub fn iter(env: &mut Env, x: &Object) -> FnResult {
                 None => not_iterable(env)
             }
         },
+        Object::Interface(ref x) => {
+            x.iter(env)
+        },
         _ => not_iterable(env)
     }
 }

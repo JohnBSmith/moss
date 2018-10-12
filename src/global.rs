@@ -9,7 +9,10 @@ use std::char;
 use std::str::FromStr;
 use std::f64::NAN;
 
-use vm::{object_to_string, object_to_repr, RTE, Env, op_lt, table_get};
+use vm::{
+    object_to_string, object_to_repr, RTE, Env, op_lt,
+    table_get, interface_index, interface_types_set
+};
 use object::{
     Object, Map, Table, List, Range,
     FnResult, U32String, Function, EnumFunction,
@@ -276,6 +279,8 @@ fn load(env: &mut Env, id: Rc<U32String>, hot_plug: bool) -> FnResult{
     }
     let s: String = id.v.iter().collect();
     let y = match &s[..] {
+        "io" => ::io::load_io(env),
+
         #[cfg(feature = "la")]
         "la" => ::la::load_la(env),
 
@@ -552,7 +557,7 @@ fn copy(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
 }
 
 fn rand_float(env: &mut Env) -> FnResult {
-    let seed = env.rte().seed_rng.borrow_mut().rand();
+    let seed = env.rte().seed_rng.borrow_mut().rand_u32();
     let mut rng = Rand::new(seed);
     let f = Box::new(move |_: &mut Env, _: &Object, _: &[Object]| -> FnResult {
         Ok(Object::Float(rng.rand_float()))
@@ -573,7 +578,7 @@ fn rand_range(env: &mut Env, r: &Range) -> FnResult {
             "Type error in rand(a..b): b is not an integer.",
             "b",&r.b)
     };
-    let seed = env.rte().seed_rng.borrow_mut().rand();
+    let seed = env.rte().seed_rng.borrow_mut().rand_u32();
     let mut rng = Rand::new(seed);
     let f = Box::new(move |_: &mut Env, _: &Object, _: &[Object]| -> FnResult {
         Ok(Object::Int(rng.rand_range(a,b)))
@@ -586,7 +591,7 @@ fn rand_list(env: &mut Env, a: Rc<RefCell<List>>) -> FnResult {
     let n = if len>0 {(len-1) as i32} else {
         return env.value_error("Value error in rand(a): size(a)==0.");
     };
-    let seed = env.rte().seed_rng.borrow_mut().rand();
+    let seed = env.rte().seed_rng.borrow_mut().rand_u32();
     let mut rng = Rand::new(seed);
     let f = Box::new(move |_: &mut Env, _: &Object, _: &[Object]| -> FnResult {
         let index = rng.rand_range(0,n) as usize;
@@ -1117,12 +1122,19 @@ pub fn init_rte(rte: &RTE){
     
     let type_index_error = rte.type_index_error.clone();
     gtab.insert("IndexError", Object::Table(type_index_error));
-    
+
     let type_type = rte.type_type.clone();
     {
         let mut m = type_type.map.borrow_mut();
         m.insert_fn_plain("string",type_to_string,0,0);
     }
     gtab.insert("Type", Object::Table(type_type));
+
+    let type_bytes = Table::new(Object::Table(rte.type_iterable.clone()));
+    {
+        let mut m = type_bytes.map.borrow_mut();
+        m.insert_fn_plain("list",::data::bytes_list,0,0);
+    }
+    interface_types_set(rte,interface_index::BYTES,type_bytes);
 }
 

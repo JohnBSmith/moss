@@ -15,9 +15,7 @@ use object::{
   Object, Exception, Table, FnResult, Interface,
   VARIADIC, new_module
 };
-use vm::{Env,interface_types_set};
-
-const INDEX: usize = 1;
+use vm::{Env,interface_types_set,interface_index};
 
 struct ShapeStride{
     shape: usize,
@@ -232,7 +230,7 @@ pub fn load_la(env: &mut Env) -> Object
         let mut m = type_array.map.borrow_mut();
         m.insert_fn_plain("map",map,1,1);
     }*/
-    interface_types_set(env,INDEX,type_array);
+    interface_types_set(env.rte(),interface_index::ARRAY,type_array);
 
     let la = new_module("la");
     {

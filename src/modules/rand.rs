@@ -20,7 +20,7 @@ impl Rand{
 
     // This is called "JKISS32", a modification of George Marsaglias KISS.
     // It should pass all tests of TestU01, including BigCrush.
-    pub fn rand(&mut self) -> u32 {
+    pub fn rand_u32(&mut self) -> u32 {
         self.y ^= self.y.wrapping_shl(5);
         self.y ^= self.y.wrapping_shr(7);
         self.y ^= self.y.wrapping_shl(22);
@@ -35,19 +35,29 @@ impl Rand{
     pub fn shuffle<T>(&mut self, a: &mut [T]) {
         let mut i=a.len()-1;
         while i>0 {
-            let j=(self.rand() as usize)%(i+1);
+            let j=(self.rand_u32() as usize)%(i+1);
             a.swap(i,j);
             i-=1;
+        }
+    }
+
+    fn rand_bounded_u32(&mut self, m: u32) -> u32 {
+        let threshold = m.wrapping_neg().wrapping_rem(m);
+        loop {
+            let r = self.rand_u32();
+            if r >= threshold {
+                return r.wrapping_rem(m);
+            }
         }
     }
     
     pub fn rand_range(&mut self, a: i32, b: i32) -> i32 {
         let m = (b-a+1) as u32;
-        return a+(self.rand()%m) as i32;
+        return a+self.rand_bounded_u32(m) as i32;
     }
 
     pub fn rand_float(&mut self) -> f64 {
-        (self.rand() as f64)/(<u32>::max_value() as f64)
+        (self.rand_u32() as f64)*2.3283064365386963E-10
     }
 }
 

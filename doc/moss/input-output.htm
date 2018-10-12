@@ -27,6 +27,7 @@
   <li><a href="#first-examples">First examples</a>
   <li><a href="#named-arguments">Named arguments</a>
   </ol>
+<li><a href="#conf">Configuration files</a>
 </ol>
 </div>
 
@@ -158,6 +159,41 @@ print("{0} | {1} | {0} | {0}" % [360,240])
 <pre class="moss indent">
 print("{x:r4} | {y:r4}" % {x=360,y=240})
 print("{0:r4} | {1:r4}" % [360,240])
+</pre>
+
+
+<h2 id="conf">Configuration files</h2>
+
+<p>A possible way to express configurations is to simply state
+them as Moss code. In doing so, the expressions are loaded as
+a Moss module or by <code>eval</code>. A passive data structure
+looks as follows:
+
+<pre class="moss indent">
+# patterns.moss
+# =============
+pattern1 = {
+  color = "yellow",
+  width = 12.4,
+  center = [2,0],
+  tail = {
+    color = "blue",
+    height = 4.2
+  }
+}
+
+# m.moss
+# ======
+patterns = load("patterns")
+p = patterns.pattern1
+</pre>
+
+<p>Now, <code>patterns</code> is a module object.
+Using <code>record</code>, it may be considered to be a map:
+
+<pre class="moss indent">
+patterns = record(load("patterns"))
+p = patterns["pattern1"]
 </pre>
 
 </body>

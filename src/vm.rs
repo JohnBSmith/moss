@@ -31,6 +31,13 @@ use system;
 use compiler;
 use compiler::{CompilerExtra};
 
+pub mod interface_index{
+    pub const POLY_ARRAY: usize = 0;
+    pub const ARRAY: usize = 1;
+    pub const BYTES: usize = 2;
+    pub const FILE: usize = 3;
+}
+
 // byte code size
 // byte code+argument size
 // byte code+argument+argument size
@@ -2529,6 +2536,18 @@ fn operator_is(sp: usize, stack: &mut [Object]) -> OperatorResult {
                 }
             };
         },
+        Object::Empty => {
+            return match stack[sp-1] {
+                Object::Empty => {
+                    stack[sp-2] = Object::Bool(true);
+                    Ok(())
+                },
+                _ => {
+                    stack[sp-2] = Object::Bool(false);
+                    Ok(())
+                }
+            };
+        },
         _ => {}
     }
     match stack[sp-2].take() {
@@ -3634,12 +3653,12 @@ fn new_stamp(ptype: &Rc<Table>, prototype: &Object, s: &str) -> Object {
     return Tuple::new_object(v);
 }
 
-pub fn interface_types_set(env: &mut Env, index: usize, x: Rc<Table>) {
-    let mut v = env.rte().interface_types.borrow_mut();
+pub fn interface_types_set(rte: &RTE, index: usize, x: Rc<Table>) {
+    let mut v = rte.interface_types.borrow_mut();
     if index<v.len() {
         v[index] = x;
     }else{
-        let unimplemented = &env.rte().unimplemented;
+        let unimplemented = &rte.unimplemented;
         while v.len()<index {
             v.push(unimplemented.clone());
         }

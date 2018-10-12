@@ -127,7 +127,7 @@ print(pow(2,10))
 <h2 id="composition">Composition</h2>
 
 <pre class="moss">
-Function.mpy = |g;f| |x| g(f(x))
+Function.mul = |g;f| |x| g(f(x))
 
 compose = |*a| |x| a.rev().reduce(x,|y,f| f(y))
 

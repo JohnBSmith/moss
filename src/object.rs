@@ -444,4 +444,22 @@ pub trait Interface{
     fn hash(&self) -> u64 {
         self as *const _ as *const u8 as usize as u64
     }
+    fn iter(&self, env: &mut Env) -> FnResult {
+        env.type_error("Type error in iter(x): x is not iterable.")
+    }
+}
+
+pub fn interface_object_get(
+  type_name: &str, key: &Object, env: &mut Env, index: usize
+) -> FnResult
+{
+    let t = &env.rte().interface_types.borrow()[index];
+    match t.get(key) {
+        Some(value) => return Ok(value),
+        None => {
+            env.index_error(&format!(
+                "Index error in {0}.{1}: {1} not found.", type_name, key
+            ))
+        }
+    }
 }

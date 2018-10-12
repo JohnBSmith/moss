@@ -7,13 +7,15 @@
 use std::rc::Rc;
 use std::cell::RefCell;
 use std::any::Any;
-use object::{Object, FnResult, Function, List, Table, Interface,
-    Exception, new_module, VARIADIC};
-use vm::{Env, op_neg, op_add, op_sub, op_mpy, op_div, op_eq,
-  interface_types_set};
+use object::{
+    Object, FnResult, Function, List, Table, Interface,
+    Exception, new_module, VARIADIC
+};
+use vm::{
+    Env, op_neg, op_add, op_sub, op_mpy, op_div, op_eq,
+    interface_types_set, interface_index
+};
 use complex::Complex64;
-
-const INDEX: usize = 0;
 
 struct ShapeStride{
     shape: usize,
@@ -143,7 +145,7 @@ impl Interface for Array {
                 },
                 _ => {}
             }
-            let t = &env.rte().interface_types.borrow()[INDEX];
+            let t = &env.rte().interface_types.borrow()[interface_index::POLY_ARRAY];
             match t.get(key) {
                 Some(value) => return Ok(value),
                 None => {
@@ -1053,7 +1055,7 @@ pub fn load_math_la(env: &mut Env) -> Object
         let mut m = type_array.map.borrow_mut();
         m.insert_fn_plain("map",map,1,1);
     }
-    interface_types_set(env,INDEX,type_array);
+    interface_types_set(env.rte(),interface_index::POLY_ARRAY,type_array);
 
     let la = new_module("la");
     {
