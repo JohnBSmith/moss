@@ -57,7 +57,7 @@ pub fn fpanic(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
 
 pub fn print(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
     for i in 0..argv.len() {
-        print!("{}",try!(argv[i].string(env)));
+        print!("{}",argv[i].string(env)?);
     }
     println!();
     return Ok(Object::Null);
@@ -65,7 +65,7 @@ pub fn print(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
 
 pub fn put(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
     for i in 0..argv.len() {
-        print!("{}",try!(argv[i].string(env)));
+        print!("{}",argv[i].string(env)?);
     }
     return Ok(Object::Null);
 }
@@ -114,7 +114,7 @@ fn float_to_string(env: &Env, x: &Object, fmt: &Object, precision: &Object) -> F
 fn fstr(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
     match argv.len() {
         1 => {
-            let s = try!(argv[0].string(env));
+            let s = argv[0].string(env)?;
             return Ok(U32String::new_object_str(&s));
         },
         3 => {
@@ -130,7 +130,7 @@ fn repr(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
     match argv.len() {
         1=>{}, n=>{return env.argc_error(n,1,1,"repr");}
     }
-    let s = try!(argv[0].repr(env));
+    let s = argv[0].repr(env)?;
     return Ok(U32String::new_object_str(&s));
 }
 
@@ -304,7 +304,7 @@ fn load(env: &mut Env, id: Rc<U32String>, hot_plug: bool) -> FnResult{
         "gx" => ::gx::load_gx(),
 
         _ => {
-            try!(load_file(env,&s))
+            load_file(env,&s)?
             // return index_error(&format!("Could not load module '{}'.",s));
         }
     };
@@ -524,10 +524,10 @@ pub fn flist(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
 fn set(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         1 => {
-            let i = &try!(iter(env,&argv[0]));
+            let i = &iter(env,&argv[0])?;
             let mut m: HashMap<Object,Object> = HashMap::new();
             loop {
-                let y = try!(env.call(i,&Object::Null,&[]));
+                let y = env.call(i,&Object::Null,&[])?;
                 if y == Object::Empty {break;}
                 m.insert(y,Object::Null);
             }
@@ -753,7 +753,7 @@ fn input(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
                 if let Object::List(ref a) = argv[1] {
                     let mut h = History::new();
                     for x in &a.borrow().v {
-                        h.append(&try!(x.string(env)));
+                        h.append(&x.string(env)?);
                     }
                     match ::system::getline_history(&prompt,&h) {
                         Ok(s)=>s, Err(e) => return env.std_exception("Error in input(): could not obtain input.")
@@ -833,7 +833,7 @@ fn _zip(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
         match argv[i] {
             Object::List(ref a) => v.push(a.clone()),
             ref a => {
-                let y = try!(list(env,a));
+                let y = list(env,a)?;
                 // todo: traceback
                 v.push(match y {Object::List(a) => a, _ => unreachable!()});
             }
@@ -861,13 +861,13 @@ fn zip(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     let argc = argv.len();
     let mut v: Vec<Object> = Vec::with_capacity(argc);
     for k in 0..argc {
-        let i = try!(iter(env,&argv[k]));
+        let i = iter(env,&argv[k])?;
         v.push(i);
     }
     let g = Box::new(move |env: &mut Env, pself: &Object, argv: &[Object]| -> FnResult {
         let mut t: Vec<Object> = Vec::with_capacity(argc);
         for i in &v {
-            let y = try!(env.call(i,&Object::Null,&[]));
+            let y = env.call(i,&Object::Null,&[])?;
             match y {
                 Object::Empty => return Ok(Object::Empty),
                 y => {t.push(y);}
@@ -889,7 +889,7 @@ fn min(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         2 => {}, n => return env.argc_error(n,2,2,"min")
     }
-    let cond = try!(op_lt(env,&argv[0],&argv[1]));
+    let cond = op_lt(env,&argv[0],&argv[1])?;
     if let Object::Bool(cond) = cond {
         return Ok(argv[if cond {0} else {1}].clone());
     }else{
@@ -901,7 +901,7 @@ fn max(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         2 => {}, n => return env.argc_error(n,2,2,"max")
     }
-    let cond = try!(op_lt(env,&argv[0],&argv[1]));
+    let cond = op_lt(env,&argv[0],&argv[1])?;
     if let Object::Bool(cond) = cond {
         return Ok(argv[if cond {1} else {0}].clone());
     }else{
@@ -945,10 +945,10 @@ fn map(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         1 => {}, n => return env.argc_error(n,1,1,"map")
     }
-    let i = try!(iter(env,&argv[0]));
+    let i = iter(env,&argv[0])?;
     let mut m: HashMap<Object,Object> = HashMap::new();
     loop{
-        let y = try!(env.call(&i,&Object::Null,&[]));
+        let y = env.call(&i,&Object::Null,&[])?;
         match y {
             Object::Empty => break,
             Object::List(a) => {

@@ -219,7 +219,7 @@ pub fn iter(env: &mut Env, x: &Object) -> FnResult {
 }
 
 fn cycle_iterable(env: &mut Env, x: &Object) -> FnResult {
-    let a = match try!(list(env,x)) {
+    let a = match list(env,x)? {
         Object::List(a) => a,
         _ => unreachable!()
     };
@@ -270,12 +270,12 @@ pub fn cycle(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
 }
 
 pub fn to_list(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
-    let i = &try!(iter(env,pself));
+    let i = &iter(env,pself)?;
     match argv.len() {
         0 => {
             let mut v: Vec<Object> = Vec::new();
             loop{
-                let y = try!(env.call(i,&Object::Null,&[]));
+                let y = env.call(i,&Object::Null,&[])?;
                 if let Object::Empty = y {
                     break;
                 }else{
@@ -289,7 +289,7 @@ pub fn to_list(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
                 Object::Int(n) => {
                     let mut v: Vec<Object> = Vec::new();
                     for _ in 0..n {
-                        let y = try!(env.call(i,&Object::Null,&[]));
+                        let y = env.call(i,&Object::Null,&[])?;
                         if let Object::Empty = y {
                             break;
                         }else{
@@ -311,14 +311,14 @@ fn map(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     if argv.len()!=1 {
         return env.argc_error(argv.len(),1,1,"map");
     }
-    let i = try!(iter(env,pself));
+    let i = iter(env,pself)?;
     let f = argv[0].clone();
     let g = Box::new(move |env: &mut Env, pself: &Object, argv: &[Object]| -> FnResult {
-        let x = try!(env.call(&i,&Object::Null,&[]));
+        let x = env.call(&i,&Object::Null,&[])?;
         return if let Object::Empty = x {
             Ok(x)
         }else{
-            let y = trace_err_try!(env.call(&f,&Object::Null,&[x]),
+            let y = trace_err!(env.call(&f,&Object::Null,&[x]),
                 "iterator created by map"
             );
             Ok(y)
@@ -331,15 +331,15 @@ fn filter(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     if argv.len()!=1 {
         return env.argc_error(argv.len(),1,1,"filter");
     }
-    let i = try!(iter(env,pself));
+    let i = iter(env,pself)?;
     let f = argv[0].clone();
     let g = Box::new(move |env: &mut Env, pself: &Object, argv: &[Object]| -> FnResult {
         loop{
-            let x = try!(env.call(&i,&Object::Null,&[]));
+            let x = env.call(&i,&Object::Null,&[])?;
             if let Object::Empty = x {
                 return Ok(x);
             }else{
-                let y = trace_err_try!(env.call(&f,&Object::Null,&[x.clone()]),
+                let y = trace_err!(env.call(&f,&Object::Null,&[x.clone()]),
                     "iterator created by filter"
                 );
                 match y {
@@ -356,14 +356,14 @@ fn filter(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
 }
 
 fn each(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
-    let i = &try!(iter(env,pself));
+    let i = &iter(env,pself)?;
     if argv.len() == 1 {
         loop{
-            let y = try!(env.call(i,&Object::Null,&[]));
+            let y = env.call(i,&Object::Null,&[])?;
             if let Object::Empty = y {
                 break;
             }else{
-                try!(env.call(&argv[0],&Object::Null,&[y]));
+                env.call(&argv[0],&Object::Null,&[y])?;
             }
         }
         return Ok(Object::Null);
@@ -376,14 +376,14 @@ fn any(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     if argv.len()!=1 {
         return env.argc_error(argv.len(),1,1,"any");  
     }
-    let i = &try!(iter(env,pself));
+    let i = &iter(env,pself)?;
     let p = &argv[0];
     loop{
-        let x = try!(env.call(i,&Object::Null,&[]));
+        let x = env.call(i,&Object::Null,&[])?;
         if let Object::Empty = x {
             break;
         }else{
-            let y = try!(env.call(p,&Object::Null,&[x]));
+            let y = env.call(p,&Object::Null,&[x])?;
             if let Object::Bool(yb) = y {
                 if yb {return Ok(Object::Bool(true));}
             }else{
@@ -399,14 +399,14 @@ fn all(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     if argv.len()!=1 {
         return env.argc_error(argv.len(),1,1,"all");  
     }
-    let i = &try!(iter(env,pself));
+    let i = &iter(env,pself)?;
     let p = &argv[0];
     loop{
-        let x = try!(env.call(i,&Object::Null,&[]));
+        let x = env.call(i,&Object::Null,&[])?;
         if let Object::Empty = x {
             break;
         }else{
-            let y = try!(env.call(p,&Object::Null,&[x]));
+            let y = env.call(p,&Object::Null,&[x])?;
             if let Object::Bool(yb) = y {
                 if !yb {return Ok(Object::Bool(false));}
             }else{
@@ -419,10 +419,10 @@ fn all(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
 }
 
 fn count_all(env: &mut Env, a: &Object) -> FnResult {
-    let i = try!(iter(env,a));
+    let i = iter(env,a)?;
     let mut k: i32 = 0;
     loop{
-        let x = try!(env.call(&i,&Object::Null,&[]));
+        let x = env.call(&i,&Object::Null,&[])?;
         match x {
             Object::Empty => return Ok(Object::Int(k)),
             _ => {k+=1;},
@@ -436,15 +436,15 @@ fn count(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
         1 => {},
         n => return env.argc_error(n,0,1,"count")
     }
-    let i = &try!(iter(env,pself));
+    let i = &iter(env,pself)?;
     let p = &argv[0];
     let mut k: i32 = 0;
     loop{
-        let x = try!(env.call(i,&Object::Null,&[]));
+        let x = env.call(i,&Object::Null,&[])?;
         if let Object::Empty = x {
             break;
         }else{
-            let y = try!(env.call(p,&Object::Null,&[x]));
+            let y = env.call(p,&Object::Null,&[x])?;
             if let Object::Bool(yb) = y {
                 if yb {k+=1;}
             }else{
@@ -469,13 +469,13 @@ fn chunks(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
         },
         n => return env.argc_error(n,1,1,"chunks")
     };
-    let i = try!(iter(env,pself));
+    let i = iter(env,pself)?;
     let mut empty = false;
     let g = Box::new(move |env: &mut Env, pself: &Object, argv: &[Object]| -> FnResult {
         if empty {return Ok(Object::Empty);}
         let mut v: Vec<Object> = Vec::with_capacity(n);
         for _ in 0..n {
-            let y = try!(env.call(&i,&Object::Null,&[]));
+            let y = env.call(&i,&Object::Null,&[])?;
             if let Object::Empty = y {empty=true; break;}
             v.push(y);
         }
@@ -489,15 +489,15 @@ fn chunks(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
 }
 
 fn reduce(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
-    let i = try!(iter(env,pself));
+    let i = iter(env,pself)?;
     match argv.len() {
         1 => {
-            let mut y = try!(env.call(&i,&Object::Null,&[]));
+            let mut y = env.call(&i,&Object::Null,&[])?;
             let f = &argv[0];
             loop{
-                let x = try!(env.call(&i,&Object::Null,&[]));
+                let x = env.call(&i,&Object::Null,&[])?;
                 if let Object::Empty = x {break;}
-                y = try!(env.call(f,&Object::Null,&[y,x]));
+                y = env.call(f,&Object::Null,&[y,x])?;
             }
             return Ok(y);
         },
@@ -505,9 +505,9 @@ fn reduce(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
             let mut y = argv[0].clone();
             let f = &argv[1];
             loop{
-                let x = try!(env.call(&i,&Object::Null,&[]));
+                let x = env.call(&i,&Object::Null,&[])?;
                 if let Object::Empty = x {break;}
-                y = try!(env.call(f,&Object::Null,&[y,x]));
+                y = env.call(f,&Object::Null,&[y,x])?;
             }
             return Ok(y);
         },
@@ -516,32 +516,32 @@ fn reduce(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
 }
 
 fn sum(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
-    let i = try!(iter(env,pself));
+    let i = iter(env,pself)?;
     match argv.len() {
         0 => {
-            let mut y = try!(env.call(&i,&Object::Null,&[]));
+            let mut y = env.call(&i,&Object::Null,&[])?;
             if let Object::Empty = y {
                 return Ok(Object::Int(0));
             }
             loop{
-                let x = try!(env.call(&i,&Object::Null,&[]));
+                let x = env.call(&i,&Object::Null,&[])?;
                 if let Object::Empty = x {break;}
-                y = try!(op_add(env,&y,&x));
+                y = op_add(env,&y,&x)?;
             }
             return Ok(y);
         },
         1 => {
-            let x = try!(env.call(&i,&Object::Null,&[]));
+            let x = env.call(&i,&Object::Null,&[])?;
             if let Object::Empty = x {
                 return Ok(Object::Int(0));
             }
             let f = &argv[0];
-            let mut y = try!(env.call(f,&Object::Null,&[x]));
+            let mut y = env.call(f,&Object::Null,&[x])?;
             loop{
-                let x = try!(env.call(&i,&Object::Null,&[]));
+                let x = env.call(&i,&Object::Null,&[])?;
                 if let Object::Empty = x {break;}
-                let u = try!(env.call(f,&Object::Null,&[x]));
-                y = try!(op_add(env,&y,&u));
+                let u = env.call(f,&Object::Null,&[x])?;
+                y = op_add(env,&y,&u)?;
             }
             return Ok(y);
         },
@@ -550,32 +550,32 @@ fn sum(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
 }
 
 fn prod(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
-    let i = try!(iter(env,pself));
+    let i = iter(env,pself)?;
     match argv.len() {
         0 => {
-            let mut y = try!(env.call(&i,&Object::Null,&[]));
+            let mut y = env.call(&i,&Object::Null,&[])?;
             if let Object::Empty = y {
                 return Ok(Object::Int(1));
             }
             loop{
-                let x = try!(env.call(&i,&Object::Null,&[]));
+                let x = env.call(&i,&Object::Null,&[])?;
                 if let Object::Empty = x {break;}
-                y = try!(op_mpy(env,&y,&x));
+                y = op_mpy(env,&y,&x)?;
             }
             return Ok(y);
         },
         1 => {
-            let x = try!(env.call(&i,&Object::Null,&[]));
+            let x = env.call(&i,&Object::Null,&[])?;
             if let Object::Empty = x {
                 return Ok(Object::Int(1));
             }
             let f = &argv[0];
-            let mut y = try!(env.call(f,&Object::Null,&[x]));
+            let mut y = env.call(f,&Object::Null,&[x])?;
             loop{
-                let x = try!(env.call(&i,&Object::Null,&[]));
+                let x = env.call(&i,&Object::Null,&[])?;
                 if let Object::Empty = x {break;}
-                let u = try!(env.call(f,&Object::Null,&[x]));
-                y = try!(op_mpy(env,&y,&u));
+                let u = env.call(f,&Object::Null,&[x])?;
+                y = op_mpy(env,&y,&u)?;
             }
             return Ok(y);
         },
@@ -710,7 +710,7 @@ fn sort(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
     let a = match *pself {
         Object::List(ref a) => a.clone(),
         ref x => {
-            let y = try!(list(env,x));
+            let y = list(env,x)?;
             match y {
                 Object::List(a) => a,
                 _ => panic!()
@@ -726,7 +726,7 @@ fn sort(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
             1 => {
                 let mut v: Vec<(Object,Object)> = Vec::with_capacity(ba.v.len());
                 for x in &ba.v {
-                    let y = try!(env.call(&argv[0],&Object::Null,&[x.clone()]));
+                    let y = env.call(&argv[0],&Object::Null,&[x.clone()])?;
                     v.push((x.clone(),y));
                 }
                 v.sort_by(compare_by_value);
@@ -743,7 +743,7 @@ fn sort(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
                     ref p => {
                         let mut v: Vec<(Object,Object)> = Vec::with_capacity(ba.v.len());
                         for x in &ba.v {
-                            let y = try!(env.call(p,&Object::Null,&[x.clone()]));
+                            let y = env.call(p,&Object::Null,&[x.clone()])?;
                             v.push((x.clone(),y));
                         }
                         v.sort_by(compare_by_value);
@@ -765,11 +765,11 @@ fn skip(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         1 => {}, n => return env.argc_error(n,1,1,"skip")
     }
-    let i = try!(iter(env,pself));
+    let i = iter(env,pself)?;
     match argv[0] {
         Object::Int(n) => {
             for _ in 0..n {
-                let x = try!(env.call(&i,&Object::Null,&[]));
+                let x = env.call(&i,&Object::Null,&[])?;
                 if let Object::Empty = x {return Ok(i);}
             }
             Ok(i)
@@ -782,14 +782,14 @@ fn until(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         1 => {}, n => return env.argc_error(n,1,1,"until")
     }
-    let i = try!(iter(env,pself));
+    let i = iter(env,pself)?;
     let f = argv[0].clone();
     let g = Box::new(move |env: &mut Env, pself: &Object, argv: &[Object]| -> FnResult {
-        let x = try!(env.call(&i,&Object::Null,&[]));
+        let x = env.call(&i,&Object::Null,&[])?;
         return match x {
             Object::Empty => Ok(x),
             x => {
-                let y = try!(env.call(&f,&Object::Null,&[x.clone()]));
+                let y = env.call(&f,&Object::Null,&[x.clone()])?;
                 match y {
                     Object::Bool(y) => {
                         if y {return Ok(Object::Empty);}
@@ -815,9 +815,9 @@ fn enumerate(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
         },
         n => return env.argc_error(n,0,1,"enum")
     };
-    let i = try!(iter(env,pself));
+    let i = iter(env,pself)?;
     let g = Box::new(move |env: &mut Env, pself: &Object, argv: &[Object]| -> FnResult {
-        let x = try!(env.call(&i,&Object::Null,&[]));
+        let x = env.call(&i,&Object::Null,&[])?;
         return match x {
             Object::Empty => Ok(x),
             x => {
@@ -841,9 +841,9 @@ fn take(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
         len => return env.argc_error(len,0,1,"enum")
     };
     let mut k: i32 = 0;
-    let i = try!(iter(env,pself));
+    let i = iter(env,pself)?;
     let g = Box::new(move |env: &mut Env, pself: &Object, argv: &[Object]| -> FnResult {
-        let x = try!(env.call(&i,&Object::Null,&[]));
+        let x = env.call(&i,&Object::Null,&[])?;
         return Ok(match x {
             Object::Empty => x,
             x => if k<n {k+=1; x} else {Object::Empty}
@@ -857,10 +857,10 @@ fn join(env: &mut Env, a: &[Object], sep: Option<&Object>,
 ) -> Result<String,Box<Exception>> {
     let mut s: String = String::new();
     if let Some(left) = left {
-        s.push_str(&try!(left.string(env)));
+        s.push_str(&left.string(env)?);
     }
     if let Some(sep) = sep {
-        let sep = &try!(sep.string(env));
+        let sep = &sep.string(env)?;
         let mut first = true;
         for x in a {
             if first {
@@ -868,15 +868,15 @@ fn join(env: &mut Env, a: &[Object], sep: Option<&Object>,
             }else{
                 s.push_str(sep);
             }
-            s.push_str(&try!(x.string(env)));
+            s.push_str(&x.string(env)?);
         }
     }else{
         for x in a {
-            s.push_str(&try!(x.string(env)));
+            s.push_str(&x.string(env)?);
         }
     }
     if let Some(right) = right {
-        s.push_str(&try!(right.string(env)));
+        s.push_str(&right.string(env)?);
     }
     return Ok(s);
 }
@@ -885,7 +885,7 @@ fn iterable_join(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     let a = match *pself {
         Object::List(ref a) => a.clone(),
         ref x => {
-            match try!(list(env,x)) {
+            match list(env,x)? {
                 Object::List(a) => a, _ => unreachable!()
             }
         }
@@ -897,18 +897,18 @@ fn iterable_join(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
         3 => join(env,&a.borrow().v,Some(&argv[0]),Some(&argv[1]),Some(&argv[2])),
         n => return env.argc_error(n,0,3,"join")
     };
-    Ok(U32String::new_object_str(&try!(y)))
+    Ok(U32String::new_object_str(&y?))
 }
 
 fn min_plain(env: &mut Env, a: &Object) -> FnResult {
-    let i = &try!(iter(env,a));
-    let mut minimum = try!(env.call(i,&Object::Null,&[]));
+    let i = &iter(env,a)?;
+    let mut minimum = env.call(i,&Object::Null,&[])?;
     loop{
-        let x = try!(env.call(i,&Object::Null,&[]));
+        let x = env.call(i,&Object::Null,&[])?;
         match x {
             Object::Empty => break,
             x => {
-                match try!(op_lt(env,&x,&minimum)) {
+                match op_lt(env,&x,&minimum)? {
                     Object::Bool(condition) => {
                         if condition {
                             minimum = x;
@@ -929,17 +929,17 @@ fn iterable_min(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
         1 => {},
         n => return env.argc_error(n,1,1,"min")
     }
-    let i = &try!(iter(env,pself));
+    let i = &iter(env,pself)?;
     let p = &argv[0];
-    let mut minimum = try!(env.call(i,&Object::Null,&[]));
-    let mut ymin = try!(env.call(p,&Object::Null,&[minimum.clone()]));
+    let mut minimum = env.call(i,&Object::Null,&[])?;
+    let mut ymin = env.call(p,&Object::Null,&[minimum.clone()])?;
     loop{
-        let x = try!(env.call(i,&Object::Null,&[]));
+        let x = env.call(i,&Object::Null,&[])?;
         match x {
             Object::Empty => break,
             x => {
-                let y = try!(env.call(p,&Object::Null,&[x.clone()]));
-                match try!(op_lt(env,&y,&ymin)) {
+                let y = env.call(p,&Object::Null,&[x.clone()])?;
+                match op_lt(env,&y,&ymin)? {
                     Object::Bool(condition) => {
                         if condition {
                             minimum = x;
@@ -955,14 +955,14 @@ fn iterable_min(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
 }
 
 fn max_plain(env: &mut Env, a: &Object) -> FnResult {
-    let i = &try!(iter(env,a));
-    let mut maximum = try!(env.call(i,&Object::Null,&[]));
+    let i = &iter(env,a)?;
+    let mut maximum = env.call(i,&Object::Null,&[])?;
     loop{
-        let x = try!(env.call(i,&Object::Null,&[]));
+        let x = env.call(i,&Object::Null,&[])?;
         match x {
             Object::Empty => break,
             x => {
-                match try!(op_le(env,&x,&maximum)) {
+                match op_le(env,&x,&maximum)? {
                     Object::Bool(condition) => {
                         if !condition {
                             maximum = x;
@@ -982,17 +982,17 @@ fn iterable_max(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
         1 => {},
         n => return env.argc_error(n,1,1,"max")
     }
-    let i = &try!(iter(env,pself));
+    let i = &iter(env,pself)?;
     let p = &argv[0];
-    let mut maximum = try!(env.call(i,&Object::Null,&[]));
-    let mut ymax = try!(env.call(p,&Object::Null,&[maximum.clone()]));
+    let mut maximum = env.call(i,&Object::Null,&[])?;
+    let mut ymax = env.call(p,&Object::Null,&[maximum.clone()])?;
     loop{
-        let x = try!(env.call(i,&Object::Null,&[]));
+        let x = env.call(i,&Object::Null,&[])?;
         match x {
             Object::Empty => break,
             x => {
-                let y = try!(env.call(p,&Object::Null,&[x.clone()]));
-                match try!(op_le(env,&y,&ymax)) {
+                let y = env.call(p,&Object::Null,&[x.clone()])?;
+                match op_le(env,&y,&ymax)? {
                     Object::Bool(condition) => {
                         if !condition {
                             maximum = x;

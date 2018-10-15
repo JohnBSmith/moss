@@ -429,20 +429,18 @@ arbitrary Unicode characters inside of a string literal.
 <tr><td><code>\b</code><td>backslash
 <tr><td><code>\d</code><td>double quote
 <tr><td><code>\q</code><td>single quote
-<tr><td><code>\x{hh}</code><td>character with Unicode value <code>0xhh</code>
+<tr><td><code>\u{61}</code><td>Unicode character <code>0x61</code>
 </table>
 
-<p>The number <code>0xhh</code> is a hexadecimal number consisting of two
-hexadecimal digits, a number in the range <code>0x00..0xff</code>.
-An example:
+<p>An example:
 
 <pre class="moss indent">
-print("\b\b\b\b\na\s\sb\n\d\q\q\d\n\x{41}\x{41}\x{42}")
+print("\b\b\b\b\na\s\sb\n\d\q\q\d\n\u{61}\u{62}\u{63}")
 # Output:
 # \\\\
 # a  b
 # "''"
-# AAB
+# abc
 </pre>
 
 <p>A triple quoted string literal can span over more than

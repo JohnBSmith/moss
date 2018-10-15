@@ -29,14 +29,14 @@
 <dt>sleep(x)
 <dd>Sleep <code>x</code> seconds. Note that <code>x</code> may
 be a floating point number und thus parts of a second are possible.
-</dl>
 
-<h3>gx.canvas</h3>
-<dl class="code">
 <dt>canvas(w,h)
 <dd>Create a new canvas of width <code>w</code> and
 height <code>h</code> pixels.
+</dl>
 
+<b>Type Canvas, <code>c: Canvas</code></b>
+<dl class="code">
 <dt>c.clear(r,g,b)
 <dd>Clear the canvas <code>c</code> by RGB color.
 Note: <code>r,g,b</code>&in;[0,1].
@@ -117,7 +117,10 @@ alignx="center", aligny="center"})
 where the visible range is <code>x&in;[px-wx,px+wx]</code>
 and <code>y&in;[py-wy,py+wy]</code> by assuming <code>w==h</code>.
 The resolution will be <code>w*h</code> pixels.
+</dl>
 
+<b>Type System, <code>s: System</code></b>
+<dl class="code">
 <dt>s.idle()
 <dd>Idle until <code>"q"</code> (quit) is pressed.
 
@@ -200,6 +203,7 @@ s.plot_zero_set(|x,y| x^2-y^2-1)
 s.idle()
 </pre>
 
+<b>Type System, <code>s: System</code></b>
 <dl class="code">
 <dt>s.plot_zero_set(F,{n=1000,m=10,method="bisection"})
 <dd>Draw the solutions of <code>F(x,y)=0</code>.

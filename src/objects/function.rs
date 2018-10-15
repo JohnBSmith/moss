@@ -23,7 +23,7 @@ fn orbit(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     let i = Box::new(
         move |env: &mut Env, pself: &Object, argv: &[Object]| -> FnResult {
             let y = x.clone();
-            x = try!(env.call(&f,&Object::Null,&[x.clone()]));
+            x = env.call(&f,&Object::Null,&[x.clone()])?;
             return Ok(y);
         }
     );
@@ -62,7 +62,7 @@ pub fn iterate(env: &mut Env, f: &Object, n: &Object) -> FnResult {
             let g = move |env: &mut Env, pself: &Object, argv: &[Object]| -> FnResult {
                 let mut y = argv[0].clone();
                 for _ in 0..n {
-                    y = try!(env.call(&f,&Object::Null,&[y]));
+                    y = env.call(&f,&Object::Null,&[y])?;
                 }
                 return Ok(y);
             };

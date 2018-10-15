@@ -213,7 +213,7 @@ impl fmt::Debug for Exception {
 }
 
 #[macro_export]
-macro_rules! trace_err_try {
+macro_rules! trace_err {
     ($e:expr, $fid:expr) => (match $e {
         Ok(val) => val,
         Err(mut err) => {

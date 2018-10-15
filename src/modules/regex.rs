@@ -9,15 +9,15 @@ use std::any::Any;
 use std::ascii::AsciiExt;
 
 use object::{
-    Object, Table, Function, FnResult, Interface,
-    new_module
+    Object, List, U32String, Table, Function, FnResult, Interface,
+    new_module, Exception
 };
 use vm::Env;
 
 #[derive(Debug,Clone,Copy)]
 enum Class{
     Alpha, Digit, HexDigit, Lower, Upper,
-    UnicodeAlpha
+    Whitespace, UnicodeAlpha, UnicodeLower, UnicodeUpper
 }
 
 #[derive(Debug,Clone,Copy)]
@@ -35,7 +35,7 @@ struct Range {
 enum RegexSymbol {
     Dot, Char(char), Class(CharClass),
     Range(Box<Range>), Complement(Box<RegexSymbol>),
-    Regex(Box<[RegexSymbol]>),
+    Regex(Box<[RegexSymbol]>), Group(Box<RegexSymbol>),
     Qm(Box<RegexSymbol>),
     Plus(Box<RegexSymbol>),
     Star(Box<RegexSymbol>),
@@ -138,12 +138,20 @@ fn escape_seq(i: &mut TokenIterator) -> Result<Option<RegexSymbol>,String> {
             'd' => new_char_class(neg,Class::Digit),
             'x' => new_char_class(neg,Class::HexDigit),
             'l' => new_char_class(neg,Class::Lower),
-            'u' => new_char_class(neg,Class::Upper),
-            'a' => {
-                if i.next_is(1,'u') {
+            'a' => new_char_class(neg,Class::Alpha),
+            '_' => new_char_class(neg,Class::Whitespace),
+            'u' => {
+                if i.next_is(1,'a') {
+                    i.index+=1;
                     new_char_class(neg,Class::UnicodeAlpha)
+                }else if i.next_is(1,'l') {
+                    i.index+=1;
+                    new_char_class(neg,Class::UnicodeLower)
+                }else if i.next_is(1,'u') {
+                    i.index+=1;
+                    new_char_class(neg,Class::UnicodeUpper)
                 }else{
-                    new_char_class(neg,Class::Alpha)
+                    new_char_class(neg,Class::Upper)
                 }
             },
             c => RegexSymbol::Char(c)
@@ -169,16 +177,24 @@ fn char_class(i: &mut TokenIterator) -> Result<Option<RegexSymbol>,String> {
     };
     let mut v: Vec<RegexSymbol> = Vec::new();
     loop{
-        if i.next_is(1,'-') && i.exists_at(2) {
-            let a = i.at(0);
-            let b = i.at(2);
-            v.push(RegexSymbol::Range(Box::new(Range{a,b})));
-            i.index+=3;
-        }else if i.exists_at(0) {
+        if i.exists_at(0) {
             let c = i.at(0);
-            if c==']' {i.index+=1; break;}
-            v.push(RegexSymbol::Char(c));
-            i.index+=1;
+            if c=='{' {
+                i.index+=1;
+                v.push(match escape_seq(i)? {
+                    Some(x) => x,
+                    None => unreachable!()
+                });
+            }else if i.next_is(1,'-') && i.exists_at(2) {
+                let a = i.at(0);
+                let b = i.at(2);
+                v.push(RegexSymbol::Range(Box::new(Range{a,b})));
+                i.index+=3;
+            }else{
+                if c==']' {i.index+=1; break;}
+                v.push(RegexSymbol::Char(c));
+                i.index+=1;
+            }
         }else{
             return syntax_error("expected ']', but reached end of regex.");
         }
@@ -196,7 +212,13 @@ fn atom(i: &mut TokenIterator) -> Result<Option<RegexSymbol>,String> {
             return Ok(Some(RegexSymbol::Dot));
         }else if c == '(' {
             i.index+=1;
-            let r = try!(regex(i));
+            let c = match i.get() {Some(c)=>c, None=>'_'};
+            let r = if c == '*' {
+                i.index+=1;
+                RegexSymbol::Group(Box::new(regex(i)?))
+            }else{
+                regex(i)?
+            };
             if let Some(c) = i.get() {
                 if c == ')' {
                     i.index+=1;
@@ -223,7 +245,7 @@ fn atom(i: &mut TokenIterator) -> Result<Option<RegexSymbol>,String> {
 }
 
 fn postfix_operation(i: &mut TokenIterator) -> Result<Option<RegexSymbol>,String> {
-    if let Some(x) = try!(atom(i)) {
+    if let Some(x) = atom(i)? {
         if let Some(c) = i.get() {
             if c == '?' {
                 i.index+=1;
@@ -248,7 +270,7 @@ fn postfix_operation(i: &mut TokenIterator) -> Result<Option<RegexSymbol>,String
 fn regex_chain(i: &mut TokenIterator) -> Result<RegexSymbol,String> {
     let mut v: Vec<RegexSymbol> = Vec::new();
     loop{
-        if let Some(x) = try!(postfix_operation(i)) {
+        if let Some(x) = postfix_operation(i)? {
             v.push(x);
         }else{
             break;
@@ -266,12 +288,12 @@ fn regex_chain(i: &mut TokenIterator) -> Result<RegexSymbol,String> {
 
 fn or_operation(i: &mut TokenIterator) -> Result<RegexSymbol,String> {
     let mut v: Vec<RegexSymbol> = Vec::new();
-    v.push(try!(regex_chain(i)));
+    v.push(regex_chain(i)?);
     loop{
         if let Some(c) = i.get() {
             if c == '|' {
                 i.index+=1;
-                v.push(try!(regex_chain(i)));
+                v.push(regex_chain(i)?);
             }else{
                 break;
             }
@@ -296,7 +318,9 @@ fn compile(s: &Vec<char>) -> Result<RegexSymbol,String> {
     return regex(&mut i);
 }
 
-fn symbol_match(regex: &RegexSymbol, i: &mut CharIterator) -> bool {
+fn symbol_match(regex: &RegexSymbol, i: &mut CharIterator,
+    groups: &mut Option<Vec<Object>>
+) -> bool {
     match *regex {
         RegexSymbol::Char(c) => {
             if let Some(x) = i.get() {
@@ -315,14 +339,27 @@ fn symbol_match(regex: &RegexSymbol, i: &mut CharIterator) -> bool {
             }
         },
         RegexSymbol::Regex(ref a) => {
+            let j = i.index;
             for r in a.iter() {
-                if !symbol_match(r,i) {return false;}
+                if !symbol_match(r,i,groups) {return false;}
             }
             return true;
         },
+        RegexSymbol::Group(ref r) => {
+            let j = i.index;
+            if symbol_match(r,i,groups) {
+                if let &mut Some(ref mut groups) = groups {
+                    let x = U32String::new_object(i.v[j..i.index].to_vec());
+                    groups.push(x);
+                }
+                return true;
+            }else{
+                return false;
+            }
+        },
         RegexSymbol::Qm(ref r) => {
             let index = i.index;
-            if !symbol_match(r,i) {
+            if !symbol_match(r,i,groups) {
                 i.index = index;
             }
             return true;
@@ -330,7 +367,7 @@ fn symbol_match(regex: &RegexSymbol, i: &mut CharIterator) -> bool {
         RegexSymbol::Star(ref r) => {
             loop{
                 let index = i.index;
-                if !symbol_match(r,i) {
+                if !symbol_match(r,i,groups) {
                     i.index = index;
                     break;
                 }
@@ -338,10 +375,10 @@ fn symbol_match(regex: &RegexSymbol, i: &mut CharIterator) -> bool {
             return true;
         },
         RegexSymbol::Plus(ref r) => {
-            if !symbol_match(r,i) {return false;}
+            if !symbol_match(r,i,groups) {return false;}
             loop{
                 let index = i.index;
-                if !symbol_match(r,i) {
+                if !symbol_match(r,i,groups) {
                     i.index = index;
                     break;
                 }
@@ -351,7 +388,7 @@ fn symbol_match(regex: &RegexSymbol, i: &mut CharIterator) -> bool {
         RegexSymbol::Or(ref a) => {
             let index = i.index;
             for r in a.iter() {
-                if symbol_match(r,i) {return true;}
+                if symbol_match(r,i,groups) {return true;}
                 i.index = index;
             }
             return false;
@@ -360,12 +397,15 @@ fn symbol_match(regex: &RegexSymbol, i: &mut CharIterator) -> bool {
             if let Some(x) = i.get() {
                 i.index+=1;
                 let y = match char_class.value {
-                    Class::Alpha => x.is_alphabetic() && x.is_ascii(),
-                    Class::UnicodeAlpha => x.is_alphabetic(),
+                    Class::Alpha => x.is_ascii_alphabetic(),
                     Class::Digit => x.is_digit(10),
                     Class::HexDigit => x.is_digit(16),
-                    Class::Lower => x.is_lowercase() && x.is_ascii(),
-                    Class::Upper => x.is_uppercase() && x.is_ascii()
+                    Class::Lower => x.is_ascii_lowercase(),
+                    Class::Upper => x.is_ascii_uppercase(),
+                    Class::Whitespace => x.is_whitespace(),
+                    Class::UnicodeAlpha => x.is_alphabetic(),
+                    Class::UnicodeLower => x.is_lowercase(),
+                    Class::UnicodeUpper => x.is_uppercase()
                 };
                 return if char_class.neg {!y} else {y};
             }else{
@@ -382,7 +422,7 @@ fn symbol_match(regex: &RegexSymbol, i: &mut CharIterator) -> bool {
         },
         RegexSymbol::Complement(ref compl) => {
             let index = i.index+1;
-            if symbol_match(compl,i) {
+            if symbol_match(compl,i,groups) {
                 i.index = index;
                 return false;
             }else{
@@ -395,8 +435,38 @@ fn symbol_match(regex: &RegexSymbol, i: &mut CharIterator) -> bool {
 
 fn re_match(regex: &RegexSymbol, s: &Vec<char>) -> bool {
     let mut i = CharIterator{index: 0, v: s};
-    let y = symbol_match(regex,&mut i);
+    let y = symbol_match(regex,&mut i,&mut None);
     return y && i.index == i.v.len();
+}
+
+fn re_groups(regex: &RegexSymbol, s: &Vec<char>) -> Object {
+    let mut groups: Option<Vec<Object>> = Some(Vec::new());
+    let mut i = CharIterator{index: 0, v: s};
+    let y = symbol_match(regex,&mut i,&mut groups);
+    if y && i.index == i.v.len() {
+        return List::new_object(groups.unwrap());
+    }else{
+        return Object::Null;
+    }
+}
+
+
+fn re_list(regex: &RegexSymbol, s: &Vec<char>) -> Object {
+    let n = s.len();
+    let mut i = 0;
+    let mut j = CharIterator{index: 0, v: s};
+    let mut a: Vec<Object> = Vec::new();
+    while i<n {
+        j.index = i;
+        if symbol_match(regex,&mut j,&mut None) {
+            let x = U32String::new_object(j.v[i..j.index].to_vec());
+            a.push(x);
+            i = j.index;
+        }else{
+            i+=1;
+        }
+    }
+    return List::new_object(a);
 }
 
 fn regex_match(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
@@ -412,6 +482,38 @@ fn regex_match(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
             }
         },
         ref s => env.type_error1("Type error in r.match(s): s is not a string.","s",s)
+    }
+}
+
+fn regex_list(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+    match argv.len() {
+        1 => {}, n => return env.argc_error(n,1,1,"list")
+    }
+    match argv[0] {
+        Object::String(ref s) => {
+            if let Some(r) = Regex::downcast(pself) {
+                Ok(re_list(&r.regex,&s.v))
+            }else{
+                env.type_error("Type error in r.list(s): r is not a regex.")
+            }
+        },
+        ref s => env.type_error1("Type error in r.list(s): s is not a string.","s",s)
+    }
+}
+
+fn regex_groups(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+    match argv.len() {
+        1 => {}, n => return env.argc_error(n,1,1,"groups")
+    }
+    match argv[0] {
+        Object::String(ref s) => {
+            if let Some(r) = Regex::downcast(pself) {
+                Ok(re_groups(&r.regex,&s.v))
+            }else{
+                env.type_error("Type error in r.groups(s): r is not a regex.")
+            }
+        },
+        ref s => env.type_error1("Type error in r.groups(s): s is not a string.","s",s)
     }
 }
 
@@ -435,6 +537,9 @@ impl Interface for Regex{
     fn type_name(&self) -> String {
         "Regex".to_string()
     }
+    fn to_string(&self, _env: &mut Env) -> Result<String,Box<Exception>> {
+        Ok("regex object".to_string())
+    }
     fn get(&self, key: &Object, env: &mut Env) -> FnResult {
         let t = &env.rte().interface_types.borrow()[self.index];
         match t.get(key) {
@@ -449,7 +554,7 @@ impl Interface for Regex{
 fn regex_compile(index: usize) -> Object {
     let f = Box::new(move |env: &mut Env, pself: &Object, argv: &[Object]| -> FnResult {
         match argv.len() {
-            1 => {}, n => return env.argc_error(n,1,1,"compile")
+            1 => {}, n => return env.argc_error(n,1,1,"re")
         }
         match argv[0] {
             Object::String(ref s) => {
@@ -463,7 +568,7 @@ fn regex_compile(index: usize) -> Object {
                     index: index, regex: r
                 })));
             },
-            ref s => env.type_error1("Type error in compile(s): s is not a string.","s",s)
+            ref s => env.type_error1("Type error in re(s): s is not a string.","s",s)
         }
     });
     return Function::mutable(f,1,1);
@@ -474,6 +579,8 @@ pub fn load_regex(env: &mut Env) -> Object {
     {
         let mut m = type_regex.map.borrow_mut();
         m.insert_fn_plain("match",regex_match,1,1);
+        m.insert_fn_plain("list", regex_list,1,1);
+        m.insert_fn_plain("groups", regex_groups,1,1);
     }
     let mut v = env.rte().interface_types.borrow_mut();
     let index = v.len();
@@ -482,7 +589,7 @@ pub fn load_regex(env: &mut Env) -> Object {
     let regex = new_module("regex");
     {
         let mut m = regex.map.borrow_mut();
-        m.insert("compile",regex_compile(index));
+        m.insert("re",regex_compile(index));
     }
     return Object::Table(Rc::new(regex));
 }

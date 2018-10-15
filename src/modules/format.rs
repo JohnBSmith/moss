@@ -128,7 +128,7 @@ fn apply_fmt(env: &mut Env, buffer: &mut String,
 ) -> Result<(),Box<Exception>>
 {
     let s = match fmt.float {
-        None => try!(x.string(env)),
+        None => x.string(env)?,
         Some(ref float) => {
             let x = match *x {
                 Object::Int(n) => n as f64,
@@ -222,7 +222,7 @@ pub fn u32string_format(env: &mut Env, s: &U32String, a: &Object)
                         i+=1;
                     }
                     let key = U32String::new_object(v[j..i].iter().cloned().collect());
-                    x = try!(get_key(env,&a,&key));
+                    x = get_key(env,&a,&key)?;
                 }else if i<n && v[i].is_digit(10) {
                     let mut j: usize = v[i] as usize-'0' as usize;
                     i+=1;
@@ -230,9 +230,9 @@ pub fn u32string_format(env: &mut Env, s: &U32String, a: &Object)
                         j = 10*j + v[i] as usize-'0' as usize;
                         i+=1;
                     }
-                    x = try!(get(env,&a,j));
+                    x = get(env,&a,j)?;
                 }else{
-                    x = try!(get(env,&a,index));
+                    x = get(env,&a,index)?;
                     index+=1;    
                 }
                 while i<n && v[i]==' ' {i+=1;}
@@ -243,7 +243,7 @@ pub fn u32string_format(env: &mut Env, s: &U32String, a: &Object)
                         return env.value_error(&s)
                     }
                 };
-                try!(apply_fmt(env,&mut buffer,&fmt,&x));
+                apply_fmt(env,&mut buffer,&fmt,&x)?;
                 while i<n && v[i]==' ' {i+=1;}
                 if i<n && v[i]=='}' {i+=1;}
             }

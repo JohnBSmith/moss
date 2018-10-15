@@ -162,7 +162,7 @@ fn map(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     };
     let mut v: Vec<Object> = Vec::with_capacity(a.v.len());
     for x in &a.v {
-        let y = try!(env.call(&argv[0],&Object::Null,&[x.clone()]));
+        let y = env.call(&argv[0],&Object::Null,&[x.clone()])?;
         v.push(y);
     }
     return Ok(List::new_object(v));
@@ -178,7 +178,7 @@ fn filter(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     };
     let mut v: Vec<Object> = Vec::new();
     for x in &a.v {
-        let y = try!(env.call(&argv[0],&Object::Null,&[x.clone()]));
+        let y = env.call(&argv[0],&Object::Null,&[x.clone()])?;
         let condition = match y {
             Object::Bool(u)=>u,
             ref value => return env.type_error2(
@@ -319,7 +319,7 @@ pub fn map_fn(env: &mut Env, f: &Object, argv: &[Object]) -> FnResult {
         match argv[i] {
             Object::List(ref a) => v.push(a.clone()),
             ref a => {
-                let y = try!(list(env,a));
+                let y = list(env,a)?;
                 // todo: traceback
                 v.push(match y {Object::List(a) => a, _ => unreachable!()});
             }
@@ -339,7 +339,7 @@ pub fn map_fn(env: &mut Env, f: &Object, argv: &[Object]) -> FnResult {
         for i in 0..argc {
             args[i] = v[i].borrow().v[k].clone();
         }
-        let y = try!(env.call(f,null,&args));
+        let y = env.call(f,null,&args)?;
         vy.push(y);
     }
     return Ok(List::new_object(vy));

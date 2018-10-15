@@ -74,7 +74,7 @@ impl Interface for Array {
                 if first {first = false;}
                 else {s.push_str(", ");}
                 let x = &data[(base+i as isize*stride) as usize];
-                s.push_str(&try!(x.repr(env)));
+                s.push_str(&x.repr(env)?);
             }
             s.push_str(")");
             return Ok(s);
@@ -98,7 +98,7 @@ impl Interface for Array {
                     if jfirst {jfirst = false;}
                     else {s.push_str(", ");}
                     let x = &data[(ibase+j as isize*jstride) as usize];
-                    s.push_str(&try!(x.repr(env)));
+                    s.push_str(&x.repr(env)?);
                 }
                 s.push_str("]");
             }
@@ -341,7 +341,7 @@ impl Interface for Array {
                             "Value error in matrix multiplication A*B:\n  A.shape[0] != B.shape[1]."
                         );
                     }
-                    let y = try!(mpy_matrix_matrix(env,self.s[0].shape,self,b));
+                    let y = mpy_matrix_matrix(env,self.s[0].shape,self,b)?;
                     {
                         let data = y.data.borrow();
                         if data.len()==1 {
@@ -368,7 +368,7 @@ impl Interface for Array {
                 if self.s[0].shape != self.s[1].shape {
                     panic!();
                 }
-                let y = try!(matrix_power(env,self,n,self.s[0].shape));
+                let y = matrix_power(env,self,n,self.s[0].shape)?;
                 return Ok(Object::Interface(y));
             }else{
                 env.type_error1("Type error in A^n: n is not an integer.","n",&n)
@@ -404,7 +404,7 @@ fn compare(env: &mut Env, a: &Array, b: &Array,
                 for i in 0..a.s[0].shape {
                     let aindex = (a.base as isize+i as isize*astride) as usize;
                     let bindex = (b.base as isize+i as isize*bstride) as usize;
-                    let y = try!(relation(env,&adata[aindex],&bdata[bindex]));
+                    let y = relation(env,&adata[aindex],&bdata[bindex])?;
                     match y {
                         Object::Bool(y) => {
                             if !y {return Ok(Object::Bool(false));}
@@ -430,7 +430,7 @@ fn compare(env: &mut Env, a: &Array, b: &Array,
                     for j in 0..a.s[0].shape {
                         let aindex = (aibase+j as isize*ajstride) as usize;
                         let bindex = (bibase+j as isize*bjstride) as usize;
-                        let y = try!(relation(env,&adata[aindex],&bdata[bindex]));
+                        let y = relation(env,&adata[aindex],&bdata[bindex])?;
                         match y {
                             Object::Bool(y) => {
                                 if !y {return Ok(Object::Bool(false));}
@@ -483,11 +483,11 @@ fn matrix_power(env: &mut Env, a: &Array, mut n: u32, size: usize)
     let mut base = y.clone();
     loop {
         if n&1 == 1 {
-            y = try!(mpy_matrix_matrix(env,size,&y,&base));
+            y = mpy_matrix_matrix(env,size,&y,&base)?;
         }
         n /= 2;
         if n==0 {break;}
-        base = try!(mpy_matrix_matrix(env,size,&base,&base));
+        base = mpy_matrix_matrix(env,size,&base,&base)?;
     }
     return Ok(y);
 }
@@ -504,7 +504,7 @@ fn map_unary_operator(a: &Array,
         let data = a.data.borrow();
         for i in 0..a.s[0].shape {
             let x = &data[(base+i as isize*stride) as usize];
-            v.push(try!(operator(env,x)));
+            v.push(operator(env,x)?);
         }
         return Ok(Object::Interface(Array::vector(v)));
     }else if a.n==2 {
@@ -520,7 +520,7 @@ fn map_unary_operator(a: &Array,
             let jbase = base+i as isize*istride;
             for j in 0..n {
                 let x = &data[(jbase+j as isize*jstride) as usize];
-                v.push(try!(operator(env,x)));
+                v.push(operator(env,x)?);
             }
         }
         return Ok(Object::Interface(Array::matrix(m,n,v)));
@@ -556,17 +556,17 @@ fn map_binary_operator(a: &Array, b: &Object,
             let adata = a.data.borrow();
             let bdata = b.data.borrow();
             for i in 0..a.s[0].shape {
-                let y = try!(operator(env,
+                let y = operator(env,
                     &adata[(base as isize+i as isize*stride) as usize],
                     &bdata[(base2 as isize+i as isize*stride2) as usize]
-                ));
+                )?;
                 v.push(y);
             }
         }else{
             let adata = a.data.borrow();
             for i in 0..a.s[0].shape {
                 let index = (base as isize+i as isize*stride) as usize;
-                let y = try!(operator(env,&adata[index],b));
+                let y = operator(env,&adata[index],b)?;
                 v.push(y);
             }
         }
@@ -600,7 +600,7 @@ fn map_binary_operator(a: &Array, b: &Object,
                 for j in 0..n {
                     let aindex = (aibase+j as isize*ajstride) as usize;
                     let bindex = (bibase+j as isize*bjstride) as usize;
-                    let y = try!(operator(env,&adata[aindex],&bdata[bindex]));
+                    let y = operator(env,&adata[aindex],&bdata[bindex])?;
                     v.push(y);
                 }
             }
@@ -654,7 +654,7 @@ fn array_map(env: &mut Env, a: &Array, f: &Object) -> FnResult {
         let data = a.data.borrow();
         for i in 0..a.s[0].shape {
             let x = data[(base+i as isize*stride) as usize].clone();
-            let y = try!(env.call(f,&Object::Null,&[x]));
+            let y = env.call(f,&Object::Null,&[x])?;
             v.push(y);
         }
         return Ok(Object::Interface(Array::vector(v)));
@@ -671,7 +671,7 @@ fn array_map(env: &mut Env, a: &Array, f: &Object) -> FnResult {
             let jbase = base+i as isize*istride;
             for j in 0..n {
                 let x = data[(jbase+j as isize*jstride) as usize].clone();
-                let y = try!(env.call(f,&Object::Null,&[x]));
+                let y = env.call(f,&Object::Null,&[x])?;
                 v.push(y);
             }
         }
@@ -740,11 +740,11 @@ fn abs(env: &mut Env, a: &Array) -> FnResult {
         let base = a.base;
         let stride = a.s[0].stride;
         let data = a.data.borrow();
-        let mut sum = try!(abs_square_element(env,&data[base]));
+        let mut sum = abs_square_element(env,&data[base])?;
         for i in 1..a.s[0].shape {
             let index = (base as isize+i as isize*stride) as usize;
-            let p = try!(abs_square_element(env,&data[index]));
-            sum = try!(op_add(env,&sum,&p));
+            let p = abs_square_element(env,&data[index])?;
+            sum = op_add(env,&sum,&p)?;
         }
         return match sum {
             Object::Int(x) => Ok(Object::Float((x as f64).sqrt())),
@@ -796,12 +796,12 @@ fn scalar_product(env: &mut Env, n: usize,
     a: &[Object], abase: usize, astride: isize,
     b: &[Object], bbase: usize, bstride: isize
 ) -> FnResult {
-    let mut sum = try!(op_mpy(env,&a[abase],&b[bbase]));
+    let mut sum = op_mpy(env,&a[abase],&b[bbase])?;
     for i in 1..n {
         let aindex = (abase as isize+i as isize*astride) as usize;
         let bindex = (bbase as isize+i as isize*bstride) as usize;
-        let p = try!(op_mpy(env,&a[aindex],&b[bindex]));
-        sum = try!(op_add(env,&sum,&p));
+        let p = op_mpy(env,&a[aindex],&b[bindex])?;
+        sum = op_add(env,&sum,&p)?;
     }
     return Ok(sum);
 }
@@ -814,10 +814,10 @@ fn mpy_matrix_vector(env: &mut Env, n: usize,
     let xdata = x.data.borrow();
     for i in 0..a.s[1].shape {
         let base = (a.base as isize+i as isize*a.s[1].stride) as usize;
-        let p = try!(scalar_product(env,n,
+        let p = scalar_product(env,n,
             &adata, base, a.s[0].stride,
             &xdata, x.base, x.s[0].stride
-        ));
+        )?;
         y.push(p);
     }
     return Ok(Object::Interface(Array::vector(y)));
@@ -835,10 +835,10 @@ fn mpy_matrix_matrix(env: &mut Env, size: usize,
         let ibase = (a.base as isize+i as isize*a.s[1].stride) as usize;
         for j in 0..n {
             let jbase = (b.base as isize+j as isize*b.s[0].stride) as usize;
-            let p = try!(scalar_product(env,size,
+            let p = scalar_product(env,size,
                 &adata, ibase, a.s[0].stride,
                 &bdata, jbase, b.s[1].stride
-            ));
+            )?;
             y.push(p);
         }
     }
@@ -942,7 +942,7 @@ fn array(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
         _ => return env.type_error("Type error in array(n,a): n is not an integer.")
     };
     if n==1 {
-        let y = try!(::global::list(env,&argv[1]));
+        let y = ::global::list(env,&argv[1])?;
         if let Object::List(a) = y {
             return Ok(Object::Interface(Array::vector(a.borrow().v.clone())));
         }else{
@@ -1029,7 +1029,7 @@ fn trace(env: &mut Env, a: &Array) -> FnResult {
         let mut y = data[a.base].clone();
         for i in 1..n {
             let index = (base+i as isize*istride+i as isize*jstride) as usize;
-            y = try!(op_add(env,&y,&data[index]));
+            y = op_add(env,&y,&data[index])?;
         }
         return Ok(y);
     }else{

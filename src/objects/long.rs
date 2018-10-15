@@ -15,7 +15,7 @@ pub struct Long{
 impl fmt::LowerHex for Long {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         for &x in self.v[..].iter().rev() {
-            try!(write!(f, "{:01$x}", x, HEX_COUNT));
+            write!(f, "{:01$x}", x, HEX_COUNT)?;
         }
         Ok(())
     }

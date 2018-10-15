@@ -157,11 +157,11 @@ fn complete_u32_char(c: i32) -> char {
 
 pub fn getline_history(prompt: &str, history: &History) -> io::Result<String> {
     let fd: RawFd = STDIN_FILENO;
-    let tio_backup = try!(Termios::from_fd(fd));
+    let tio_backup = Termios::from_fd(fd)?;
     let mut tio = tio_backup.clone();
 
     tio.c_lflag &= !(ICANON|ECHO);
-    try!(tcsetattr(fd, TCSANOW, &tio));
+    tcsetattr(fd, TCSANOW, &tio)?;
     print!("{}",prompt);
     flush();
 
@@ -265,7 +265,7 @@ pub fn getline_history(prompt: &str, history: &History) -> io::Result<String> {
         for _ in i..n {print!("\x1b[D");}
         flush();
     }
-    try!(tcsetattr(fd, TCSANOW, &tio_backup));
+    tcsetattr(fd, TCSANOW, &tio_backup)?;
     let s: String = a.into_iter().collect();
     return Ok(s);
 }

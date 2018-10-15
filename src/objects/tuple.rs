@@ -32,7 +32,7 @@ impl Interface for Tuple {
         let mut first = true;
         for x in &self.v {
             if first {first = false;} else {s.push_str(", ");}
-            s.push_str(&try!(x.string(env)));
+            s.push_str(&x.string(env)?);
         }
         s.push_str(")");
         return Ok(s);
@@ -73,7 +73,7 @@ impl Interface for Tuple {
             let len = self.v.len();
             if len == b.v.len() {
                 for i in 0..len {
-                    let y = try!(op_eq(env,&self.v[i],&b.v[i]));
+                    let y = op_eq(env,&self.v[i],&b.v[i])?;
                     if let Object::Bool(y) = y {
                         if !y {return Ok(Object::Bool(false));}
                     }else{

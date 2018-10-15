@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Regular expressions</title>
+  <link href="../css/main.css" rel="stylesheet">
+  <script src = "../js/moss-syntax.js">
+  </script>
+</head>
+<body>
+
+<table class="navigation">
+<tr><td><b>&uarr;</b> <a href="toc.htm">Up</a>
+</table>
+<h1>Regular expressions</h1>
+
+<div class="toc">
+<h2 id="toc">Table of contents</h2>
+<ol>
+<li><a href="#Overview">Overview</a>
+<li><a href="#Basics">Basics</a>
+<li><a href="#Classes">Character classes</a>
+<li><a href="#All">Finding all</a>
+<li><a href="#Groups">Groups</a>
+<li><a href="#Examples">Examples</a>
+</ol>
+</div>
+
+<h2 id="Overview">Overview</h2>
+
+<h3>Table of meta characters</h3>
+<table class="bt">
+<tr><th>Meta <th>Meaning
+<tr><th><code>.</code>
+  <td>Matches any character.
+<tr><th><code>pq</code>
+  <td> Matches the concatenation of
+  the patterns <code>p</code> and <code>q</code>.
+  This is an invisible infix operator, there is no meta character.
+<tr><th><code>p*</code>
+  <td>Matches the preceding pattern <code>p</code> zero or more times.
+  (Kleene star)
+<tr><th><code>p+</code>
+  <td>Matches the preceding pattern <code>p</code> one or more times.
+  (Kleene plus)
+<tr><th><code>p?</code>
+  <td>Matches the preceding pattern <code>p</code>
+  zero times or one time.
+<tr><th><code>p|q</code>
+  <td>An infix operator. Matches if at least one operand
+  pattern <code>p</code> or <code>q</code> matches.
+  This is called alternation.
+<tr><th><code>p{m}</code>
+  <td>Matches the preceding pattern
+  exactly <code>m</code> times.
+<tr><th><code>p{m,}</code>
+  <td>Matches the preceding pattern <code>m</code> or more times.
+<tr><th><code>p{m,n}</code>
+  <td>Matches the preceding pattern from <code>m</code>
+  upto <code>n</code> times.
+<tr><th><code>()</code>
+  <td>Grouping (undermine operator precedence).
+<tr><th><code>{}</code>
+  <td>Escape sequences.
+<tr><th><code>[]</code>
+  <td>Character classes.
+<tr><th><code>(*...)</code>
+  <td>An marked group that will be added to the list of groups.
+</table>
+
+<h3>Table of escape sequences</h3>
+<table class="bt">
+<tr><th>Escape<br>sequence
+  <th>Meaning
+<tr><th><code>{s}</code>
+  <td><code>"\s"</code> (space)
+<tr><th><code>{t}</code>
+  <td><code>"\t"</code> (tabulator)
+<tr><th><code>{n}</code>
+  <td><code>"\n"</code> (newline)
+<tr><th><code>{r}</code>
+  <td><code>"\r"</code> (carriage return)
+<tr><th><code>{.}</code>
+  <td><code>"."</code> (dot)
+<tr><th><code>{*}</code>
+  <td><code>"*"</code> (asterisk)
+<tr><th><code>{+}</code>
+  <td><code>"+"</code> (plus)
+<tr><th><code>{(}</code>
+  <td><code>"("</code> (left parenthesis)
+<tr><th><code>{L}</code>
+  <td><code>"{"</code> (left curly bracket)
+<tr><th><code>{R}</code>
+  <td><code>"}"</code> (right curly bracket)
+<tr><th><code>{a}</code>
+  <td><code>[A-Za-z]</code> (alphabetic ASCII characters)
+<tr><th><code>{d}</code>
+  <td><code>[0-9]</code> (ASCII digits)
+<tr><th><code>{x}</code>
+  <td><code>[0-9A-Fa-f]</code> (hexadecimal ASCII digits)
+<tr><th><code>{l}</code>
+  <td>Lowercase ASCII letters
+<tr><th><code>{u}</code>
+  <td>Uppercase ASCII letters
+<tr><th><code>{ua}</code>
+  <td>Alphabetic Unicode characters
+<tr><th><code>{ul}</code>
+  <td>Lowercase Unicode letters
+<tr><th><code>{uu}</code>
+  <td>Uppercase Unicode letters
+<tr><th><code>{g}</code>
+  <td><code>[\u{21}-\u{7e}]</code> (graphical: visible ASCII)
+<tr><th><code>{_}</code>
+  <td>whitespace
+<tr><th><code>{B}</code>
+  <td>Beginning of the string
+<tr><th><code>{E}</code>
+  <td>End of the string
+<tr><th><code>{LB}</code>
+  <td>Beginning of a line
+<tr><th><code>{LE}</code>
+  <td>End of a line
+</table>
+
+<h2 id="Basics">Basics</h2>
+<pre class="moss">
+use regex: re
+
+# Some string matches itself
+&gt; re("café").match("café")
+true
+
+# Matches if any of two alternatives occur:
+&gt; r = re("moon|soon")
+&gt; [r.match("moon"), r.match("soon")]
+[true, true]
+
+# Character concatenation has a higher binding than '|',
+# but we can undermine this by grouping.
+&gt; r = re("(m|s)oon")
+&gt; [r.match("moon"), r.match("soon")]
+[true, true]
+
+# A digit
+re("0|1|2|3|4|5|6|8|9")
+
+# A digit, expressed as a character class
+re("[0-9]")
+
+# A digit, shortest notation
+re("{d}")
+
+# A binary literal
+re("(0|1)+")
+
+# A binary literal, digits expressed as a character class
+re("[01]+")
+
+# A date (year-month-day)
+re("{d}{d}{d}{d}-{d}{d}-{d}{d}")
+
+# A date, leading zeros not needed
+re("{d}{d}?{d}?{d}?-{d}{d}?-{d}{d}?")
+
+# A date, using advanced quantifiers
+re("{d}{4}-{d}{2}-{d}{2}")
+re("{d}{1,4}-{d}{1,2}-{d}{1,2}")
+
+# Muhkuh (moo(ing)? cow)
+&gt; re("Mu+h+").match("Muuuuuhhh")
+true
+
+# Kleene star
+&gt; r = re("(x|y)*")
+&gt; ["", "x", "y", "xx", "xy", "yx", "yy",
+  "xxx", "xxy", "xxyxxxyyx"].all(|s| r.match(s))
+true
+
+# Integer literals
+&gt; r = re("[+-]?{d}+")
+&gt; r.match("-12")
+true
+
+# Simple floating point literals
+re("[+-]?{d}+{.}{d}+")
+
+# Full floating point literals
+re("[+-]?({d}+({.}{d}*)?|{.}{d}+)([Ee][+-]?{d}+)?")
+
+# Whitespace has no meaning inside of a regular expression
+re("""
+  [+-]?
+  (   {d}+ ({.} {d}*)?
+    | {.} {d}+
+  )
+  ([Ee] [+-]? {d}+)?
+""")
+
+# Whitespace has to be stated explicitly
+&gt; r = re("a{s}*b")
+&gt; r.match("a\s\s\s\s\sb")
+true
+
+&gt; r.match("a\s\tb")
+false
+</pre>
+
+<p>Task to the reader: How to state a pattern for full
+floating point literals that excludes integer literals?
+</p>
+
+
+<h2 id="Classes">Character classes</h2>
+<pre class="moss">
+# Maches a single characters from a list.
+re("(a|b|c|d|1|2)")
+
+# Such a list may be written briefer as a character class.
+re("[abcd12]")
+
+# And ranges of characters can be stated,
+# using range notation.
+re("[a-d12]")
+
+# Any range from Unicode code point upto another
+# Unicode code point can be such an range.
+# For example, the greek alphabet is:
+re("[\u{0391}-\u{03a9}\u{03b1}-\u{03c9}]")
+# That is:
+re("[&#x0391;-&#x03a9;&#x03b1;-&#x03c9;]")
+
+# Escape sequences can occour inside of character classes.
+re("[{d}{a}]")
+# This is the same as:
+re("[0-9A-Za-z]")
+</pre>
+
+
+<h2 id="All">Finding all</h2>
+<p>Often one wants to find all non-overlapping patterns
+in a string. If&nbsp;<code>r</code> is some regex,
+then <code>r.list(s)</code> returns the list of
+all non-overlapping occurences of&nbsp;<code>r</code> in&nbsp;<code>s</code>.
+</p>
+<pre class="moss">
+use regex: re
+
+word = re("{a}+")
+
+text = "The quick brown fox jumps over the lazy dog."
+
+print(word.list(text))
+# Output:
+# ["The", "quick", "brown", "fox", "jumps",
+# "over", "the", "lazy", "dog"]
+</pre>
+
+<h2 id="Groups">Groups</h2>
+<p>Groups can be extracted from a string, according to a
+regular expression. A group is formed by a pair of parentheses that
+has an asterisk after the opening parenthesis.
+There is a method <code>groups</code> that returns <code>null</code>
+if the regex does not match, otherwise the list of groups.
+</p>
+
+<pre class="moss">
+use regex: re
+r = re("(*{d}{d}{d}{d})-(*{d}{d})-(*{d}{d})")
+
+while true
+  s = input("Date: ")
+  t = r.groups(s)
+  if t is null
+    print("A well formed date please!")
+  else
+    print(t)
+  end
+end
+
+# Date: 2016-10-14
+# ["2016", "10", "14"]
+</pre>
+
+<h2 id="Examples">Examples</h2>
+<h3>A very simple tokenizer generator</h3>
+<pre class="moss">
+use regex: re
+
+function tokenizer(d)
+  r = re(d["r"])
+  f = d["f"] if "f" in d else null
+  return fn|s|
+    a = r.list(s)
+    return a if f is null else a.map(f)
+  end
+end
+
+words = tokenizer({
+  r = "{a}+"
+})
+
+integers = tokenizer({
+  r = "{d}+",
+  f = int
+})
+
+numbers = tokenizer({
+  r = "({d}|{.})+",
+  f = |x| float(x) if '.' in x else int(x)
+})
+
+for line in input
+  a = numbers(line)
+  print(a)
+end
+</pre>
+
+<h3>Alternative versions of isalpha</h3>
+
+<pre class="moss">
+use regex: re
+
+function bind_regex(rs)
+  r = re(rs)
+  return |s| r.match(s)
+end
+
+isalpha_german = bind_regex("[A-Za-zÄÖÜäöüß]*")
+isalpha_latin = bind_regex("""[
+  A-Z a-z
+  \u{00c0}-\u{00d6}
+  \u{00d8}-\u{00f6}
+  \u{00f8}-\u{024f}
+]*""")
+</pre>
+
+<p>As one can see, the Unicode letter range was fragmented by
+throwing in two mathematical operators (<code>\u{d7}</code>,
+<code>\u{f7}</code>). Matching upper and lower case is
+even more complicated. Furthermore, in general a letter may
+be followed by combining characters.
+
+
+</body>
+</html>
+
+

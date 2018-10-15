@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Text processing</title>
+  <link href="../css/main.css" rel="stylesheet">
+  <script src="../js/moss-syntax.js"></script>
+</head>
+<body>
+
+<table class="navigation">
+<tr><td><b>&uarr;</b> <a href="toc.htm">Up</a>
+</table>
+<h1>Text processing</h1>
+
+<h2 id="regex">Module regex</h2>
+<p>Regular expressions.
+
+<dl class="code">
+<dt>re(s)
+<dd>Obtain a regular expression from a string representation <code>s</code>.
+</dl>
+
+<b>Type Regex, <code>r: Regex</code></b>
+<dl class="code">
+<dt>r.match(s)
+<dd>Return true if <code>r</code> matches <code>s</code>, else false.
+
+<dt>r.list(s)
+<dd>Return the list of non-overlapping matches.
+
+<dt>r.groups(s)
+<dd>Return the list of groups if <code>r</code> matches <code>s</code>,
+else <code>null</code>.
+</dl>
+
+</body>
+</html>
+
