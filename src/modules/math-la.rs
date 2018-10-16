@@ -9,7 +9,7 @@ use std::cell::RefCell;
 use std::any::Any;
 use object::{
     Object, FnResult, Function, List, Table, Interface,
-    Exception, new_module, VARIADIC
+    Exception, new_module, downcast, VARIADIC
 };
 use vm::{
     Env, op_neg, op_add, op_sub, op_mpy, op_div, op_eq,
@@ -48,13 +48,6 @@ impl Array {
             base: 0,
             data: Rc::new(RefCell::new(a)),
         })
-    }
-    fn downcast(x: &Object) -> Option<&Array> {
-        if let Object::Interface(ref a) = *x {
-            a.as_any().downcast_ref::<Array>()
-        }else{
-            None
-        }
     }
 }
 
@@ -241,7 +234,7 @@ impl Interface for Array {
                     ref i => return env.type_error1(
                         "Type error in a[i]=v: i is not an integer.","i",i)
                 };
-                let v = if let Some(x) = Array::downcast(value) {x}
+                let v = if let Some(x) = downcast::<Array>(value) {x}
                 else{
                     return env.type_error("Type error in a[i]=v: v is not an array.");
                 };
@@ -318,7 +311,7 @@ impl Interface for Array {
     }
     fn mpy(&self, b: &Object, env: &mut Env) -> FnResult {
         if self.n==1 {
-            if let Some(b) = Array::downcast(b) {
+            if let Some(b) = downcast::<Array>(b) {
                 if b.n==1 {
                     let m = self.s[0].shape.min(b.s[0].shape);
                     let adata = self.data.borrow();
@@ -331,7 +324,7 @@ impl Interface for Array {
             }
             return scalar_multiplication(env,b,self);
         }else if self.n==2 {
-            if let Some(b) = Array::downcast(b) {
+            if let Some(b) = downcast::<Array>(b) {
                 if b.n==1 {
                     let m = self.s[0].shape.min(b.s[0].shape);
                     return mpy_matrix_vector(env,m,self,b);
@@ -378,7 +371,7 @@ impl Interface for Array {
         }
     }
     fn eq(&self, b: &Object, env: &mut Env) -> FnResult {
-        if let Some(b) = Array::downcast(b) {
+        if let Some(b) = downcast::<Array>(b) {
             return compare(env,self,b,"==",op_eq);
         }else{
             return Ok(Object::Bool(false));
@@ -538,7 +531,7 @@ fn map_binary_operator(a: &Array, b: &Object,
         let stride = a.s[0].stride;
         let base = a.base;
         let mut v: Vec<Object> = Vec::with_capacity(a.s[0].shape);
-        if let Some(b) = Array::downcast(b) {
+        if let Some(b) = downcast::<Array>(b) {
             if b.n != 1 {
                 return env.type_error(&format!(
                     "Type error in v{}w: v is a vector, but w is of order {}.",
@@ -572,7 +565,7 @@ fn map_binary_operator(a: &Array, b: &Object,
         }
         return Ok(Object::Interface(Array::vector(v)));
     }else if a.n==2 {
-        if let Some(b) = Array::downcast(b) {
+        if let Some(b) = downcast::<Array>(b) {
             if b.n != 2 {
                 return env.type_error(&format!(
                     "Type error in A{}B: A is a matrix, but B is of order {}.",
@@ -685,7 +678,7 @@ fn map(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         1 => {}, n => return env.argc_error(n,1,1,"map")
     }
-    if let Some(a) = Array::downcast(pself) {
+    if let Some(a) = downcast::<Array>(pself) {
         return array_map(env,a,&argv[0]);
     }else{
         panic!();
@@ -870,7 +863,7 @@ fn matrix_from_vectors(env: &mut Env, n: usize, argv: &[Object]) -> FnResult {
     let m = argv.len();
     let mut v: Vec<Object> = Vec::with_capacity(m*n);
     for t in argv {
-        if let Some(a) = Array::downcast(t) {
+        if let Some(a) = downcast::<Array>(t) {
             if a.n != 1 || a.s[0].shape != n {
                 return env.value_error(
                 "Vale error in matrix(*args): all args must be vectors of the same size.");
@@ -902,7 +895,7 @@ fn matrix(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     'type_error: loop{
         let n = match argv[0] {
             Object::List(ref a) => a.borrow().v.len(),
-            ref x => if let Some(x) = Array::downcast(x) {
+            ref x => if let Some(x) = downcast::<Array>(x) {
                 if x.n==1 {
                     return matrix_from_vectors(env,x.s[0].shape,argv);
                 }else{
@@ -1041,7 +1034,7 @@ fn la_copy(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         1 => {}, argc => return env.argc_error(argc,1,1,"id")
     }
-    if let Some(a) = Array::downcast(&argv[0]) {
+    if let Some(a) = downcast::<Array>(&argv[0]) {
         return Ok(Object::Interface(copy(a)));
     }else{
         return Ok(argv[0].clone());

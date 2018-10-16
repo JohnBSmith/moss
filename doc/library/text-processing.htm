@@ -29,9 +29,16 @@
 <dt>r.list(s)
 <dd>Return the list of non-overlapping matches.
 
+<dt>r.split(s)
+<dd>Split the string <code>s</code> into parts,
+using pattern <code>r</code> as a separator.
+
 <dt>r.groups(s)
 <dd>Return the list of groups if <code>r</code> matches <code>s</code>,
 else <code>null</code>.
+
+<dt>r.replace(s,f)
+<dd>Replace every non-overlapping match <code>x</code> with <code>f(x)</code>.
 </dl>
 
 </body>

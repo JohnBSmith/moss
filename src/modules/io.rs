@@ -6,9 +6,8 @@ use std::fs;
 use std::io::Read;
 
 use object::{
-    Object, Table, Interface,
-    Exception, FnResult, new_module,
-    interface_object_get
+    Object, Table, Interface, Exception, FnResult,
+    new_module, downcast, interface_object_get
 };
 use vm::{Env,interface_types_set,interface_index};
 use data::{Bytes};
@@ -16,16 +15,6 @@ use data::{Bytes};
 struct File {
     file: RefCell<fs::File>,
     id: String
-}
-
-impl File {
-    fn downcast(x: &Object) -> Option<&File> {
-        if let Object::Interface(ref a) = *x {
-            a.as_any().downcast_ref::<File>()
-        }else{
-            None
-        }
-    }
 }
 
 impl Interface for File {
@@ -69,7 +58,7 @@ fn open(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
 }
 
 fn file_read(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
-    if let Some(file) = File::downcast(pself) {
+    if let Some(file) = downcast::<File>(pself) {
         match argv.len() {
             0 => {
                 let mut buffer: Vec<u8> = Vec::new();

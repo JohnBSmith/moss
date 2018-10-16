@@ -13,7 +13,7 @@ use std::fmt::Write;
 use complex::c64;
 use object::{
   Object, Exception, Table, FnResult, Interface,
-  VARIADIC, new_module
+  VARIADIC, new_module, downcast
 };
 use vm::{Env,interface_types_set,interface_index};
 
@@ -35,13 +35,6 @@ struct Array{
 }
 
 impl Array{
-    fn downcast(x: &Object) -> Option<&Array> {
-        if let Object::Interface(ref a) = *x {
-            a.as_any().downcast_ref::<Array>()
-        }else{
-            None
-        }
-    }
     fn vector_f64(v: Vec<f64>) -> Rc<Array> {
         let shape = v.len();
         let data = Rc::new(RefCell::new(Data::F64(
@@ -76,7 +69,7 @@ impl Interface for Array {
         }
     }
     fn add(&self, b: &Object, env: &mut Env) -> FnResult {
-        if let Some(b) = Array::downcast(b) {
+        if let Some(b) = downcast::<Array>(b) {
             match *self.data.borrow() {
                 Data::F64(ref data) => map_binary_f64(self,data,b,&|x,y| x+y),
                 _ => panic!()
@@ -86,7 +79,7 @@ impl Interface for Array {
         }
     }
     fn sub(&self, b: &Object, env: &mut Env) -> FnResult {
-        if let Some(b) = Array::downcast(b) {
+        if let Some(b) = downcast::<Array>(b) {
             match *self.data.borrow() {
                 Data::F64(ref data) => map_binary_f64(self,data,b,&|x,y| x-y),
                 _ => panic!()

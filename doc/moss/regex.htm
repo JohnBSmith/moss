@@ -17,16 +17,17 @@
 <div class="toc">
 <h2 id="toc">Table of contents</h2>
 <ol>
-<li><a href="#Overview">Overview</a>
-<li><a href="#Basics">Basics</a>
-<li><a href="#Classes">Character classes</a>
-<li><a href="#All">Finding all</a>
-<li><a href="#Groups">Groups</a>
-<li><a href="#Examples">Examples</a>
+<li><a href="#overview">Overview</a>
+<li><a href="#basics">Basics</a>
+<li><a href="#classes">Character classes</a>
+<li><a href="#all">Finding all</a>
+<li><a href="#groups">Groups</a>
+<li><a href="#replacement">Replacement</a>
+<li><a href="#examples">Examples</a>
 </ol>
 </div>
 
-<h2 id="Overview">Overview</h2>
+<h2 id="overview">Overview</h2>
 
 <h3>Table of meta characters</h3>
 <table class="bt">
@@ -122,7 +123,7 @@
   <td>End of a line
 </table>
 
-<h2 id="Basics">Basics</h2>
+<h2 id="basics">Basics</h2>
 <pre class="moss">
 use regex: re
 
@@ -210,7 +211,7 @@ floating point literals that excludes integer literals?
 </p>
 
 
-<h2 id="Classes">Character classes</h2>
+<h2 id="classes">Character classes</h2>
 <pre class="moss">
 # Maches a single characters from a list.
 re("(a|b|c|d|1|2)")
@@ -236,7 +237,7 @@ re("[0-9A-Za-z]")
 </pre>
 
 
-<h2 id="All">Finding all</h2>
+<h2 id="all">Finding all</h2>
 <p>Often one wants to find all non-overlapping patterns
 in a string. If&nbsp;<code>r</code> is some regex,
 then <code>r.list(s)</code> returns the list of
@@ -255,7 +256,7 @@ print(word.list(text))
 # "over", "the", "lazy", "dog"]
 </pre>
 
-<h2 id="Groups">Groups</h2>
+<h2 id="groups">Groups</h2>
 <p>Groups can be extracted from a string, according to a
 regular expression. A group is formed by a pair of parentheses that
 has an asterisk after the opening parenthesis.
@@ -281,7 +282,23 @@ end
 # ["2016", "10", "14"]
 </pre>
 
-<h2 id="Examples">Examples</h2>
+<h2 id="replacement">Replacement</h2>
+
+<p>Rather than returning the list of non-overlapping matches,
+these matches <code>x</code> may be replaced by <code>f(x)</code>.
+To achieve this, there is the method <code>r.replace(s,f)</code>.
+
+<pre class="moss">
+use regex: re
+
+text = "The quick brown fox jumps over the lazy dog."
+
+print(re("{a}+").replace(text,|x| "["+x+"]"))
+
+# [The] [quick] [brown] [fox] [jumps] [over] [the] [lazy] [dog].
+</pre>
+
+<h2 id="examples">Examples</h2>
 <h3>A very simple tokenizer generator</h3>
 <pre class="moss">
 use regex: re

@@ -10,7 +10,7 @@ use std::ascii::AsciiExt;
 
 use object::{
     Object, List, U32String, Table, Function, FnResult, Interface,
-    new_module, Exception
+    Exception, new_module, downcast
 };
 use vm::Env;
 
@@ -185,7 +185,7 @@ fn char_class(i: &mut TokenIterator) -> Result<Option<RegexSymbol>,String> {
                     Some(x) => x,
                     None => unreachable!()
                 });
-            }else if i.next_is(1,'-') && i.exists_at(2) {
+            }else if i.next_is(1,'-') && i.exists_at(2) && !i.next_is(2,']') {
                 let a = i.at(0);
                 let b = i.at(2);
                 v.push(RegexSymbol::Range(Box::new(Range{a,b})));
@@ -469,13 +469,64 @@ fn re_list(regex: &RegexSymbol, s: &Vec<char>) -> Object {
     return List::new_object(a);
 }
 
+fn re_split(regex: &RegexSymbol, s: &Vec<char>) -> Object {
+    let n = s.len();
+    let mut i = 0;
+    let mut j = CharIterator{index: 0, v: s};
+    let mut a: Vec<Object> = Vec::new();
+    let mut start = 0;
+    while i<n {
+        j.index = i;
+        if symbol_match(regex,&mut j,&mut None) {
+            let x = U32String::new_object(j.v[start..i].to_vec());
+            a.push(x);
+            i = j.index;
+            start = j.index;
+        }else{
+            i+=1;
+        }
+    }
+    let x = U32String::new_object(j.v[start..].to_vec());
+    a.push(x);
+    return List::new_object(a);
+}
+
+fn re_replace(regex: &RegexSymbol, s: &Vec<char>,
+    env: &mut Env, f: &Object
+) -> FnResult
+{
+    let n = s.len();
+    let mut i = 0;
+    let mut j = CharIterator{index: 0, v: s};
+    let mut buffer: Vec<char> = Vec::with_capacity(n);
+    while i<n {
+        j.index = i;
+        if symbol_match(regex,&mut j,&mut None) {
+            let x = U32String::new_object(j.v[i..j.index].to_vec());
+            let y = env.call(f,&Object::Null,&[x])?;
+            match y {
+                Object::String(sy) => {
+                    buffer.extend_from_slice(&sy.v);
+                },
+                _ => return env.type_error(
+                    "Type error in r.replace(s,f): f(x) is not a string.")
+            }
+            i = j.index;
+        }else{
+            buffer.push(j.v[i]);
+            i+=1;
+        }
+    }
+    return Ok(U32String::new_object(buffer));
+}
+
 fn regex_match(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         1 => {}, n => return env.argc_error(n,1,1,"match")
     }
     match argv[0] {
         Object::String(ref s) => {
-            if let Some(r) = Regex::downcast(pself) {
+            if let Some(r) = downcast::<Regex>(pself) {
                 Ok(Object::Bool(re_match(&r.regex,&s.v)))
             }else{
                 env.type_error("Type error in r.match(s): r is not a regex.")
@@ -491,13 +542,29 @@ fn regex_list(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     }
     match argv[0] {
         Object::String(ref s) => {
-            if let Some(r) = Regex::downcast(pself) {
+            if let Some(r) = downcast::<Regex>(pself) {
                 Ok(re_list(&r.regex,&s.v))
             }else{
-                env.type_error("Type error in r.list(s): r is not a regex.")
+                env.type_error1("Type error in r.list(s): r is not a regex.","r",pself)
             }
         },
         ref s => env.type_error1("Type error in r.list(s): s is not a string.","s",s)
+    }
+}
+
+fn regex_split(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+    match argv.len() {
+        1 => {}, n => return env.argc_error(n,1,1,"split")
+    }
+    match argv[0] {
+        Object::String(ref s) => {
+            if let Some(r) = downcast::<Regex>(pself) {
+                Ok(re_split(&r.regex,&s.v))
+            }else{
+                env.type_error1("Type error in r.split(s): r is not a regex.","r",pself)
+            }
+        },
+        ref s => env.type_error1("Type error in r.split(s): s is not a string.","s",s)
     }
 }
 
@@ -507,29 +574,35 @@ fn regex_groups(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     }
     match argv[0] {
         Object::String(ref s) => {
-            if let Some(r) = Regex::downcast(pself) {
+            if let Some(r) = downcast::<Regex>(pself) {
                 Ok(re_groups(&r.regex,&s.v))
             }else{
-                env.type_error("Type error in r.groups(s): r is not a regex.")
+                env.type_error1("Type error in r.groups(s): r is not a regex.","r",pself)
             }
         },
         ref s => env.type_error1("Type error in r.groups(s): s is not a string.","s",s)
     }
 }
 
+fn regex_replace(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+    match argv.len() {
+        2 => {}, n => return env.argc_error(n,2,2,"replace")
+    }
+    match argv[0] {
+        Object::String(ref s) => {
+            if let Some(r) = downcast::<Regex>(pself) {
+                re_replace(&r.regex,&s.v,env,&argv[1])
+            }else{
+                env.type_error1("Type error in r.replace(s,f): r is not a regex.","r",pself)
+            }
+        },
+        ref s => env.type_error1("Type error in r.replace(s,f): s is not a string.","s",s)
+    }
+}
+
 struct Regex{
     index: usize,
     regex: RegexSymbol
-}
-
-impl Regex{
-    fn downcast(x: &Object) -> Option<&Self> {
-        if let Object::Interface(ref a) = *x {
-            a.as_any().downcast_ref::<Self>()
-        }else{
-            None
-        }
-    }
 }
 
 impl Interface for Regex{
@@ -579,8 +652,10 @@ pub fn load_regex(env: &mut Env) -> Object {
     {
         let mut m = type_regex.map.borrow_mut();
         m.insert_fn_plain("match",regex_match,1,1);
-        m.insert_fn_plain("list", regex_list,1,1);
-        m.insert_fn_plain("groups", regex_groups,1,1);
+        m.insert_fn_plain("list",regex_list,1,1);
+        m.insert_fn_plain("split",regex_split,1,1);
+        m.insert_fn_plain("groups",regex_groups,1,1);
+        m.insert_fn_plain("replace",regex_replace,2,2);
     }
     let mut v = env.rte().interface_types.borrow_mut();
     let index = v.len();

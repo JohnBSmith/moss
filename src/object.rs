@@ -463,3 +463,12 @@ pub fn interface_object_get(
         }
     }
 }
+
+pub fn downcast<T: 'static>(x: &Object) -> Option<&T> {
+    if let Object::Interface(ref a) = *x {
+        a.as_any().downcast_ref::<T>()
+    }else{
+        None
+    }
+}
+

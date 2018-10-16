@@ -13,7 +13,7 @@ use std::fmt::Write;
 use complex::c64;
 use object::{
     Object, Exception, Table, FnResult, Interface, List,
-    VARIADIC, new_module, interface_object_get
+    VARIADIC, new_module, downcast, interface_object_get
 };
 use vm::{Env,interface_index};
 use iterable::new_iterator;
@@ -25,13 +25,6 @@ pub struct Bytes {
 impl Bytes {
     pub fn object_from_vec(v: Vec<u8>) -> Object {
         return Object::Interface(Rc::new(Bytes{data: RefCell::new(v)}))
-    }
-    fn downcast(x: &Object) -> Option<&Bytes> {
-        if let Object::Interface(ref a) = *x {
-            a.as_any().downcast_ref::<Bytes>()
-        }else{
-            None
-        }
     }
 }
 
@@ -124,7 +117,7 @@ fn bytes(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
 }
 
 pub fn bytes_list(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
-    if let Some(bytes) = Bytes::downcast(pself) {
+    if let Some(bytes) = downcast::<Bytes>(pself) {
         let a = bytes.data.borrow();
         let mut v: Vec<Object> = Vec::with_capacity(a.len());
         for &x in a.iter() {

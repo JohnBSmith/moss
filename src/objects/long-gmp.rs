@@ -7,7 +7,10 @@ use std::ptr::null;
 
 use std::rc::Rc;
 use std::any::Any;
-use object::{Object, FnResult, Interface, Exception};
+use object::{
+    Object, FnResult, Interface, Exception,
+    downcast
+};
 use vm::{Env, RTE};
 
 #[repr(C)]
@@ -316,14 +319,6 @@ impl Long {
     pub fn try_as_int(&self) -> Result<i32,()> {
         Mpz::try_as_si(&self.value)
     }
-
-    pub fn downcast(x: &Object) -> Option<&Long> {
-        if let Object::Interface(ref a) = *x {
-            a.as_any().downcast_ref::<Long>()
-        }else{
-            None
-        }
-    }
     pub fn add_int_int(a: i32, b: i32) -> Object {
         let x = Mpz::from_int(a);
         let mut y = Mpz::new();
@@ -367,7 +362,7 @@ impl Interface for Long {
             let mut y = Mpz::new();
             y.add_int(&self.value,b);
             return Ok(Object::Interface(Rc::new(Long{value: y})));
-        }else if let Some(b) = Long::downcast(b) {
+        }else if let Some(b) = downcast::<Long>(b) {
             let mut y = Mpz::new();
             y.add(&self.value,&b.value);
             return Ok(Object::Interface(Rc::new(Long{value: y})));
@@ -384,7 +379,7 @@ impl Interface for Long {
             let mut y = Mpz::new();
             y.sub_int(&self.value,b);
             return Ok(Object::Interface(Rc::new(Long{value: y})));
-        }else if let Some(b) = Long::downcast(b) {
+        }else if let Some(b) = downcast::<Long>(b) {
             let mut y = Mpz::new();
             y.sub(&self.value,&b.value);
             return Ok(Object::Interface(Rc::new(Long{value: y})));
@@ -401,7 +396,7 @@ impl Interface for Long {
             let mut y = Mpz::new();
             y.mul_int(&self.value,b);
             return Ok(Object::Interface(Rc::new(Long{value: y})));
-        }else if let Some(b) = Long::downcast(b) {
+        }else if let Some(b) = downcast::<Long>(b) {
             let mut y = Mpz::new();
             y.mul(&self.value,&b.value);
             return Ok(Object::Interface(Rc::new(Long{value: y})));
@@ -459,7 +454,7 @@ impl Interface for Long {
             Object::Float(b) => return Ok(Object::Float(a/b)),
             _ => {}
         }
-        if let Some(b) = Long::downcast(b) {
+        if let Some(b) = downcast::<Long>(b) {
             let b = Mpz::as_f64(&b.value);
             return Ok(Object::Float(a/b));
         }
@@ -483,7 +478,7 @@ impl Interface for Long {
             let mut y = Mpz::new();
             y.fdiv_int(&self.value,b);
             return Ok(Object::Interface(Rc::new(Long{value: y})));
-        }else if let Some(b) = Long::downcast(b) {
+        }else if let Some(b) = downcast::<Long>(b) {
             if b.value.cmp_int(0)==0 {
                 return env.value_error("Value error in a//b: b==0.");
             }
@@ -514,7 +509,7 @@ impl Interface for Long {
             let mut y = Mpz::new();
             y.fdiv_int_rem(&self.value,b);
             return Ok(Object::Interface(Rc::new(Long{value: y})));
-        }else if let Some(b) = Long::downcast(b) {
+        }else if let Some(b) = downcast::<Long>(b) {
             let mut y = Mpz::new();
             y.fdiv_rem(&self.value,&b.value);
             return Ok(Object::Interface(Rc::new(Long{value: y})));
@@ -550,7 +545,7 @@ impl Interface for Long {
     fn eq_plain(&self, b: &Object) -> bool {
         if let Object::Int(b) = *b {
             return self.value==b;
-        }else if let Some(b) = Long::downcast(b) {
+        }else if let Some(b) = downcast::<Long>(b) {
             return self.value==b.value;
         }else{
             return false;
@@ -560,7 +555,7 @@ impl Interface for Long {
     fn req_plain(&self, a: &Object) -> bool {
         if let Object::Int(a) = *a {
             return self.value==a;
-        }else if let Some(a) = Long::downcast(a) {
+        }else if let Some(a) = downcast::<Long>(a) {
             return self.value==a.value;
         }else{
             return false;
@@ -578,7 +573,7 @@ impl Interface for Long {
     fn lt(&self, b: &Object, env: &mut Env) -> FnResult {
         if let Object::Int(b) = *b {
             return Ok(Object::Bool(self.value.cmp_int(b)<0));
-        }else if let Some(b) = Long::downcast(b) {
+        }else if let Some(b) = downcast::<Long>(b) {
             return Ok(Object::Bool(self.value.cmp(&b.value)<0));
         }else{
             return env.type_error("Type error in a<b.");
@@ -588,7 +583,7 @@ impl Interface for Long {
     fn gt(&self, b: &Object, env: &mut Env) -> FnResult {
         if let Object::Int(b) = *b {
             return Ok(Object::Bool(self.value.cmp_int(b)>0));
-        }else if let Some(b) = Long::downcast(b) {
+        }else if let Some(b) = downcast::<Long>(b) {
             return Ok(Object::Bool(self.value.cmp(&b.value)>0));
         }else{
             return env.type_error("Type error in a>b.");
@@ -598,7 +593,7 @@ impl Interface for Long {
     fn le(&self, b: &Object, env: &mut Env) -> FnResult {
         if let Object::Int(b) = *b {
             return Ok(Object::Bool(self.value.cmp_int(b)<=0));
-        }else if let Some(b) = Long::downcast(b) {
+        }else if let Some(b) = downcast::<Long>(b) {
             return Ok(Object::Bool(self.value.cmp(&b.value)<=0));
         }else{
             return env.type_error("Type error in a<=b.");
@@ -608,7 +603,7 @@ impl Interface for Long {
     fn ge(&self, b: &Object, env: &mut Env) -> FnResult {
         if let Object::Int(b) = *b {
             return Ok(Object::Bool(self.value.cmp_int(b)>=0));
-        }else if let Some(b) = Long::downcast(b) {
+        }else if let Some(b) = downcast::<Long>(b) {
             return Ok(Object::Bool(self.value.cmp(&b.value)>=0));
         }else{
             return env.type_error("Type error in a>=b.");
@@ -618,7 +613,7 @@ impl Interface for Long {
     fn rlt(&self, a: &Object, env: &mut Env) -> FnResult {
         if let Object::Int(a) = *a {
             return Ok(Object::Bool(self.value.cmp_int(a)>0));
-        }else if let Some(a) = Long::downcast(a) {
+        }else if let Some(a) = downcast::<Long>(a) {
             return Ok(Object::Bool(self.value.cmp(&a.value)>0));
         }else{
             return env.type_error("Type error in a<b.");
@@ -628,7 +623,7 @@ impl Interface for Long {
     fn rgt(&self, a: &Object, env: &mut Env) -> FnResult {
         if let Object::Int(a) = *a {
             return Ok(Object::Bool(self.value.cmp_int(a)<0));
-        }else if let Some(a) = Long::downcast(a) {
+        }else if let Some(a) = downcast::<Long>(a) {
             return Ok(Object::Bool(self.value.cmp(&a.value)<0));
         }else{
             return env.type_error("Type error in a<b.");
@@ -638,7 +633,7 @@ impl Interface for Long {
     fn rle(&self, a: &Object, env: &mut Env) -> FnResult {
         if let Object::Int(a) = *a {
             return Ok(Object::Bool(self.value.cmp_int(a)>=0));
-        }else if let Some(a) = Long::downcast(a) {
+        }else if let Some(a) = downcast::<Long>(a) {
             return Ok(Object::Bool(self.value.cmp(&a.value)>=0));
         }else{
             return env.type_error("Type error in a<b.");
@@ -648,7 +643,7 @@ impl Interface for Long {
     fn rge(&self, a: &Object, env: &mut Env) -> FnResult {
         if let Object::Int(a) = *a {
             return Ok(Object::Bool(self.value.cmp_int(a)<=0));
-        }else if let Some(a) = Long::downcast(a) {
+        }else if let Some(a) = downcast::<Long>(a) {
             return Ok(Object::Bool(self.value.cmp(&a.value)<=0));
         }else{
             return env.type_error("Type error in a<b.");
@@ -688,7 +683,7 @@ impl Interface for Long {
 fn to_mpz(x: &Object) -> Result<Mpz,()> {
     if let Object::Int(x) = *x {
         return Ok(Mpz::from_int(x));
-    }else if let Some(x) = Long::downcast(x) {
+    }else if let Some(x) = downcast::<Long>(x) {
         let mut y = Mpz::new();
         y.set(&x.value);
         return Ok(y);

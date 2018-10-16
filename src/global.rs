@@ -14,9 +14,9 @@ use vm::{
     table_get, interface_index, interface_types_set
 };
 use object::{
-    Object, Map, Table, List, Range,
-    FnResult, U32String, Function, EnumFunction,
-    VARIADIC, new_module, Exception,
+    Object, Map, Table, List, Range, U32String,
+    FnResult, Exception, Function, EnumFunction,
+    VARIADIC, new_module, downcast
 };
 use rand::Rand;
 use iterable::{iter,cycle};
@@ -390,7 +390,7 @@ fn ftype(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
         Object::List(ref a) => Object::Table(env.rte().type_list.clone()),
         Object::Map(ref m) => Object::Table(env.rte().type_map.clone()),
         Object::Table(ref t) => {
-            if let Some(pt) = Tuple::downcast(&t.prototype) {
+            if let Some(pt) = downcast::<Tuple>(&t.prototype) {
                 pt.v[0].clone()
             }else{
                 t.prototype.clone()
@@ -695,7 +695,7 @@ fn fint(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
         Object::String(ref s) => return stoi(env,&s.v),
         _ => {}
     }
-    if let Some(x) = Long::downcast(&argv[0]) {
+    if let Some(x) = downcast::<Long>(&argv[0]) {
         match Long::try_as_int(x) {
             Ok(x) => return Ok(Object::Int(x)),
             Err(()) => return Ok(argv[0].clone())
@@ -724,7 +724,7 @@ fn float(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
         },
         _ => {}
     }
-    if let Some(x) = Long::downcast(&argv[0]) {
+    if let Some(x) = downcast::<Long>(&argv[0]) {
         return Ok(Object::Float(x.as_f64()));
     }
     env.type_error1(
@@ -966,7 +966,7 @@ fn map(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
 
 fn type_to_string(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     if let Object::Table(ref pt) = *pself {
-        if let Some(t) = Tuple::downcast(&pt.prototype) {
+        if let Some(t) = downcast::<Tuple>(&pt.prototype) {
             if let Some(s) = t.v.get(2) {
                 return Ok(s.clone());
             }

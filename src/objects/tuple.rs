@@ -2,7 +2,7 @@
 use std::any::Any;
 use std::rc::Rc;
 
-use object::{Object, Exception, Interface, FnResult};
+use object::{Object, Exception, Interface, FnResult, downcast};
 use vm::{Env, op_eq};
 
 pub struct Tuple{
@@ -12,13 +12,6 @@ pub struct Tuple{
 impl Tuple {
     pub fn new_object(v: Vec<Object>) -> Object {
         return Object::Interface(Rc::new(Tuple{v}));
-    }
-    pub fn downcast(x: &Object) -> Option<&Tuple> {
-        if let Object::Interface(ref a) = *x {
-            a.as_any().downcast_ref::<Tuple>()
-        }else{
-            None
-        }
     }
 }
 
@@ -55,7 +48,7 @@ impl Interface for Tuple {
         }
     }
     fn eq_plain(&self, b: &Object) -> bool {
-        if let Some(b) = Tuple::downcast(b) {
+        if let Some(b) = downcast::<Tuple>(b) {
             if self.v.len()==b.v.len() {
                 for i in 0..self.v.len() {
                     if self.v[i] != b.v[i] {return false;}
@@ -69,7 +62,7 @@ impl Interface for Tuple {
         }
     }
     fn eq(&self, b: &Object, env: &mut Env) -> FnResult {
-        if let Some(b) = Tuple::downcast(b) {
+        if let Some(b) = downcast::<Tuple>(b) {
             let len = self.v.len();
             if len == b.v.len() {
                 for i in 0..len {

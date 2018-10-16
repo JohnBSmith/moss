@@ -23,7 +23,7 @@ use std::rc::Rc;
 use std::cell::RefCell;
 use object::{
     Object, Interface, Function, FnResult, Table, U32String,
-    new_module
+    new_module, downcast
 };
 use vm::Env;
 
@@ -401,16 +401,6 @@ struct Canvas {
     type_canvas: Rc<Table>
 }
 
-impl Canvas {
-    fn downcast(x: &Object) -> Option<&Canvas> {
-        if let Object::Interface(ref a) = *x {
-            a.as_any().downcast_ref::<Canvas>()
-        }else{
-            None
-        }
-    }
-}
-
 impl Drop for Canvas {
     fn drop(&mut self) {
         let canvas = self.canvas.borrow_mut();
@@ -481,7 +471,7 @@ fn type_error_int_float(env: &mut Env, fapp: &str, id: &str, x: &Object)
 }
 
 fn canvas_flush(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
-    if let Some(canvas) = Canvas::downcast(pself) {
+    if let Some(canvas) = downcast::<Canvas>(pself) {
         let mut canvas = canvas.canvas.borrow_mut();
         canvas.flush();
         Ok(Object::Null)
@@ -491,7 +481,7 @@ fn canvas_flush(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
 }
 
 fn canvas_vflush(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
-    if let Some(canvas) = Canvas::downcast(pself) {
+    if let Some(canvas) = downcast::<Canvas>(pself) {
         let mut canvas = canvas.canvas.borrow_mut();
         canvas.flush_vg_buffer();
         Ok(Object::Null)
@@ -501,7 +491,7 @@ fn canvas_vflush(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
 }
 
 fn canvas_vcflush(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
-    if let Some(canvas) = Canvas::downcast(pself) {
+    if let Some(canvas) = downcast::<Canvas>(pself) {
         let mut canvas = canvas.canvas.borrow_mut();
         canvas.flush_clear_vg_buffer();
         Ok(Object::Null)
@@ -524,7 +514,7 @@ fn canvas_point(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
         Object::Float(y) => y,
         ref y => return type_error_int_float(env,"c.point(x,y)","y",y)
     };
-    if let Some(canvas) = Canvas::downcast(pself) {
+    if let Some(canvas) = downcast::<Canvas>(pself) {
         let mut canvas = canvas.canvas.borrow_mut();
         canvas.point(x,y);
         Ok(Object::Null)
@@ -547,7 +537,7 @@ fn canvas_needle(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
         Object::Float(y) => y,
         ref y => return type_error_int_float(env,"c.needle(x,y)","y",y)
     };
-    if let Some(canvas) = Canvas::downcast(pself) {
+    if let Some(canvas) = downcast::<Canvas>(pself) {
         let mut canvas = canvas.canvas.borrow_mut();
         canvas.needle(x,y);
         Ok(Object::Null)
@@ -575,7 +565,7 @@ fn canvas_circle(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
         Object::Float(y) => y,
         ref y => return type_error_int_float(env,"c.circle(x,y,r)","r",y)
     };
-    if let Some(canvas) = Canvas::downcast(pself) {
+    if let Some(canvas) = downcast::<Canvas>(pself) {
         let mut canvas = canvas.canvas.borrow_mut();
         canvas.circle(x,y,r);
         Ok(Object::Null)
@@ -603,7 +593,7 @@ fn canvas_disc(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
         Object::Float(y) => y,
         ref y => return type_error_int_float(env,"c.disc(x,y,r)","r",y)
     };
-    if let Some(canvas) = Canvas::downcast(pself) {
+    if let Some(canvas) = downcast::<Canvas>(pself) {
         let mut canvas = canvas.canvas.borrow_mut();
         canvas.disc(x,y,r);
         Ok(Object::Null)
@@ -631,7 +621,7 @@ fn canvas_box(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
         Object::Float(y) => y,
         ref y => return type_error_int_float(env,"c.box(x,y,r)","r",y)
     };
-    if let Some(canvas) = Canvas::downcast(pself) {
+    if let Some(canvas) = downcast::<Canvas>(pself) {
         let mut canvas = canvas.canvas.borrow_mut();
         canvas.square(x,y,r);
         Ok(Object::Null)
@@ -665,7 +655,7 @@ fn canvas_rgb(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
         Object::Float(b) => b,
         ref b => return type_error_int_float(env,"c.rgb(r,g,b)","b",b)
     };
-    if let Some(canvas) = Canvas::downcast(pself) {
+    if let Some(canvas) = downcast::<Canvas>(pself) {
         let mut canvas = canvas.canvas.borrow_mut();
         canvas.rgb(r,g,b,a);
         Ok(Object::Null)
@@ -699,7 +689,7 @@ fn canvas_hsl(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
         Object::Float(x) => x,
         ref x => return type_error_int_float(env,"c.hsl(h,s,l)","l",x)
     };
-    if let Some(canvas) = Canvas::downcast(pself) {
+    if let Some(canvas) = downcast::<Canvas>(pself) {
         let mut canvas = canvas.canvas.borrow_mut();
         canvas.hsl(h,s,l,a);
         Ok(Object::Null)
@@ -727,7 +717,7 @@ fn canvas_clear(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
         Object::Float(b) => b,
         ref b => return type_error_int_float(env,"c.clear(r,g,b)","b",b)
     };
-    if let Some(canvas) = Canvas::downcast(pself) {
+    if let Some(canvas) = downcast::<Canvas>(pself) {
         let mut canvas = canvas.canvas.borrow_mut();
         canvas.clear(r,g,b);
         Ok(Object::Null)
@@ -756,7 +746,7 @@ fn canvas_fill(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
         Object::Int(h) => h as u32,
         ref h => return env.type_error("Type error in c.fill(x,y,w,h): x is not an integer.")
     };
-    if let Some(canvas) = Canvas::downcast(pself) {
+    if let Some(canvas) = downcast::<Canvas>(pself) {
         let mut canvas = canvas.canvas.borrow_mut();
         canvas.rect(x,y,w,h);
         Ok(Object::Null)
@@ -793,7 +783,7 @@ fn canvas_scale(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
         Object::Float(y) => y,
         ref y => return type_error_int_float(env,"cancas.scale(x,y)","y",y)
     };
-    if let Some(canvas) = Canvas::downcast(pself) {
+    if let Some(canvas) = downcast::<Canvas>(pself) {
         let mut canvas = canvas.canvas.borrow_mut();
         canvas.wx = x*0.5*canvas.width as f64;
         canvas.wy = y*0.5*canvas.width as f64;
