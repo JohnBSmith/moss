@@ -472,3 +472,15 @@ pub fn downcast<T: 'static>(x: &Object) -> Option<&T> {
     }
 }
 
+impl<'a> From<&'a str> for Object {
+    fn from(x: &str) -> Object {
+        return U32String::new_object_str(x);
+    }
+}
+
+impl From<i32> for Object {
+    fn from(x: i32) -> Object {
+        return Object::Int(x);
+    }
+}
+

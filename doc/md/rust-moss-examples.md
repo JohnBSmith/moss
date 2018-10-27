@@ -4,9 +4,10 @@
 **Table of contents**
 1. [Minimal working example](#minimal-working-example)
 2. [Using a return value](#using-a-return-value)
-3. [Calling a Rust function from Moss](#calling-a-rust-function-from-moss)
-4. [Calling a Moss function from Rust](#calling-a-moss-function-from-rust)
-5. [Error handling](#error-handling)
+3. [String interfaces](#string-interfaces)
+4. [Calling a Rust function from Moss](#calling-a-rust-function-from-moss)
+5. [Calling a Moss function from Rust](#calling-a-moss-function-from-rust)
+6. [Error handling](#error-handling)
 
 ## Minimal working example
 
@@ -15,9 +16,9 @@ extern crate moss;
 
 fn main(){
     let i = moss::Interpreter::new();
-    i.eval(r#"
+    i.eval(|env| env.eval(r#"
         print("Hello, world!")
-    "#);
+    "#));
 }
 ```
 
@@ -25,28 +26,46 @@ fn main(){
 
 ```rust
 extern crate moss;
-use moss::object::Object;
 
 fn main(){
     let i = moss::Interpreter::new();
-    let y = i.eval(r#"
-        f = |n| 1 if n==0 else n*f(n-1)
-        f(4)
-    "#);
-    let y: i32 = match y {
-        Object::Int(y) => y,
-        ref y => {
-            i.print_type_and_value(y);
-            unreachable!();
-        }
-    };
+    let y = i.eval(|env| {
+        let yobj = env.eval(r#"
+            f = |n| 1 if n==0 else n*f(n-1)
+            f(4)
+        "#);
+        env.downcast::<i32>(&yobj)
+    });
     println!("{}",y);
+}
+```
+
+## String interfaces
+
+```rust
+extern crate moss;
+use moss::object::{Object,Env};
+
+fn call_str(env: &mut Env, f: &Object, s: &str) -> String {
+    let y = env.call(&f,&Object::Null,&[Object::from(s)]);
+    let y = env.expect_ok(y);
+    return env.downcast::<String>(&y);
+}
+
+fn main(){
+    let i = moss::Interpreter::new();
+    let s = i.eval(|env| {
+        let f = env.eval("|s| str(eval(s).sort())");
+        call_str(env,&f,"[2,4,5,1,3]")
+    });
+    println!("{}",s);
 }
 ```
 
 ## Calling a Rust function from Moss
 
 ```rust
+
 extern crate moss;
 use moss::object::{Object,Function,FnResult,Env};
 
@@ -68,9 +87,9 @@ fn fac(n: i32) -> i32 {
 fn main(){
     let i = moss::Interpreter::new();
     i.rte.gtab.borrow_mut().insert("fac",new_i32_to_i32(fac,"fac"));
-    i.eval(r#"
+    i.eval(|env| env.eval(r#"
         print(fac(4))
-    "#);
+    "#));
 }
 ```
 
@@ -81,29 +100,31 @@ extern crate moss;
 use moss::object::Object;
 use std::rc::Rc;
 
-trait I32TOI32 {
-    fn i32_to_i32(&self, f: &str) -> Box<Fn(i32)->i32>;
+trait Function<X,Y> {
+    fn new(&self, f: &str) -> Box<Fn(X)->Y>;
 }
 
-impl I32TOI32 for Rc<moss::Interpreter> {
-    fn i32_to_i32(&self, f: &str) -> Box<Fn(i32)->i32> {
-        let i = self.clone();
-        let fobj = i.eval(f);
-        return Box::new(move |x: i32| -> i32 {
-            match i.call(&fobj,&Object::Null,&[Object::Int(x)]) {
-                Ok(y) => match y {
-                    Object::Int(y) => y,
-                    ref y => {i.print_type_and_value(y); unreachable!();}
-                },
-                Err(e) => {i.print_exception(&e); unreachable!();}
-            }
+impl<X,Y> Function<X,Y> for Rc<moss::Interpreter>
+    where Y: moss::Downcast<Y>, Object: From<X>
+{
+    fn new(&self, f: &str) -> Box<Fn(X)->Y> {
+        let pi = self.clone();
+        let fobj = pi.eval(|env| env.eval(f));
+        return Box::new(move |x: X| -> Y {
+            let mut i = pi.lock();
+            let mut env = i.env();
+            let y = env.call(&fobj,&Object::Null,&[Object::from(x)]);
+            let y = env.expect_ok(y);
+            env.downcast::<Y>(&y)
         });
     }
 }
 
 fn main(){
-    let i = Rc::new(moss::Interpreter::new());
-    let fac = i.i32_to_i32("|n| (1..n).reduce(1,|x,y| x*y)");
+    let i = moss::Interpreter::new();
+    let fac = Function::<i32,i32>::new(&i,r#"
+        |n| (1..n).reduce(1,|x,y| x*y)
+    "#);
     println!("{}",fac(4));
 }
 ```
@@ -112,33 +133,30 @@ fn main(){
 
 ```rust
 extern crate moss;
-use moss::object::{Object, Map};
+use moss::object::{Object, Map, Env};
+use moss::Value::Optional;
 
-fn main(){
-    let i = moss::Interpreter::new();
-    let module_name = "";
-
-    let gtab = Map::new();
-    // table of global variables
-
-    let y = match i.eval_string(r#"
-        []+1
-    "#, module_name, gtab, moss::Value::Optional) {
-        Ok(y) => y,
-        Err(e) => {
-            panic!(format!("{}",i.exception_to_string(&e)));
-        }
-    };
+fn proc1(env: &mut Env) -> Result<(),String> {
+    let gtab = Map::new(); // table of global variables
+    let module_name = "proc1 module";
+    let src = "[]+1";
+    let y = env.eval_string(src, module_name, gtab, Optional);
+    let y = env.map_err_string(y)?;
 
     let value: i32 = match y {
         Object::Int(x) => x,
-        x => {
-            panic!(format!(
-                "Type error: expected an integer, but got {}.", i.string(&x)
-            ));
-        }
+        _ => return Err(format!(
+            "Type error in line {}: not an integer.",line!()))
     };
 
     println!("{}",value);
+    return Ok(());
+}
+
+fn main(){
+    let i = moss::Interpreter::new();
+    if let Err(e) = i.eval(proc1) {
+        println!("{}",e);
+    }
 }
 ```

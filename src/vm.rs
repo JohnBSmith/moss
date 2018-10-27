@@ -221,6 +221,25 @@ fn print_stack(env: &mut Env, a: &[Object]){
     println!("stack: {}",s);
 }
 
+pub trait Downcast<T> {
+    fn try_downcast(x: &Object) -> Option<T>;
+}
+
+impl Downcast<i32> for i32 {
+    fn try_downcast(x: &Object) -> Option<i32> {
+        match *x {Object::Int(x)=>Some(x), _ => None}
+    }
+}
+
+impl Downcast<String> for String {
+    fn try_downcast(x: &Object) -> Option<String> {
+        match *x {
+            Object::String(ref s) => Some(s.v.iter().collect()),
+            _ => None
+        }
+    }
+}
+
 impl PartialEq for Object{
     fn eq(&self, b: &Object) -> bool{
         'r: loop{
@@ -5072,6 +5091,23 @@ pub fn eval_file(&mut self, id: &str, gtab: Rc<RefCell<Map>>){
     }
 }
 
+pub fn expect_ok(&mut self, x: FnResult) -> Object {
+    return match x {
+        Ok(value) => value,
+        Err(e) => {
+            println!("{}",self.exception_to_string(&e));
+            panic!();
+        }
+    };
+}
+
+pub fn map_err_string(&mut self, x: FnResult) -> Result<Object,String> {
+    return match x {
+        Ok(value) => Ok(value),
+        Err(e) => Err(self.exception_to_string(&e))
+    };
+}
+
 #[inline(never)]
 pub fn std_exception(&self, s: &str) -> FnResult {
     Err(self.env.std_exception_plain(s))
@@ -5132,6 +5168,17 @@ pub fn print_type_and_value(&mut self, x: &Object) {
     };
     let stype = type_name(x);
     println!("Type: {}, value: {}",stype,svalue);
+}
+
+pub fn downcast<T: Downcast<T>>(&mut self, x: &Object) -> T {
+    match T::try_downcast(x) {
+        Some(x) => x,
+        None => {
+            println!("Error in downcast to type {}.",stringify!(T));
+            self.print_type_and_value(x);
+            panic!();
+        }
+    }
 }
 
 } // impl Env

@@ -89,9 +89,20 @@ use std::rc::Rc;
 use std::cell::RefCell;
 // use std::fs::File;
 // use std::io::Read;
-use object::{Object, List, Map, U32String, FnResult, Exception};
-use vm::{RTE,State,EnvPart,Frame, get_env};
+use object::{Object, List, U32String};
+use vm::{RTE,State,EnvPart,Frame,Env};
+pub use vm::{get_env,Downcast};
 pub use compiler::{Value, CompilerExtra};
+
+pub struct InterpreterLock<'a> {
+    state: std::cell::RefMut<'a,State>
+}
+
+impl<'a> InterpreterLock<'a> {
+    pub fn env(&mut self) -> Env {
+        return get_env(&mut self.state)
+    }
+}
 
 pub struct Interpreter{
     pub rte: Rc<RTE>,
@@ -99,6 +110,13 @@ pub struct Interpreter{
 }
 
 impl Interpreter{
+    pub fn lock(&self) -> InterpreterLock {
+        InterpreterLock{state: self.state.borrow_mut()}
+    }
+    pub fn eval<T>(&self, f: impl Fn(&mut Env)->T) -> T {
+        f(&mut self.lock().env())
+    }
+
     pub fn new_config(stack_size: usize) -> Self {
         let rte = RTE::new();
         ::global::init_rte(&rte);
@@ -117,54 +135,13 @@ impl Interpreter{
         return Self{rte, state};
     }
 
-    pub fn new() -> Self {
-        Interpreter::new_config(STACK_SIZE)
-    }
-    
-    pub fn eval_string(&self, s: &str, id: &str,
-        gtab: Rc<RefCell<Map>>, value: compiler::Value
-    ) -> Result<Object,Box<Exception>>
-    {
-        let mut state = &mut *self.state.borrow_mut();
-        let mut env = get_env(&mut state);
-        return env.eval_string(s,id,gtab,value);
-    }
-
-    pub fn eval_env(&self, s: &str, gtab: Rc<RefCell<Map>>) -> Object {
-        let mut state = &mut *self.state.borrow_mut();
-        let mut env = get_env(&mut state);
-        return env.eval_env(s,gtab);
-    }
-
-    pub fn eval_file(&self, id: &str, gtab: Rc<RefCell<Map>>){
-        let mut state = &mut *self.state.borrow_mut();
-        let mut env = get_env(&mut state);
-        return env.eval_file(id,gtab);
-    }
-
-    pub fn eval(&self, s: &str) -> Object {
-        let mut state = &mut *self.state.borrow_mut();
-        let mut env = get_env(&mut state);
-        return env.eval(s);  
-    }
-
-    pub fn command_line_session(&self, gtab: Rc<RefCell<Map>>){
-        let mut state = &mut *self.state.borrow_mut();
-        let mut env = get_env(&mut state);
-        env.command_line_session(gtab);
-    }
-
-    pub fn call(&self, f: &Object, pself: &Object, argv: &[Object])
-    -> FnResult
-    {
-        let mut state = &mut *self.state.borrow_mut();
-        let mut env = get_env(&mut state);
-        return env.call(f,pself,argv);
+    pub fn new() -> Rc<Self> {
+        Rc::new(Interpreter::new_config(STACK_SIZE))
     }
 
     pub fn repr(&self, x: &Object) -> String {
-        let mut state = &mut *self.state.borrow_mut();
-        let mut env = get_env(&mut state);
+        let mut ilock = self.lock();
+        let mut env = ilock.env();
         match x.repr(&mut env) {
             Ok(s)=>s,
             Err(e)=>{
@@ -175,9 +152,9 @@ impl Interpreter{
     }
 
     pub fn string(&self, x: &Object) -> String {
-        let mut state = &mut *self.state.borrow_mut();
-        let mut env = get_env(&mut state);
-        match x.string(&mut env) {
+        let mut ilock = self.lock();
+        let mut env = ilock.env();
+        match x.string(&mut self.lock().env()) {
             Ok(s) => return s,
             Err(e) => {
                 println!("{}",env.exception_to_string(&e));
@@ -186,22 +163,6 @@ impl Interpreter{
         }
     }
 
-    pub fn exception_to_string(&self, e: &Exception) -> String {
-        let mut state = &mut *self.state.borrow_mut();
-        let mut env = get_env(&mut state);
-        return env.exception_to_string(e);
-    }
-
-    pub fn print_exception(&self, e: &Exception) {
-        println!("{}",self.exception_to_string(e));
-    }
-
-    pub fn print_type_and_value(&self, x: &Object) {
-        let mut state = &mut *self.state.borrow_mut();
-        let mut env = get_env(&mut state);
-        env.print_type_and_value(x);
-    }
-    
     pub fn set_config(&self, config: CompilerExtra) {
         let mut conf = self.rte.compiler_config.borrow_mut();
         *conf = Some(Box::new(config));

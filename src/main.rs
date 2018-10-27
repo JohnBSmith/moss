@@ -118,29 +118,32 @@ fn main(){
         let mut argv = i.rte.argv.borrow_mut();
         *argv = Some(moss::new_list_str(&info.argv));
     }
+    let mut ilock = i.lock();
+    let mut env = ilock.env();
+
     if info.math {
-        i.eval_env(MATH,gtab.clone());
+        env.eval_env(MATH,gtab.clone());
     }
     for file in &info.ifile {
         if file.e {
-            i.eval_env(&file.s,gtab.clone());
+            env.eval_env(&file.s,gtab.clone());
         }else{
-            i.eval_file(&file.s,gtab.clone());
+            env.eval_file(&file.s,gtab.clone());
         }
     }
     if let Some(ref id) = info.argv.first() {
         if id.len()==0 {
-            i.command_line_session(gtab);
+            env.command_line_session(gtab);
         }else{
-            i.eval_file(id,gtab);
+            env.eval_file(id,gtab);
         }
     }else if let Some(ref cmd) = info.cmd {
-        let x = i.eval_env(cmd,gtab);
+        let x = env.eval_env(cmd,gtab);
         if x != Object::Null {
             println!("{}",i.repr(&x));
         }
     }else{
-        i.command_line_session(gtab);
+        env.command_line_session(gtab);
     }
 }
 
