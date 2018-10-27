@@ -93,6 +93,53 @@ fn main(){
 }
 ```
 
+In more general terms:
+
+```rust
+extern crate moss;
+use moss::object::{Object,Function,FnResult,Env};
+
+trait TypeName {
+    fn type_name() -> &'static str;
+}
+impl TypeName for i32 {
+    fn type_name() -> &'static str {"integer"}
+}
+
+trait FnObj<X,Y> {
+    fn new(self, f: fn(X)->Y) -> Object;
+}
+
+impl<'a,X,Y> FnObj<X,Y> for &'a str
+where 
+    X: TypeName, X: moss::Downcast<X>, Object: From<Y>,
+    X: 'static, Y: 'static
+{
+    fn new(self, f: fn(X)->Y) -> Object {
+        let err = format!("Type error in {}(x): x is not of type {}.",self,X::type_name());
+        let fp = move |env: &mut Env, _pself: &Object, argv: &[Object]| -> FnResult {
+            match X::try_downcast(&argv[0]) {
+                Some(n) => Ok(Object::from(f(n))),
+                None => env.type_error1(&err,"n",&argv[0])
+            }
+        };
+        return Function::mutable(Box::new(fp),1,1);
+    }
+}
+
+fn fac(n: i32) -> i32 {
+    if n==0 {1} else {n*fac(n-1)}
+}
+
+fn main(){
+    let i = moss::Interpreter::new();
+    i.rte.gtab.borrow_mut().insert("fac",FnObj::new("fac",fac));
+    i.eval(|env| env.eval(r#"
+        print(fac(4))
+    "#));
+}
+```
+
 ## Calling a Moss function from Rust
 
 ```rust
