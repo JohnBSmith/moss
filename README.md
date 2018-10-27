@@ -20,11 +20,11 @@ extern crate moss;
 
 fn main(){
     let i = moss::Interpreter::new();
-    let x = i.eval(r#"
+    let y = i.eval(|env| env.eval(r#"
         f = |n| 1 if n==0 else n*f(n-1)
         f(4)
-    "#);
-    println!("{}",x);
+    "#));
+    println!("{}",y);
 }
 ```
 
