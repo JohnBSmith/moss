@@ -65,7 +65,6 @@ fn main(){
 ## Calling a Rust function from Moss
 
 ```rust
-
 extern crate moss;
 use moss::object::{Object,Function,FnResult,Env};
 
@@ -97,14 +96,7 @@ In more general terms:
 
 ```rust
 extern crate moss;
-use moss::object::{Object,Function,FnResult,Env};
-
-trait TypeName {
-    fn type_name() -> &'static str;
-}
-impl TypeName for i32 {
-    fn type_name() -> &'static str {"integer"}
-}
+use moss::object::{Object,Function,FnResult,Env,Downcast,TypeName};
 
 trait FnObj<X,Y> {
     fn new(self, f: fn(X)->Y) -> Object;
@@ -112,7 +104,7 @@ trait FnObj<X,Y> {
 
 impl<'a,X,Y> FnObj<X,Y> for &'a str
 where 
-    X: TypeName, X: moss::Downcast<X>, Object: From<Y>,
+    X: TypeName, X: Downcast<Output=X>, Object: From<Y>,
     X: 'static, Y: 'static
 {
     fn new(self, f: fn(X)->Y) -> Object {
@@ -120,7 +112,7 @@ where
         let fp = move |env: &mut Env, _pself: &Object, argv: &[Object]| -> FnResult {
             match X::try_downcast(&argv[0]) {
                 Some(n) => Ok(Object::from(f(n))),
-                None => env.type_error1(&err,"n",&argv[0])
+                None => env.type_error1(&err,"x",&argv[0])
             }
         };
         return Function::mutable(Box::new(fp),1,1);
@@ -144,7 +136,7 @@ fn main(){
 
 ```rust
 extern crate moss;
-use moss::object::Object;
+use moss::object::{Object,Downcast,TypeName};
 use std::rc::Rc;
 
 trait Function<X,Y> {
@@ -152,7 +144,7 @@ trait Function<X,Y> {
 }
 
 impl<X,Y> Function<X,Y> for Rc<moss::Interpreter>
-    where Y: moss::Downcast<Y>, Object: From<X>
+    where Y: Downcast<Output=Y>+TypeName, Object: From<X>
 {
     fn new(&self, f: &str) -> Box<Fn(X)->Y> {
         let pi = self.clone();

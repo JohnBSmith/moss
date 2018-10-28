@@ -91,7 +91,7 @@ use std::cell::RefCell;
 // use std::io::Read;
 use object::{Object, List, U32String};
 use vm::{RTE,State,EnvPart,Frame,Env};
-pub use vm::{get_env,Downcast};
+pub use vm::{get_env};
 pub use compiler::{Value, CompilerExtra};
 
 pub struct InterpreterLock<'a> {

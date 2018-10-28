@@ -478,9 +478,125 @@ impl<'a> From<&'a str> for Object {
     }
 }
 
+impl From<char> for Object {
+    fn from(x: char) -> Object {
+        return U32String::new_object_char(x);
+    }
+}
+
+impl From<bool> for Object {
+    fn from(x: bool) -> Object {
+        return Object::Bool(x);
+    }
+}
+
+impl From<u8> for Object {
+    fn from(x: u8) -> Object {
+        return Object::Int(x as i32);
+    }
+}
+
+impl From<u16> for Object {
+    fn from(x: u16) -> Object {
+        return Object::Int(x as i32);
+    }
+}
+
 impl From<i32> for Object {
     fn from(x: i32) -> Object {
         return Object::Int(x);
     }
 }
+
+impl From<f64> for Object {
+    fn from(x: f64) -> Object {
+        return Object::Float(x);
+    }
+}
+
+impl<T> From<Vec<T>> for Object
+where Object: From<T>
+{
+    fn from(v: Vec<T>) -> Object {
+        let mut a: Vec<Object> = Vec::with_capacity(v.len());
+        for x in v {
+           a.push(Object::from(x));
+        }
+        return List::new_object(a);
+    }
+}
+
+pub trait TypeName {
+    fn type_name() -> String;
+}
+impl TypeName for bool {
+    fn type_name() -> String {String::from("bool")}
+}
+impl TypeName for i32 {
+    fn type_name() -> String {String::from("i32")}
+}
+impl TypeName for f64 {
+    fn type_name() -> String {String::from("f64")}
+}
+impl<'a> TypeName for &'a str {
+    fn type_name() -> String {String::from("&str")}
+}
+impl TypeName for String {
+    fn type_name() -> String {String::from("String")}
+}
+
+pub trait Downcast {
+    type Output;
+    fn try_downcast(x: &Object) -> Option<Self::Output>;
+}
+impl Downcast for bool {
+    type Output = bool;
+    fn try_downcast(x: &Object) -> Option<bool> {
+        match *x {Object::Bool(x)=>Some(x), _ => None}
+    }
+}
+impl Downcast for i32 {
+    type Output = i32;
+    fn try_downcast(x: &Object) -> Option<i32> {
+        match *x {Object::Int(x)=>Some(x), _ => None}
+    }
+}
+impl Downcast for f64 {
+    type Output = f64;
+    fn try_downcast(x: &Object) -> Option<f64> {
+        match *x {Object::Float(x)=>Some(x), _ => None}
+    }
+}
+impl Downcast for String {
+    type Output = String;
+    fn try_downcast(x: &Object) -> Option<String> {
+        match *x {
+            Object::String(ref s) => Some(s.v.iter().collect()),
+            _ => None
+        }
+    }
+}
+
+impl<T> Downcast for Vec<T>
+where T: Downcast<Output=T>
+{
+    type Output = Vec<T>;
+    fn try_downcast(x: &Object) -> Option<Vec<T>> {
+        match *x {
+            Object::List(ref a) => {
+                let a = a.borrow_mut();
+                let mut v: Vec<T> = Vec::with_capacity(a.v.len());
+                for x in &a.v {
+                    match T::try_downcast(x) {
+                        Some(x) => v.push(x),
+                        None => return None
+                    }
+                }
+                return Some(v);
+            },
+            _ => None
+        }
+    }
+}
+
 

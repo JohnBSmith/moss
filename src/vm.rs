@@ -14,7 +14,7 @@ use std::fmt::Write;
 use object::{
     Object, Map, List, Function, EnumFunction, StandardFn,
     FnResult, OperatorResult, Exception, Table, Range, U32String,
-    VARIADIC
+    VARIADIC, Downcast, TypeName
 };
 use complex::Complex64;
 use long::Long;
@@ -219,25 +219,6 @@ fn print_op(a: &[u32], i: usize){
 fn print_stack(env: &mut Env, a: &[Object]){
     let s = match list_to_string(env,a) {Ok(s)=>s, Err(_)=>panic!()};
     println!("stack: {}",s);
-}
-
-pub trait Downcast<T> {
-    fn try_downcast(x: &Object) -> Option<T>;
-}
-
-impl Downcast<i32> for i32 {
-    fn try_downcast(x: &Object) -> Option<i32> {
-        match *x {Object::Int(x)=>Some(x), _ => None}
-    }
-}
-
-impl Downcast<String> for String {
-    fn try_downcast(x: &Object) -> Option<String> {
-        match *x {
-            Object::String(ref s) => Some(s.v.iter().collect()),
-            _ => None
-        }
-    }
 }
 
 impl PartialEq for Object{
@@ -5170,11 +5151,13 @@ pub fn print_type_and_value(&mut self, x: &Object) {
     println!("Type: {}, value: {}",stype,svalue);
 }
 
-pub fn downcast<T: Downcast<T>>(&mut self, x: &Object) -> T {
+pub fn downcast<T>(&mut self, x: &Object) -> T
+where T: Downcast<Output=T>+TypeName
+{
     match T::try_downcast(x) {
         Some(x) => x,
         None => {
-            println!("Error in downcast to type {}.",stringify!(T));
+            println!("Error in downcast to type {}.",T::type_name());
             self.print_type_and_value(x);
             panic!();
         }
