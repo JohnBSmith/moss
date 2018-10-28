@@ -279,7 +279,7 @@ fn load(env: &mut Env, id: Rc<U32String>, hot_plug: bool) -> FnResult{
     }
     let s: String = id.v.iter().collect();
     let y = match &s[..] {
-        "io" => ::io::load_io(env),
+        "fs" => ::fs::load_fs(env),
 
         #[cfg(feature = "la")]
         "la" => ::la::load_la(env),

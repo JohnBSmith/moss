@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Grep</title>
+  <link href="../css/main.css" rel="stylesheet">
+  <script src = "../js/moss-syntax.js">
+  </script>
+</head>
+<body>
+
+<table class="navigation">
+<tr><td><b>&uarr;</b> <a href="toc.htm">Up</a>
+</table>
+<h2>Grep</h2>
+
+<pre class="moss">
+# A basic version of grep
+
+use fs: read_dir, is_dir, is_file
+use regex: re
+use sys: argv
+
+function walk(id)
+  return fn*||
+    try
+      it = read_dir(id)
+    catch e
+      it = []
+    end
+    for x in it
+      if is_dir(x)
+        for y in walk(x)
+          yield y
+        end
+      elif is_file(x)
+        yield x
+      end
+    end
+  end
+end
+
+function grep(pattern,path)
+  r = re(pattern)
+  return fn*||
+    for id in walk(path)
+      try
+        s = read(id)
+      catch e
+        continue
+      end
+      for n,line in re("{n}").split(s).enum()
+        if size(r.list(line))>0
+          yield [id,n,line]
+        end
+      end
+    end
+  end
+end
+
+function main
+  pattern = argv[1]
+  path = argv[2]
+  for t in grep(pattern,path)
+    print("File: {}\nLine: {}\n{}\n"%t)
+  end
+end
+
+main()
+</pre>
+
+</body>
+</html>
+

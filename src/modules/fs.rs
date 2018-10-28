@@ -4,9 +4,10 @@ use std::cell::RefCell;
 use std::any::Any;
 use std::fs;
 use std::io::Read;
+use std::path::Path;
 
 use object::{
-    Object, Table, Interface, Exception, FnResult,
+    Object, List, Table, Interface, Exception, FnResult,
     new_module, downcast, interface_object_get
 };
 use vm::{Env,interface_types_set,interface_index};
@@ -92,7 +93,56 @@ fn file_read(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     }
 }
 
-pub fn load_io(env: &mut Env) -> Object
+fn is_file(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
+    match argv.len() {
+        1 => {}, n => return env.argc_error(n,1,1,"is_file")
+    }
+    let file_id: String = match argv[0] {
+        Object::String(ref s) => s.v.iter().collect(),
+        _ => return env.type_error("Type error in is_file(id): id is not a string.")
+    };
+    let path = Path::new(&file_id);
+    return Ok(Object::Bool(path.is_file()));
+}
+
+fn is_dir(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
+    match argv.len() {
+        1 => {}, n => return env.argc_error(n,1,1,"is_dir")
+    }
+    let file_id: String = match argv[0] {
+        Object::String(ref s) => s.v.iter().collect(),
+        _ => return env.type_error("Type error in is_dir(id): id is not a string.")
+    };
+    let path = Path::new(&file_id);
+    return Ok(Object::Bool(path.is_dir()));
+}
+
+fn read_dir(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
+    match argv.len() {
+        1 => {}, n => return env.argc_error(n,1,1,"read_dir")
+    }
+    let file_id: String = match argv[0] {
+        Object::String(ref s) => s.v.iter().collect(),
+        _ => return env.type_error("Type error in is_dir(id): id is not a string.")
+    };
+    let path = Path::new(&file_id);
+    let it = match path.read_dir() {
+        Ok(it) => it,
+        Err(_) => return env.std_exception(&format!(
+            "Could not read directory '{}'.",file_id))
+    };
+    let mut v: Vec<Object> = Vec::new();
+    for x in it {
+        if let Ok(x) = x {
+            if let Some(s) = x.path().to_str() {
+                v.push(Object::from(s));
+            }
+        }
+    }
+    return Ok(List::new_object(v));
+}
+
+pub fn load_fs(env: &mut Env) -> Object
 {
     let type_file = Table::new(Object::Null);
     {
@@ -101,12 +151,15 @@ pub fn load_io(env: &mut Env) -> Object
     }
     interface_types_set(env.rte(),interface_index::FILE,type_file);
 
-    let io = new_module("io");
+    let fs = new_module("fs");
     {
-        let mut m = io.map.borrow_mut();
+        let mut m = fs.map.borrow_mut();
         m.insert_fn_plain("open",open,1,1);
+        m.insert_fn_plain("is_file",is_file,1,1);
+        m.insert_fn_plain("is_dir",is_dir,1,1);
+        m.insert_fn_plain("read_dir",read_dir,1,1);
     }
 
-    return Object::Table(Rc::new(io));
+    return Object::Table(Rc::new(fs));
 }
 

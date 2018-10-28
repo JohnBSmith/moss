@@ -18,7 +18,7 @@
 <ol>
 <li><a href="#time">Module <code>time</code> &mdash; time measurement</a>
 <li><a href="#sys">Module <code>sys</code> &mdash; runtime system interface</a>
-<li><a href="#io">Module <code>io</code> &mdash; input, output</a>
+<li><a href="#fs">Module <code>fs</code> &mdash; file system interface</a>
 </ol>
 </div>
 
@@ -90,8 +90,18 @@ absolute path of the directory where <code>argv[0]</code>
 is found.</dd>
 </dl>
 
-<h2 id="io">Module io</h2>
+<h2 id="fs">Module fs</h2>
 <dl class="code">
+<dt>is_dir(path)
+<dd>Return true if the <code>path</code> leads to a directory.
+
+<dt>is_file(path)
+<dd>Return true if the <code>path</code> leads to a file.
+
+<dt>read_dir(path)
+<dd>Return the list of nodes within that directory,
+but omit <code>"."</code> and <code>".."</code>.
+
 <dt>open(path)
 <dd>Open a binary file and return a file object of type <code>File</code>.
 </dl>

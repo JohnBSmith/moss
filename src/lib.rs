@@ -74,8 +74,8 @@ mod regex;
 #[path = "modules/data.rs"]
 mod data;
 
-#[path = "modules/io.rs"]
-mod io;
+#[path = "modules/fs.rs"]
+mod fs;
 
 #[cfg(feature = "gx")]
 #[path = "modules/sdl.rs"]
@@ -113,7 +113,7 @@ impl Interpreter{
     pub fn lock(&self) -> InterpreterLock {
         InterpreterLock{state: self.state.borrow_mut()}
     }
-    pub fn eval<T>(&self, f: impl Fn(&mut Env)->T) -> T {
+    pub fn eval<T>(&self, f: impl FnOnce(&mut Env)->T) -> T {
         f(&mut self.lock().env())
     }
 
