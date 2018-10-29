@@ -5,7 +5,7 @@ extern crate moss;
 
 fn main(){
     let i = moss::Interpreter::new();
-    let v = i.eval(|env| {
+    let v = i.tie(|env| {
         let a = env.eval(r#"
             List.map = fn|f|
                 a = []

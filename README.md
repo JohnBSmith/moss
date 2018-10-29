@@ -23,11 +23,11 @@ fn main(){
     let i = moss::Interpreter::new();
     i.rte.set("a",Object::from(vec![1,2,3,4]));
 
-    let y = i.eval_cast::<Vec<i32>>(r#"
-        a.map(|x| x^2)
+    let v: Vec<i32> = i.eval_cast(r#"
+        a.map(|x| 2*x)
     "#);
 
-    println!("{:?}",y);
+    println!("{:?}",v);
 }
 ```
 
