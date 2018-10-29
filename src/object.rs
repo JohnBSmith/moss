@@ -544,6 +544,11 @@ impl<'a> TypeName for &'a str {
 impl TypeName for String {
     fn type_name() -> String {String::from("String")}
 }
+impl<T> TypeName for Vec<T>
+where T: TypeName
+{
+    fn type_name() -> String {format!("Vec<{}>",T::type_name())}
+}
 
 pub trait Downcast {
     type Output;

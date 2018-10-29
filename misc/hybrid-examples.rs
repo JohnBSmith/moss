@@ -5,20 +5,25 @@ extern crate moss;
 
 fn main(){
     let i = moss::Interpreter::new();
-    let a = i.eval("
-        List.map = fn|f|
-            a = []
-            for x in self
-                a.push(f(x))
+    let v = i.eval(|env| {
+        let a = env.eval(r#"
+            List.map = fn|f|
+                a = []
+                for x in self
+                    a.push(f(x))
+                end
+                return a
             end
-            return a
-        end
-        a = [1,2,3,4]
-        a.map(|x| 2*x)
-    ");
-    println!("{}",a);
+            a = [1,2,3,4]
+            a.map(|x| 2*x)
+        "#);
+        println!("{} (List)",a);
+        env.downcast::<Vec<i32>>(&a)
+    });
+    println!("{:?} (Vec<i32>)",v);
 }
 
 // Output:
-// [2, 4, 6, 8]
+// [2, 4, 6, 8] (List)
+// [2, 4, 6, 8] (Vec<i32>)
 
