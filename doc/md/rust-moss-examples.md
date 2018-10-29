@@ -3,7 +3,7 @@
 
 **Table of contents**
 1. [Minimal working example](#minimal-working-example)
-2. [Using a return value](#using-a-return-value)
+2. [Simple data interfaces](#simple-data-interfaces)
 3. [String interfaces](#string-interfaces)
 4. [Calling a Rust function from Moss](#calling-a-rust-function-from-moss)
 5. [Calling a Moss function from Rust](#calling-a-moss-function-from-rust)
@@ -16,31 +16,44 @@ extern crate moss;
 
 fn main(){
     let i = moss::Interpreter::new();
-    i.eval(|env| env.eval(r#"
+    i.eval(r#"
         print("Hello, world!")
-    "#));
+    "#);
 }
 ```
 
-## Using a return value
+## Simple data interface
 
 ```rust
 extern crate moss;
+use moss::object::Object;
 
 fn main(){
     let i = moss::Interpreter::new();
-    let y = i.eval(|env| {
-        let yobj = env.eval(r#"
-            f = |n| 1 if n==0 else n*f(n-1)
-            f(4)
-        "#);
-        env.downcast::<i32>(&yobj)
-    });
+    i.rte.set("a",Object::from(1));
+    i.rte.set("b",Object::from(2));
+    let y = i.eval_cast::<i32>("a+b");
     println!("{}",y);
 }
 ```
 
 ## String interfaces
+
+```rust
+extern crate moss;
+use moss::object::Object;
+
+fn main(){
+    let i = moss::Interpreter::new();
+    i.rte.set("s",Object::from("[2,4,5,1,3]"));
+    let s = i.eval_cast::<String>(r#"
+        str(eval(s).sort())
+    "#);
+    println!("{}",s);
+}
+```
+
+As a function:
 
 ```rust
 extern crate moss;
@@ -54,7 +67,7 @@ fn call_str(env: &mut Env, f: &Object, s: &str) -> String {
 
 fn main(){
     let i = moss::Interpreter::new();
-    let s = i.eval(|env| {
+    let s = i.tie(|env| {
         let f = env.eval("|s| str(eval(s).sort())");
         call_str(env,&f,"[2,4,5,1,3]")
     });
@@ -86,9 +99,9 @@ fn fac(n: i32) -> i32 {
 fn main(){
     let i = moss::Interpreter::new();
     i.rte.gtab.borrow_mut().insert("fac",new_i32_to_i32(fac,"fac"));
-    i.eval(|env| env.eval(r#"
+    i.eval(r#"
         print(fac(4))
-    "#));
+    "#);
 }
 ```
 
@@ -126,9 +139,9 @@ fn fac(n: i32) -> i32 {
 fn main(){
     let i = moss::Interpreter::new();
     i.rte.gtab.borrow_mut().insert("fac",FnObj::new("fac",fac));
-    i.eval(|env| env.eval(r#"
+    i.eval(r#"
         print(fac(4))
-    "#));
+    "#);
 }
 ```
 
@@ -147,14 +160,14 @@ impl<X,Y> Function<X,Y> for Rc<moss::Interpreter>
     where Y: Downcast<Output=Y>+TypeName, Object: From<X>
 {
     fn new(&self, f: &str) -> Box<Fn(X)->Y> {
-        let pi = self.clone();
-        let fobj = pi.eval(|env| env.eval(f));
+        let i = self.clone();
+        let fobj = i.eval(f);
         return Box::new(move |x: X| -> Y {
-            let mut i = pi.lock();
-            let mut env = i.env();
-            let y = env.call(&fobj,&Object::Null,&[Object::from(x)]);
-            let y = env.expect_ok(y);
-            env.downcast::<Y>(&y)
+            i.tie(|env| {
+                let y = env.call(&fobj,&Object::Null,&[Object::from(x)]);
+                let y = env.expect_ok(y);
+                env.downcast::<Y>(&y)
+            })
         });
     }
 }
@@ -194,7 +207,7 @@ fn proc1(env: &mut Env) -> Result<(),String> {
 
 fn main(){
     let i = moss::Interpreter::new();
-    if let Err(e) = i.eval(proc1) {
+    if let Err(e) = i.tie(proc1) {
         println!("{}",e);
     }
 }

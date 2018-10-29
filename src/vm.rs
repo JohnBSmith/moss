@@ -3781,6 +3781,9 @@ impl RTE{
     pub fn read_access(&self, _id: &str) -> bool {
         return true;
     }
+    pub fn set(&self, id: &str, x: Object) {
+        self.gtab.borrow_mut().insert(id,x);
+    }
 }
 
 pub struct Module{

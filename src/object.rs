@@ -544,6 +544,9 @@ impl<'a> TypeName for &'a str {
 impl TypeName for String {
     fn type_name() -> String {String::from("String")}
 }
+impl TypeName for Object {
+    fn type_name() -> String {String::from("Object")}
+}
 impl<T> TypeName for Vec<T>
 where T: TypeName
 {
@@ -553,6 +556,12 @@ where T: TypeName
 pub trait Downcast {
     type Output;
     fn try_downcast(x: &Object) -> Option<Self::Output>;
+}
+impl Downcast for Object {
+    type Output = Object;
+    fn try_downcast(x: &Object) -> Option<Object> {
+        Some(x.clone())
+    }
 }
 impl Downcast for bool {
     type Output = bool;

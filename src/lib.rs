@@ -89,7 +89,7 @@ use std::rc::Rc;
 use std::cell::RefCell;
 // use std::fs::File;
 // use std::io::Read;
-use object::{Object, List, CharString};
+use object::{Object, List, CharString, TypeName, Downcast};
 use vm::{RTE,State,EnvPart,Frame,Env};
 pub use vm::{get_env};
 pub use compiler::{Value, CompilerExtra};
@@ -113,8 +113,19 @@ impl Interpreter{
     pub fn lock(&self) -> InterpreterLock {
         InterpreterLock{state: self.state.borrow_mut()}
     }
-    pub fn eval<T>(&self, f: impl FnOnce(&mut Env)->T) -> T {
+    pub fn tie<T>(&self, f: impl FnOnce(&mut Env)->T) -> T {
         f(&mut self.lock().env())
+    }
+    pub fn eval(&self, s: &str) -> Object {
+        self.lock().env().eval(s)
+    }
+    pub fn eval_cast<T>(&self, s: &str) -> T
+    where T: TypeName+Downcast<Output=T>
+    {
+        self.tie(|env| {
+           let y = env.eval(s);
+           env.downcast::<T>(&y)
+        })
     }
 
     pub fn new_config(stack_size: usize) -> Self {

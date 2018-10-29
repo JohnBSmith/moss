@@ -17,14 +17,17 @@ Example of calling Moss code from Rust:
 
 ```rust
 extern crate moss;
+use moss::object::Object;
 
 fn main(){
     let i = moss::Interpreter::new();
-    let y = i.eval(|env| env.eval(r#"
-        f = |n| 1 if n==0 else n*f(n-1)
-        f(4)
-    "#));
-    println!("{}",y);
+    i.rte.set("a",Object::from(vec![1,2,3,4]));
+
+    let y = i.eval_cast::<Vec<i32>>(r#"
+        a.map(|x| x^2)
+    "#);
+
+    println!("{:?}",y);
 }
 ```
 
