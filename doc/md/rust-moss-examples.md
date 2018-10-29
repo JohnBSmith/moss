@@ -22,7 +22,7 @@ fn main(){
 }
 ```
 
-## Simple data interface
+## Simple data interfaces
 
 ```rust
 extern crate moss;
@@ -98,7 +98,7 @@ fn fac(n: i32) -> i32 {
 
 fn main(){
     let i = moss::Interpreter::new();
-    i.rte.gtab.borrow_mut().insert("fac",new_i32_to_i32(fac,"fac"));
+    i.rte.set("fac",new_i32_to_i32(fac,"fac"));
     i.eval(r#"
         print(fac(4))
     "#);
@@ -138,7 +138,7 @@ fn fac(n: i32) -> i32 {
 
 fn main(){
     let i = moss::Interpreter::new();
-    i.rte.gtab.borrow_mut().insert("fac",FnObj::new("fac",fac));
+    i.rte.set("fac",FnObj::new("fac",fac));
     i.eval(r#"
         print(fac(4))
     "#);
