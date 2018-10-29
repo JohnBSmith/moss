@@ -300,7 +300,7 @@ impl Long {
                 Ok(Long::object_from_int(x))
             },
             Object::String(ref s) => {
-                Long::object_from_string(&s.v)
+                Long::object_from_string(&s.data)
             },
             Object::Interface(ref x) => {
                 if let Some(_) = x.as_any().downcast_ref::<Long>() {

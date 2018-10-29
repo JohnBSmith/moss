@@ -36,7 +36,7 @@ fn open(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
         1 => {}, n => return env.argc_error(n,1,1,"open")
     }
     let file_id: String = match argv[0] {
-        Object::String(ref s) => s.v.iter().collect(),
+        Object::String(ref s) => s.to_string(),
         _ => return env.type_error("Type error in open(id): id is not a string.")
     };
     if !env.rte().read_access(&file_id) {
@@ -98,7 +98,7 @@ fn is_file(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
         1 => {}, n => return env.argc_error(n,1,1,"is_file")
     }
     let file_id: String = match argv[0] {
-        Object::String(ref s) => s.v.iter().collect(),
+        Object::String(ref s) => s.to_string(),
         _ => return env.type_error("Type error in is_file(id): id is not a string.")
     };
     let path = Path::new(&file_id);
@@ -110,7 +110,7 @@ fn is_dir(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
         1 => {}, n => return env.argc_error(n,1,1,"is_dir")
     }
     let file_id: String = match argv[0] {
-        Object::String(ref s) => s.v.iter().collect(),
+        Object::String(ref s) => s.to_string(),
         _ => return env.type_error("Type error in is_dir(id): id is not a string.")
     };
     let path = Path::new(&file_id);
@@ -118,18 +118,20 @@ fn is_dir(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
 }
 
 fn read_dir(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
-    match argv.len() {
-        1 => {}, n => return env.argc_error(n,1,1,"read_dir")
-    }
-    let file_id: String = match argv[0] {
-        Object::String(ref s) => s.v.iter().collect(),
-        _ => return env.type_error("Type error in is_dir(id): id is not a string.")
+    let file_id: String = match argv.len() {
+        0 => String::from("."),
+        1 => match argv[0] {
+            Object::String(ref s) => s.to_string(),
+            _ => return env.type_error(
+                "Type error in ls(path): path is not a string.")
+        },
+        n => return env.argc_error(n,0,1,"ls")
     };
     let path = Path::new(&file_id);
     let it = match path.read_dir() {
         Ok(it) => it,
         Err(_) => return env.std_exception(&format!(
-            "Could not read directory '{}'.",file_id))
+            "Error in ls(path): Could not read directory '{}'.",file_id))
     };
     let mut v: Vec<Object> = Vec::new();
     for x in it {
@@ -140,6 +142,40 @@ fn read_dir(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
         }
     }
     return Ok(List::new_object(v));
+}
+
+fn change_dir(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
+    match argv.len() {
+        1 => {}, n => return env.argc_error(n,1,1,"cd")
+    }
+    let dir_id: String = match argv[0] {
+        Object::String(ref s) => s.to_string(),
+        _ => return env.type_error("Type error in cd(path): path is not a string.")
+    };
+    let path = Path::new(&dir_id);
+    if let Err(_) = ::std::env::set_current_dir(&path) {
+        return env.std_exception(&format!(
+            "Error: could not change to directory '{}'.",dir_id));
+    }else{
+        return Ok(Object::Null);
+    }
+}
+
+fn working_dir(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
+    match argv.len() {
+        0 => {}, n => return env.argc_error(n,0,0,"wd")
+    }
+    let path = match ::std::env::current_dir() {
+        Ok(path) => path,
+        Err(_) => return env.std_exception(
+            "Error in wd(): could not determine the working directory.")
+    };
+    if let Some(s) = path.to_str() {
+        Ok(Object::from(s))
+    }else{
+        env.std_exception(
+            "Error in wd(): could not encode the working directory as UTF-8.")
+    }
 }
 
 pub fn load_fs(env: &mut Env) -> Object
@@ -157,7 +193,9 @@ pub fn load_fs(env: &mut Env) -> Object
         m.insert_fn_plain("open",open,1,1);
         m.insert_fn_plain("is_file",is_file,1,1);
         m.insert_fn_plain("is_dir",is_dir,1,1);
-        m.insert_fn_plain("read_dir",read_dir,1,1);
+        m.insert_fn_plain("ls",read_dir,1,1);
+        m.insert_fn_plain("cd",change_dir,1,1);
+        m.insert_fn_plain("wd",working_dir,0,0);
     }
 
     return Object::Table(Rc::new(fs));

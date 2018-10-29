@@ -1,13 +1,11 @@
 
-#![allow(unused_variables)]
-
 use std::rc::Rc;
 use std::cell::RefCell;
 use std::cmp::Ordering;
 use std::char;
 
 use object::{
-    Object, Table, List, U32String,
+    Object, Table, List, CharString,
     FnResult, Function, EnumFunction,
     MutableFn, Exception, Range
 };
@@ -51,7 +49,7 @@ fn float_range_iterator(env: &mut Env, r: &Range) -> FnResult {
     let n = if q<0.0 {0} else {(q+0.001) as usize+1};
     let mut k = 0;
 
-    let f = Box::new(move |env: &mut Env, pself: &Object, argv: &[Object]| -> FnResult {
+    let f = Box::new(move |_env: &mut Env, _pself: &Object, _argv: &[Object]| -> FnResult {
         return Ok(if k<n {
             let y = a+k as f64*d;
             k+=1;
@@ -64,7 +62,7 @@ fn float_range_iterator(env: &mut Env, r: &Range) -> FnResult {
 }
 
 fn int_range_iterator(mut a: i32, b: i32, d: i32) -> MutableFn {
-    Box::new(move |env: &mut Env, pself: &Object, argv: &[Object]| -> FnResult {
+    Box::new(move |_env: &mut Env, _pself: &Object, _argv: &[Object]| -> FnResult {
         return if a<=b {
             a+=d;
             Ok(Object::Int(a-d))
@@ -76,7 +74,7 @@ fn int_range_iterator(mut a: i32, b: i32, d: i32) -> MutableFn {
 
 fn char_range_iterator(env: &mut Env, r: &Range) -> FnResult {
     let mut a = if let Object::String(ref s) = r.a {
-        if s.v.len()==1 {s.v[0] as u32} else {
+        if s.data.len()==1 {s.data[0] as u32} else {
             return env.value_error("
             Value error in iter(a..b): a is not a string of size 1.")
         }
@@ -84,7 +82,7 @@ fn char_range_iterator(env: &mut Env, r: &Range) -> FnResult {
         unreachable!()
     };
     let b = if let Object::String(ref s) = r.b {
-        if s.v.len()==1 {s.v[0] as u32} else {
+        if s.data.len()==1 {s.data[0] as u32} else {
             return env.value_error(
             "Value error in iter(a..b): b is not a string of size 1.")
         }
@@ -92,10 +90,10 @@ fn char_range_iterator(env: &mut Env, r: &Range) -> FnResult {
         return env.type_error(
         "Type error in iter(a..b): b is not of type String.")
     };
-    let f = Box::new(move |env: &mut Env, pself: &Object, argv: &[Object]| -> FnResult {
+    let f = Box::new(move |_env: &mut Env, _pself: &Object, _argv: &[Object]| -> FnResult {
         return Ok(if a<=b {
             let value = match char::from_u32(a) {
-                Some(c) => U32String::new_object_char(c),
+                Some(c) => CharString::new_object_char(c),
                 None=> Object::Null
             };
             a+=1;
@@ -140,7 +138,7 @@ pub fn iter(env: &mut Env, x: &Object) -> FnResult {
             let f: Box<FnMut(&mut Env,&Object,&[Object])->FnResult> = match r.b {
                 Object::Int(b) => {
                     if d<0 {
-                        Box::new(move |env: &mut Env, pself: &Object, argv: &[Object]| -> FnResult{
+                        Box::new(move |_env: &mut Env, _pself: &Object, _argv: &[Object]| -> FnResult{
                             return if a>=b {
                                 a+=d;
                                 Ok(Object::Int(a-d))
@@ -153,7 +151,7 @@ pub fn iter(env: &mut Env, x: &Object) -> FnResult {
                     }
                 },
                 Object::Null => {
-                    Box::new(move |env: &mut Env, pself: &Object, argv: &[Object]| -> FnResult{
+                    Box::new(move |_env: &mut Env, _pself: &Object, _argv: &[Object]| -> FnResult{
                         a+=d; Ok(Object::Int(a-d))
                     })
                 },
@@ -164,7 +162,7 @@ pub fn iter(env: &mut Env, x: &Object) -> FnResult {
         Object::List(ref a) => {
             let mut index: usize = 0;
             let a = a.clone();
-            let f = Box::new(move |env: &mut Env, pself: &Object, argv: &[Object]| -> FnResult{
+            let f = Box::new(move |_env: &mut Env, _pself: &Object, _argv: &[Object]| -> FnResult{
                 let a = a.borrow();
                 if index == a.v.len() {
                     return Ok(Object::Empty);
@@ -178,7 +176,7 @@ pub fn iter(env: &mut Env, x: &Object) -> FnResult {
         Object::Map(ref m) => {
             let mut index: usize = 0;
             let v: Vec<Object> = m.borrow().m.keys().cloned().collect();
-            let f = Box::new(move |env: &mut Env, pself: &Object, argv: &[Object]| -> FnResult {
+            let f = Box::new(move |_env: &mut Env, _pself: &Object, _argv: &[Object]| -> FnResult {
                 if index == v.len() {
                     return Ok(Object::Empty);
                 }else{
@@ -191,13 +189,13 @@ pub fn iter(env: &mut Env, x: &Object) -> FnResult {
         Object::String(ref s) => {
             let mut index: usize = 0;
             let s = s.clone();
-            let f = Box::new(move |env: &mut Env, pself: &Object, argv: &[Object]| -> FnResult{
-                if index == s.v.len() {
+            let f = Box::new(move |_env: &mut Env, _pself: &Object, _argv: &[Object]| -> FnResult{
+                if index == s.data.len() {
                     return Ok(Object::Empty);
                 }else{
                     index+=1;
-                    return Ok(Object::String(Rc::new(U32String{
-                        v: vec![s.v[index-1]]
+                    return Ok(Object::String(Rc::new(CharString{
+                        data: vec![s.data[index-1]]
                     })));
                 }
             });
@@ -224,7 +222,7 @@ fn cycle_iterable(env: &mut Env, x: &Object) -> FnResult {
         _ => unreachable!()
     };
     let mut k: usize = 0;
-    let f = Box::new(move |env: &mut Env, pself: &Object, argv: &[Object]| -> FnResult {
+    let f = Box::new(move |env: &mut Env, _pself: &Object, _argv: &[Object]| -> FnResult {
         let v = &a.borrow().v;
         if k<v.len() {k+=1;} else {k=1;}
         if v.len()==0 {
@@ -241,7 +239,7 @@ fn cycle_range(env: &mut Env, a: i32, b: i32) -> FnResult {
         return env.value_error("Value error in cycle(a..b): b<a.");
     }
     let mut k = a;
-    let f = Box::new(move |env: &mut Env, pself: &Object, argv: &[Object]| -> FnResult {
+    let f = Box::new(move |_env: &mut Env, _pself: &Object, _argv: &[Object]| -> FnResult {
         let y = k;
         if k<b {k+=1;} else {k=a;}
         return Ok(Object::Int(y));
@@ -249,7 +247,7 @@ fn cycle_range(env: &mut Env, a: i32, b: i32) -> FnResult {
     return Ok(new_iterator(f));
 }
 
-pub fn cycle(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+pub fn cycle(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         1 => {}, n => return env.argc_error(n,1,1,"cycle")
     }
@@ -313,7 +311,7 @@ fn map(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     }
     let i = iter(env,pself)?;
     let f = argv[0].clone();
-    let g = Box::new(move |env: &mut Env, pself: &Object, argv: &[Object]| -> FnResult {
+    let g = Box::new(move |env: &mut Env, _pself: &Object, _argv: &[Object]| -> FnResult {
         let x = env.call(&i,&Object::Null,&[])?;
         return if let Object::Empty = x {
             Ok(x)
@@ -333,7 +331,7 @@ fn filter(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     }
     let i = iter(env,pself)?;
     let f = argv[0].clone();
-    let g = Box::new(move |env: &mut Env, pself: &Object, argv: &[Object]| -> FnResult {
+    let g = Box::new(move |env: &mut Env, _pself: &Object, _argv: &[Object]| -> FnResult {
         loop{
             let x = env.call(&i,&Object::Null,&[])?;
             if let Object::Empty = x {
@@ -471,7 +469,7 @@ fn chunks(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
     };
     let i = iter(env,pself)?;
     let mut empty = false;
-    let g = Box::new(move |env: &mut Env, pself: &Object, argv: &[Object]| -> FnResult {
+    let g = Box::new(move |env: &mut Env, _pself: &Object, _argv: &[Object]| -> FnResult {
         if empty {return Ok(Object::Empty);}
         let mut v: Vec<Object> = Vec::with_capacity(n);
         for _ in 0..n {
@@ -623,8 +621,8 @@ fn compare(a: &Object, b: &Object) -> Ordering {
         },
         Object::String(ref a) => {
             match *b {
-                Object::String(ref b) => a.v.cmp(&b.v),
-                Object::List(ref y) => Ordering::Less,
+                Object::String(ref b) => a.data.cmp(&b.data),
+                Object::List(_) => Ordering::Less,
                 _ => Ordering::Greater
             }
         }
@@ -784,7 +782,7 @@ fn until(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     }
     let i = iter(env,pself)?;
     let f = argv[0].clone();
-    let g = Box::new(move |env: &mut Env, pself: &Object, argv: &[Object]| -> FnResult {
+    let g = Box::new(move |env: &mut Env, _pself: &Object, _argv: &[Object]| -> FnResult {
         let x = env.call(&i,&Object::Null,&[])?;
         return match x {
             Object::Empty => Ok(x),
@@ -816,7 +814,7 @@ fn enumerate(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
         n => return env.argc_error(n,0,1,"enum")
     };
     let i = iter(env,pself)?;
-    let g = Box::new(move |env: &mut Env, pself: &Object, argv: &[Object]| -> FnResult {
+    let g = Box::new(move |env: &mut Env, _pself: &Object, _argv: &[Object]| -> FnResult {
         let x = env.call(&i,&Object::Null,&[])?;
         return match x {
             Object::Empty => Ok(x),
@@ -842,7 +840,7 @@ fn take(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     };
     let mut k: i32 = 0;
     let i = iter(env,pself)?;
-    let g = Box::new(move |env: &mut Env, pself: &Object, argv: &[Object]| -> FnResult {
+    let g = Box::new(move |env: &mut Env, _pself: &Object, _argv: &[Object]| -> FnResult {
         let x = env.call(&i,&Object::Null,&[])?;
         return Ok(match x {
             Object::Empty => x,
@@ -897,7 +895,7 @@ fn iterable_join(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
         3 => join(env,&a.borrow().v,Some(&argv[0]),Some(&argv[1]),Some(&argv[2])),
         n => return env.argc_error(n,0,3,"join")
     };
-    Ok(U32String::new_object_str(&y?))
+    Ok(CharString::new_object_str(&y?))
 }
 
 fn min_plain(env: &mut Env, a: &Object) -> FnResult {

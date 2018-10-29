@@ -1,13 +1,9 @@
 
-#![allow(unused_variables)]
-#![allow(unused_imports)]
-
 use std::rc::Rc;
 use std::cell::{Cell,RefCell};
 use std::collections::HashMap;
 use std::fmt;
 use std::any::Any;
-use std::ops;
 use std::mem::replace;
 
 use complex::Complex64;
@@ -22,12 +18,12 @@ pub enum Object{
     Complex(Complex64),
 
     List(Rc<RefCell<List>>),
-    String(Rc<U32String>),
+    String(Rc<CharString>),
     Map(Rc<RefCell<Map>>),
     Function(Rc<Function>),
     Range(Rc<Range>),
     Table(Rc<Table>),
-    Interface(Rc<Interface>),
+    Interface(Rc<dyn Interface>),
     Empty
 }
 
@@ -76,21 +72,25 @@ impl Clone for Object{
     }
 }
 
-pub struct U32String{
-    pub v: Vec<char>
+pub struct CharString{
+    pub data: Vec<char>
 }
 
-impl U32String{
+impl CharString{
     pub fn new_object(v: Vec<char>) -> Object{
-        return Object::String(Rc::new(U32String{v: v}));
+        return Object::String(Rc::new(CharString{data: v}));
     }
 
     pub fn new_object_str(s: &str) -> Object{
-        return Object::String(Rc::new(U32String{v: s.chars().collect()}));
+        return Object::String(Rc::new(CharString{data: s.chars().collect()}));
     }
 
     pub fn new_object_char(c: char) -> Object{
-        return Object::String(Rc::new(U32String{v: vec![c]}));
+        return Object::String(Rc::new(CharString{data: vec![c]}));
+    }
+    
+    pub fn to_string(&self) -> String {
+        return self.data.iter().collect();
     }
 }
 
@@ -124,13 +124,13 @@ impl Map{
     }
 
     pub fn insert(&mut self, key: &str, value: Object){
-        self.m.insert(U32String::new_object_str(key),value);
+        self.m.insert(CharString::new_object_str(key),value);
     }
 
     pub fn insert_fn_plain(&mut self, key: &str, fp: PlainFn,
         argc_min: u32, argc_max: u32
     ) {
-        let key = U32String::new_object_str(key);
+        let key = CharString::new_object_str(key);
 
         let f = Object::Function(Rc::new(Function{
             f: EnumFunction::Plain(fp),
@@ -164,7 +164,7 @@ pub struct Exception{
 impl Exception{
     pub fn new(s: &str, prototype: Object) -> Box<Exception> {
         let t = Table{prototype, map: Map::new(), extra: None};
-        t.map.borrow_mut().insert("value", U32String::new_object_str(s));
+        t.map.borrow_mut().insert("value", CharString::new_object_str(s));
         Box::new(Exception{
             value: Object::Table(Rc::new(t)),
             traceback: None, spot: None
@@ -182,7 +182,7 @@ impl Exception{
     }
 
     pub fn push_clm(&mut self, line: usize, col: usize, module: &str, fid: &str) {
-        let s = U32String::new_object_str(&format!(
+        let s = CharString::new_object_str(&format!(
             "{}, {}:{}:{}",fid,module,line,col
         ));
         if let Some(ref mut a) = self.traceback {
@@ -195,7 +195,7 @@ impl Exception{
     }
 
     pub fn traceback_push(&mut self, fid: &str) {
-        let s = U32String::new_object_str(fid);
+        let s = CharString::new_object_str(fid);
         if let Some(ref mut a) = self.traceback {
             a.v.push(s);
         }else{
@@ -328,88 +328,88 @@ pub fn new_module(_id: &str) -> Table{
 
 pub trait Interface{
     fn as_any(&self) -> &Any;
-    fn to_string(&self, env: &mut Env) -> Result<String,Box<Exception>> {
+    fn to_string(&self, _env: &mut Env) -> Result<String,Box<Exception>> {
         Ok("interface object".to_string())
     }
-    fn add(&self, b: &Object, env: &mut Env) -> FnResult {
+    fn add(&self, _b: &Object, env: &mut Env) -> FnResult {
         Ok(Object::Table(env.rte().unimplemented.clone()))
     }
-    fn radd(&self, a: &Object, env: &mut Env) -> FnResult {
+    fn radd(&self, _a: &Object, env: &mut Env) -> FnResult {
         Ok(Object::Table(env.rte().unimplemented.clone()))
     }
-    fn sub(&self, b: &Object, env: &mut Env) -> FnResult {
+    fn sub(&self, _b: &Object, env: &mut Env) -> FnResult {
         Ok(Object::Table(env.rte().unimplemented.clone()))
     }
-    fn rsub(&self, a: &Object, env: &mut Env) -> FnResult {
+    fn rsub(&self, _a: &Object, env: &mut Env) -> FnResult {
         Ok(Object::Table(env.rte().unimplemented.clone()))
     }
-    fn mpy(&self, b: &Object, env: &mut Env) -> FnResult {
+    fn mpy(&self, _b: &Object, env: &mut Env) -> FnResult {
         Ok(Object::Table(env.rte().unimplemented.clone()))
     }
-    fn rmpy(&self, a: &Object, env: &mut Env) -> FnResult {
+    fn rmpy(&self, _a: &Object, env: &mut Env) -> FnResult {
         Ok(Object::Table(env.rte().unimplemented.clone()))
     }
-    fn div(&self, b: &Object, env: &mut Env) -> FnResult {
+    fn div(&self, _b: &Object, env: &mut Env) -> FnResult {
         Ok(Object::Table(env.rte().unimplemented.clone()))
     }
-    fn rdiv(&self, a: &Object, env: &mut Env) -> FnResult {
+    fn rdiv(&self, _a: &Object, env: &mut Env) -> FnResult {
         Ok(Object::Table(env.rte().unimplemented.clone()))
     }
-    fn idiv(&self, b: &Object, env: &mut Env) -> FnResult {
+    fn idiv(&self, _b: &Object, env: &mut Env) -> FnResult {
         env.std_exception("Error: a//b is not implemented for objects of this type.")
     }
-    fn ridiv(&self, a: &Object, env: &mut Env) -> FnResult {
+    fn ridiv(&self, _a: &Object, env: &mut Env) -> FnResult {
         env.std_exception("Error: a//b is not implemented for objects of this type.")
     }
-    fn imod(&self, b: &Object, env: &mut Env) -> FnResult {
+    fn imod(&self, _b: &Object, env: &mut Env) -> FnResult {
         Ok(Object::Table(env.rte().unimplemented.clone()))
     }
-    fn rimod(&self, b: &Object, env: &mut Env) -> FnResult {
+    fn rimod(&self, _b: &Object, env: &mut Env) -> FnResult {
         Ok(Object::Table(env.rte().unimplemented.clone()))
     }
-    fn pow(&self, b: &Object, env: &mut Env) -> FnResult {
+    fn pow(&self, _b: &Object, env: &mut Env) -> FnResult {
         env.std_exception("Error: a^b is not implemented for objects of this type.")
     }
-    fn rpow(&self, b: &Object, env: &mut Env) -> FnResult {
+    fn rpow(&self, _b: &Object, env: &mut Env) -> FnResult {
         env.std_exception("Error: a^b is not implemented for objects of this type.")
     }
 
-    fn eq_plain(&self, b: &Object) -> bool {
+    fn eq_plain(&self, _b: &Object) -> bool {
         false
     }
-    fn req_plain(&self, a: &Object) -> bool {
+    fn req_plain(&self, _a: &Object) -> bool {
         false
     }
 
-    fn eq(&self, b: &Object, env: &mut Env) -> FnResult {
+    fn eq(&self, _b: &Object, env: &mut Env) -> FnResult {
         Ok(Object::Table(env.rte().unimplemented.clone()))
     }
-    fn req(&self, a: &Object, env: &mut Env) -> FnResult {
+    fn req(&self, _a: &Object, env: &mut Env) -> FnResult {
         Ok(Object::Table(env.rte().unimplemented.clone()))
     }
-    fn lt(&self, b: &Object, env: &mut Env) -> FnResult {
+    fn lt(&self, _b: &Object, env: &mut Env) -> FnResult {
         env.std_exception("Error: a<b is not implemented for objects of this type.")
     }
-    fn gt(&self, b: &Object, env: &mut Env) -> FnResult {
+    fn gt(&self, _b: &Object, env: &mut Env) -> FnResult {
         env.std_exception("Error: a>b is not implemented for objects of this type.")
     }
-    fn le(&self, b: &Object, env: &mut Env) -> FnResult {
+    fn le(&self, _b: &Object, env: &mut Env) -> FnResult {
         env.std_exception("Error: a<=b is not implemented for objects of this type.")
     }
-    fn ge(&self, b: &Object, env: &mut Env) -> FnResult {
+    fn ge(&self, _b: &Object, env: &mut Env) -> FnResult {
         env.std_exception("Error: a>=b is not implemented for objects of this type.")
     }
 
-    fn rlt(&self, b: &Object, env: &mut Env) -> FnResult {
+    fn rlt(&self, _b: &Object, env: &mut Env) -> FnResult {
         env.std_exception("Error: a<b is not implemented for objects of this type.")
     }
-    fn rgt(&self, b: &Object, env: &mut Env) -> FnResult {
+    fn rgt(&self, _b: &Object, env: &mut Env) -> FnResult {
         env.std_exception("Error: a>b is not implemented for objects of this type.")
     }
-    fn rle(&self, b: &Object, env: &mut Env) -> FnResult {
+    fn rle(&self, _b: &Object, env: &mut Env) -> FnResult {
         env.std_exception("Error: a<=b is not implemented for objects of this type.")
     }
-    fn rge(&self, b: &Object, env: &mut Env) -> FnResult {
+    fn rge(&self, _b: &Object, env: &mut Env) -> FnResult {
         env.std_exception("Error: a>=b is not implemented for objects of this type.")
     }
     
@@ -423,13 +423,13 @@ pub trait Interface{
     fn sgn(&self, env: &mut Env) -> FnResult {
         env.std_exception("Error: sgn(x) is not implemented for objects of this type.")
     }
-    fn get(&self, key: &Object, env: &mut Env) -> FnResult {
+    fn get(&self, _key: &Object, env: &mut Env) -> FnResult {
         env.std_exception("Type error in t.x: getter is not implemented for objects of this type.")
     }
-    fn index(&self, indices: &[Object], env: &mut Env) -> FnResult {
+    fn index(&self, _indices: &[Object], env: &mut Env) -> FnResult {
         env.std_exception("Type error in a[i]: indexing is not implemented for objects of this type.")
     }
-    fn set_index(&self, indices: &[Object], value: &Object, env: &mut Env) -> FnResult {
+    fn set_index(&self, _indices: &[Object], _value: &Object, env: &mut Env) -> FnResult {
         env.std_exception("Type error in a[i]=value: indexing is not implemented for objects of this type.")
     }
     fn type_name(&self) -> String {
@@ -438,7 +438,7 @@ pub trait Interface{
     fn get_type(&self, env: &mut Env) -> FnResult {
         env.type_error("Type error in type(x): interface object x has no type")
     }
-    fn is_instance_of(&self, type_obj: &Object, rte: &RTE) -> bool {
+    fn is_instance_of(&self, _type_obj: &Object, _rte: &RTE) -> bool {
         false
     }
     fn hash(&self) -> u64 {
@@ -474,13 +474,13 @@ pub fn downcast<T: 'static>(x: &Object) -> Option<&T> {
 
 impl<'a> From<&'a str> for Object {
     fn from(x: &str) -> Object {
-        return U32String::new_object_str(x);
+        return CharString::new_object_str(x);
     }
 }
 
 impl From<char> for Object {
     fn from(x: char) -> Object {
-        return U32String::new_object_char(x);
+        return CharString::new_object_char(x);
     }
 }
 
@@ -571,7 +571,7 @@ impl Downcast for String {
     type Output = String;
     fn try_downcast(x: &Object) -> Option<String> {
         match *x {
-            Object::String(ref s) => Some(s.v.iter().collect()),
+            Object::String(ref s) => Some(s.to_string()),
             _ => None
         }
     }

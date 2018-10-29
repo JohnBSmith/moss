@@ -1,8 +1,9 @@
 
 use object::{
-    Object, Table, FnResult, U32String
+    Object, Table, FnResult, CharString
 };
 use vm::Env;
+use data::Bytes;
 
 fn isdigit(c: char) -> bool {
     ('0' as u32)<=(c as u32) && (c as u32)<=('9' as u32)
@@ -49,7 +50,7 @@ fn string_isdigit(env: &mut Env, pself: &Object, argv: &[Object])
     };
     match *pself {
         Object::String(ref s) => {
-            for c in &s.v {
+            for c in &s.data {
                 if !(*c).is_digit(base) {return Ok(Object::Bool(false));}
             }
             return Ok(Object::Bool(true));
@@ -66,7 +67,7 @@ fn string_isalpha(env: &mut Env, pself: &Object, argv: &[Object])
     }
     match *pself {
         Object::String(ref s) => {
-            for c in &s.v {
+            for c in &s.data {
                 if !isalpha(*c) {return Ok(Object::Bool(false));}
             }
             return Ok(Object::Bool(true));
@@ -83,7 +84,7 @@ fn string_isalnum(env: &mut Env, pself: &Object, argv: &[Object])
     }
     match *pself {
         Object::String(ref s) => {
-            for c in &s.v {
+            for c in &s.data {
                 if !(isdigit(*c) || isalpha(*c)) {
                     return Ok(Object::Bool(false));
                 }
@@ -102,7 +103,7 @@ fn string_isspace(env: &mut Env, pself: &Object, argv: &[Object])
     }
     match *pself {
         Object::String(ref s) => {
-            for c in &s.v {
+            for c in &s.data {
                 if !isspace(*c) {return Ok(Object::Bool(false));}
             }
             return Ok(Object::Bool(true));
@@ -119,7 +120,7 @@ fn string_islower(env: &mut Env, pself: &Object, argv: &[Object])
     }
     match *pself {
         Object::String(ref s) => {
-            for c in &s.v {
+            for c in &s.data {
                 if !islower(*c) {return Ok(Object::Bool(false));}
             }
             return Ok(Object::Bool(true));
@@ -136,7 +137,7 @@ fn string_isupper(env: &mut Env, pself: &Object, argv: &[Object])
     }
     match *pself {
         Object::String(ref s) => {
-            for c in &s.v {
+            for c in &s.data {
                 if !isupper(*c) {return Ok(Object::Bool(false));}
             }
             return Ok(Object::Bool(true));
@@ -154,10 +155,10 @@ fn lower(env: &mut Env, pself: &Object, argv: &[Object])
     match *pself {
         Object::String(ref s) => {
             let mut v: Vec<char> = Vec::new();
-            for c in &s.v {
+            for c in &s.data {
                 v.append(&mut c.to_lowercase().collect());
             }
-            return Ok(U32String::new_object(v));
+            return Ok(CharString::new_object(v));
         },
         ref s => type_error0_string(env,"lower",s)
     }
@@ -172,10 +173,10 @@ fn upper(env: &mut Env, pself: &Object, argv: &[Object])
     match *pself {
         Object::String(ref s) => {
             let mut v: Vec<char> = Vec::new();
-            for c in &s.v {
+            for c in &s.data {
                 v.append(&mut c.to_uppercase().collect());
             }
-            return Ok(U32String::new_object(v));
+            return Ok(CharString::new_object(v));
         },
         ref s => type_error0_string(env,"upper",s)
     }
@@ -187,7 +188,7 @@ fn ljust(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
         2 => {
             match argv[1] {
                 Object::String(ref s) => {
-                    if s.v.len()==1 {s.v[0]} else {
+                    if s.data.len()==1 {s.data[0]} else {
                         return env.value_error(
                             "Value error in s.ljust(n,c): size(c)!=1."
                         );
@@ -204,7 +205,7 @@ fn ljust(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
         n => return env.argc_error(n,2,2,"ljust")
     };
     let s = match *pself {
-        Object::String(ref s) => &s.v,
+        Object::String(ref s) => &s.data,
         _ => {return env.type_error1(
             "Type error in s.ljust(n): s is not a string.",
             "s",pself
@@ -223,7 +224,7 @@ fn ljust(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     for _ in s.len()..n {
         v.push(c);
     }
-    return Ok(U32String::new_object(v));
+    return Ok(CharString::new_object(v));
 }
 
 fn rjust(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
@@ -232,7 +233,7 @@ fn rjust(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
         2 => {
             match argv[1] {
                 Object::String(ref s) => {
-                    if s.v.len()==1 {s.v[0]} else {
+                    if s.data.len()==1 {s.data[0]} else {
                         return env.value_error(
                             "Value error in s.rjust(n,c): size(c)!=1."
                         );
@@ -249,7 +250,7 @@ fn rjust(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
         n => return env.argc_error(n,2,2,"ljust")
     };
     let s = match *pself {
-        Object::String(ref s) => &s.v,
+        Object::String(ref s) => &s.data,
         _ => {return env.type_error1(
             "Type error in s.rjust(n): s is not a string.",
             "s", pself
@@ -271,18 +272,18 @@ fn rjust(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     for x in s {
         v.push(*x);
     }
-    return Ok(U32String::new_object(v));
+    return Ok(CharString::new_object(v));
 }
 
 pub fn duplicate(s: &[char], n: i32) -> Object {
     if n<0 {
-        return U32String::new_object_str("");
+        return CharString::new_object_str("");
     }else{
         let mut v: Vec<char> = Vec::with_capacity(n as usize*s.len());
         for _ in 0..n {
             v.extend_from_slice(&s);
         }
-        return U32String::new_object(v);
+        return CharString::new_object(v);
     }
 }
 
@@ -326,18 +327,18 @@ fn string_ltrim(env: &mut Env, pself: &Object, argv: &[Object])
 -> FnResult
 {
     let s = match *pself {
-        Object::String(ref s) => &s.v,
+        Object::String(ref s) => &s.data,
         _ => return env.type_error("Type error in s.ltrim(): s is not a string.")
     };
     match argv.len() {
         0 => {
             let v = ltrim(s,&[' ','\n','\t']);
-            Ok(U32String::new_object(v))
+            Ok(CharString::new_object(v))
         },
         1 => match argv[0] {
             Object::String(ref chars) => {
-                let v = ltrim(s,&chars.v);
-                Ok(U32String::new_object(v))
+                let v = ltrim(s,&chars.data);
+                Ok(CharString::new_object(v))
             },
             _ => env.type_error("Type error in s.ltrim(chars): chars is not a string.")
         },
@@ -349,18 +350,18 @@ fn string_rtrim(env: &mut Env, pself: &Object, argv: &[Object])
 -> FnResult
 {
     let s = match *pself {
-        Object::String(ref s) => &s.v,
+        Object::String(ref s) => &s.data,
         _ => return env.type_error("Type error in s.rtrim(): s is not a string.")
     };
     match argv.len() {
         0 => {
             let v = rtrim(s,&[' ','\n','\t']);
-            Ok(U32String::new_object(v))
+            Ok(CharString::new_object(v))
         },
         1 => match argv[0] {
             Object::String(ref chars) => {
-                let v = rtrim(s,&chars.v);
-                Ok(U32String::new_object(v))
+                let v = rtrim(s,&chars.data);
+                Ok(CharString::new_object(v))
             },
             _ => env.type_error("Type error in s.rtrim(chars): chars is not a string.")
         },
@@ -372,22 +373,48 @@ fn string_trim(env: &mut Env, pself: &Object, argv: &[Object])
 -> FnResult
 {
     let s = match *pself {
-        Object::String(ref s) => &s.v,
+        Object::String(ref s) => &s.data,
         _ => return env.type_error("Type error in s.trim(): s is not a string.")
     };
     match argv.len() {
         0 => {
             let v = trim(s,&[' ','\n','\t']);
-            Ok(U32String::new_object(v))
+            Ok(CharString::new_object(v))
         },
         1 => match argv[0] {
             Object::String(ref chars) => {
-                let v = trim(s,&chars.v);
-                Ok(U32String::new_object(v))
+                let v = trim(s,&chars.data);
+                Ok(CharString::new_object(v))
             },
             _ => env.type_error("Type error in s.trim(chars): chars is not a string.")
         },
         n => env.argc_error(n,0,1,"trim")
+    }
+}
+
+fn string_encode(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+    let spec: String = match argv.len() {
+        0 => String::from("UTF-8"),
+        1 => match argv[0] {
+            Object::String(ref spec) => spec.to_string(),
+            ref spec => return env.type_error1(
+                "Type error in s.encode(spec): spec is not a string.",
+                "spec",spec)
+        },
+        n => return env.argc_error(n,1,1,"encode")
+    };
+    match *pself {
+        Object::String(ref s) => {
+            if spec=="UTF-8" {
+                let data = s.to_string().into_bytes();
+                Ok(Bytes::object_from_vec(data))
+            }else{
+                env.value_error(&format!(
+                    "Value error in s.encode(spec): spec=='{}' is unknown.",spec.to_string()))
+            }
+        },
+        ref s => env.type_error1(
+            "Type error in s.encode(spec): s is not a string.","s",s)
     }
 }
 
@@ -406,4 +433,5 @@ pub fn init(t: &Table){
     m.insert_fn_plain("ltrim",string_ltrim,0,1);
     m.insert_fn_plain("rtrim",string_rtrim,0,1);
     m.insert_fn_plain("trim",string_trim,0,1);
+    m.insert_fn_plain("encode",string_encode,0,1);
 }

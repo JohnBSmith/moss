@@ -1,13 +1,10 @@
 
-#![allow(unused_variables)]
-#![allow(unused_imports)]
-
 use std::rc::Rc;
 use std::process;
-use object::{Object, FnResult, Function, VARIADIC, new_module};
+use object::{Object, FnResult, VARIADIC, new_module};
 use vm::{RTE,Env};
 
-fn exit(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+fn exit(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         0 => {
             process::exit(0);

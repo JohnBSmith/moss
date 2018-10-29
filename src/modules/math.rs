@@ -1,11 +1,8 @@
 
-#![allow(unused_variables)]
-#![allow(unused_imports)]
-
 use std::f64::consts::{PI,E,LOG10_E};
 use std::rc::Rc;
 use complex::c64;
-use object::{Object, FnResult, Function, new_module};
+use object::{Object, FnResult, new_module};
 use vm::Env;
 
 const SQRT_2PI: f64 = 2.5066282746310002;
@@ -124,7 +121,7 @@ pub fn type_error_int_float_complex(env: &mut Env, id: &str, x: &Object) -> FnRe
     )
 }
 
-fn floor(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+fn floor(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         1 => {}, n => return env.argc_error(n,1,1,"floor")
     }
@@ -139,7 +136,7 @@ fn floor(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     }
 }
 
-fn ceil(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+fn ceil(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         1 => {}, n => return env.argc_error(n,1,1,"ceil")
     }
@@ -154,7 +151,7 @@ fn ceil(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     }
 }
 
-fn trunc(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+fn trunc(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         1 => {}, n => return env.argc_error(n,1,1,"trunc")
     }
@@ -166,7 +163,7 @@ fn trunc(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     Ok(Object::Float(x.trunc()))
 }
 
-fn sqrt(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+fn sqrt(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         1 => {}, n => return env.argc_error(n,1,1,"sqrt")
     }
@@ -181,7 +178,7 @@ fn sqrt(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     }
 }
 
-fn exp(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+fn exp(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         1 => {}, n => return env.argc_error(n,1,1,"exp")
     }
@@ -199,7 +196,7 @@ fn exp(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     }
 }
 
-fn ln(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+fn ln(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         1 => {}, n => return env.argc_error(n,1,1,"ln")
     }
@@ -214,7 +211,7 @@ fn ln(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     }
 }
 
-fn lg(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+fn lg(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         1 => {}, n => return env.argc_error(n,1,1,"lg")
     }
@@ -230,7 +227,7 @@ fn lg(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
 }
 
 
-fn sin(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+fn sin(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         1 => {}, n => return env.argc_error(n,1,1,"sin")
     }
@@ -248,7 +245,7 @@ fn sin(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     }
 }
 
-fn cos(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+fn cos(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         1 => {}, n => return env.argc_error(n,1,1,"cos")
     }
@@ -266,7 +263,7 @@ fn cos(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     }
 }
 
-fn tan(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+fn tan(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         1 => {}, n => return env.argc_error(n,1,1,"tan")
     }
@@ -284,7 +281,7 @@ fn tan(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     }
 }
 
-fn sinh(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+fn sinh(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         1 => {}, n => return env.argc_error(n,1,1,"sinh")
     }
@@ -302,7 +299,7 @@ fn sinh(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     }
 }
 
-fn cosh(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+fn cosh(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         1 => {}, n => return env.argc_error(n,1,1,"cosh")
     }
@@ -320,7 +317,7 @@ fn cosh(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     }
 }
 
-fn tanh(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+fn tanh(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         1 => {}, n => return env.argc_error(n,1,1,"tanh")
     }
@@ -338,7 +335,7 @@ fn tanh(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     }
 }
 
-fn asin(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+fn asin(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         1 => {}, n => return env.argc_error(n,1,1,"asin")
     }
@@ -353,7 +350,7 @@ fn asin(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     }
 }
 
-fn acos(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+fn acos(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         1 => {}, n => return env.argc_error(n,1,1,"acos")
     }
@@ -368,7 +365,7 @@ fn acos(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     }
 }
 
-fn atan(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+fn atan(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         1 => {}, n => return env.argc_error(n,1,1,"atan")
     }
@@ -383,7 +380,7 @@ fn atan(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     }
 }
 
-fn asinh(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+fn asinh(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         1 => {}, n => return env.argc_error(n,1,1,"asinh")
     }
@@ -398,7 +395,7 @@ fn asinh(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     }
 }
 
-fn acosh(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+fn acosh(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         1 => {}, n => return env.argc_error(n,1,1,"acosh")
     }
@@ -413,7 +410,7 @@ fn acosh(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     }
 }
 
-fn atanh(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+fn atanh(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         1 => {}, n => return env.argc_error(n,1,1,"atanh")
     }
@@ -428,7 +425,7 @@ fn atanh(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     }
 }
 
-fn math_gamma(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+fn math_gamma(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         1 => {}, n => return env.argc_error(n,1,1,"gamma")
     }
@@ -446,7 +443,7 @@ fn math_gamma(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     }
 }
 
-fn math_lgamma(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+fn math_lgamma(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         1 => {}, n => return env.argc_error(n,1,1,"lgamma")
     }
@@ -458,7 +455,7 @@ fn math_lgamma(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     Ok(Object::Float(lgamma(x)))
 }
 
-fn math_sgngamma(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+fn math_sgngamma(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         1 => {}, n => return env.argc_error(n,1,1,"sgngamma")
     }
@@ -470,7 +467,7 @@ fn math_sgngamma(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     Ok(Object::Float(sgngamma(x)))
 }
 
-fn hypot(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+fn hypot(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         2 => {}, n => return env.argc_error(n,2,2,"hypot")
     }
@@ -501,7 +498,7 @@ fn hypot(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     }
 }
 
-fn atan2(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+fn atan2(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         2 => {}, n => return env.argc_error(n,2,2,"atan2")
     }
@@ -532,7 +529,7 @@ fn atan2(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     }
 }
 
-fn math_erf(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+fn math_erf(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         1 => {}, n => return env.argc_error(n,1,1,"erf")
     }
@@ -547,12 +544,12 @@ fn math_erf(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     }
 }
 
-fn isnan(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+fn isnan(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         1 => {}, n => return env.argc_error(n,1,1,"isnan")
     }
     match argv[0] {
-        Object::Int(x) => {
+        Object::Int(_) => {
             Ok(Object::Bool(false))
         },
         Object::Float(x) => {
@@ -562,12 +559,12 @@ fn isnan(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     }
 }
 
-fn isinf(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+fn isinf(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         1 => {}, n => return env.argc_error(n,1,1,"isinf")
     }
     match argv[0] {
-        Object::Int(x) => {
+        Object::Int(_) => {
             Ok(Object::Bool(false))
         },
         Object::Float(x) => {
@@ -577,7 +574,7 @@ fn isinf(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     }
 }
 
-fn re(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+fn re(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         1 => {}, n => return env.argc_error(n,1,1,"re")
     }
@@ -595,7 +592,7 @@ fn re(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     }
 }
 
-fn im(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+fn im(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         1 => {}, n => return env.argc_error(n,1,1,"im")
     }
@@ -613,7 +610,7 @@ fn im(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     }
 }
 
-fn arg(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+fn arg(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         1 => {}, n => return env.argc_error(n,1,1,"arg")
     }
@@ -621,17 +618,17 @@ fn arg(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
         Object::Complex(z) => {
             Ok(Object::Float(z.arg()))
         },
-        Object::Float(x) => {
+        Object::Float(_) => {
             Ok(Object::Float(0.0))
         },
-        Object::Int(x) => {
+        Object::Int(_) => {
             Ok(Object::Float(0.0))
         },
         ref x => type_error_int_float_complex(env,"arg",x)
     }
 }
 
-fn conj(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+fn conj(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         1 => {}, n => return env.argc_error(n,1,1,"conj")
     }
@@ -649,7 +646,7 @@ fn conj(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     }
 }
 
-fn csqrt(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+fn csqrt(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         1 => {}, n => return env.argc_error(n,1,1,"sqrt")
     }
@@ -675,7 +672,7 @@ fn csqrt(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     }
 }
 
-fn cln(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+fn cln(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         1 => {}, n => return env.argc_error(n,1,1,"ln")
     }
@@ -693,7 +690,7 @@ fn cln(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     }
 }
 
-fn casin(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+fn casin(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         1 => {}, n => return env.argc_error(n,1,1,"asin")
     }
@@ -711,7 +708,7 @@ fn casin(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     }
 }
 
-fn cacos(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+fn cacos(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         1 => {}, n => return env.argc_error(n,1,1,"acos")
     }
@@ -729,7 +726,7 @@ fn cacos(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     }
 }
 
-fn catan(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+fn catan(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         1 => {}, n => return env.argc_error(n,1,1,"atan")
     }
@@ -747,7 +744,7 @@ fn catan(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     }
 }
 
-fn casinh(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+fn casinh(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         1 => {}, n => return env.argc_error(n,1,1,"asinh")
     }
@@ -765,7 +762,7 @@ fn casinh(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     }
 }
 
-fn cacosh(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+fn cacosh(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         1 => {}, n => return env.argc_error(n,1,1,"acosh")
     }
@@ -783,7 +780,7 @@ fn cacosh(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     }
 }
 
-fn catanh(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+fn catanh(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         1 => {}, n => return env.argc_error(n,1,1,"atanh")
     }

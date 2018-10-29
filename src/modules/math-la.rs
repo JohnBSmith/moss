@@ -1,14 +1,11 @@
 
 // Linear algebra
 
-#![allow(unused_variables)]
-#![allow(unused_imports)]
-
 use std::rc::Rc;
 use std::cell::RefCell;
 use std::any::Any;
 use object::{
-    Object, FnResult, Function, List, Table, Interface,
+    Object, FnResult, List, Table, Interface,
     Exception, new_module, downcast, VARIADIC
 };
 use vm::{
@@ -103,7 +100,7 @@ impl Interface for Array {
     }
     fn get(&self, key: &Object, env: &mut Env) -> FnResult {
         if let Object::String(ref s) = *key {
-            let v = &s.v;
+            let v = &s.data;
             match v.len() {
                 1 => {
                     if v[0] == 'T' {
@@ -487,7 +484,7 @@ fn matrix_power(env: &mut Env, a: &Array, mut n: u32, size: usize)
 
 fn map_unary_operator(a: &Array,
     operator: &Fn(&mut Env,&Object) -> FnResult,
-    operator_symbol: char, env: &mut Env
+    _operator_symbol: char, env: &mut Env
 ) -> FnResult
 {
     if a.n==1 {
@@ -855,7 +852,7 @@ fn unit_vector(n: usize, k: usize) -> Rc<Array> {
     return Array::vector(v);
 }
 
-fn vector(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+fn vector(_env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     return Ok(Object::Interface(Array::vector(Vec::from(argv))));
 }
 
@@ -891,7 +888,7 @@ fn matrix_from_vectors(env: &mut Env, n: usize, argv: &[Object]) -> FnResult {
     return Ok(Object::Interface(y));
 }
 
-fn matrix(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+fn matrix(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     'type_error: loop{
         let n = match argv[0] {
             Object::List(ref a) => a.borrow().v.len(),
@@ -926,7 +923,7 @@ fn matrix(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     return env.type_error("Type error in matrix(*args): expected args of type List.");
 }
 
-fn array(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+fn array(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         2 => {}, argc => return env.argc_error(argc,2,2,"array")
     }
@@ -946,7 +943,7 @@ fn array(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     }
 }
 
-fn scalar(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+fn scalar(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         3 => {}, argc => return env.argc_error(argc,3,3,"scalar")
     }
@@ -960,7 +957,7 @@ fn scalar(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     return Ok(Object::Interface(scalar_matrix(n,e,z)));
 }
 
-fn unit(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+fn unit(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         2 => {}, argc => return env.argc_error(argc,2,2,"unit")
     }
@@ -977,7 +974,7 @@ fn unit(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     return Ok(Object::Interface(unit_vector(n,k)));
 }
 
-fn diag(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+fn diag(_env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     let n = argv.len();
     let mut v: Vec<Object> = Vec::with_capacity(n*n);
     let mut k = 0;
@@ -1030,7 +1027,7 @@ fn trace(env: &mut Env, a: &Array) -> FnResult {
     }
 }
 
-fn la_copy(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+fn la_copy(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         1 => {}, argc => return env.argc_error(argc,1,1,"id")
     }

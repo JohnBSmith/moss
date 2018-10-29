@@ -1,10 +1,6 @@
 
 // Linear algebra
 
-#![allow(unused_variables)]
-#![allow(unused_imports)]
-#![allow(dead_code)]
-
 use std::rc::Rc;
 use std::cell::RefCell;
 use std::any::Any;
@@ -22,6 +18,7 @@ struct ShapeStride{
     stride: isize
 }
 
+#[allow(dead_code)]
 enum Data{
     F64(Box<[f64]>),
     C64(Box<[c64]>)
@@ -52,7 +49,7 @@ impl Interface for Array {
     fn type_name(&self) -> String {
         "Array".to_string()
     }
-    fn to_string(&self, env: &mut Env) -> Result<String,Box<Exception>> {
+    fn to_string(&self, _env: &mut Env) -> Result<String,Box<Exception>> {
         if self.n==1 {
             let mut s = "vector(".to_string();
             let data = self.data.borrow();
@@ -68,7 +65,7 @@ impl Interface for Array {
             unimplemented!();
         }
     }
-    fn add(&self, b: &Object, env: &mut Env) -> FnResult {
+    fn add(&self, b: &Object, _env: &mut Env) -> FnResult {
         if let Some(b) = downcast::<Array>(b) {
             match *self.data.borrow() {
                 Data::F64(ref data) => map_binary_f64(self,data,b,&|x,y| x+y),
@@ -78,7 +75,7 @@ impl Interface for Array {
             panic!()
         }
     }
-    fn sub(&self, b: &Object, env: &mut Env) -> FnResult {
+    fn sub(&self, b: &Object, _env: &mut Env) -> FnResult {
         if let Some(b) = downcast::<Array>(b) {
             match *self.data.borrow() {
                 Data::F64(ref data) => map_binary_f64(self,data,b,&|x,y| x-y),
@@ -212,7 +209,7 @@ fn vector_from_list(env: &mut Env, a: &[Object]) -> FnResult {
     })));
 }
 
-fn vector(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+fn vector(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     return vector_from_list(env,argv);
 }
 

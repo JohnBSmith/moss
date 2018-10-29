@@ -1,14 +1,10 @@
 
-#![allow(unused_variables)]
-#![allow(unused_imports)]
-
 use std::rc::Rc;
-use std::cell::RefCell;
 use std::i32;
 
 use object::{
-    Object, FnResult, U32String, Function, Table, List,
-    VARIADIC, MutableFn, EnumFunction, Range
+    Object, FnResult, Function, Table,
+    Range, VARIADIC
 };
 use vm::Env;
 use iterable::new_iterator;
@@ -21,7 +17,7 @@ fn orbit(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     let mut x = argv[0].clone();
     let f = pself.clone();
     let i = Box::new(
-        move |env: &mut Env, pself: &Object, argv: &[Object]| -> FnResult {
+        move |env: &mut Env, _pself: &Object, _argv: &[Object]| -> FnResult {
             let y = x.clone();
             x = env.call(&f,&Object::Null,&[x.clone()])?;
             return Ok(y);
@@ -59,7 +55,7 @@ pub fn iterate(env: &mut Env, f: &Object, n: &Object) -> FnResult {
     match *n {
         Object::Int(n) => {
             let f = f.clone();
-            let g = move |env: &mut Env, pself: &Object, argv: &[Object]| -> FnResult {
+            let g = move |env: &mut Env, _pself: &Object, argv: &[Object]| -> FnResult {
                 let mut y = argv[0].clone();
                 for _ in 0..n {
                     y = env.call(&f,&Object::Null,&[y])?;

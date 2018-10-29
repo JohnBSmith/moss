@@ -1,6 +1,4 @@
 
-#![allow(unused_variables)]
-
 use std::rc::Rc;
 use std::cell::{Cell,RefCell};
 use std::mem::replace;
@@ -13,7 +11,7 @@ use std::fmt::Write;
 
 use object::{
     Object, Map, List, Function, EnumFunction, StandardFn,
-    FnResult, OperatorResult, Exception, Table, Range, U32String,
+    FnResult, OperatorResult, Exception, Table, Range, CharString,
     VARIADIC, Downcast, TypeName
 };
 use complex::Complex64;
@@ -263,7 +261,7 @@ impl PartialEq for Object{
             },
             Object::String(ref x) => {
                 return match *b {
-                    Object::String(ref y) => x.v==y.v,
+                    Object::String(ref y) => x.data==y.data,
                     _ => false
                 };
             },
@@ -336,9 +334,8 @@ impl Hash for Object{
             Object::Null => {},
             Object::Bool(x) => {x.hash(state);},
             Object::Int(x) => {x.hash(state);},
-            Object::String(ref x) => {
-                let s = &x.v;
-                s.hash(state);
+            Object::String(ref s) => {
+                s.data.hash(state);
             },
             Object::List(ref a) => {
                 let mut a = a.borrow_mut();
@@ -498,7 +495,7 @@ pub fn object_to_string_plain(x: &Object) -> String {
         Object::Int(x) => x.to_string(),
         Object::Float(x) => float_to_string_explicit(x),
         Object::Complex(x) => complex_to_string(x),
-        Object::String(ref a) => a.v.iter().collect(),
+        Object::String(ref s) => s.to_string(),
         Object::List(ref a) => {
             match a.try_borrow_mut() {
                 Ok(a) => list_to_string_plain(&a.v),
@@ -542,7 +539,7 @@ pub fn object_to_string(env: &mut Env, x: &Object)
         Object::Int(i) => format!("{}",i),
         Object::Float(x) => float_to_string_explicit(x),
         Object::Complex(z) => complex_to_string(z),
-        Object::String(ref a) => a.v.iter().collect(),
+        Object::String(ref s) => s.to_string(),
         Object::List(ref a) => {
             match a.try_borrow_mut() {
                 Ok(a) => {return list_to_string(env,&a.v);},
@@ -599,9 +596,9 @@ pub fn object_to_string(env: &mut Env, x: &Object)
     })
 }
 
-fn string_to_repr(s: &U32String) -> String{
+fn string_to_repr(s: &CharString) -> String {
     let mut buffer = "\"".to_string();
-    for c in &s.v {
+    for c in &s.data {
         if *c=='\n' {
             buffer.push_str("\\n");
         }else if *c=='\t' {
@@ -764,15 +761,15 @@ fn list_add(a: &List, b: &List) -> Object {
     return List::new_object(v);
 }
 
-fn string_add(a: &U32String, b: &U32String) -> Object {
-    let mut v: Vec<char> = Vec::with_capacity(a.v.len()+b.v.len());
-    for c in &a.v {
+fn string_add(a: &CharString, b: &CharString) -> Object {
+    let mut v: Vec<char> = Vec::with_capacity(a.data.len()+b.data.len());
+    for c in &a.data {
         v.push(*c);
     }
-    for c in &b.v {
+    for c in &b.data {
         v.push(*c);
     }
-    return U32String::new_object(v);
+    return CharString::new_object(v);
 }
 
 fn operator_add(env: &mut EnvPart, sp: usize, stack: &mut [Object])
@@ -1173,7 +1170,7 @@ fn operator_mul(env: &mut EnvPart, sp: usize, stack: &mut [Object])
                 Object::Int(i) => i,
                 _ => {break 'r;}
             };
-            stack[sp-2] = ::string::duplicate(&s.v,n);
+            stack[sp-2] = ::string::duplicate(&s.data,n);
             Ok(())
         },
         Object::List(a) => {
@@ -1284,7 +1281,7 @@ fn operator_mul(env: &mut EnvPart, sp: usize, stack: &mut [Object])
         Object::String(s) => s,
         _ => unreachable!()
     };
-    stack[sp-2] = ::string::duplicate(&s.v,n);
+    stack[sp-2] = ::string::duplicate(&s.data,n);
     return Ok(());
 
     } // 'list
@@ -2033,7 +2030,7 @@ fn operator_eq(env: &mut EnvPart, sp: usize, stack: &mut [Object])
             match stack[sp-1].clone() {
                 Object::String(y) => {
                     stack[sp-1] = Object::Null;
-                    stack[sp-2] = Object::Bool(x.v==y.v);
+                    stack[sp-2] = Object::Bool(x.data==y.data);
                     Ok(())
                 },
                 _ => {break 'r;}
@@ -2125,7 +2122,7 @@ fn operator_eq(env: &mut EnvPart, sp: usize, stack: &mut [Object])
                 Err(e) => Err(e)
             }
         },
-        a => {
+        _ => {
             stack[sp-2] = Object::Bool(false);
             return Ok(());
         }
@@ -2170,7 +2167,7 @@ fn operator_lt(env: &mut EnvPart, sp: usize, stack: &mut [Object])
             match stack[sp-1].clone() {
                 Object::String(y) => {
                     stack[sp-1] = Object::Null;
-                    stack[sp-2] = Object::Bool(x.v<y.v);
+                    stack[sp-2] = Object::Bool(x.data<y.data);
                     Ok(())
                 },
                 _ => {break 'r;}
@@ -2281,7 +2278,7 @@ fn operator_gt(env: &mut EnvPart, sp: usize, stack: &mut [Object])
             match stack[sp-1].clone() {
                 Object::String(y) => {
                     stack[sp-1] = Object::Null;
-                    stack[sp-2] = Object::Bool(x.v>y.v);
+                    stack[sp-2] = Object::Bool(x.data>y.data);
                     Ok(())
                 },
                 _ => {break 'r;}
@@ -2362,7 +2359,7 @@ fn operator_le(env: &mut EnvPart, sp: usize, stack: &mut [Object])
             match stack[sp-1].clone() {
                 Object::String(y) => {
                     stack[sp-1] = Object::Null;
-                    stack[sp-2] = Object::Bool(x.v<=y.v);
+                    stack[sp-2] = Object::Bool(x.data<=y.data);
                     Ok(())
                 },
                 _ => {break 'r;}
@@ -2443,7 +2440,7 @@ fn operator_ge(env: &mut EnvPart, sp: usize, stack: &mut [Object])
             match stack[sp-1].clone() {
                 Object::String(y) => {
                     stack[sp-1] = Object::Null;
-                    stack[sp-2] = Object::Bool(x.v>=y.v);
+                    stack[sp-2] = Object::Bool(x.data>=y.data);
                     Ok(())
                 },
                 _ => {break 'r;}
@@ -2585,28 +2582,28 @@ fn operator_of(env: &mut EnvPart, sp: usize, stack: &mut [Object])
             };
             break 'ret;
         },
-        Object::Bool(x) => {
+        Object::Bool(_) => {
             value = match type_obj {
                 Object::Table(ref t) => Rc::ptr_eq(t,&env.rte.type_bool),
                 _ => false
             };
             break 'ret;
         },
-        Object::Int(x) => {
+        Object::Int(_) => {
             value = match type_obj {
                 Object::Table(ref t) => Rc::ptr_eq(t,&env.rte.type_int),
                 _ => false
             };
             break 'ret;
         },
-        Object::Float(x) => {
+        Object::Float(_) => {
             value = match type_obj {
                 Object::Table(ref t) => Rc::ptr_eq(t,&env.rte.type_float),
                 _ => false
             };
             break 'ret;
         },
-        Object::Complex(x) => {
+        Object::Complex(_) => {
             value = match type_obj {
                 Object::Table(ref t) => Rc::ptr_eq(t,&env.rte.type_complex),
                 _ => false
@@ -2616,7 +2613,7 @@ fn operator_of(env: &mut EnvPart, sp: usize, stack: &mut [Object])
         _ => {}
     }
     match stack[sp-2].take() {
-        Object::String(x) => {
+        Object::String(_) => {
             value = match type_obj {
                 Object::Table(ref t) => {
                     Rc::ptr_eq(t,&env.rte.type_string) ||
@@ -2625,7 +2622,7 @@ fn operator_of(env: &mut EnvPart, sp: usize, stack: &mut [Object])
                 _ => false
             };
         },
-        Object::List(x) => {
+        Object::List(_) => {
             value = match type_obj {
                 Object::Table(ref t) => {
                     Rc::ptr_eq(t,&env.rte.type_list) ||
@@ -2634,7 +2631,7 @@ fn operator_of(env: &mut EnvPart, sp: usize, stack: &mut [Object])
                 _ => false
             };
         },
-        Object::Map(x) => {
+        Object::Map(_) => {
             value = match type_obj {
                 Object::Table(ref t) => {
                     Rc::ptr_eq(t,&env.rte.type_map) ||
@@ -2643,7 +2640,7 @@ fn operator_of(env: &mut EnvPart, sp: usize, stack: &mut [Object])
                 _ => false
             };
         },
-        Object::Function(x) => {
+        Object::Function(_) => {
             value = match type_obj {
                 Object::Table(ref t) => {
                     Rc::ptr_eq(t,&env.rte.type_function) ||
@@ -2707,7 +2704,7 @@ fn operator_in(env: &mut EnvPart, sp: usize, stack: &mut [Object])
         Object::String(s) => {
             let c = match key {
                 Object::String(cs) => {
-                    if cs.v.len()==1 {cs.v[0]}
+                    if cs.data.len()==1 {cs.data[0]}
                     else{
                         return Err(env.value_error_plain("Value error in 'c in s': size(c)!=1."));
                     }
@@ -2718,7 +2715,7 @@ fn operator_in(env: &mut EnvPart, sp: usize, stack: &mut [Object])
                     ));
                 }
             };
-            for x in &s.v {
+            for x in &s.data {
                 if c==*x {
                     stack[sp-2] = Object::Bool(true);
                     return Ok(());
@@ -2935,7 +2932,7 @@ fn operator_index(env: &mut EnvPart, argc: usize,
         Object::String(s) => {
             if let Object::Int(i) = stack[sp-1] {
                 let index = if i<0 {
-                    let iplus = i+(s.v.len() as i32);
+                    let iplus = i+(s.data.len() as i32);
                     if iplus<0 {
                         return Err(env.index_error_plain(&format!("Error in s[i]: i=={} is out of lower bound.",i)));          
                     }else{
@@ -2944,12 +2941,12 @@ fn operator_index(env: &mut EnvPart, argc: usize,
                 }else{
                     i as usize
                 };
-                stack[sp-2] = match s.v.get(index) {
-                    Some(c) => U32String::new_object_char(*c),
+                stack[sp-2] = match s.data.get(index) {
+                    Some(c) => CharString::new_object_char(*c),
                     None => {
                         return Err(env.index_error_plain(&format!(
                             "Error in s[i]: i=={} is out of upper bound, size(s)=={}.",
-                            i, s.v.len()
+                            i, s.data.len()
                         )));
                     }
                 };
@@ -2957,7 +2954,7 @@ fn operator_index(env: &mut EnvPart, argc: usize,
             }
             match stack[sp-1].take() {
                 Object::Range(r) => {
-                    let n = s.v.len() as i32;
+                    let n = s.data.len() as i32;
                     let step = match r.step {
                         Object::Int(x) => x,
                         Object::Null => 1,
@@ -2987,19 +2984,19 @@ fn operator_index(env: &mut EnvPart, argc: usize,
                     if step<0 {
                         while k>=j {
                             if 0<=k && k<n {
-                                v.push(s.v[k as usize]);
+                                v.push(s.data[k as usize]);
                             }
                             k+=step;
                         }
                     }else{
                         while k<=j {
                             if 0<=k && k<n {
-                                v.push(s.v[k as usize]);
+                                v.push(s.data[k as usize]);
                             }
                             k+=step;
                         }
                     }
-                    stack[sp-2] = U32String::new_object(v);
+                    stack[sp-2] = CharString::new_object(v);
                     Ok(())
                 },
                 i => {
@@ -3086,7 +3083,7 @@ fn index_assignment(env: &mut EnvPart, argc: usize,
                 let (s1,s2) = stack.split_at_mut(sp);
                 let mut env = Env{sp: 0, stack: s2, env: env};
                 match x.set_index(&s1[sp-argc..sp],&s1[sp-argc-2],&mut env) {
-                    Ok(value) => {
+                    Ok(_) => {
                         for x in &mut s1[sp-argc-2..sp] {
                             *x = Object::Null;
                         }
@@ -3163,7 +3160,7 @@ fn index_assignment(env: &mut EnvPart, argc: usize,
             let key = stack[sp-1].take();
             let value = stack[sp-3].take();
             return match x.set_index(&[key],&value,&mut Env{env,sp,stack}) {
-                Ok(y) => {
+                Ok(_) => {
                     stack[sp-2] = Object::Null;
                     Ok(())
                 },
@@ -3269,7 +3266,7 @@ fn operator_dot(env: &mut EnvPart, sp: usize, stack: &mut [Object])
                 return Ok(());
             }
         },
-        Object::List(a) => {
+        Object::List(_) => {
             match env.rte.type_list.map.borrow().m.get(&stack[sp-1]) {
                 Some(x) => {
                     stack[sp-2] = x.clone();
@@ -3288,7 +3285,7 @@ fn operator_dot(env: &mut EnvPart, sp: usize, stack: &mut [Object])
                 }
             }
         },
-        Object::Map(a) => {
+        Object::Map(_) => {
             match env.rte.type_map.map.borrow().m.get(&stack[sp-1]) {
                 Some(x) => {
                     stack[sp-2] = x.clone();
@@ -3307,7 +3304,7 @@ fn operator_dot(env: &mut EnvPart, sp: usize, stack: &mut [Object])
                 }
             }
         },
-        Object::Function(a) => {
+        Object::Function(_) => {
             match env.rte.type_function.map.borrow().m.get(&stack[sp-1]) {
                 Some(x) => {
                     stack[sp-2] = x.clone();
@@ -3326,7 +3323,7 @@ fn operator_dot(env: &mut EnvPart, sp: usize, stack: &mut [Object])
                 }
             }
         },
-        Object::String(a) => {
+        Object::String(_) => {
             match env.rte.type_string.map.borrow().m.get(&stack[sp-1]) {
                 Some(x) => {
                     stack[sp-2] = x.clone();
@@ -3577,7 +3574,7 @@ fn apply(env: &mut EnvPart, sp: usize, stack: &mut [Object])
 
 #[inline(never)]
 fn global_variable_not_found(env: &mut Env, module: &Module,
-    index: u32, gtab: &RefCell<Map>
+    index: u32, _gtab: &RefCell<Map>
 ) -> OperatorResult {
     let mut s =  String::new();
     s.push_str(&format!("Error: variable '{}' not found.",
@@ -3648,7 +3645,7 @@ fn new_stamp(ptype: &Rc<Table>, prototype: &Object, s: &str) -> Object {
     let v = vec![
         Object::Table(ptype.clone()),
         prototype.clone(),
-        U32String::new_object_str(s)
+        CharString::new_object_str(s)
     ];
     return Tuple::new_object(v);
 }
@@ -3749,30 +3746,30 @@ impl RTE{
             seed_rng: RefCell::new(Rand::new(0)),
             compiler_config: RefCell::new(None),
 
-            key_string: U32String::new_object_str("string"),
-            key_iter:   U32String::new_object_str("iter"),
-            key_call:   U32String::new_object_str("call"),
-            key_abs:    U32String::new_object_str("abs"),
-            key_neg:    U32String::new_object_str("neg"),
-            key_add:   U32String::new_object_str("add"),
-            key_radd:  U32String::new_object_str("radd"),
-            key_sub:  U32String::new_object_str("sub"),
-            key_rsub: U32String::new_object_str("rsub"),
-            key_mul:    U32String::new_object_str("mul"),
-            key_rmul:   U32String::new_object_str("rmul"),
-            key_div:    U32String::new_object_str("div"),
-            key_rdiv:   U32String::new_object_str("rdiv"),
-            key_idiv:   U32String::new_object_str("idiv"),
-            key_ridiv:  U32String::new_object_str("ridiv"),
-            key_mod:    U32String::new_object_str("mod"),
-            key_rmod:   U32String::new_object_str("rmod"),
-            key_pow:    U32String::new_object_str("pow"),
-            key_rpow:   U32String::new_object_str("rpow"),
-            key_lt:     U32String::new_object_str("lt"),
-            key_rlt:    U32String::new_object_str("rlt"),
-            key_le:     U32String::new_object_str("le"),
-            key_rle:    U32String::new_object_str("rle"),
-            key_eq:     U32String::new_object_str("eq")
+            key_string: CharString::new_object_str("string"),
+            key_iter:   CharString::new_object_str("iter"),
+            key_call:   CharString::new_object_str("call"),
+            key_abs:    CharString::new_object_str("abs"),
+            key_neg:    CharString::new_object_str("neg"),
+            key_add:    CharString::new_object_str("add"),
+            key_radd:   CharString::new_object_str("radd"),
+            key_sub:    CharString::new_object_str("sub"),
+            key_rsub:   CharString::new_object_str("rsub"),
+            key_mul:    CharString::new_object_str("mul"),
+            key_rmul:   CharString::new_object_str("rmul"),
+            key_div:    CharString::new_object_str("div"),
+            key_rdiv:   CharString::new_object_str("rdiv"),
+            key_idiv:   CharString::new_object_str("idiv"),
+            key_ridiv:  CharString::new_object_str("ridiv"),
+            key_mod:    CharString::new_object_str("mod"),
+            key_rmod:   CharString::new_object_str("rmod"),
+            key_pow:    CharString::new_object_str("pow"),
+            key_rpow:   CharString::new_object_str("rpow"),
+            key_lt:     CharString::new_object_str("lt"),
+            key_rlt:    CharString::new_object_str("rlt"),
+            key_le:     CharString::new_object_str("le"),
+            key_rle:    CharString::new_object_str("rle"),
+            key_eq:     CharString::new_object_str("eq")
         })
     }
     pub fn clear_at_exit(&self, gtab: Rc<RefCell<Map>>){
@@ -3781,7 +3778,7 @@ impl RTE{
         // function). The gtab may also contain itself.
         self.delay.borrow_mut().push(gtab);
     }
-    pub fn read_access(&self, id: &str) -> bool {
+    pub fn read_access(&self, _id: &str) -> bool {
         return true;
     }
 }
@@ -4716,7 +4713,7 @@ fn bounded_repr(env: &mut Env, x: &Object) -> Result<String,Box<Exception>> {
 fn exception_value_to_string(env: &mut Env, x: &Object) -> String {
     let value = if let Object::Table(ref t) = *x {
         let m = &t.map.borrow().m;
-        let key = U32String::new_object_str("value");
+        let key = CharString::new_object_str("value");
         if let Some(value) = m.get(&key) {value.clone()} else{x.clone()}
     }else{x.clone()};
     return match value.string(env) {
@@ -4849,7 +4846,7 @@ impl EnvPart{
 }
 
 fn call_object(env: &mut Env,
-    fobj: &Object, pself: &Object, argv: &[Object]
+    fobj: &Object, _pself: &Object, argv: &[Object]
 ) -> FnResult
 {
     match *fobj {
@@ -4943,7 +4940,7 @@ pub fn call(&mut self, fobj: &Object,
         },
         EnumFunction::Mut(ref fp) => {
           let pf = &mut *match fp.try_borrow_mut() {
-            Ok(f)=>f, Err(e)=> return Err(mut_fn_aliasing(self,f))
+            Ok(f)=>f, Err(_)=> return Err(mut_fn_aliasing(self,f))
           };
           return pf(self,pself,argv);
         }
@@ -5014,7 +5011,7 @@ pub fn command_line_session(&mut self, gtab: Rc<RefCell<Map>>){
                 ){
                     Ok(module) => {
                         match eval(self,module.clone(),gtab.clone(),true) {
-                            Ok(x) => {}, Err(e) => {
+                            Ok(_) => {}, Err(e) => {
                                 println!("{}",exception_to_string(self,&e));
                             }
                         }
@@ -5052,10 +5049,10 @@ pub fn eval_file(&mut self, id: &str, gtab: Rc<RefCell<Map>>){
     path += ".moss";
     let mut f = match File::open(&path) {
         Ok(f) => f,
-        Err(e) => {
+        Err(_) => {
             match File::open(id) {
                 Ok(f) => f,
-                Err(e) => {
+                Err(_) => {
                     println!("File '{}' not found.",id);
                     return;
                 }
@@ -5066,7 +5063,7 @@ pub fn eval_file(&mut self, id: &str, gtab: Rc<RefCell<Map>>){
     f.read_to_string(&mut s).expect("something went wrong reading the file");
 
     match self.eval_string(&s,id,gtab,compiler::Value::Optional) {
-        Ok(x) => {}, Err(e) => {
+        Ok(_) => {}, Err(e) => {
             println!("{}",exception_to_string(self,&e));
         }
     }
@@ -5167,7 +5164,7 @@ where T: Downcast<Output=T>+TypeName
 } // impl Env
 
 
-pub fn sys_call(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+pub fn sys_call(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     if argv.len()<2 {
         return env.argc_error(argv.len(),2,VARIADIC,"sys.call");
     }

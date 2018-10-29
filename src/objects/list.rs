@@ -1,13 +1,10 @@
 
-#![allow(unused_variables)]
-#![allow(unused_imports)]
-
 use std::rc::Rc;
 use std::cell::RefCell;
 
 use object::{
-    Object, FnResult, U32String, Function, Table, List,
-    VARIADIC, MutableFn, Exception
+    Object, FnResult, Function, Table, List,
+    VARIADIC, MutableFn,
 };
 use vm::Env;
 use rand::Rand;
@@ -210,6 +207,9 @@ fn new_shuffle() -> MutableFn {
 }
 
 fn list_chain(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+    match argv.len() {
+        0 => {}, n => return env.argc_error(n,0,0,"chain")
+    }
     let a = match *pself {
         Object::List(ref a) => a.borrow_mut(),
         _ => return env.type_error("Type error in a.chain(): a is not a list.")

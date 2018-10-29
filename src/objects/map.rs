@@ -1,13 +1,7 @@
 
-#![allow(unused_variables)]
-#![allow(unused_imports)]
-
-use std::rc::Rc;
-use std::cell::RefCell;
-
 use object::{
-    Object, FnResult, U32String, Function, Table, List, Map,
-    VARIADIC, MutableFn, EnumFunction
+    Object, FnResult, Table, List, Map,
+    VARIADIC
 };
 use vm::Env;
 use iterable::new_iterator;
@@ -77,7 +71,7 @@ fn values(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     if let Object::Map(ref m) = *pself {
         let mut index: usize = 0;
         let v: Vec<Object> = m.borrow().m.values().cloned().collect();
-        let f = Box::new(move |env: &mut Env, pself: &Object, argv: &[Object]| -> FnResult {
+        let f = Box::new(move |_env: &mut Env, _pself: &Object, _argv: &[Object]| -> FnResult {
             if index == v.len() {
                 return Ok(Object::Empty);
             }else{
@@ -104,7 +98,7 @@ fn items(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
             keys.push(key.clone());
             values.push(value.clone());
         }
-        let f = Box::new(move |env: &mut Env, pself: &Object, argv: &[Object]| -> FnResult {
+        let f = Box::new(move |_env: &mut Env, _pself: &Object, _argv: &[Object]| -> FnResult {
             if index == keys.len() {
                 return Ok(Object::Empty);
             }else{
@@ -173,7 +167,7 @@ fn add(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
 
 pub fn subseteq(a: &Map, b: &Map) -> bool {
     let bm = &b.m;
-    for (key,value) in &a.m {
+    for (key,_value) in &a.m {
         if !bm.contains_key(key) {return false;} 
     }
     return true;

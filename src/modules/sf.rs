@@ -1,5 +1,4 @@
 
-#![allow(unused_variables)]
 #![allow(non_snake_case)]
 
 // Special mathematical functions
@@ -304,7 +303,7 @@ fn type_error_int_float(env: &mut Env, fapp: &str, id: &str, x: &Object)
     fapp,id),id,x)
 }
 
-fn sf_K(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+fn sf_K(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         1 => {}, n => return env.argc_error(n,1,1,"K")
     }
@@ -316,7 +315,7 @@ fn sf_K(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     Ok(Object::Float(cK(m)))
 }
 
-fn sf_E(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+fn sf_E(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         1 => {
             let m = match argv[0] {
@@ -343,7 +342,7 @@ fn sf_E(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     }
 }
 
-fn sf_F(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+fn sf_F(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         2 => {
             let phi = match argv[0] {
@@ -362,7 +361,7 @@ fn sf_F(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     }
 }
 
-fn sf_Pi(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+fn sf_Pi(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         3 => {}, n => return env.argc_error(n,3,3,"Pi")
     }
@@ -384,7 +383,7 @@ fn sf_Pi(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     Ok(Object::Float(eiPi(x,y,z)))
 }
 
-fn sf_RF(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+fn sf_RF(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         3 => {}, n => return env.argc_error(n,3,3,"RF")
     }
@@ -406,7 +405,7 @@ fn sf_RF(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     Ok(Object::Float(RF(x,y,z)))
 }
 
-fn sf_RC(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+fn sf_RC(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         2 => {}, n => return env.argc_error(n,2,2,"RC")
     }
@@ -423,7 +422,7 @@ fn sf_RC(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     Ok(Object::Float(RC(x,y)))
 }
 
-fn sf_RJ(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+fn sf_RJ(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         4 => {}, n => return env.argc_error(n,4,4,"RJ")
     }
@@ -450,7 +449,7 @@ fn sf_RJ(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     Ok(Object::Float(RJ(x,y,z,p)))
 }
 
-fn sf_RD(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+fn sf_RD(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         3 => {}, n => return env.argc_error(n,3,3,"RD")
     }
@@ -472,7 +471,7 @@ fn sf_RD(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     Ok(Object::Float(RD(x,y,z)))
 }
 
-fn sf_PP(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+fn sf_PP(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         3 => {}, n => return env.argc_error(n,3,3,"PP")
     }
@@ -492,7 +491,7 @@ fn sf_PP(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     Ok(Object::Float(legendre(n,m,x)))
 }
 
-fn sf_PH(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+fn sf_PH(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         2 => {}, n => return env.argc_error(n,2,2,"PH")
     }
@@ -508,7 +507,7 @@ fn sf_PH(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     Ok(Object::Float(hermite(n,x)))
 }
 
-fn sf_PT(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+fn sf_PT(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         2 => {}, n => return env.argc_error(n,2,2,"PT")
     }
@@ -524,7 +523,7 @@ fn sf_PT(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     Ok(Object::Float(chebyshev1(n,x)))
 }
 
-fn sf_PU(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+fn sf_PU(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         2 => {}, n => return env.argc_error(n,2,2,"PU")
     }
@@ -540,7 +539,7 @@ fn sf_PU(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     Ok(Object::Float(chebyshev2(n,x)))
 }
 
-fn sf_gamma(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+fn sf_gamma(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         2 => {}, n => return env.argc_error(n,2,2,"gamma")
     }
@@ -557,7 +556,7 @@ fn sf_gamma(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     Ok(Object::Float(lower_gamma(s,x)))
 }
 
-fn sf_Gamma(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+fn sf_Gamma(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         2 => {}, n => return env.argc_error(n,2,2,"Gamma")
     }
@@ -574,7 +573,7 @@ fn sf_Gamma(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     Ok(Object::Float(upper_gamma(s,x)))
 }
 
-fn sf_zeta(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+fn sf_zeta(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         1 => {}, n => return env.argc_error(n,1,1,"zeta")
     }
@@ -589,7 +588,7 @@ fn sf_zeta(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     Ok(Object::Float(zeta(x)))
 }
 
-fn sf_B(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+fn sf_B(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         1 => {}, n => return env.argc_error(n,1,1,"B")
     }
@@ -601,7 +600,7 @@ fn sf_B(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     Ok(Object::Float(bernoulli_number(x)))
 }
 
-fn sf_Beta(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+fn sf_Beta(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         2 => {}, n => return env.argc_error(n,2,2,"Beta")
     }

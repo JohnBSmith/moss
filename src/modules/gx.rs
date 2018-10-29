@@ -1,16 +1,13 @@
 
-#![allow(unused_imports)]
-#![allow(dead_code)]
-#![allow(unused_variables)]
 
 use std::ffi::{CString};
-use std::os::raw::{c_int, c_uint, c_ulong, c_long, c_void, c_char};
+use std::os::raw::{c_int};
 use std::mem;
 use sdl::{
     SDL_WINDOWPOS_CENTERED, SDL_WINDOW_SHOWN, SDL_RENDERER_ACCELERATED,
     SDL_KEYDOWN, 
-    Uint8, Uint32, SDL_Scancode, SDL_Window, SDL_Renderer, SDL_Rect,
-    SDL_Keycode, SDL_Event, SDL_PollEvent, SDL_BlendMode,
+    Uint32, SDL_Scancode, SDL_Window, SDL_Renderer, SDL_Rect,
+    SDL_Event, SDL_PollEvent, SDL_BlendMode,
     SDL_Delay, SDL_CreateWindow, SDL_CreateRenderer,
     SDL_SetRenderDrawColor, SDL_RenderClear, SDL_RenderPresent,
     SDL_RenderDrawPoint, SDL_RenderFillRect,
@@ -22,7 +19,7 @@ use std::any::Any;
 use std::rc::Rc;
 use std::cell::RefCell;
 use object::{
-    Object, Interface, Function, FnResult, Table, U32String,
+    Object, Interface, Function, FnResult, Table, CharString,
     new_module, downcast
 };
 use vm::Env;
@@ -389,7 +386,7 @@ fn get_key() -> Object {
         while SDL_PollEvent(&mut event)!=0 {
             if event.event_type == SDL_KEYDOWN {
                 let key = scancode_to_key(event.key.keysym.scancode);
-                return U32String::new_object_str(key);
+                return CharString::new_object_str(key);
             }
         }
         return Object::Null;
@@ -429,7 +426,7 @@ impl Interface for Canvas {
 }
 
 fn canvas_bind_type(type_canvas: Rc<Table>) -> Object {
-    let canvas = Box::new(move |env: &mut Env, pself: &Object, argv: &[Object]| -> FnResult {
+    let canvas = Box::new(move |env: &mut Env, _pself: &Object, argv: &[Object]| -> FnResult {
         match argv.len() {
             2 => {}, n => return env.argc_error(n,2,2,"canvas")
         }
@@ -452,7 +449,7 @@ fn canvas_bind_type(type_canvas: Rc<Table>) -> Object {
     return Function::mutable(canvas,2,2);
 }
 
-fn canvas_key(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+fn canvas_key(_env: &mut Env, _pself: &Object, _argv: &[Object]) -> FnResult {
     Ok(get_key())
 }
 
@@ -470,7 +467,7 @@ fn type_error_int_float(env: &mut Env, fapp: &str, id: &str, x: &Object)
     fapp,id),id,x)
 }
 
-fn canvas_flush(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+fn canvas_flush(env: &mut Env, pself: &Object, _argv: &[Object]) -> FnResult {
     if let Some(canvas) = downcast::<Canvas>(pself) {
         let mut canvas = canvas.canvas.borrow_mut();
         canvas.flush();
@@ -480,7 +477,7 @@ fn canvas_flush(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     }
 }
 
-fn canvas_vflush(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+fn canvas_vflush(env: &mut Env, pself: &Object, _argv: &[Object]) -> FnResult {
     if let Some(canvas) = downcast::<Canvas>(pself) {
         let mut canvas = canvas.canvas.borrow_mut();
         canvas.flush_vg_buffer();
@@ -490,7 +487,7 @@ fn canvas_vflush(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     }
 }
 
-fn canvas_vcflush(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+fn canvas_vcflush(env: &mut Env, pself: &Object, _argv: &[Object]) -> FnResult {
     if let Some(canvas) = downcast::<Canvas>(pself) {
         let mut canvas = canvas.canvas.borrow_mut();
         canvas.flush_clear_vg_buffer();
@@ -732,19 +729,23 @@ fn canvas_fill(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     }
     let x = match argv[0] {
         Object::Int(x) => x as u32,
-        ref x => return env.type_error("Type error in c.fill(x,y,w,h): x is not an integer.")
+        ref x => return env.type_error1(
+            "Type error in c.fill(x,y,w,h): x is not an integer.","x",x)
     };
     let y = match argv[1] {
         Object::Int(y) => y as u32,
-        ref y => return env.type_error("Type error in c.fill(x,y,w,h): x is not an integer.")
+        ref y => return env.type_error1(
+            "Type error in c.fill(x,y,w,h): y is not an integer.","y",y)
     };
     let w = match argv[2] {
         Object::Int(w) => w as u32,
-        ref w => return env.type_error("Type error in c.fill(x,y,w,h): x is not an integer.")
+        ref w => return env.type_error1(
+            "Type error in c.fill(x,y,w,h): w is not an integer.","w",w)
     };
     let h = match argv[3] {
         Object::Int(h) => h as u32,
-        ref h => return env.type_error("Type error in c.fill(x,y,w,h): x is not an integer.")
+        ref h => return env.type_error1(
+            "Type error in c.fill(x,y,w,h): h is not an integer.","h",h)
     };
     if let Some(canvas) = downcast::<Canvas>(pself) {
         let mut canvas = canvas.canvas.borrow_mut();
@@ -755,7 +756,7 @@ fn canvas_fill(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     }
 }
 
-fn gx_sleep(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+fn gx_sleep(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         1 => {}, n => return env.argc_error(n,1,1,"sleep")
     }

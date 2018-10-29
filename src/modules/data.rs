@@ -1,19 +1,14 @@
 
 // Byte buffers
 
-#![allow(unused_variables)]
-#![allow(unused_imports)]
-#![allow(dead_code)]
-
 use std::rc::Rc;
 use std::cell::RefCell;
 use std::any::Any;
 use std::fmt::Write;
 
-use complex::c64;
 use object::{
-    Object, Exception, Table, FnResult, Interface, List,
-    VARIADIC, new_module, downcast, interface_object_get
+    Object, Exception, FnResult, Interface, List,
+    new_module, downcast, interface_object_get
 };
 use vm::{Env,interface_index};
 use iterable::new_iterator;
@@ -33,7 +28,7 @@ impl Interface for Bytes {
     fn type_name(&self) -> String {
         "Bytes".to_string()
     }
-    fn to_string(&self, env: &mut Env) -> Result<String,Box<Exception>> {
+    fn to_string(&self, _env: &mut Env) -> Result<String,Box<Exception>> {
         let mut s = "bytes([".to_string();
         let mut first = true;
         for x in self.data.borrow().iter() {
@@ -72,10 +67,10 @@ impl Interface for Bytes {
         };
         return Ok(Object::Int(a[index] as i32));
     }
-    fn iter(&self, env: &mut Env) -> FnResult {
+    fn iter(&self, _env: &mut Env) -> FnResult {
         let mut index: usize = 0;
         let a = self.data.clone();
-        let f = Box::new(move |env: &mut Env, pself: &Object, argv: &[Object]| -> FnResult{
+        let f = Box::new(move |_env: &mut Env, _pself: &Object, _argv: &[Object]| -> FnResult {
             let a = a.borrow();
             if index == a.len() {
                 return Ok(Object::Empty);
@@ -88,7 +83,7 @@ impl Interface for Bytes {
     }
 }
 
-fn bytes(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+fn bytes(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         1 => {}, n => return env.argc_error(n,1,1,"bytes")
     }
@@ -116,7 +111,7 @@ fn bytes(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     }
 }
 
-pub fn bytes_list(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+pub fn bytes_list(env: &mut Env, pself: &Object, _argv: &[Object]) -> FnResult {
     if let Some(bytes) = downcast::<Bytes>(pself) {
         let a = bytes.data.borrow();
         let mut v: Vec<Object> = Vec::with_capacity(a.len());
@@ -125,11 +120,35 @@ pub fn bytes_list(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
         }
         return Ok(List::new_object(v));
     }else{
-        env.type_error("Type error in f.read(): f is not a file.")    
+        env.type_error("Type error in a.list(): a is not of type Bytes.")    
     }
 }
 
-pub fn load_data(env: &mut Env) -> Object
+pub fn bytes_decode(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+    let spec: String = match argv.len() {
+        0 => String::from("UTF-8"),
+        1 => match argv[0] {
+            Object::String(ref s) => s.to_string(),
+            _ => return env.type_error1(
+                "Type error in a.decode(spec): spec is not a string.",
+                "spec",&argv[0])
+        },
+        n => return env.argc_error(n,1,1,"decode")
+    };
+    if let Some(bytes) = downcast::<Bytes>(pself) {
+        let a = bytes.data.borrow();
+        if spec=="UTF-8" {
+            Ok(Object::from(&*String::from_utf8_lossy(&a)))
+        }else{
+            env.value_error(&format!(
+                "Value error in a.decode(spec): spec=='{}' is unknown.", spec))
+        }
+    }else{
+        env.type_error("Type error in a.decode(spec): a is not a of type Bytes.")    
+    }
+}
+
+pub fn load_data(_env: &mut Env) -> Object
 {
     let data = new_module("data");
     {

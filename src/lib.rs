@@ -89,7 +89,7 @@ use std::rc::Rc;
 use std::cell::RefCell;
 // use std::fs::File;
 // use std::io::Read;
-use object::{Object, List, U32String};
+use object::{Object, List, CharString};
 use vm::{RTE,State,EnvPart,Frame,Env};
 pub use vm::{get_env};
 pub use compiler::{Value, CompilerExtra};
@@ -172,7 +172,7 @@ impl Interpreter{
 pub fn new_list_str(a: &[String]) -> Rc<RefCell<List>> {
     let mut v: Vec<Object> = Vec::with_capacity(a.len());
     for i in 0..a.len() {
-        v.push(U32String::new_object_str(&a[i]));
+        v.push(CharString::new_object_str(&a[i]));
     }
     return Rc::new(RefCell::new(List{v: v, frozen: false}));
 }

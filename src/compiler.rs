@@ -1,7 +1,4 @@
 
-// #[allow(unused_imports)]
-// use std::ascii::AsciiExt;
-
 use std::rc::Rc;
 use std::collections::HashMap;
 use std::mem::replace;
@@ -9,7 +6,7 @@ use std::str::Chars;
 use std::char;
 use system;
 use vm::{bc, BCSIZE, BCASIZE, BCAASIZE, Module, RTE};
-use object::{Object, U32String, VARIADIC};
+use object::{Object, CharString, VARIADIC};
 
 #[derive(Copy,Clone,PartialEq)]
 pub enum Value{
@@ -789,7 +786,7 @@ impl Pool{
         if let Some(index) = self.stab.get(key) {
             return *index;
         }
-        self.data.push(U32String::new_object_str(key));
+        self.data.push(CharString::new_object_str(key));
         self.stab.insert(String::from(key),self.stab_index);
         self.stab_index+=1;
         return self.stab_index-1;

@@ -83,24 +83,30 @@ Zero means success, other values indicate an error.
 <dt>path
 <dd>List of search paths for module loading, analogous to
 the environment variable <code>PATH</code>.
-This list can be changed freely and can contain relative paths.
-But note that relative paths are problematic, if the current
-working directory changes. That <code>path[0]</code> should be the
-absolute path of the directory where <code>argv[0]</code>
+This list may be changed freely and can contain relative paths.
+But note that relative paths are problematic: they becomde invalid
+if the current working directory changes. That <code>path[0]</code>
+should be the absolute path of the directory where <code>argv[0]</code>
 is found.</dd>
 </dl>
 
 <h2 id="fs">Module fs</h2>
 <dl class="code">
 <dt>is_dir(path)
-<dd>Return true if the <code>path</code> leads to a directory.
+<dd>Return true if <code>path</code> leads to a directory.
 
 <dt>is_file(path)
-<dd>Return true if the <code>path</code> leads to a file.
+<dd>Return true if <code>path</code> leads to a file.
 
-<dt>read_dir(path)
+<dt>ls(path)
 <dd>Return the list of nodes within that directory,
 but omit <code>"."</code> and <code>".."</code>.
+
+<dt>wd()
+<dd>Return the current working directory.
+
+<dt>cd(path=".")
+<dd>Change the current working directory.
 
 <dt>open(path)
 <dd>Open a binary file and return a file object of type <code>File</code>.

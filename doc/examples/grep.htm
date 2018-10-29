@@ -17,14 +17,14 @@
 <pre class="moss">
 # A basic version of grep
 
-use fs: read_dir, is_dir, is_file
+use fs: ls, is_dir, is_file
 use regex: re
 use sys: argv
 
-function walk(id)
+function walk(path)
   return fn*||
     try
-      it = read_dir(id)
+      it = ls(path)
     catch e
       it = []
     end

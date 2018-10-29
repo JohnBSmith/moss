@@ -1,7 +1,5 @@
 
-#![allow(unused_imports)]
-
-use object::{Object, FnResult, U32String, Exception};
+use object::{Object, FnResult, CharString, Exception};
 use vm::Env;
 
 fn get(env: &Env, a: &Object, i: usize) -> FnResult {
@@ -193,13 +191,13 @@ fn apply_fmt(env: &mut Env, buffer: &mut String,
     return Ok(());
 }
 
-pub fn u32string_format(env: &mut Env, s: &U32String, a: &Object)
+pub fn u32string_format(env: &mut Env, s: &CharString, a: &Object)
 -> FnResult
 {
     let mut buffer = "".to_string();
     let mut index: usize = 0;
     let mut i: usize = 0;
-    let v = &s.v;
+    let v = &s.data;
     let n = v.len();
     while i<n {
         let c = v[i];
@@ -221,7 +219,7 @@ pub fn u32string_format(env: &mut Env, s: &U32String, a: &Object)
                     ) {
                         i+=1;
                     }
-                    let key = U32String::new_object(v[j..i].iter().cloned().collect());
+                    let key = CharString::new_object(v[j..i].iter().cloned().collect());
                     x = get_key(env,&a,&key)?;
                 }else if i<n && v[i].is_digit(10) {
                     let mut j: usize = v[i] as usize-'0' as usize;
@@ -255,5 +253,5 @@ pub fn u32string_format(env: &mut Env, s: &U32String, a: &Object)
             i+=1;
         }
     }
-    return Ok(U32String::new_object_str(&buffer));
+    return Ok(CharString::new_object_str(&buffer));
 }
