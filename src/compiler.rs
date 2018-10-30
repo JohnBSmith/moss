@@ -1150,7 +1150,7 @@ fn arguments_list(&mut self, i: &mut TokenIterator, t0: &Token, terminator: Symb
             let t = &p[i.index];
             if t.value == Symbol::Assignment {
                 i.index+=1;
-                let y = self.atom(i)?;
+                let y = self.addition(i)?;
                 v.push(binary_operator(t.line,t.col,Symbol::Assignment,x,y));
             }else{
                 v.push(x);

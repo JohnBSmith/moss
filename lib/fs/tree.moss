@@ -1,0 +1,65 @@
+
+begin
+use fs: ls, is_dir, is_file
+use regex: re
+
+global walk, walk_files, file_name
+
+function walk_rec(path,depth)
+  if depth==0
+    return fn*|| end
+  end
+  return fn*||
+    try
+      it = ls(path)
+    catch e
+      it = []
+    end
+    dirs = []
+    files = []
+    for x in it
+      if is_dir(x)
+        dirs.push(x)
+      elif is_file(x)
+        files.push(x)
+      end
+    end
+    yield [path,dirs,files]
+    for x in dirs
+      for t in walk_rec(x,depth-1)
+        yield t
+      end
+    end
+  end
+end
+
+function walk(path,argm={})
+  {depth=-1} = argm
+  return walk_rec(path,depth)
+end
+
+function walk_files(path,argm={})
+  {depth=-1, sort = false} = argm
+  return fn*||
+    for t in walk_rec(path,depth)
+      if sort
+        t[1].sort()
+        t[2].sort()
+      end
+      for file in t[2]
+        yield file
+      end
+    end
+  end
+end
+
+sep = re("/")
+
+function file_name(path)
+  a = sep.split(path)
+  return "" if size(a)==0 else a[-1]
+end
+
+end
+
+
