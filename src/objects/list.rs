@@ -421,6 +421,48 @@ pub fn cartesian_power(v: &Vec<Object>, n: i32) -> Object {
     );
 }
 
+fn rotate(a: &mut [Object], n: i32) {
+    let m = a.len();
+    if n>=0 {
+        let mut n = n as usize;
+        if n>=m {n = n%m;}
+        a.rotate_right(n);
+    }else {
+        let mut n = (-n) as usize;
+        if n>=m {n = n%m;}
+        a.rotate_left(n);
+    }
+}
+
+fn list_rot(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
+    match argv.len() {
+        1 => {}, n => return env.argc_error(n,1,1,"rot")
+    }
+    match *pself {
+        Object::List(ref a) => {
+            let n = match argv[0] {
+                Object::Int(n) => n,
+                ref n => return env.type_error1(
+                    "Type error in a.rot(n): n is not an integer.","n",n)
+            };
+            match a.try_borrow_mut() {
+                Ok(mut a) => {
+                    if a.frozen {
+                        return env.value_error("Value error in a.clear(): a is frozen.");
+                    }
+                    rotate(&mut a.v,n);
+                    Ok(pself.clone())
+                },
+                Err(_) => {env.std_exception(
+                    "Memory error in a.rot(n): internal buffer of a was aliased."
+                )}
+            }           
+        },
+        ref x => env.type_error1(
+            "Type error in a.rot(n): a is not a list","a",x)
+    }
+}
+
 pub fn init(t: &Table){
     let mut m = t.map.borrow_mut();
     m.insert_fn_plain("push",push,0,VARIADIC);
@@ -434,5 +476,6 @@ pub fn init(t: &Table){
     m.insert_fn_plain("rev",list_rev,0,0);
     m.insert_fn_plain("swap",list_swap,2,2);
     m.insert_fn_plain("clear",clear,0,1);
+    m.insert_fn_plain("rot",list_rot,1,1);
     m.insert("shuffle",Function::mutable(new_shuffle(),0,0));
 }
