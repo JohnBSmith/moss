@@ -16,10 +16,89 @@
 <div class="toc">
 <h2>Table of contents</h2>
 <ol>
-<li><a href="#">Splitting a program into modules</a>
+<li><a href="#private-variables">Private variables</a>
+<li><a href="#splitting">Splitting a program into modules</a>
 <li><a href="#dynamic-loading">Dynamic loading</a>
 </ol>
 </div>
+
+<h2 id="private-variables">Private variables</h2>
+<p>To introduce private variables, one puts them into a
+<code>begin</code>-block. Only variables declared to be public
+are visible outside of such a block.
+
+<pre class="moss indent">
+begin
+  public sind, cosd
+
+  use math: pi, sin, cos
+  deg = pi/180
+
+  function sind(x)
+    return sin(x*deg)
+  end
+  function cosd(x)
+    return cos(x*deg)
+  end
+end
+
+print(sind(90))
+</pre>
+
+<p>Only <code>sind</code> and <code>cosd</code>
+are visible outside of <code>begin ... end</code>.
+The local variables <code>deg</code>, <code>pi</code>,
+<code>sin</code>, <code>cos</code> are invisible.
+It's actually a perfect black box. There is no way to determine
+from outside, whether the local variables existed or not.
+
+<p>It is also possible to nest such <code>begin</code>-blocks.
+To understand the semantics, it should be said that <code>public</code>
+is only a synonym for <code>global</code> and <code>begin ... end</code>
+is only a syntactic sugar for <code>(fn|| ... end)()</code>.
+
+<p>Thus, the last example is identical to:
+<pre class="moss indent">
+(fn||
+  global sind, cosd
+
+  use math: pi, sin, cos
+  deg = pi/180
+
+  function sind(x)
+    return sin(x*deg)
+  end
+  function cosd(x)
+    return cos(x*deg)
+  end
+end)()
+
+print(sind(90))
+</pre>
+
+<p>Note that <code>public</code> makes a variable completely public,
+i.e. completely global. For intermediate visibility, a local
+variable may be returned from a block:
+
+<pre class="moss indent">
+sind = begin
+  deg = pi/180
+  return |x| sin(x*deg)
+end
+</pre>
+
+<p>For more than one variable it looks a little bit clumsy:
+
+<pre class="moss indent">
+{sind,cosd} = begin
+  deg = pi/180
+  return {
+    sind = |x| sin(x*deg),
+    cosd = |x| cos(x*deg)
+  }
+end
+</pre>
+
 
 <h2 id="splitting">Splitting a program into modules</h2>
 <p>Two or more programs might use the same functionality.

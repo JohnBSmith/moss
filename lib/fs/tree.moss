@@ -3,7 +3,7 @@ begin
 use fs: ls, is_dir, is_file
 use regex: re
 
-global walk, walk_files, file_name
+public walk, walk_files, file_name
 
 function walk_rec(path,depth)
   if depth==0

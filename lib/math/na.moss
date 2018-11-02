@@ -1,6 +1,6 @@
 
 begin
-global pli, inv, diffh, diffvh, integral
+public pli, inv, diffh, diffvh, integral
 
 use math: nan, floor
 

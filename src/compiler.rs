@@ -114,6 +114,7 @@ static KEYWORDS: &'static [KeywordsElement] = &[
       KeywordsElement{s: "null",    t: &SymbolType::Keyword, v: &Symbol::Null},
       KeywordsElement{s: "of",      t: &SymbolType::Keyword, v: &Symbol::Of},
       KeywordsElement{s: "or",      t: &SymbolType::Operator,v: &Symbol::Or},
+      KeywordsElement{s: "public",  t: &SymbolType::Keyword, v: &Symbol::Global},
       KeywordsElement{s: "raise",   t: &SymbolType::Keyword, v: &Symbol::Raise},
       KeywordsElement{s: "return",  t: &SymbolType::Keyword, v: &Symbol::Return},
       KeywordsElement{s: "table",   t: &SymbolType::Keyword, v: &Symbol::Table},

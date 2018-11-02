@@ -40,7 +40,7 @@ function Delta(n,f,x,h)
   return (fn|x| f(x+h)-f(x) end^n)(x)
 end
 
-begin global pf
+begin public pf
   m = {}
   function partition(n,k)
     if n<k
@@ -68,7 +68,7 @@ begin global pf
   end
 end
 
-begin global stirling1
+begin public stirling1
   m = {}
   function s1(n,k)
     if n==0
@@ -96,7 +96,7 @@ begin global stirling1
   end
 end
 
-begin global stirling2
+begin public stirling2
   m = {}
   function s2(n,k)
     if n==0
@@ -125,7 +125,7 @@ begin global stirling2
 end
 
 
-begin global euler1
+begin public euler1
   # Eulerian numbers
   m = {}
   function euler1(n,k)
@@ -145,7 +145,7 @@ begin global euler1
   end
 end
 
-begin global euler2
+begin public euler2
   # second-order Eulerian numbers
   m = {}
   function euler2(n,k)
@@ -185,7 +185,7 @@ function permutations(a)
 end
 
 begin
-  global combinations, partitions
+  public combinations, partitions
 
   function comb(m,s)
     if m==0

@@ -1,6 +1,6 @@
 
 begin
-  global cs_rand_int
+  public cs_rand_int
   use io: open
 
   function cs_rand_int(n)
@@ -10,7 +10,7 @@ begin
 end
 
 begin
-  global rand_normal
+  public rand_normal
 
   a = 0.147
   A = 2/(pi*a) 

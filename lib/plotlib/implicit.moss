@@ -1,4 +1,5 @@
 
+begin
 use plotlib: System
 use elib.optimizer: zeroes_bisection
 use math: pi, floor, cos
@@ -72,4 +73,7 @@ extend(System,{
     end
   end
 })
+
+end
+
 

@@ -1,6 +1,6 @@
 
 begin
-global compile, eval, lambda
+public compile, eval, lambda
 
 use cas.syntax: SyntaxError
 use cas.base

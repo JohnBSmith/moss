@@ -3,7 +3,7 @@
 # Polymorphic type complex
 
 begin
-global complex, Complex
+public complex, Complex
 
 use math: sqrt
 

@@ -1,13 +1,11 @@
 
 
 begin
-global system, system3d, System
+public system, system3d, System
 
-use math: pi, hypot, tanh, atan2, sin, cos
+use math: pi, tau, hypot, tanh, atan2, sin, cos
 use cmath: re, im, arg
 use gx: sleep
-
-tau = 2.0*pi
 
 palette = [
   [0,0,0.6],

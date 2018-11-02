@@ -1,6 +1,6 @@
 
 begin
-global runge_kutta
+public runge_kutta
 
 use math.na: pli
 

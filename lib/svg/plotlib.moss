@@ -1,6 +1,6 @@
 
 begin
-global system
+public system
 
 use math: pi, isnan, isinf
 
