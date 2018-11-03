@@ -32,6 +32,7 @@ pub fn load_sys(rte: &Rc<RTE>) -> Object {
         if let Some(ref argv) = *rte.argv.borrow() {
             m.insert("argv", Object::List(argv.clone()));
         }
+        m.insert("path",Object::List(rte.path.clone()));
         m.insert_fn_plain("exit",exit,0,1);
         m.insert_fn_plain("call",::vm::sys_call,2,VARIADIC);
     }

@@ -25,7 +25,7 @@ use iterable::iter;
 use map::{subseteq,subset};
 
 // use ::Interpreter;
-use system;
+use system::{History,getline_history,init_search_paths};
 use compiler;
 use compiler::{CompilerExtra};
 
@@ -3682,6 +3682,7 @@ pub struct RTE{
     pub type_type: Rc<Table>,
     pub unimplemented: Rc<Table>,
     pub argv: RefCell<Option<Rc<RefCell<List>>>>,
+    pub path: Rc<RefCell<List>>,
     pub gtab: Rc<RefCell<Map>>,
     pub pgtab: RefCell<Rc<RefCell<Map>>>,
     pub delay: RefCell<Vec<Rc<RefCell<Map>>>>,
@@ -3738,6 +3739,7 @@ impl RTE{
             type_type: type_type.clone(),
             unimplemented: Table::new(Object::Null),
             argv: RefCell::new(None),
+            path: Rc::new(RefCell::new(init_search_paths())),
             gtab: Map::new(),
             pgtab: RefCell::new(Map::new()),
             delay: RefCell::new(Vec::new()),
@@ -4967,7 +4969,7 @@ pub fn eval_string(&mut self, s: &str, id: &str, gtab: Rc<RefCell<Map>>,
     value: compiler::Value
 ) -> Result<Object,Box<Exception>>
 {
-    let mut history = system::History::new();
+    let mut history = History::new();
     match compiler::scan(s,1,id,false) {
         Ok(v) => {
             match compiler::compile(v,false,value,&mut history,id,self.rte()) {
@@ -4985,10 +4987,10 @@ pub fn eval_string(&mut self, s: &str, id: &str, gtab: Rc<RefCell<Map>>,
 }
 
 pub fn command_line_session(&mut self, gtab: Rc<RefCell<Map>>){
-    let mut history = system::History::new();
+    let mut history = History::new();
     loop{
         let mut input = String::new();
-        match system::getline_history("> ",&history) {
+        match getline_history("> ",&history) {
             Ok(s) => {
                 if s=="" {continue;}
                 history.append(&s);

@@ -17,7 +17,7 @@ use object::{
 };
 use rand::Rand;
 use iterable::{iter,cycle};
-use system::{History};
+use system::{History,read_module_file};
 use compiler::Value;
 use long::{Long, pow_mod};
 use tuple::Tuple;
@@ -250,7 +250,9 @@ fn load_file(env: &mut Env, id: &str) -> FnResult {
             "Error in load(id): Could not open file id=='{}': permission denied.",id
         ));
     }
-    let s = match ::system::read_module_file(id) {
+    let path = env.rte().path.clone();
+    let search_paths = &path.borrow().v;
+    let s = match read_module_file(search_paths,id) {
         Ok(s)=>s,
         Err(e) => return env.std_exception(&e)
     };

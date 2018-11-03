@@ -19,8 +19,6 @@
 == Library ==
 * reverse iterator
 * iterator: tee
-* rotate a list
-* regular expressions
 * graphics
 
 === Linear algebra ===
@@ -29,10 +27,8 @@
 * homogeneous arrays
   * BLAS compatible interface
 
-=== OS Interface ===
-* change directory
-* list files, subdirectories
-* file access
+=== OS interface ===
+* file output
 
 === Network, Cryptography ==
 * SHA3-256 interface
@@ -80,11 +76,17 @@
 * powmod
 * cartesian power
 * Iterable.join
+* rotate a list
+* regular expressions
 
 === Linear Algebra ===
 * polymorphic arrays
   * scalar product
   * absolute value of a vector
   * matrix multiplication
+
+=== OS interface ===
+* change directory
+* list files, subdirectories
 
 

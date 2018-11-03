@@ -2,15 +2,17 @@
 extern crate libc;
 extern crate termios;
 use std::str;
-use std::env::home_dir;
+use std::env::var;
 use std::fs::File;
 use std::io::Read;
 use std::io;
 use std::io::Write;
 use std::os::unix::io::RawFd;
+use std::path::PathBuf;
 use self::termios::{
     Termios, tcsetattr, TCSANOW, ICANON, ECHO
 };
+
 const STDIN_FILENO: i32 = 0;
 const TAB: i32 = 9;
 const NEWLINE: i32 = 10;
@@ -21,6 +23,8 @@ const DOWN: i32 = 66;
 const LEFT: i32 = 68;
 const RIGHT: i32 = 67;
 const BACKSPACE: i32 = 127;
+
+use object::{Object,List};
 
 fn get_win_size() -> (usize, usize) {
     use std::mem::zeroed;
@@ -287,35 +291,43 @@ pub fn getline(prompt: &str) -> io::Result<String>{
 }
 */
 
-pub fn read_module_file(id: &str) -> Result<String,String> {
-    let mut path = id.to_string();
-    path.push_str(".moss");
-    let mut f = match File::open(&path) {
-        Ok(f) => f,
-        Err(_) => {
-            let mut path = match home_dir() {
-                Some(path) => path,
-                None => {
-                    return Err("Error in load: unable to get the home directory.".to_string());
-                }
-            };
-            path.push(".moss");
-            path.push(id);
-            path.set_extension("moss");
-            // println!("path: '{}'",path.to_str().unwrap());
-            match File::open(&path) {
-                Ok(f) => f,
-                Err(_) => {
-                    return Err(format!("Error in load: could not open file '{}.moss'.",id));
-                }
-            }
-        }
+pub fn init_search_paths() -> List {
+    let mut a: Vec<Object> = Vec::new();
+    a.push(Object::from("./"));
+    let mut path = match var("HOME") {
+        Ok(s) => PathBuf::from(s),
+        Err(_) => panic!()
     };
-    let mut s = String::new();
-    if let Err(_) = f.read_to_string(&mut s) {
-        return Err(format!("Error in load: could not read file '{}.moss'.",id));
+    path.push(".moss/");
+    match path.as_path().to_str() {
+        Some(s) => a.push(Object::from(s)),
+        None => unreachable!()
     }
-    return Ok(s);
+    return List{v: a, frozen: false};
+}
+
+pub fn read_module_file(search_paths: &[Object], id: &str)
+-> Result<String,String>
+{
+    for path_obj in search_paths {
+        let mut path = match path_obj {
+            Object::String(ref s) => PathBuf::from(s.to_string()),
+            _ => return Err(String::from(
+                "Error in load: search paths must be a strings."))
+        };
+        path.push(id);
+        path.set_extension("moss");
+        // println!("path: '{}'",path.to_str().unwrap());
+        if let Ok(mut f) = File::open(&path) {
+            let mut s = String::new();
+            if let Err(_) = f.read_to_string(&mut s) {
+                return Err(format!(
+                    "Error in load: could not read file '{}.moss'.",id));
+            }
+            return Ok(s);
+        }
+    }
+    return Err(format!("Error in load: could not open file '{}.moss'.",id));
 }
 
 pub fn read_file(id: &str) -> Result<String,String> {
