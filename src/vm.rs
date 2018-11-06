@@ -665,7 +665,7 @@ pub fn op_sub(env: &mut Env, x: &Object, y: &Object) -> FnResult {
     return Ok(env.stack[env.sp].take());
 }
 
-pub fn op_mpy(env: &mut Env, x: &Object, y: &Object) -> FnResult {
+pub fn op_mul(env: &mut Env, x: &Object, y: &Object) -> FnResult {
     env.stack[env.sp] = x.clone();
     env.stack[env.sp+1] = y.clone();
     ::vm::operator_mul(env.env,env.sp+2,env.stack)?;

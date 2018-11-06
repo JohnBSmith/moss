@@ -9,7 +9,7 @@ use object::{
     FnResult, Function, EnumFunction,
     MutableFn, Exception, Range
 };
-use vm::{Env, op_add, op_mpy, op_lt, op_le};
+use vm::{Env, op_add, op_mul, op_lt, op_le};
 use global::list;
 
 
@@ -558,7 +558,7 @@ fn prod(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
             loop{
                 let x = env.call(&i,&Object::Null,&[])?;
                 if let Object::Empty = x {break;}
-                y = op_mpy(env,&y,&x)?;
+                y = op_mul(env,&y,&x)?;
             }
             return Ok(y);
         },
@@ -573,7 +573,7 @@ fn prod(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
                 let x = env.call(&i,&Object::Null,&[])?;
                 if let Object::Empty = x {break;}
                 let u = env.call(f,&Object::Null,&[x])?;
-                y = op_mpy(env,&y,&u)?;
+                y = op_mul(env,&y,&u)?;
             }
             return Ok(y);
         },

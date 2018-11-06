@@ -11,7 +11,7 @@ use std::fmt::Write;
 
 use complex::c64;
 use object::{
-  Object, Exception, Table, FnResult, Interface,
+  Object, List, Exception, Table, FnResult, Interface,
   VARIADIC, new_module, downcast
 };
 use vm::{Env,interface_types_set,interface_index};
@@ -162,6 +162,64 @@ impl Interface for Array {
         }else{
             panic!()
         }
+    }
+    fn get(&self, key: &Object, env: &mut Env) -> FnResult {
+        if let Object::String(ref s) = *key {
+            let v = &s.data;
+            match v.len() {
+                3 => {
+                    if v[0..3] == ['a','b','s'] {
+                        return abs(self);
+                    }
+                },
+                5 => {
+                    if v[0..5] == ['s','h','a','p','e'] {
+                        return shape(self);
+                    }
+                },
+                _ => {}
+            }
+            let t = &env.rte().interface_types.borrow()[interface_index::ARRAY];
+            match t.get(key) {
+                Some(value) => return Ok(value),
+                None => {
+                    env.index_error(&format!(
+                        "Index error in Array.{0}: {0} not found.", key
+                    ))
+                }
+            }
+        }else{
+            env.type_error("Type error in Array.x: x is not a string.")
+        }
+    }
+    fn abs(&self, _env: &mut Env) -> FnResult {
+        return abs(self);
+    }
+}
+
+fn shape(a: &Array) -> FnResult {
+    let n = a.s.len();
+    let mut v: Vec<Object> = Vec::with_capacity(n);
+    for i in 0..n {
+        v.push(Object::Int(a.s[i].shape as i32));
+    }
+    return Ok(List::new_object(v));
+}
+
+fn abs(a: &Array) -> FnResult {
+    let n = a.s[0].shape;
+    let stride = a.s[0].stride;
+    let base = a.base;
+    match *a.data.borrow() {
+        Data::F64(ref data) => {
+            let mut y = 0.0;
+            for i in 0..n {
+                let x = data[(base+i as isize*stride) as usize];
+                y += x*x;
+            }
+            return Ok(Object::Float(y.sqrt()));
+        },
+        _ => panic!()
     }
 }
 

@@ -9,7 +9,7 @@ use object::{
     Exception, new_module, downcast, VARIADIC
 };
 use vm::{
-    Env, op_neg, op_add, op_sub, op_mpy, op_div, op_eq,
+    Env, op_neg, op_add, op_sub, op_mul, op_div, op_eq,
     interface_types_set, interface_index
 };
 use complex::Complex64;
@@ -29,21 +29,17 @@ struct Array{
 impl Array {
     fn vector(a: Vec<Object>) -> Rc<Array> {
         Rc::new(Array{
-            n: 1,
             s: Box::new([ShapeStride{shape: a.len(), stride: 1}]),
-            base: 0,
-            data: Rc::new(RefCell::new(a))
+            n: 1, base: 0, data: Rc::new(RefCell::new(a))
         })
     }
     fn matrix(m: usize, n: usize, a: Vec<Object>) -> Rc<Array> {
         Rc::new(Array{
-            n: 2,
             s: Box::new([
-                ShapeStride{shape: n, stride: 1},
-                ShapeStride{shape: m, stride: n as isize}
+                ShapeStride{shape: m, stride: n as isize},
+                ShapeStride{shape: n, stride: 1}
             ]),
-            base: 0,
-            data: Rc::new(RefCell::new(a)),
+            n: 2, base: 0, data: Rc::new(RefCell::new(a)),
         })
     }
 }
@@ -69,13 +65,13 @@ impl Interface for Array {
             s.push_str(")");
             return Ok(s);
         }else if self.n==2 {
-            let m = self.s[1].shape;
-            let n = self.s[0].shape;
+            let m = self.s[0].shape;
+            let n = self.s[1].shape;
             let mut s = "matrix(\n".to_string();
             let mut first = true;
             let base = self.base as isize;
-            let istride = self.s[1].stride;
-            let jstride = self.s[0].stride;
+            let istride = self.s[0].stride;
+            let jstride = self.s[1].stride;
             let data = self.data.borrow();
             for i in 0..m {
                 if first {first = false;}
@@ -170,10 +166,10 @@ impl Interface for Array {
                     Object::Int(i) => i as isize,
                     ref i => return env.type_error1("Type error in a[i]: i is not an integer.","i",i)
                 };
-                if i>=0 && (i as usize)<self.s[1].shape {
-                    let base = (self.base as isize+i*self.s[1].stride) as usize;
-                    let stride = self.s[0].stride;
-                    let shape = self.s[0].shape;
+                if i>=0 && (i as usize)<self.s[0].shape {
+                    let base = (self.base as isize+i*self.s[0].stride) as usize;
+                    let stride = self.s[1].stride;
+                    let shape = self.s[1].shape;
                     let a = Rc::new(Array{n: 1, base, data: self.data.clone(),
                         s: Box::new([ShapeStride{shape,stride}])});
                     return Ok(Object::Interface(a));
@@ -189,10 +185,10 @@ impl Interface for Array {
                     Object::Int(j) => j as isize,
                     ref j => return env.type_error1("Type error in a[i,j]: j is not an integer.","j",j)
                 };
-                if i>=0 && (i as usize)<self.s[1].shape &&
-                      j>=0 && (j as usize)<self.s[0].shape
+                if i>=0 && (i as usize)<self.s[0].shape &&
+                   j>=0 && (j as usize)<self.s[1].shape
                 {
-                    let index = (self.base as isize+self.s[1].stride*i+self.s[0].stride*j) as usize;
+                    let index = (self.base as isize+self.s[0].stride*i+self.s[1].stride*j) as usize;
                     return Ok(self.data.borrow()[index].clone());
                 }else{
                     return env.index_error("Index error in a[i,j]: out of bounds.");
@@ -253,10 +249,10 @@ impl Interface for Array {
                 // let vdata = v.data.borrow();
                 let vdata = pdata.borrow();
                 
-                if i>=0 && (i as usize)<self.s[1].shape {
-                    let base = self.base as isize+i*self.s[1].stride;
-                    let stride = self.s[0].stride;
-                    let n = self.s[0].shape;
+                if i>=0 && (i as usize)<self.s[0].shape {
+                    let base = self.base as isize+i*self.s[0].stride;
+                    let stride = self.s[1].stride;
+                    let n = self.s[1].shape;
                     let mut data = self.data.borrow_mut();
 
                     for j in 0..n {
@@ -277,10 +273,10 @@ impl Interface for Array {
                     Object::Int(j) => j as isize,
                     ref j => return env.type_error1("Type error in a[i,j]: j is not an integer.","j",j)
                 };
-                if i>=0 && (i as usize)<self.s[1].shape &&
-                      j>=0 && (j as usize)<self.s[0].shape
+                if i>=0 && (i as usize)<self.s[0].shape &&
+                   j>=0 && (j as usize)<self.s[1].shape
                 {
-                    let index = (self.base as isize+self.s[1].stride*i+self.s[0].stride*j) as usize;
+                    let index = (self.base as isize+self.s[0].stride*i+self.s[1].stride*j) as usize;
                     let mut data = self.data.borrow_mut();
                     data[index] = value.clone();
                     return Ok(Object::Null);
@@ -323,15 +319,15 @@ impl Interface for Array {
         }else if self.n==2 {
             if let Some(b) = downcast::<Array>(b) {
                 if b.n==1 {
-                    let m = self.s[0].shape.min(b.s[0].shape);
-                    return mpy_matrix_vector(env,m,self,b);
+                    let m = self.s[1].shape.min(b.s[0].shape);
+                    return mul_matrix_vector(env,m,self,b);
                 }else if b.n==2 {
-                    if self.s[0].shape != b.s[1].shape {
+                    if self.s[1].shape != b.s[0].shape {
                         return env.value_error(
                             "Value error in matrix multiplication A*B:\n  A.shape[0] != B.shape[1]."
                         );
                     }
-                    let y = mpy_matrix_matrix(env,self.s[0].shape,self,b)?;
+                    let y = mul_matrix_matrix(env,self.s[1].shape,self,b)?;
                     {
                         let data = y.data.borrow();
                         if data.len()==1 {
@@ -407,17 +403,19 @@ fn compare(env: &mut Env, a: &Array, b: &Array,
                 return Ok(Object::Bool(true));
             }
         }else if a.n == 2 {
-            if a.s[0].shape == b.s[0].shape && a.s[1].shape == b.s[1].shape {
+            let m = a.s[0].shape;
+            let n = a.s[1].shape;
+            if m == b.s[0].shape && n == b.s[1].shape {
                 let adata = a.data.borrow();
                 let bdata = b.data.borrow();
-                let aistride = a.s[1].stride;
-                let bistride = b.s[1].stride;
-                let ajstride = a.s[0].stride;
-                let bjstride = b.s[0].stride;
-                for i in 0..a.s[1].shape {
+                let aistride = a.s[0].stride;
+                let ajstride = a.s[1].stride;
+                let bistride = b.s[0].stride;
+                let bjstride = b.s[1].stride;
+                for i in 0..m {
                     let aibase = a.base as isize+i as isize*aistride;
                     let bibase = b.base as isize+i as isize*bistride;
-                    for j in 0..a.s[0].shape {
+                    for j in 0..n {
                         let aindex = (aibase+j as isize*ajstride) as usize;
                         let bindex = (bibase+j as isize*bjstride) as usize;
                         let y = relation(env,&adata[aindex],&bdata[bindex])?;
@@ -442,11 +440,11 @@ fn compare(env: &mut Env, a: &Array, b: &Array,
 
 fn copy_from_ref(a: &Array) -> Rc<Array> {
     Rc::new(Array{
-        n: a.n, base: a.base,
         s: Box::new([
             ShapeStride{shape: a.s[0].shape, stride: a.s[0].stride},
             ShapeStride{shape: a.s[1].shape, stride: a.s[1].stride}
         ]),
+        n: a.n, base: a.base,
         data: a.data.clone()
     })
 }
@@ -473,11 +471,11 @@ fn matrix_power(env: &mut Env, a: &Array, mut n: u32, size: usize)
     let mut base = y.clone();
     loop {
         if n&1 == 1 {
-            y = mpy_matrix_matrix(env,size,&y,&base)?;
+            y = mul_matrix_matrix(env,size,&y,&base)?;
         }
         n /= 2;
         if n==0 {break;}
-        base = mpy_matrix_matrix(env,size,&base,&base)?;
+        base = mul_matrix_matrix(env,size,&base,&base)?;
     }
     return Ok(y);
 }
@@ -498,10 +496,10 @@ fn map_unary_operator(a: &Array,
         }
         return Ok(Object::Interface(Array::vector(v)));
     }else if a.n==2 {
-        let m = a.s[1].shape;
-        let n = a.s[0].shape;
-        let istride = a.s[1].stride;
-        let jstride = a.s[0].stride;
+        let m = a.s[0].shape;
+        let n = a.s[1].shape;
+        let istride = a.s[0].stride;
+        let jstride = a.s[1].stride;
 
         let mut v: Vec<Object> = Vec::with_capacity(m*n);
         let base = a.base as isize;
@@ -569,21 +567,21 @@ fn map_binary_operator(a: &Array, b: &Object,
                     operator_symbol, b.n
                 ));
             }
-            if a.s[0].shape != b.s[0].shape || a.s[1].shape != b.s[1].shape {
+            let m = a.s[0].shape;
+            let n = a.s[1].shape;
+            if m != b.s[0].shape || n != b.s[1].shape {
                 return env.type_error(&format!(
                     "Type error in A{}B: A is not of the same shape as B.",
                     operator_symbol
                 ));
             }
-            let m = a.s[1].shape;
-            let n = a.s[0].shape;
-            let aistride = a.s[1].stride;
-            let ajstride = a.s[0].stride;
-            let bistride = b.s[1].stride;
-            let bjstride = b.s[0].stride;
-            let mut v: Vec<Object> = Vec::with_capacity(m*n);
+            let aistride = a.s[0].stride;
+            let ajstride = a.s[1].stride;
+            let bistride = b.s[0].stride;
+            let bjstride = b.s[1].stride;
             let adata = a.data.borrow();
             let bdata = b.data.borrow();
+            let mut v: Vec<Object> = Vec::with_capacity(m*n);
             for i in 0..m {
                 let aibase = a.base as isize+i as isize*aistride;
                 let bibase = b.base as isize+i as isize*bistride;
@@ -615,14 +613,13 @@ fn map_plain(a: &Array, f: fn(&Object)->Object) -> Rc<Array> {
         }
         return Array::vector(v);
     }else if a.n==2 {
-        let m = a.s[1].shape;
-        let n = a.s[0].shape;
-        let istride = a.s[1].stride;
-        let jstride = a.s[0].stride;
-
-        let mut v: Vec<Object> = Vec::with_capacity(m*n);
+        let m = a.s[0].shape;
+        let n = a.s[1].shape;
+        let istride = a.s[0].stride;
+        let jstride = a.s[1].stride;
         let base = a.base as isize;
         let data = a.data.borrow();
+        let mut v: Vec<Object> = Vec::with_capacity(m*n);
         for i in 0..m {
             let jbase = base+i as isize*istride;
             for j in 0..n {
@@ -649,14 +646,13 @@ fn array_map(env: &mut Env, a: &Array, f: &Object) -> FnResult {
         }
         return Ok(Object::Interface(Array::vector(v)));
     }else if a.n==2 {
-        let m = a.s[1].shape;
-        let n = a.s[0].shape;
-        let istride = a.s[1].stride;
-        let jstride = a.s[0].stride;
-
-        let mut v: Vec<Object> = Vec::with_capacity(m*n);
+        let m = a.s[0].shape;
+        let n = a.s[1].shape;
+        let istride = a.s[0].stride;
+        let jstride = a.s[1].stride;
         let base = a.base as isize;
         let data = a.data.borrow();
+        let mut v: Vec<Object> = Vec::with_capacity(m*n);
         for i in 0..m {
             let jbase = base+i as isize*istride;
             for j in 0..n {
@@ -699,7 +695,7 @@ fn abs_square_element(env: &mut Env, x: &Object) -> FnResult {
     match *x {
         Object::Complex(z) => Ok(Object::Float(z.re*z.re+z.im*z.im)),
         Object::Float(x) => Ok(Object::Float(x*x)),
-        ref x => op_mpy(env,x,x)
+        ref x => op_mul(env,x,x)
     }
 }
 
@@ -709,15 +705,14 @@ fn conj(a: &Array) -> Rc<Array> {
 
 fn transpose(a: &Array) -> Rc<Array> {
     if a.n==2 {
-        let n = a.s[0].shape;
-        let m = a.s[1].shape;
+        let m = a.s[0].shape;
+        let n = a.s[1].shape;
         Rc::new(Array{
-            n: 2,
             s: Box::new([
-                ShapeStride{shape: m, stride: a.s[1].stride},
-                ShapeStride{shape: n, stride: a.s[0].stride}
+                ShapeStride{shape: n, stride: a.s[1].stride},
+                ShapeStride{shape: m, stride: a.s[0].stride}
             ]),
-            base: 0,
+            n: 2, base: 0,
             data: a.data.clone(),
         })
     }else{
@@ -767,7 +762,7 @@ fn scalar_multiplication(env: &mut Env,
 ) -> FnResult
 {
     let op = |env: &mut Env, x: &Object| -> FnResult {
-        return op_mpy(env,r,x);
+        return op_mul(env,r,x);
     };
     return map_unary_operator(a,&op,'_',env);
 }
@@ -785,49 +780,62 @@ fn scalar_division(env: &mut Env,
 fn scalar_product(env: &mut Env, n: usize,
     a: &[Object], abase: usize, astride: isize,
     b: &[Object], bbase: usize, bstride: isize
-) -> FnResult {
-    let mut sum = op_mpy(env,&a[abase],&b[bbase])?;
+) -> FnResult
+{
+    let mut sum = op_mul(env,&a[abase],&b[bbase])?;
     for i in 1..n {
         let aindex = (abase as isize+i as isize*astride) as usize;
         let bindex = (bbase as isize+i as isize*bstride) as usize;
-        let p = op_mpy(env,&a[aindex],&b[bindex])?;
+        let p = op_mul(env,&a[aindex],&b[bindex])?;
         sum = op_add(env,&sum,&p)?;
     }
     return Ok(sum);
 }
 
-fn mpy_matrix_vector(env: &mut Env, n: usize,
+fn mul_matrix_vector(env: &mut Env, n: usize,
     a: &Array, x: &Array
-) -> FnResult {
-    let mut y: Vec<Object> = Vec::with_capacity(a.s[1].shape);
+) -> FnResult
+{
+    let m = a.s[0].shape;
+    let aistride = a.s[0].stride;
+    let ajstride = a.s[1].stride;
+    let xstride = x.s[0].stride;
+    let abase = a.base;
+    let xbase = x.base;
     let adata = a.data.borrow();
     let xdata = x.data.borrow();
-    for i in 0..a.s[1].shape {
-        let base = (a.base as isize+i as isize*a.s[1].stride) as usize;
+    let mut y: Vec<Object> = Vec::with_capacity(m);
+    for i in 0..m {
+        let base = (abase as isize+i as isize*aistride) as usize;
         let p = scalar_product(env,n,
-            &adata, base, a.s[0].stride,
-            &xdata, x.base, x.s[0].stride
+            &adata, base, ajstride,
+            &xdata, xbase, xstride
         )?;
         y.push(p);
     }
     return Ok(Object::Interface(Array::vector(y)));
 }
 
-fn mpy_matrix_matrix(env: &mut Env, size: usize,
+fn mul_matrix_matrix(env: &mut Env, size: usize,
     a: &Array, b: &Array
-) -> Result<Rc<Array>,Box<Exception>> {
-    let m = a.s[1].shape;
-    let n = b.s[0].shape;
-    let mut y: Vec<Object> = Vec::with_capacity(m*n);
+) -> Result<Rc<Array>,Box<Exception>>
+{
+    let m = a.s[0].shape;
+    let n = b.s[1].shape;
+    let aistride = a.s[0].stride;
+    let akstride = a.s[1].stride;
+    let bkstride = b.s[0].stride;
+    let bjstride = b.s[1].stride;
     let adata = a.data.borrow();
     let bdata = b.data.borrow();
+    let mut y: Vec<Object> = Vec::with_capacity(m*n);
     for i in 0..m {
-        let ibase = (a.base as isize+i as isize*a.s[1].stride) as usize;
+        let ibase = (a.base as isize+i as isize*aistride) as usize;
         for j in 0..n {
-            let jbase = (b.base as isize+j as isize*b.s[0].stride) as usize;
+            let jbase = (b.base as isize+j as isize*bjstride) as usize;
             let p = scalar_product(env,size,
-                &adata, ibase, a.s[0].stride,
-                &bdata, jbase, b.s[1].stride
+                &adata, ibase, akstride,
+                &bdata, jbase, bkstride
             )?;
             y.push(p);
         }
@@ -839,7 +847,7 @@ fn shape(a: &Array) -> FnResult {
     let n = a.s.len();
     let mut v: Vec<Object> = Vec::with_capacity(n);
     for i in 0..n {
-        v.push(Object::Int(a.s[n-1-i].shape as i32));
+        v.push(Object::Int(a.s[i].shape as i32));
     }
     return Ok(List::new_object(v));
 }
@@ -878,11 +886,11 @@ fn matrix_from_vectors(env: &mut Env, n: usize, argv: &[Object]) -> FnResult {
         }
     }
     let y = Rc::new(Array{
-        n: 2, base: 0,
         s: Box::new([
             ShapeStride{shape: m, stride: n as isize},
             ShapeStride{shape: n, stride: 1}
         ]),
+        n: 2, base: 0,
         data: Rc::new(RefCell::new(v))
     });
     return Ok(Object::Interface(y));
@@ -992,12 +1000,12 @@ fn diag(_env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
 }
 
 fn diag_slice(env: &mut Env, a: &Array) -> FnResult {
-    if a.n==2 && a.s[0].shape == a.s[1].shape {
-        let n = a.s[0].shape;
+    let n = a.s[0].shape;
+    if a.n==2 && n == a.s[1].shape {
         let mut v: Vec<Object> = Vec::with_capacity(n);
         let base = a.base as isize;
-        let istride = a.s[1].stride;
-        let jstride = a.s[0].stride;
+        let istride = a.s[0].stride;
+        let jstride = a.s[1].stride;
         let data = a.data.borrow();
         for i in 0..n {
             let index = (base+i as isize*istride+i as isize*jstride) as usize;
@@ -1010,11 +1018,11 @@ fn diag_slice(env: &mut Env, a: &Array) -> FnResult {
 }
 
 fn trace(env: &mut Env, a: &Array) -> FnResult {
-    if a.n==2 && a.s[0].shape == a.s[1].shape {
-        let n = a.s[0].shape;
+    let n = a.s[0].shape;
+    if a.n==2 && n == a.s[1].shape {
         let base = a.base as isize;
-        let istride = a.s[1].stride;
-        let jstride = a.s[0].stride;
+        let istride = a.s[0].stride;
+        let jstride = a.s[1].stride;
         let data = a.data.borrow();
         let mut y = data[a.base].clone();
         for i in 1..n {

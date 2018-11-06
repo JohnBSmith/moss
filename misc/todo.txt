@@ -44,6 +44,9 @@
 
 
 == Audits ==
+* more automated tests
+* again, more automated tests
+* with particular emphasis, more automated tests
 * break 'r in vm.rs: replace vs. clone
 * overflow by integer arithmetic
 * overflow by type conversion
