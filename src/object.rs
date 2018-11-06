@@ -343,10 +343,10 @@ pub trait Interface{
     fn rsub(&self, _a: &Object, env: &mut Env) -> FnResult {
         Ok(Object::Table(env.rte().unimplemented.clone()))
     }
-    fn mpy(&self, _b: &Object, env: &mut Env) -> FnResult {
+    fn mul(&self, _b: &Object, env: &mut Env) -> FnResult {
         Ok(Object::Table(env.rte().unimplemented.clone()))
     }
-    fn rmpy(&self, _a: &Object, env: &mut Env) -> FnResult {
+    fn rmul(&self, _a: &Object, env: &mut Env) -> FnResult {
         Ok(Object::Table(env.rte().unimplemented.clone()))
     }
     fn div(&self, _b: &Object, env: &mut Env) -> FnResult {

@@ -1,6 +1,9 @@
 
 // Linear algebra
 
+// Per default, matrices are stored in row major. The shape order
+// of Box<[ShapeStride]> is the same as the index order.
+
 use std::rc::Rc;
 use std::cell::RefCell;
 use std::any::Any;
@@ -42,6 +45,18 @@ impl Array{
             n: 1, base: 0, data: data
         })
     }
+    fn matrix_f64(m: usize, n: usize, a: Vec<f64>) -> Rc<Array> {
+        let data = Rc::new(RefCell::new(Data::F64(
+            a.into_boxed_slice()
+        )));
+        Rc::new(Array{
+            s: Box::new([
+                ShapeStride{shape: m, stride: n as isize},
+                ShapeStride{shape: n, stride: 1}
+            ]),
+            n: 2, base: 0, data: data,
+        })
+    }
 }
 
 impl Interface for Array {
@@ -60,6 +75,17 @@ impl Interface for Array {
                 _ => unimplemented!()
             }
             s.push_str(")");
+            return Ok(s);
+        }else if self.n==2 {
+            let mut s = "matrix(\n".to_string();
+            let data = self.data.borrow();            
+            match *data {
+                Data::F64(ref data) => {
+                    matrix_f64_to_string(self,&mut s,data);
+                },
+                _ => unimplemented!()
+            }
+            s.push_str("\n)");
             return Ok(s);
         }else{
             unimplemented!();
@@ -85,7 +111,22 @@ impl Interface for Array {
             panic!()
         }
     }
-    fn rmpy(&self, a: &Object, env: &mut Env) -> FnResult {
+    fn mul(&self, b: &Object, env: &mut Env) -> FnResult {
+        if let Some(b) = downcast::<Array>(b) {
+            match *self.data.borrow() {
+                Data::F64(ref adata) => {
+                    match *b.data.borrow() {
+                        Data::F64(ref bdata) => mul_f64(env,self,b,adata,bdata),
+                        _ => panic!()
+                    }
+                },
+                _ => panic!()
+            }
+        }else{
+            panic!()
+        }
+    }
+    fn rmul(&self, a: &Object, env: &mut Env) -> FnResult {
         let r = match *a {
             Object::Int(x) => x as f64,
             Object::Float(x) => x,
@@ -121,6 +162,46 @@ impl Interface for Array {
         }else{
             panic!()
         }
+    }
+}
+
+fn mul_f64(env: &mut Env,
+    a: &Array, b: &Array, adata: &[f64], bdata: &[f64]
+) -> FnResult
+{
+    if a.n == 2 {
+        if b.n == 2 {
+            let m = a.s[0].shape;
+            let p = a.s[1].shape;
+            let n = b.s[1].shape;
+            if p != b.s[0].shape {
+                return env.value_error(
+                    "Value error in matrix multiplication A*B:\n  A.shape[1] != B.shape[0].");
+            }
+            Ok(Object::Interface(
+                mul_matrix_matrix_f64(m,p,n,a,b,adata,bdata)))
+        }else if b.n ==1 {
+            let m = a.s[0].shape;
+            let n = a.s[1].shape;
+            if n != b.s[0].shape {
+                return env.value_error(
+                    "Value error in A*b: A.shape[1] != b.shape[0].");
+            }
+            Ok(Object::Interface(
+                mul_matrix_vector_f64(m,n,a,b,adata,bdata)))
+        }else{
+            panic!()
+        }
+    }else if a.n == 1 {
+        let n = a.s[0].shape;
+        if n != b.s[0].shape {
+            return env.value_error(
+                "Value error in a*b: a.shape[0] != b.shape[0].");
+        }
+        Ok(Object::Float(
+            scalar_product_f64(n,a,b,adata,bdata)))
+    }else{
+        panic!()
     }
 }
 
@@ -177,6 +258,70 @@ fn map_unary_f64(a: &Array, data: &[f64], f: &Fn(f64)->f64)
     }
 }
 
+fn scalar_product_f64(n: usize,
+    a: &Array, b: &Array, adata: &[f64], bdata: &[f64]
+) -> f64
+{
+    let abase = a.base;
+    let bbase = b.base;
+    let astride = a.s[0].stride;
+    let bstride = b.s[0].stride;
+    let mut y = 0.0;
+    for i in 0..n {
+        let aindex = abase+i as isize*astride;
+        let bindex = bbase+i as isize*bstride;
+        y += adata[aindex as usize]*bdata[bindex as usize];
+    }
+    return y;
+}
+
+fn mul_matrix_vector_f64(m: usize, n: usize,
+    a: &Array, b: &Array, adata: &[f64], bdata: &[f64]
+) -> Rc<Array>
+{
+    let abase = a.base;
+    let bbase = b.base;
+    let aistride = a.s[0].stride;
+    let ajstride = a.s[1].stride;
+    let bjstride = b.s[0].stride;
+    let mut v: Vec<f64> = Vec::with_capacity(m);
+    for i in 0..m {
+        let mut y = 0.0;
+        for j in 0..n {
+            let aindex = abase+i as isize*aistride+j as isize*ajstride;
+            let bindex = bbase+j as isize*bjstride;
+            y += adata[aindex as usize]*bdata[bindex as usize];
+        }
+        v.push(y);
+    }
+    return Array::vector_f64(v);
+}
+
+fn mul_matrix_matrix_f64(m: usize, p: usize, n: usize,
+    a: &Array, b: &Array, adata: &[f64], bdata: &[f64]
+) -> Rc<Array>
+{
+    let abase = a.base;
+    let bbase = b.base;
+    let aistride = a.s[0].stride;
+    let akstride = a.s[1].stride;
+    let bkstride = b.s[0].stride;
+    let bjstride = b.s[1].stride;
+    let mut v: Vec<f64> = Vec::with_capacity(m*n);
+    for i in 0..m {
+        for j in 0..n {
+            let mut y = 0.0;
+            for k in 0..p {
+                let aindex = abase+i as isize*aistride+k as isize*akstride;
+                let bindex = bbase+k as isize*bkstride+j as isize*bjstride;
+                y += adata[aindex as usize]*bdata[bindex as usize];
+            }
+            v.push(y);
+        }
+    }
+    return Array::matrix_f64(m,n,v);
+}
+
 fn vector_f64_to_string(a: &Array, s: &mut String, data: &[f64]) {
     let mut first = true;
     let stride = a.s[0].stride;
@@ -189,6 +334,27 @@ fn vector_f64_to_string(a: &Array, s: &mut String, data: &[f64]) {
     }
 }
 
+fn matrix_f64_to_string(a: &Array, s: &mut String, data: &[f64]) {
+    let istride = a.s[0].stride;
+    let jstride = a.s[1].stride;
+    let m = a.s[0].shape;
+    let n = a.s[1].shape;
+    let base = a.base as isize;
+    let mut ifirst = true;
+    for i in 0..m {
+        if ifirst {ifirst = false;} else {s.push_str(",\n");}
+        write!(s,"  [").ok();
+        let mut jfirst = true;
+        for j in 0..n {
+            if jfirst {jfirst = false;} else {s.push_str(", ");}
+            let index = base+i as isize*istride+j as isize*jstride;
+            let x = data[index as usize];
+            write!(s,"{}",x).ok();
+        }
+        write!(s,"]").ok();
+    }
+}
+
 fn vector_from_list(env: &mut Env, a: &[Object]) -> FnResult {
     let mut v: Vec<f64> = Vec::with_capacity(a.len());
     for x in a {
@@ -196,7 +362,7 @@ fn vector_from_list(env: &mut Env, a: &[Object]) -> FnResult {
             Object::Int(x) => x as f64,
             Object::Float(x) => x,
             _ => return env.type_error(
-                "Type error in vector(*a): expected a[k] of type Int or Float.")
+                "Type error in vector(*a): expected all a[k] of type Int or Float.")
         };
         v.push(x);
     }
@@ -209,8 +375,46 @@ fn vector_from_list(env: &mut Env, a: &[Object]) -> FnResult {
     })));
 }
 
+fn matrix_from_lists(env: &mut Env, argv: &[Object]) -> FnResult {
+    let m = argv.len();
+    if m==0 {
+        return env.value_error(
+            "Value error in matrix(*a): expected at least one row.");
+    }
+    let n = match argv[0] {
+        Object::List(ref a) => a.borrow().v.len(),
+        _ => panic!()
+    };
+    let mut v: Vec<f64> = Vec::with_capacity(m*n);
+    for x in argv {
+        let a = match *x {
+            Object::List(ref a) => a,
+            _ => panic!()
+        };
+        let data = &a.borrow_mut().v;
+        if data.len() != n {
+            return env.value_error(
+                "Value error in matrix(*a): all a[i] must be of the same size.");
+        }
+        for x in data {
+            let x = match *x {
+                Object::Int(x) => x as f64,
+                Object::Float(x) => x,
+                _ => return env.type_error(
+                    "Type error in matrix(*a): expected all a[i][j] of type Int or Float.")
+            };
+            v.push(x);
+        }
+    }
+    return Ok(Object::Interface(Array::matrix_f64(m,n,v)));
+}
+
 fn vector(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     return vector_from_list(env,argv);
+}
+
+fn matrix(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
+    return matrix_from_lists(env,argv);
 }
 
 pub fn load_la(env: &mut Env) -> Object
@@ -226,6 +430,7 @@ pub fn load_la(env: &mut Env) -> Object
     {
         let mut m = la.map.borrow_mut();
         m.insert_fn_plain("vector",vector,0,VARIADIC);
+        m.insert_fn_plain("matrix",matrix,1,VARIADIC);
     }
 
     return Object::Table(Rc::new(la));

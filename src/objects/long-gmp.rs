@@ -391,7 +391,7 @@ impl Interface for Long {
         }
     }
 
-    fn mpy(&self, b: &Object, env: &mut Env) -> FnResult {
+    fn mul(&self, b: &Object, env: &mut Env) -> FnResult {
         if let Object::Int(b) = *b {
             let mut y = Mpz::new();
             y.mul_int(&self.value,b);
@@ -434,7 +434,7 @@ impl Interface for Long {
         }
     }
 
-    fn rmpy(&self, a: &Object, env: &mut Env) -> FnResult {
+    fn rmul(&self, a: &Object, env: &mut Env) -> FnResult {
         if let Object::Int(a) = *a {
             let mut y = Mpz::new();
             y.mul_int(&self.value,a);

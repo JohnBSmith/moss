@@ -303,10 +303,10 @@ impl Interface for Array {
     fn sub(&self, b: &Object, env: &mut Env) -> FnResult {
         map_binary_operator(self,b,op_sub,'-',env)
     }
-    fn rmpy(&self, a: &Object, env: &mut Env) -> FnResult {
+    fn rmul(&self, a: &Object, env: &mut Env) -> FnResult {
         scalar_multiplication(env,a,self)
     }
-    fn mpy(&self, b: &Object, env: &mut Env) -> FnResult {
+    fn mul(&self, b: &Object, env: &mut Env) -> FnResult {
         if self.n==1 {
             if let Some(b) = downcast::<Array>(b) {
                 if b.n==1 {

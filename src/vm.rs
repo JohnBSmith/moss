@@ -1203,7 +1203,7 @@ fn operator_mul(env: &mut EnvPart, sp: usize, stack: &mut [Object])
         },
         Object::Interface(a) => {
             let b = stack[sp-1].clone();
-            match a.mpy(&b,&mut Env{env: env, sp: sp, stack: stack}) {
+            match a.mul(&b,&mut Env{env: env, sp: sp, stack: stack}) {
                 Ok(y) => {
                     if env.is_unimplemented(&y) {
                         break 'r;
@@ -1222,7 +1222,7 @@ fn operator_mul(env: &mut EnvPart, sp: usize, stack: &mut [Object])
     return match stack[sp-1].take() {
         Object::Interface(a) => {
             let b = stack[sp-2].take();
-            match a.rmpy(&b,&mut Env{env: env, sp: sp, stack: stack}) {
+            match a.rmul(&b,&mut Env{env: env, sp: sp, stack: stack}) {
                 Ok(y) => {
                     if env.is_unimplemented(&y) {
                         Err(env.type_error2_plain(sp,stack,

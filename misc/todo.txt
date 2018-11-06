@@ -1,7 +1,10 @@
 
 = TODO LIST =
+== Language ==
+* a comfortable way to state the domain of allowed
+  named arguments
+
 == Interpreter kernel ==
-* get property or null
 * tracebacks
 * in a coroutine let all exit paths
   perform a loop as "yield; return empty"
@@ -14,7 +17,6 @@
 * a security model by functions that can be called only once
 * interning literals of type Long
 * in range to iterator/list: start/end of type Long
-* search paths
 
 == Library ==
 * reverse iterator
@@ -22,10 +24,12 @@
 * graphics
 
 === Linear algebra ===
+* shape order: big endian vs. little endian
 * polymorphic arrays
   * array to list
 * homogeneous arrays
   * BLAS compatible interface
+  * inv, det by Gaussian elimination
 
 === OS interface ===
 * file output
@@ -66,6 +70,8 @@
 * env-pointer in Interface::to_string
 * interface objects in hash tables
 * assert statement
+* search paths
+* get property or null
 
 == Library ==
 * zip
