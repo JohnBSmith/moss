@@ -7,7 +7,8 @@
 use std::rc::Rc;
 use std::cell::RefCell;
 use std::any::Any;
-use std::fmt::Write;
+use std::fmt::{Write,Display};
+use std::ops::{Add,Sub,Mul,AddAssign};
 
 use complex::c64;
 use object::{
@@ -16,39 +17,53 @@ use object::{
 };
 use vm::{Env,interface_types_set,interface_index};
 
+trait Zero {fn zero() -> Self;}
+impl Zero for i32 {fn zero() -> i32 {0}}
+impl Zero for f64 {fn zero() -> f64 {0.0}}
+impl Zero for c64 {fn zero() -> c64{c64{re: 0.0, im: 0.0}}}
+
+trait Number: 'static+Copy
+    +Add<Output=Self>
+    +Sub<Output=Self>
+    +Mul<Output=Self>
+    +AddAssign
+    +Zero
+    +Display
+{}
+
+impl<T> Number for T
+where T: 'static+Copy
+    +Add<Output=T>
+    +Sub<Output=Self>
+    +Mul<Output=Self>
+    +AddAssign
+    +Zero
+    +Display
+{}
+
 struct ShapeStride{
     shape: usize,
     stride: isize
 }
 
-#[allow(dead_code)]
-enum Data{
-    F64(Box<[f64]>),
-    C64(Box<[c64]>)
-}
-
-struct Array{
+struct Array<T> {
     n: usize,
     base: isize,
     s: Box<[ShapeStride]>,
-    data: Rc<RefCell<Data>>
+    data: Rc<RefCell<Vec<T>>>
 }
 
-impl Array{
-    fn vector_f64(v: Vec<f64>) -> Rc<Array> {
+impl<T: Number> Array<T> {
+    fn vector(v: Vec<T>) -> Rc<Array<T>> {
         let shape = v.len();
-        let data = Rc::new(RefCell::new(Data::F64(
-            v.into_boxed_slice()
-        )));
+        let data = Rc::new(RefCell::new(v));
         Rc::new(Array{
             s: Box::new([ShapeStride{shape, stride: 1}]),
             n: 1, base: 0, data: data
         })
     }
-    fn matrix_f64(m: usize, n: usize, a: Vec<f64>) -> Rc<Array> {
-        let data = Rc::new(RefCell::new(Data::F64(
-            a.into_boxed_slice()
-        )));
+    fn matrix(m: usize, n: usize, a: Vec<T>) -> Rc<Array<T>> {
+        let data = Rc::new(RefCell::new(a));
         Rc::new(Array{
             s: Box::new([
                 ShapeStride{shape: m, stride: n as isize},
@@ -59,72 +74,22 @@ impl Array{
     }
 }
 
-impl Interface for Array {
+impl Interface for Array<f64> {
     fn as_any(&self) -> &Any {self}
     fn type_name(&self) -> String {
-        "Array".to_string()
+        "ArrayOfFloat".to_string()
     }
-    fn to_string(&self, _env: &mut Env) -> Result<String,Box<Exception>> {
-        if self.n==1 {
-            let mut s = "vector(".to_string();
-            let data = self.data.borrow();
-            match *data {
-                Data::F64(ref data) => {
-                    vector_f64_to_string(self,&mut s,data);
-                },
-                _ => unimplemented!()
-            }
-            s.push_str(")");
-            return Ok(s);
-        }else if self.n==2 {
-            let mut s = "matrix(\n".to_string();
-            let data = self.data.borrow();            
-            match *data {
-                Data::F64(ref data) => {
-                    matrix_f64_to_string(self,&mut s,data);
-                },
-                _ => unimplemented!()
-            }
-            s.push_str("\n)");
-            return Ok(s);
-        }else{
-            unimplemented!();
-        }
+    fn to_string(&self, env: &mut Env) -> Result<String,Box<Exception>> {
+        to_string(self,env)
     }
-    fn add(&self, b: &Object, _env: &mut Env) -> FnResult {
-        if let Some(b) = downcast::<Array>(b) {
-            match *self.data.borrow() {
-                Data::F64(ref data) => map_binary_f64(self,data,b,&|x,y| x+y),
-                _ => panic!()
-            }
-        }else{
-            panic!()
-        }
+    fn add(&self, b: &Object, env: &mut Env) -> FnResult {
+        add(self,b,env)
     }
-    fn sub(&self, b: &Object, _env: &mut Env) -> FnResult {
-        if let Some(b) = downcast::<Array>(b) {
-            match *self.data.borrow() {
-                Data::F64(ref data) => map_binary_f64(self,data,b,&|x,y| x-y),
-                _ => panic!()
-            }
-        }else{
-            panic!()
-        }
+    fn sub(&self, b: &Object, env: &mut Env) -> FnResult {
+        sub(self,b,env)
     }
     fn mul(&self, b: &Object, env: &mut Env) -> FnResult {
-        if let Some(b) = downcast::<Array>(b) {
-            match *self.data.borrow() {
-                Data::F64(ref adata) => {
-                    match *b.data.borrow() {
-                        Data::F64(ref bdata) => mul_f64(env,self,b,adata,bdata),
-                        _ => panic!()
-                    }
-                },
-                _ => panic!()
-            }
-        }else{
-            panic!()
-        }
+        mul(self,b,env)
     }
     fn rmul(&self, a: &Object, env: &mut Env) -> FnResult {
         let r = match *a {
@@ -133,71 +98,136 @@ impl Interface for Array {
             _ => return env.type_error(
                 "Type error in r*v: r has to be of type Int or Float.")
         };
-        match *self.data.borrow() {
-            Data::F64(ref data) => map_unary_f64(self,data,&|x| r*x),
-            _ => panic!()
-        }        
+        let data = self.data.borrow();
+        map_unary(self,&data,&|x| r*x)
     }
     fn index(&self, indices: &[Object], env: &mut Env) -> FnResult {
-        if self.n==1 && indices.len()==1 {
-            match indices[0] {
-                Object::Int(i) => {
-                    let i = i as isize;
-                    if i>=0 && (i as usize)<self.s[0].shape {
-                        match *self.data.borrow_mut() {
-                            Data::F64(ref data) => {
-                                let index = (self.base as isize+self.s[0].stride*i) as usize;
-                                return Ok(Object::Float(data[index]));
-                            },
-                            _ => panic!()
-                        }
-                    }else{
-                        return env.index_error("Index error in a[i]: out of bounds.");
-                    }
-                },
-                ref i => {
-                    return env.type_error1("Type error in a[i]: i is not an integer.","i",i);
-                }
-            }
-        }else{
-            panic!()
-        }
+        index(self,indices,env)
     }
     fn get(&self, key: &Object, env: &mut Env) -> FnResult {
-        if let Object::String(ref s) = *key {
-            let v = &s.data;
-            match v.len() {
-                3 => {
-                    if v[0..3] == ['a','b','s'] {
-                        return abs(self);
-                    }
-                },
-                5 => {
-                    if v[0..5] == ['s','h','a','p','e'] {
-                        return shape(self);
-                    }
-                },
-                _ => {}
-            }
-            let t = &env.rte().interface_types.borrow()[interface_index::ARRAY];
-            match t.get(key) {
-                Some(value) => return Ok(value),
-                None => {
-                    env.index_error(&format!(
-                        "Index error in Array.{0}: {0} not found.", key
-                    ))
-                }
-            }
-        }else{
-            env.type_error("Type error in Array.x: x is not a string.")
-        }
+        get(self,key,env)
     }
     fn abs(&self, _env: &mut Env) -> FnResult {
-        return abs(self);
+        return abs_f64(self);
     }
 }
 
-fn shape(a: &Array) -> FnResult {
+impl Interface for Array<c64> {
+    fn as_any(&self) -> &Any {self}
+    fn type_name(&self) -> String {
+        "ArrayOfComplex".to_string()
+    }
+    fn to_string(&self, env: &mut Env) -> Result<String,Box<Exception>> {
+        to_string(self,env)
+    }
+    fn add(&self, b: &Object, env: &mut Env) -> FnResult {
+        add(self,b,env)
+    }
+    fn sub(&self, b: &Object, env: &mut Env) -> FnResult {
+        sub(self,b,env)
+    }
+    fn mul(&self, b: &Object, env: &mut Env) -> FnResult {
+        mul(self,b,env)
+    }
+    fn rmul(&self, a: &Object, env: &mut Env) -> FnResult {
+        let r = match *a {
+            Object::Int(x) => c64{re: x as f64, im: 0.0},
+            Object::Float(x) => c64{re: x, im: 0.0},
+            Object::Complex(x) => x,
+            _ => return env.type_error(
+                "Type error in r*v: r has to be of type Int or Float.")
+        };
+        let data = self.data.borrow();
+        map_unary(self,&data,&|x| r*x)
+    }
+    fn index(&self, indices: &[Object], env: &mut Env) -> FnResult {
+        index(self,indices,env)
+    }
+    fn get(&self, key: &Object, env: &mut Env) -> FnResult {
+        get(self,key,env)
+    }
+    fn abs(&self, _env: &mut Env) -> FnResult {
+        return abs_c64(self);
+    }
+}
+
+fn to_string<T: Number>(a: &Array<T>, _env: &mut Env)
+-> Result<String,Box<Exception>>
+{
+    if a.n==1 {
+        let mut s = "vector(".to_string();
+        let data = a.data.borrow();
+        vector_to_string(a,&mut s,&data);
+        s.push_str(")");
+        return Ok(s);
+    }else if a.n==2 {
+        let mut s = "matrix(\n".to_string();
+        let data = a.data.borrow();            
+        matrix_to_string(a,&mut s,&data);
+        s.push_str("\n)");
+        return Ok(s);
+    }else{
+        unimplemented!();
+    }
+}
+
+fn index<T>(a: &Array<T>, indices: &[Object], env: &mut Env) -> FnResult
+where T: Number, Object: From<T>
+{
+    if a.n==1 && indices.len()==1 {
+        match indices[0] {
+            Object::Int(i) => {
+                let i = i as isize;
+                if i>=0 && (i as usize)<a.s[0].shape {
+                    let data = a.data.borrow_mut();
+                    let index = (a.base as isize+a.s[0].stride*i) as usize;
+                    return Ok(Object::from(data[index]));
+                }else{
+                    return env.index_error("Index error in a[i]: out of bounds.");
+                }
+            },
+            ref i => {
+                return env.type_error1("Type error in a[i]: i is not an integer.","i",i);
+            }
+        }
+    }else{
+        panic!()
+    }
+}
+
+fn get<T>(a: &Array<T>, key: &Object, env: &mut Env) -> FnResult
+where T: Number, Object: From<T>
+{
+    if let Object::String(ref s) = *key {
+        let v = &s.data;
+        match v.len() {
+            4 => {
+                if v[0..4] == ['l','i','s','t'] {
+                    return Ok(array_to_list(a));
+                }
+            },
+            5 => {
+                if v[0..5] == ['s','h','a','p','e'] {
+                    return shape(a);
+                }
+            },
+            _ => {}
+        }
+        let t = &env.rte().interface_types.borrow()[interface_index::ARRAY];
+        match t.get(key) {
+            Some(value) => return Ok(value),
+            None => {
+                env.index_error(&format!(
+                    "Index error in Array.{0}: {0} not found.", key
+                ))
+            }
+        }
+    }else{
+        env.type_error("Type error in Array.x: x is not a string.")
+    }
+}
+
+fn shape<T>(a: &Array<T>) -> FnResult {
     let n = a.s.len();
     let mut v: Vec<Object> = Vec::with_capacity(n);
     for i in 0..n {
@@ -206,72 +236,128 @@ fn shape(a: &Array) -> FnResult {
     return Ok(List::new_object(v));
 }
 
-fn abs(a: &Array) -> FnResult {
-    let n = a.s[0].shape;
-    let stride = a.s[0].stride;
-    let base = a.base;
-    match *a.data.borrow() {
-        Data::F64(ref data) => {
-            let mut y = 0.0;
-            for i in 0..n {
-                let x = data[(base+i as isize*stride) as usize];
-                y += x*x;
-            }
-            return Ok(Object::Float(y.sqrt()));
-        },
-        _ => panic!()
+fn array_to_list<T: Number>(a: &Array<T>) -> Object
+where Object: From<T>
+{
+    if a.n==1 {
+        let data = &*a.data.borrow();
+        let base = a.base;
+        let shape = a.s[0].shape;
+        let stride = a.s[0].stride;
+        let mut v: Vec<Object> = Vec::with_capacity(shape);
+        for i in 0..shape {
+            let x = data[(base+i as isize*stride) as usize];
+            v.push(Object::from(x));
+        }
+        return List::new_object(v);
+    }else{
+        panic!();
     }
 }
 
-fn mul_f64(env: &mut Env,
-    a: &Array, b: &Array, adata: &[f64], bdata: &[f64]
-) -> FnResult
+fn abs_f64(a: &Array<f64>) -> FnResult {
+    let n = a.s[0].shape;
+    let stride = a.s[0].stride;
+    let base = a.base;
+    let data = &a.data.borrow();
+    let mut y = 0.0;
+    for i in 0..n {
+        let x = data[(base+i as isize*stride) as usize];
+        y += x*x;
+    }
+    return Ok(Object::Float(y.sqrt()));
+
+}
+
+fn abs_c64(a: &Array<c64>) -> FnResult {
+    let n = a.s[0].shape;
+    let stride = a.s[0].stride;
+    let base = a.base;
+    let data = &a.data.borrow();
+    let mut y = 0.0;
+    for i in 0..n {
+        let x = data[(base+i as isize*stride) as usize];
+        y += x.re*x.re+x.im*x.im;
+    }
+    return Ok(Object::Float(y.sqrt()));
+}
+
+fn add<T: Number>(a: &Array<T>, b: &Object, _env: &mut Env) -> FnResult
+where Array<T>: Interface
 {
-    if a.n == 2 {
-        if b.n == 2 {
-            let m = a.s[0].shape;
-            let p = a.s[1].shape;
-            let n = b.s[1].shape;
-            if p != b.s[0].shape {
-                return env.value_error(
-                    "Value error in matrix multiplication A*B:\n  A.shape[1] != B.shape[0].");
-            }
-            Ok(Object::Interface(
-                mul_matrix_matrix_f64(m,p,n,a,b,adata,bdata)))
-        }else if b.n ==1 {
-            let m = a.s[0].shape;
-            let n = a.s[1].shape;
-            if n != b.s[0].shape {
-                return env.value_error(
-                    "Value error in A*b: A.shape[1] != b.shape[0].");
-            }
-            Ok(Object::Interface(
-                mul_matrix_vector_f64(m,n,a,b,adata,bdata)))
-        }else{
-            panic!()
-        }
-    }else if a.n == 1 {
-        let n = a.s[0].shape;
-        if n != b.s[0].shape {
-            return env.value_error(
-                "Value error in a*b: a.shape[0] != b.shape[0].");
-        }
-        Ok(Object::Float(
-            scalar_product_f64(n,a,b,adata,bdata)))
+    if let Some(b) = downcast::<Array<T>>(b) {
+        let data = a.data.borrow();
+        map_binary(a,&data,b,&|x,y| x+y)
     }else{
         panic!()
     }
 }
 
-fn map_binary_f64(a: &Array, adata: &[f64], b: &Array,
-    f: &Fn(f64,f64)->f64
+fn sub<T: Number>(a: &Array<T>, b: &Object, _env: &mut Env) -> FnResult
+where Array<T>: Interface
+{
+    if let Some(b) = downcast::<Array<T>>(b) {
+        let data = a.data.borrow();
+        map_binary(a,&data,b,&|x,y| x-y)
+    }else{
+        panic!()
+    }
+}
+
+fn mul<T: Number>(a: &Array<T>, b: &Object, env: &mut Env) -> FnResult
+where Array<T>: Interface, Object: From<T>
+{
+    if let Some(b) = downcast::<Array<T>>(b) {
+        let adata = &a.data.borrow();
+        let bdata = &b.data.borrow();
+        if a.n == 2 {
+            if b.n == 2 {
+                let m = a.s[0].shape;
+                let p = a.s[1].shape;
+                let n = b.s[1].shape;
+                if p != b.s[0].shape {
+                    return env.value_error(
+                        "Value error in matrix multiplication A*B:\n  A.shape[1] != B.shape[0].");
+                }
+                Ok(Object::Interface(
+                    mul_matrix_matrix(m,p,n,a,b,adata,bdata)))
+            }else if b.n ==1 {
+                let m = a.s[0].shape;
+                let n = a.s[1].shape;
+                if n != b.s[0].shape {
+                    return env.value_error(
+                        "Value error in A*b: A.shape[1] != b.shape[0].");
+                }
+                Ok(Object::Interface(
+                    mul_matrix_vector(m,n,a,b,adata,bdata)))
+            }else{
+                panic!()
+            }
+        }else if a.n == 1 {
+            let n = a.s[0].shape;
+            if n != b.s[0].shape {
+                return env.value_error(
+                    "Value error in a*b: a.shape[0] != b.shape[0].");
+            }
+            Ok(scalar_product(n,a,b,adata,bdata))
+        }else{
+            panic!()
+        }
+    }else{
+        panic!()
+    }
+}
+
+fn map_binary<T: Number>(a: &Array<T>, adata: &[T], b: &Array<T>,
+    f: &Fn(T,T)->T
 ) -> FnResult
+where Array<T>: Interface
 {
     if a.n==1 {
         let astride = a.s[0].stride;
         let ashape = a.s[0].shape;
         let abase = a.base;
-        let mut v: Vec<f64> = Vec::with_capacity(ashape);
+        let mut v: Vec<T> = Vec::with_capacity(ashape);
 
         if b.n != 1 {
             panic!()
@@ -281,70 +367,70 @@ fn map_binary_f64(a: &Array, adata: &[f64], b: &Array,
         }
         let bstride = b.s[0].stride;
         let bbase = b.base;
-        let bdata_borrow = b.data.borrow();
-        let bdata = match *bdata_borrow {
-            Data::F64(ref data) => data, _ => panic!()
-        };
+        let bdata = b.data.borrow();
         for i in 0..ashape {
             let aindex = (abase+(i as isize)*astride) as usize;
             let bindex = (bbase+(i as isize)*bstride) as usize;
             v.push(f(adata[aindex],bdata[bindex]));
         }
-        return Ok(Object::Interface(Array::vector_f64(v)));
+        return Ok(Object::Interface(Array::vector(v)));
 
     }else{
         unimplemented!();
     }
 }
 
-fn map_unary_f64(a: &Array, data: &[f64], f: &Fn(f64)->f64)
+fn map_unary<T: Number>(a: &Array<T>, data: &[T], f: &Fn(T)->T)
 -> FnResult
+where Array<T>: Interface
 {
     if a.n==1 {
         let stride = a.s[0].stride;
         let shape = a.s[0].shape;
         let base = a.base;
-        let mut v: Vec<f64> = Vec::with_capacity(shape);
+        let mut v: Vec<T> = Vec::with_capacity(shape);
         for i in 0..shape {
             let index = (base+(i as isize)*stride) as usize;
             v.push(f(data[index]));
         }
-        return Ok(Object::Interface(Array::vector_f64(v)));
+        return Ok(Object::Interface(Array::vector(v)));
 
     }else{
         unimplemented!();
     }
 }
 
-fn scalar_product_f64(n: usize,
-    a: &Array, b: &Array, adata: &[f64], bdata: &[f64]
-) -> f64
+fn scalar_product<T: Number>(n: usize,
+    a: &Array<T>, b: &Array<T>, adata: &[T], bdata: &[T]
+) -> Object
+where Object: From<T>
 {
     let abase = a.base;
     let bbase = b.base;
     let astride = a.s[0].stride;
     let bstride = b.s[0].stride;
-    let mut y = 0.0;
+    let mut y = T::zero();
     for i in 0..n {
         let aindex = abase+i as isize*astride;
         let bindex = bbase+i as isize*bstride;
         y += adata[aindex as usize]*bdata[bindex as usize];
     }
-    return y;
+    return Object::from(y);
 }
 
-fn mul_matrix_vector_f64(m: usize, n: usize,
-    a: &Array, b: &Array, adata: &[f64], bdata: &[f64]
-) -> Rc<Array>
+fn mul_matrix_vector<T: Number>(m: usize, n: usize,
+    a: &Array<T>, b: &Array<T>, adata: &[T], bdata: &[T]
+) -> Rc<Array<T>>
+where Array<T>: Interface
 {
     let abase = a.base;
     let bbase = b.base;
     let aistride = a.s[0].stride;
     let ajstride = a.s[1].stride;
     let bjstride = b.s[0].stride;
-    let mut v: Vec<f64> = Vec::with_capacity(m);
+    let mut v: Vec<T> = Vec::with_capacity(m);
     for i in 0..m {
-        let mut y = 0.0;
+        let mut y = T::zero();
         for j in 0..n {
             let aindex = abase+i as isize*aistride+j as isize*ajstride;
             let bindex = bbase+j as isize*bjstride;
@@ -352,12 +438,12 @@ fn mul_matrix_vector_f64(m: usize, n: usize,
         }
         v.push(y);
     }
-    return Array::vector_f64(v);
+    return Array::vector(v);
 }
 
-fn mul_matrix_matrix_f64(m: usize, p: usize, n: usize,
-    a: &Array, b: &Array, adata: &[f64], bdata: &[f64]
-) -> Rc<Array>
+fn mul_matrix_matrix<T: Number>(m: usize, p: usize, n: usize,
+    a: &Array<T>, b: &Array<T>, adata: &[T], bdata: &[T]
+) -> Rc<Array<T>>
 {
     let abase = a.base;
     let bbase = b.base;
@@ -365,10 +451,10 @@ fn mul_matrix_matrix_f64(m: usize, p: usize, n: usize,
     let akstride = a.s[1].stride;
     let bkstride = b.s[0].stride;
     let bjstride = b.s[1].stride;
-    let mut v: Vec<f64> = Vec::with_capacity(m*n);
+    let mut v: Vec<T> = Vec::with_capacity(m*n);
     for i in 0..m {
         for j in 0..n {
-            let mut y = 0.0;
+            let mut y = T::zero();
             for k in 0..p {
                 let aindex = abase+i as isize*aistride+k as isize*akstride;
                 let bindex = bbase+k as isize*bkstride+j as isize*bjstride;
@@ -377,10 +463,10 @@ fn mul_matrix_matrix_f64(m: usize, p: usize, n: usize,
             v.push(y);
         }
     }
-    return Array::matrix_f64(m,n,v);
+    return Array::matrix(m,n,v);
 }
 
-fn vector_f64_to_string(a: &Array, s: &mut String, data: &[f64]) {
+fn vector_to_string<T: Number>(a: &Array<T>, s: &mut String, data: &[T]) {
     let mut first = true;
     let stride = a.s[0].stride;
     let base = a.base as isize;
@@ -392,7 +478,7 @@ fn vector_f64_to_string(a: &Array, s: &mut String, data: &[f64]) {
     }
 }
 
-fn matrix_f64_to_string(a: &Array, s: &mut String, data: &[f64]) {
+fn matrix_to_string<T: Number>(a: &Array<T>, s: &mut String, data: &[T]) {
     let istride = a.s[0].stride;
     let jstride = a.s[1].stride;
     let m = a.s[0].shape;
@@ -413,7 +499,27 @@ fn matrix_f64_to_string(a: &Array, s: &mut String, data: &[f64]) {
     }
 }
 
+fn vector_from_list_c64(env: &mut Env, a: &[Object]) -> FnResult {
+    let mut v: Vec<c64> = Vec::with_capacity(a.len());
+    for x in a {
+        let x = match *x {
+            Object::Int(x) => c64{re: x as f64, im: 0.0},
+            Object::Float(x) => c64{re: x, im: 0.0},
+            Object::Complex(x) => x,
+            _ => return env.type_error(
+                "Type error in vector(*a): expected all a[k] of type Int, Float or Complex.")
+        };
+        v.push(x);
+    }
+    return Ok(Object::Interface(Array::<c64>::vector(v)));
+}
+
 fn vector_from_list(env: &mut Env, a: &[Object]) -> FnResult {
+    if a.len()!=0 {
+        if let Object::Complex(_) = a[0] {
+            return vector_from_list_c64(env,a);
+        }
+    }
     let mut v: Vec<f64> = Vec::with_capacity(a.len());
     for x in a {
         let x = match *x {
@@ -424,13 +530,36 @@ fn vector_from_list(env: &mut Env, a: &[Object]) -> FnResult {
         };
         v.push(x);
     }
-    let data = Rc::new(RefCell::new(Data::F64(
-        v.into_boxed_slice()
-    )));
-    return Ok(Object::Interface(Rc::new(Array{
-        s: Box::new([ShapeStride{shape: a.len(), stride: 1}]),
-        n: 1, base: 0, data: data
-    })));
+    return Ok(Object::Interface(Array::<f64>::vector(v)));
+}
+
+fn matrix_from_lists_c64(m: usize, n: usize,
+    env: &mut Env, argv: &[Object]
+) -> FnResult
+{
+    let mut v: Vec<c64> = Vec::with_capacity(m*n);
+    for x in argv {
+        let a = match *x {
+            Object::List(ref a) => a,
+            _ => panic!()
+        };
+        let data = &a.borrow().v;
+        if data.len() != n {
+            return env.value_error(
+                "Value error in matrix(*a): all a[i] must be of the same size.");
+        }
+        for x in data {
+            let x = match *x {
+                Object::Int(x) => c64{re: x as f64, im: 0.0},
+                Object::Float(x) => c64{re: x, im: 0.0},
+                Object::Complex(x) => x,
+                _ => return env.type_error(
+                    "Type error in matrix(*a): expected all a[i][j] of type Int, Float or Complex.")
+            };
+            v.push(x);
+        }
+    }
+    return Ok(Object::Interface(Array::<c64>::matrix(m,n,v)));
 }
 
 fn matrix_from_lists(env: &mut Env, argv: &[Object]) -> FnResult {
@@ -440,7 +569,16 @@ fn matrix_from_lists(env: &mut Env, argv: &[Object]) -> FnResult {
             "Value error in matrix(*a): expected at least one row.");
     }
     let n = match argv[0] {
-        Object::List(ref a) => a.borrow().v.len(),
+        Object::List(ref a) => {
+            let a = &a.borrow().v;
+            let n = a.len();
+            if n>0 {
+                if let Object::Complex(_) = a[0] {
+                    return matrix_from_lists_c64(m,n,env,argv);
+                }
+            }
+            n
+        },
         _ => panic!()
     };
     let mut v: Vec<f64> = Vec::with_capacity(m*n);
@@ -449,7 +587,7 @@ fn matrix_from_lists(env: &mut Env, argv: &[Object]) -> FnResult {
             Object::List(ref a) => a,
             _ => panic!()
         };
-        let data = &a.borrow_mut().v;
+        let data = &a.borrow().v;
         if data.len() != n {
             return env.value_error(
                 "Value error in matrix(*a): all a[i] must be of the same size.");
@@ -464,7 +602,7 @@ fn matrix_from_lists(env: &mut Env, argv: &[Object]) -> FnResult {
             v.push(x);
         }
     }
-    return Ok(Object::Interface(Array::matrix_f64(m,n,v)));
+    return Ok(Object::Interface(Array::<f64>::matrix(m,n,v)));
 }
 
 fn vector(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {

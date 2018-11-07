@@ -1,5 +1,6 @@
 
-use std::ops::{Add,Sub,Mul,Div,Neg};
+use std::ops::{Add,Sub,Mul,Div,Neg,AddAssign};
+use std::fmt;
 
 #[derive(Clone,Copy,PartialEq)]
 pub struct Complex64{
@@ -9,6 +10,28 @@ pub struct Complex64{
 
 #[allow(non_camel_case_types)]
 pub type c64 = Complex64;
+
+fn float_to_string(x: f64) -> String {
+    if x==0.0 {
+        "0".to_string()
+    }else if x.abs()>1E14 {
+        format!("{:e}",x)
+    }else if x.abs()<0.0001 {
+        format!("{:e}",x)
+    }else{
+        format!("{}",x)
+    }
+}
+
+impl fmt::Display for c64 {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        if self.im<0.0 {
+            write!(f,"{}{}i",float_to_string(self.re),float_to_string(self.im))
+        }else{
+            write!(f,"{}+{}i",float_to_string(self.re),float_to_string(self.im))
+        }
+    }
+}
 
 impl Add for c64 {
     type Output = c64;
@@ -99,6 +122,13 @@ impl Neg for c64 {
     type Output = c64;
     fn neg(self) -> c64 {
         c64{re: -self.re, im: -self.im}
+    }
+}
+
+impl AddAssign for c64 {
+    fn add_assign(&mut self, b: c64) {
+        self.re += b.re;
+        self.im += b.im;
     }
 }
 

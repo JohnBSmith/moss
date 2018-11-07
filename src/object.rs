@@ -514,6 +514,12 @@ impl From<f64> for Object {
     }
 }
 
+impl From<Complex64> for Object {
+    fn from(x: Complex64) -> Object {
+        return Object::Complex(x);
+    }
+}
+
 impl<T> From<Vec<T>> for Object
 where Object: From<T>
 {
