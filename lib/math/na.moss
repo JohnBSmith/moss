@@ -1,6 +1,6 @@
 
 begin
-public pli, inv, diffh, diffvh, integral
+public pli, inv, diffh, diffvh, integral, gauss
 
 use math: nan, floor
 
@@ -109,20 +109,24 @@ GL32 = [
   [ 0.9972638618494816, 0.007018610009470141]
 ]
 
-function integral(a,b,f,n=1)
-  h = (b-a)/n
-  p = 0.5*h
-  s = 0
-  for j in 0..n-1
-    q = p+a+j*h
-    sj = 0
-    for t in GL32
-      sj += t[1]*f(p*t[0]+q)
+function gauss(gl)
+  return fn integral|a,b,f,n=1|
+    h = (b-a)/n
+    p = 0.5*h
+    s = 0
+    for j in 0..n-1
+      q = p+a+j*h
+      sj = 0
+      for t in gl
+        sj += t[1]*f(p*t[0]+q)
+      end
+      s += p*sj
     end
-    s += p*sj
+    return s
   end
-  return s
 end
+
+integral = gauss(GL32)
 
 end
 

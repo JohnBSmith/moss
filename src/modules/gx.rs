@@ -821,6 +821,9 @@ pub fn load_gx() -> Object
         m.insert("canvas",canvas_bind_type(type_canvas));
         m.insert_fn_plain("sleep",gx_sleep,1,1);
     }
+    
+    // Workaround for a SDL bug in Ubuntu 18.04 on i386.
+    ::std::env::set_var("DBUS_FATAL_WARNINGS","0");
 
     return Object::Table(Rc::new(gx));
 }

@@ -1,7 +1,7 @@
 
 begin
   public cs_rand_int
-  use io: open
+  use fs: open
 
   function cs_rand_int(n)
     f = open("/dev/urandom")
@@ -12,6 +12,7 @@ end
 begin
   public rand_normal
 
+  use math: pi, sqrt, ln
   a = 0.147
   A = 2/(pi*a) 
 
