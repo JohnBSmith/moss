@@ -822,7 +822,9 @@ pub fn load_gx() -> Object
         m.insert_fn_plain("sleep",gx_sleep,1,1);
     }
     
-    // Workaround for a SDL bug in Ubuntu 18.04 on i386.
+    // Workaround for a bug in SDL on Ubuntu 18.04 on i386.
+    // "arguments to dbus_message_new_method_call() were incorrect"
+    // https://bugs.launchpad.net/ubuntu/+source/libsdl2/+bug/1775067
     ::std::env::set_var("DBUS_FATAL_WARNINGS","0");
 
     return Object::Table(Rc::new(gx));

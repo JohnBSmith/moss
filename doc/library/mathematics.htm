@@ -25,6 +25,7 @@
 <li><a href="#math-sf-ei">Module <code>math.sf.ei</code> &mdash; elliptic integrals</a>
 <li><a href="#math-la">Module <code>math.la</code> &mdash; linear algebra</a>
 <li><a href="#math-na">Module <code>math.na</code> &mdash; numerical algorithms</a>
+<li><a href="#math-na-quad">Module <code>math.na.quad</code> &mdash; numerical quadrature</a>
 </ol>
 </div>
 
@@ -480,6 +481,30 @@ quadrature with 32 nodes. To increase accuracy, the interval
 <code>[a,b]</code> can be subdivided into <code>n</code> parts.
 Note that <code>f</code> may be a complex-valued or vector-valued
 function.
+</dl>
+
+<h2 id="math-na-quad">Module math.na.quad</h2>
+<p>Numerical quadrature.
+
+<dl class="code">
+<dt>gauss_legendre(N)
+<dd>Return a new integral operation, using the Gauss-Legendre
+quadrature with <code>N</code> nodes.
+<pre class="moss">
+integral = gauss_legendre(64)
+ln = |x| integral(1,x,|t| 1/t)
+# integral(a,b,f,n=1)
+</pre>
+
+<dt>legendre_nodes(N)
+<dd>The nodes for the Gauss-Legendre quadrature.
+
+<dt>gauss(nodes)
+<dd>Take <code>nodes</code> and return a new integral operation by
+Gaussian quadrature.
+<pre class="moss">
+integral = gauss(legendre_nodes(64))
+</pre>
 </dl>
 
 </body>
