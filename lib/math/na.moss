@@ -1,6 +1,6 @@
 
 begin
-public pli, inv, diffh, diffvh, integral, gauss
+public pli, inv, diffh, diffvh, integral
 
 use math: nan, floor
 

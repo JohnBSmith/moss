@@ -1,6 +1,6 @@
 
 begin
-public gauss_legendre, legendre_nodes
+public gauss, gauss_legendre, legendre_nodes
 
 use math: pi, cos
 use math.sf: PP
