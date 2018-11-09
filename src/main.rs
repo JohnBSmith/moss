@@ -140,7 +140,13 @@ fn main(){
     }else if let Some(ref cmd) = info.cmd {
         let x = env.eval_env(cmd,gtab);
         if x != Object::Null {
-            println!("{}",i.repr(&x));
+            match x.repr(&mut env) {
+                Ok(s) => println!("{}",s),
+                Err(e) => {
+                    println!("{}",env.exception_to_string(&e));
+                    println!("[exception in Interpreter::repr, see stdout]");
+                }
+            }
         }
     }else{
         env.command_line_session(gtab);
