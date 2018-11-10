@@ -1,0 +1,121 @@
+
+use sys: exit
+
+function error(s)
+  print("Test of long integer arithmetic")
+  print(s)
+  exit(1)
+end
+
+function xy_test(rx,ry)
+  for x in rx
+    for y in ry
+      if str(x*y)!=str(long(x)*long(y))
+        error("Error in x*y: x={}, y={}." % [x,y])
+      end
+    end
+  end
+end
+
+function pow_test(rx,ry)
+  for x in rx
+    for y in ry
+      if str(x^y)!=str(long(x)^y)
+        error("Error in x^y: x={}, y={}." % [x,y])
+      end
+    end
+  end
+end
+
+function powmod(x,n,m)
+  y=1; x=x%m
+  while n>0
+    if n%2==0
+      n=n//2; x=(x*x)%m
+    else
+      n=n-1; y=(y*x)%m
+    end
+  end
+  return y
+end
+
+function powmod_test(xn,rn,m)
+  for x in xn
+    for n in rn
+      if powmod(x,n,m)!=x^n%m
+        error("Error: powmod(x,n,m)!=x^n%m, x={}, n={}, m={}." % [x,n,m])
+      end
+    end
+  end
+end
+
+function shuffle_test(i,n)
+  a = list(i).map(long)
+  p = a.prod()
+  for x in n
+    if p!=a.shuffle().prod()
+      error("Error in shuffle_test: p={}, a={}." % [p,a])
+    end
+  end
+end
+
+function itos_test(r)
+  for x in r
+    if x!=long(str(x))
+      error("Error: x!=long(str(x)).")
+    end
+  end
+end
+
+function fast
+  xy_test(0..200,0..200)
+  xy_test(-100..100,-100..100)
+  xy_test(0..100,0..1000)
+  xy_test(0..1000,0..100)
+  xy_test(0..20,0..4000)
+  xy_test(0..4000,0..20)
+  xy_test(0..10000:23,0..10000:23)
+
+  pow_test(0..1000,0..8)
+  pow_test(2..2,0..40)
+  powmod_test(2..3,0..2000,1000)
+
+  shuffle_test(1..100,4000)
+  shuffle_test(-40..40,4000)
+  shuffle_test((1..100).map(|x| 2^x),4000)
+  shuffle_test((1..200).map(|x| 2^x),1000)
+end
+
+function slow
+  #/*
+  xy_test(0..1000,0..1000)
+  xy_test(-200..200,-200..200)
+  xy_test(0..100,0..8000)
+  xy_test(0..8000,0..100)
+  xy_test(0..20,0..100000)
+  xy_test(0..100000,0..20)
+  xy_test(0..10000:7,0..10000:7)
+  # print("x*y tests finished")
+  #*/
+
+  #/*
+  shuffle_test(1..200,40000)
+  shuffle_test(-40..40,40000)
+  shuffle_test((1..100).map(|x| 2^x),40000)
+  shuffle_test((1..200).map(|x| 2^x),1000)
+  shuffle_test((1..200).map(|x| 3^x),1000)
+  shuffle_test((1..200).map(|x| 5^x),1000)
+  shuffle_test((1..1000).map(|x| 2^x),1)
+  shuffle_test((1..1000).map(|x| 3^x),1)
+  shuffle_test((1..20000: 1000).map(|x| 2^x),1000)
+  #*/
+
+  # shuffle_test(1..100,4000000)
+  powmod_test(0..10,0..4000,1000)
+end
+
+fast()
+# slow()
+
+# itos_test((0..1000:10).map(|x| 2^x))
+
