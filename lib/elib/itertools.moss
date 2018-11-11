@@ -67,7 +67,7 @@ Iterable.at = fn at|n|
   return self.skip(n)()
 end
 
-fn cycle(x)
+function cycle(x)
   a = x.list()
   i=0; n=size(a)
   return fn*||
@@ -78,7 +78,7 @@ fn cycle(x)
   end
 end
 
-fn permutations(a)
+function permutations(a)
   fn* ||
     if size(a)<=1
       yield copy(a)

@@ -16,14 +16,14 @@ extend(Map,{
     M = {}
     for x in A|B
       m = min(A(x) else 0, B(x) else 0)
-      if m>0 then
+      if m>0
         M[x] = m
       end
     end
     return M
   end,
   
-  functio cup(A;B)
+  function cup(A;B)
     M = {}
     for x in A|B
       m = max(A(x) else 0, B(x) else 0)
@@ -33,7 +33,7 @@ extend(Map,{
     end
     return M
   end,
-  
+
   function plus(A;B)
     M = {}
     for x in A|B
@@ -48,6 +48,6 @@ extend(Map,{
   function disjoint(A;B)
     (A|B).all(|x| min(A(x) else 0,B(x) else 0)==0)
   end
-}
+})
 
 

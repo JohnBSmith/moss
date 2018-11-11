@@ -171,17 +171,18 @@ pub fn scan(s: &str, line_start: usize, file: &str, new_line_start: bool)
             line: line_start, col: 1, item: Item::None});
     }
 
-    let mut line=line_start;
-    let mut col=1;
+    let mut line = line_start;
+    let mut col = 1;
     let mut hcol: usize;
 
     let a: Vec<char> = s.chars().collect();
-    let mut i=0;
+    let mut i = 0;
     let n = a.len();
     while i<n {
         let c = a[i];
         if c.is_digit(10) {
-            let j=i; hcol=col;
+            let j = i;
+            hcol = col;
             let mut token_type = SymbolType::Int;
             while i<n {
                 if a[i].is_digit(10) {
@@ -223,7 +224,8 @@ pub fn scan(s: &str, line_start: usize, file: &str, new_line_start: bool)
                     line: line, col: hcol, item: Item::String(number.clone())});
             }
         }else if (c.is_alphabetic() && c.is_ascii()) || a[i]=='_' {
-            let j=i; hcol=col;
+            let j = i;
+            hcol = col;
             while i<n && (a[i].is_alphabetic() || a[i].is_digit(10) || a[i]=='_') {
                 i+=1; col+=1;
             }
@@ -452,7 +454,7 @@ pub fn scan(s: &str, line_start: usize, file: &str, new_line_start: bool)
                     i+=1; col+=1;
                 },
                 '"' => {
-                    hcol=col;
+                    hcol = col;
                     i+=1; col+=1;
                     if i+1<n && a[i]=='"' && a[i+1]=='"' {
                         i+=2; col+=2;
@@ -482,9 +484,9 @@ pub fn scan(s: &str, line_start: usize, file: &str, new_line_start: bool)
                     }
                 },
                 '\'' => {
-                    hcol=col;
+                    hcol = col;
                     i+=1; col+=1;
-                    let j=i;
+                    let j = i;
                     while i<n && a[i]!='\'' {i+=1; col+=1;}
                     let s: &String = &a[j..i].iter().cloned().collect();
                     v.push(Token{token_type: SymbolType::String,
@@ -826,7 +828,7 @@ impl TokenIterator{
                     let line = self.a[self.index].line;
                     let v = scan_line(line+1,c.history,true)?;
                     self.a = Rc::new(v.into_boxed_slice());
-                    self.index=0;
+                    self.index = 0;
                 }else{
                     return Ok(self.a.clone());
                 }
@@ -842,7 +844,7 @@ impl TokenIterator{
                 let line = self.a[self.index].line;
                 let v = scan_line(line+1,c.history,false)?;
                 self.a = Rc::new(v.into_boxed_slice());
-                self.index=0;
+                self.index = 0;
             }else if value == Symbol::Newline {
                 self.index+=1;
             }else{
@@ -857,7 +859,7 @@ impl TokenIterator{
                 let line = self.a[self.index].line;
                 let v = scan_line(line+1,c.history,true)?;
                 self.a = Rc::new(v.into_boxed_slice());
-                self.index=0;
+                self.index = 0;
             }else if c.parens>0 && value == Symbol::Newline {
                 self.index+=1;
             }else{
@@ -1577,7 +1579,7 @@ fn addition(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
     let mut y = self.multiplication(i)?;
     let p = i.next_token_optional(self)?;
     let t = &p[i.index];
-    let value=t.value;
+    let value = t.value;
     if value==Symbol::Plus || value==Symbol::Minus {
         i.index+=1;
         let x = self.multiplication(i)?;
@@ -1585,7 +1587,7 @@ fn addition(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
         loop{
             let p = i.next_token_optional(self)?;
             let t = &p[i.index];
-            let value=t.value;
+            let value = t.value;
             if value != Symbol::Plus && value != Symbol::Minus {
                 return Ok(y);
             }
@@ -1615,7 +1617,7 @@ fn intersection(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
     let mut y = self.shift(i)?;
     let p = i.next_token_optional(self)?;
     let t = &p[i.index];
-    let value=t.value;
+    let value = t.value;
     if value==Symbol::Amp {
         i.index+=1;
         let x = self.shift(i)?;
@@ -1669,8 +1671,10 @@ fn range(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
         i.index+=1;
         let pb = i.next_token_optional(self)?;
         let tb = &pb[i.index];
-        let y = if tb.value == Symbol::PRight || tb.value == Symbol::BRight
-            || tb.value == Symbol::Colon || tb.value == Symbol::Comma
+        let y = if tb.value == Symbol::PRight ||
+                   tb.value == Symbol::BRight ||
+                   tb.value == Symbol::Colon  ||
+                   tb.value == Symbol::Comma
         {
             atomic_literal(t.line,t.col,Symbol::Null)
         }else{
@@ -1695,9 +1699,9 @@ fn comparison(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
     let x = self.range(i)?;
     let p = i.next_token_optional(self)?;
     let t = &p[i.index];
-    let value=t.value;
+    let value = t.value;
     if value==Symbol::Lt || value==Symbol::Gt ||
-          value==Symbol::Le || value==Symbol::Ge
+       value==Symbol::Le || value==Symbol::Ge
     {
         i.index+=1;
         let y = self.range(i)?;
@@ -1712,10 +1716,10 @@ fn eq_expression(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
     let p = i.next_token_optional(self)?;
     let t = &p[i.index];
     let value = t.value;
-    if value==Symbol::Eq || value==Symbol::Ne ||
-          value==Symbol::Is || value==Symbol::Isin ||
-          value==Symbol::In || value==Symbol::Notin ||
-          value==Symbol::Colon
+    if value==Symbol::Eq || value==Symbol::Ne    ||
+       value==Symbol::Is || value==Symbol::Isin  ||
+       value==Symbol::In || value==Symbol::Notin ||
+       value==Symbol::Colon
     {
         i.index+=1;
         let y = self.comparison(i)?;
