@@ -6,7 +6,7 @@ use object::{
     Object, List, CharString, Table, Function, FnResult, Interface,
     Exception, new_module, downcast
 };
-use vm::Env;
+use vm::{Env,interface_index,interface_types_set};
 
 #[derive(Debug,Clone,Copy)]
 enum Class{
@@ -651,14 +651,12 @@ pub fn load_regex(env: &mut Env) -> Object {
         m.insert_fn_plain("groups",regex_groups,1,1);
         m.insert_fn_plain("replace",regex_replace,2,2);
     }
-    let mut v = env.rte().interface_types.borrow_mut();
-    let index = v.len();
-    v.push(type_regex);
+    interface_types_set(env.rte(),interface_index::REGEX,type_regex);
 
     let regex = new_module("regex");
     {
         let mut m = regex.map.borrow_mut();
-        m.insert("re",regex_compile(index));
+        m.insert("re",regex_compile(interface_index::REGEX));
     }
     return Object::Table(Rc::new(regex));
 }

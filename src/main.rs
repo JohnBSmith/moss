@@ -44,7 +44,8 @@ struct Info{
     cmd: Option<String>,
     exit: bool,
     math: bool,
-    debug_mode: bool
+    debug_mode: bool,
+    unsafe_mode: bool
 }
 
 impl Info{
@@ -56,7 +57,8 @@ impl Info{
             cmd: None,
             exit: false,
             math: false,
-            debug_mode: false
+            debug_mode: false,
+            unsafe_mode: false
         };
         let mut first = true;
         let mut ifile = false;
@@ -84,6 +86,8 @@ impl Info{
                     return Box::new(info);
                 }else if s=="-d" {
                     info.debug_mode = true;
+                }else if s=="-unsafe" {
+                    info.unsafe_mode = true;
                 }else{
                     println!("Error: unknown option: {}.",&s);
                 }
@@ -108,6 +112,7 @@ fn main(){
     i.set_config(CompilerExtra{
         debug_mode: info.debug_mode
     });
+    i.set_capabilities(info.unsafe_mode);
 
     let gtab = Map::new();
     i.rte.clear_at_exit(gtab.clone());

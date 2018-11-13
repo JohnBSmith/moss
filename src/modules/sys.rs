@@ -25,6 +25,42 @@ fn exit(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     }
 }
 
+fn cmd(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
+    match argv.len() {
+        2 => {}, n => return env.argc_error(n,2,2,"cmd")
+    }
+    let cmd_name = match argv[0] {
+        Object::String(ref s) => s.to_string(),
+        ref s => return env.type_error1(
+            "Type error in cmd(command,argv): command is not a string.","command",s)
+    };
+    let a = match argv[1] {
+        Object::List(ref a) => {
+            let a = &a.borrow_mut().v;
+            let mut buffer: Vec<String> = Vec::with_capacity(a.len());
+            for x in a {
+                let s = match x {
+                    Object::String(ref s) => s.to_string(),
+                    _ => return env.type_error(
+                        "Type error in cmd(command,argv): argv must be a list of strings.")
+                };
+                buffer.push(s);
+            }
+            buffer
+        },
+        _ => panic!()
+    };
+    if env.rte().capabilities.borrow().command {
+        match process::Command::new(&cmd_name).args(&a[..]).status() {
+            Ok(status) => Ok(Object::Bool(status.success())),
+            Err(_) => env.std_exception(&format!(
+                "Error in cmd(command,argv): failed to execute command=='{}'.",cmd_name))
+        }
+    }else{
+        env.std_exception("Error in cmd(command,argv): permission denied.")
+    }
+}
+
 pub fn load_sys(rte: &Rc<RTE>) -> Object {
     let sys = new_module("sys");
     {
@@ -35,6 +71,7 @@ pub fn load_sys(rte: &Rc<RTE>) -> Object {
         m.insert("path",Object::List(rte.path.clone()));
         m.insert_fn_plain("exit",exit,0,1);
         m.insert_fn_plain("call",::vm::sys_call,2,VARIADIC);
+        m.insert_fn_plain("cmd",cmd,2,2);
     }
     return Object::Table(Rc::new(sys));
 }

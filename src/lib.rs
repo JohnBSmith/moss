@@ -178,6 +178,13 @@ impl Interpreter{
         let mut conf = self.rte.compiler_config.borrow_mut();
         *conf = Some(Box::new(config));
     }
+    
+    pub fn set_capabilities(&self, root_mode: bool) {
+        if root_mode {
+            let mut capabilities = self.rte.capabilities.borrow_mut();
+            capabilities.command = true;
+        }
+    }
 }
 
 pub fn new_list_str(a: &[String]) -> Rc<RefCell<List>> {

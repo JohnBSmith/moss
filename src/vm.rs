@@ -34,6 +34,7 @@ pub mod interface_index{
     pub const ARRAY: usize = 1;
     pub const BYTES: usize = 2;
     pub const FILE: usize = 3;
+    pub const REGEX: usize = 4;
 }
 
 // byte code size
@@ -3663,6 +3664,11 @@ pub fn interface_types_set(rte: &RTE, index: usize, x: Rc<Table>) {
     }
 }
 
+pub struct Capabilities{
+    pub read: bool,
+    pub command: bool
+}
+
 // Runtime environment: globally accessible information.
 pub struct RTE{
     pub type_bool: Rc<Table>,
@@ -3690,6 +3696,7 @@ pub struct RTE{
     pub interface_types: RefCell<Vec<Rc<Table>>>,
     pub seed_rng: RefCell<Rand>,
     pub compiler_config: RefCell<Option<Box<CompilerExtra>>>,
+    pub capabilities: RefCell<Capabilities>,
 
     pub key_string: Object,
     pub key_iter: Object,
@@ -3747,6 +3754,10 @@ impl RTE{
             interface_types: RefCell::new(Vec::new()),
             seed_rng: RefCell::new(Rand::new(0)),
             compiler_config: RefCell::new(None),
+            capabilities: RefCell::new(Capabilities{
+                read: true,
+                command: false
+            }),
 
             key_string: CharString::new_object_str("string"),
             key_iter:   CharString::new_object_str("iter"),
@@ -3781,7 +3792,7 @@ impl RTE{
         self.delay.borrow_mut().push(gtab);
     }
     pub fn read_access(&self, _id: &str) -> bool {
-        return true;
+        return self.capabilities.borrow().read;
     }
     pub fn set(&self, id: &str, x: Object) {
         self.gtab.borrow_mut().insert(id,x);
