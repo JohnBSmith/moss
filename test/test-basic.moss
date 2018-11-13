@@ -1,0 +1,400 @@
+
+sys = load("sys")
+
+function error(s)
+  print("Error: test ", s, " failed.")
+  sys.exit(1)
+end
+
+
+f = |x,y| x*y
+if f(2,4)!=8
+  error("#1.1")
+end
+
+f = || null
+if f()!=null
+  error("#1.2")
+end
+
+if [2,4] != [1,2].map(|x| 2*x)
+  error("#2.1")
+end
+
+if [4,8] != [1,2].map(|x| 2*x).map(|x| 2*x)
+  error("#2.2")
+end
+
+if [2,4] != [1,2].map(fn|x| u=2*x; u end)
+  error("#2.3")
+end
+
+function f1
+  if [2,4] != [1,2].map(|x| 2*x)
+    error("#2.4")
+  end
+
+  if [4,8] != [1,2].map(|x| 2*x).map(|x| 2*x)
+    error("#2.5")
+  end
+
+  if [2,4] != [1,2].map(fn|x| u=2*x; u end)
+    error("#2.6")
+  end
+end
+f1()
+
+function f2
+  a = []
+  for t in [1,2].map(|x| [x])
+    a.push(t)
+  end
+  if a!=[[1],[2]]
+    error("#3.1")
+  end
+
+  a = []
+  for t in (1..2).map(|x| [x])
+    a.push(t)
+  end
+  if a!=[[1],[2]]
+    error("#3.2")
+  end
+end
+f2()
+
+map = fn|f,a|
+  y = []
+  for x in a
+    y.push(f(x))
+  end
+  return y
+end
+
+if [2,4]!=map(|x| 2*x,[1,2])
+  error("#4.1")
+end
+
+fac = |n| 1 if n==0 else n*fac(n-1)
+if fac(4)!=24
+  error("#5.1")
+end
+
+fac = fn fac|n| 1 if n==0 else n*fac(n-1) end
+if fac(4)!=24
+  error("#5.2")
+end
+
+fib = |n| 1 if n==1 or n==2 else fib(n-1)+fib(n-2)
+if fib(10)!=55
+  error("#5.3")
+end
+
+fib = fn fib|n| 1 if n==1 or n==2 else fib(n-1)+fib(n-2) end
+if fib(10)!=55
+  error("#5.4")
+end
+
+fix = |F| fn g|n| F(g,n) end
+fac = fix(|f,n| 1 if n==0 else n*f(n-1))
+if fac(4)!=24
+  error("#5.5")
+end
+
+fix = |F| (|x| x(x))(|x| F(|n| x(x)(n)))
+fac = fix(|f| |n| 1 if n==0 else n*f(n-1))
+if fac(4)!=24
+  error("#5.6")
+end
+
+isprime = |n| list(1..n).count(|k| n%k==0)==2
+if (1..).filter(isprime).list(10)!=[2,3,5,7,11,13,17,19,23,29]
+  error("#5.7")
+end
+
+qsort = |a| ([] if size(a)==0 else
+  qsort(a[1..].filter(|x| x<a[0]))+[a[0]]+
+  qsort(a[1..].filter(|x| x>=a[0])))
+
+if list(1..10)!=qsort(list(1..10).shuffle())
+  error("#6.1")
+end
+
+function counter(a,b)
+  a = a-1
+  return fn||
+    if a==b
+      return empty
+    else
+      a = a+1
+      return a
+    end
+  end
+end
+
+if [1,2,3,4]!=counter(1,4).list()
+  error("#7.1")
+end
+
+if [2,4,6,8]!=counter(1,4).map(|x| 2*x).list()
+  error("#7.2")
+end
+
+if [2,4,6,8]!=counter(1,4).map(fn|x| u=2*x; u end).list()
+  error("#7.3")
+end
+
+if [2,4]!=List.map([1,2];*[|x| 2*x])
+  error("#8.1")
+end
+
+if [2,4]!=List.map([1,2];*[fn|x| u=2*x; u end])
+  error("#8.2")
+end
+
+a = [1,2]
+if [2,4]!=a.map(a;*[|x| 2*x])
+  error("#8.3")
+end
+
+if [2,4]!=a.map(a;*[fn|x| u=2*x; u end])
+  error("#8.4")
+end
+
+a = [1,2,3,4]
+if a!=(|x,y,z,w| [x,y,z,w])(1,2,3,4)
+  error("#9.1")
+end
+
+if a!=(|x| |y| |z| |w| [x,y,z,w])(1)(2)(3)(4)
+  error("#9.2")
+end
+
+if a!=(|x,y| |z| |w| [x,y,z,w])(1,2)(3)(4)
+  error("#9.3")
+end
+
+if a!=(|x| |y,z| |w| [x,y,z,w])(1)(2,3)(4)
+  error("#9.4")
+end
+
+if a!=(|x| |y| |z,w| [x,y,z,w])(1)(2)(3,4)
+  error("#9.5")
+end
+
+if a!=(|x,y| |z,w| [x,y,z,w])(1,2)(3,4)
+  error("#9.6")
+end
+
+if a!=(|x,y,z| |w| [x,y,z,w])(1,2,3)(4)
+  error("#9.7")
+end
+
+if a!=(|x| |y,z,w| [x,y,z,w])(1)(2,3,4)
+  error("#9.8")
+end
+
+if [1,2]!=eval("[1,2]")
+  error("#10.1")
+end
+
+f = eval("|x,y| [x,y]")
+if [1,2]!=f(1,2)
+  error("#10.2")
+end
+
+f = eval("|x,y| [x,y,a,b]",{a="a",b="b"})
+if [1,2,"a","b"]!=f(1,2)
+  print({a="a",b="b"})
+  error("#10.3")
+end
+
+fn||
+  [x,y] = [10,11]
+  if x!=10 or y!=11
+    error("#11.1")
+  end
+end()
+
+fn||
+  [[x,y],[w,z]] = [[12,13],[14,15]]
+  if x!=12 or y!=13 or w!=14 or z!=15
+    error("#11.2")
+  end
+end()
+
+fn||
+  [x,y] = [16,17]
+  if x!=16 or y!=17
+    error("#11.3")
+  end
+  [[x,y],[w,z]] = [[18,19],[20,21]]
+  if x!=18 or y!=19 or w!=20 or z!=21
+    error("#11.4")
+  end
+end()
+
+fn||
+  [x,y] = [22,[1,2]]
+  if x!=22 or y!=[1,2]
+    error("#11.5")
+  end
+end()
+
+fn||
+  t = table{}
+  [t.x,t.y] = list(1..2)
+  if t.x!=1 or t.y!=2
+    error("#11.6")
+  end
+  a = [360,240]
+  [a[0],a[1]] = [a[1],a[0]]
+  if a!=[240,360]
+    error("#11.7")
+  end
+end()
+
+f = || []
+if [] != f(*[])
+  error("#12.0")
+end
+
+f = |x| [x]
+if [100] != f(*[100])
+  error("#12.1")
+end
+
+f = |x,y| [x,y]
+if [101,102] != f(*[101,102])
+  error("#12.2")
+end
+
+f = |x,y,z| [x,y,z]
+if [103,104,105] != f(*[103,104,105])
+  error("#12.3")
+end
+
+f = |x,y,z,w| [x,y,z,w]
+if [106,107,108,109] != f(*[106,107,108,109])
+  error("#12.4")
+end
+
+if [2,4] != List.map([1,2];|x| 2*x)
+  error("#12.5")
+end
+
+if [2,4] != List.map([1,2];*[|x| 2*x])
+  error("#12.6")
+end
+
+fn||
+  f = || []
+  if [] != f(*[])
+    error("#12.7")
+  end
+
+  f = |x| [x]
+  if [100] != f(*[100])
+    error("#12.8")
+  end
+
+  f = |x,y| [x,y]
+  if [101,102] != f(*[101,102])
+    error("#12.9")
+  end
+
+  f = |x,y,z| [x,y,z]
+  if [103,104,105]!=f(*[103,104,105])
+    error("#12.10")
+  end
+
+  f = |x,y,z,w| [x,y,z,w]
+  if [106,107,108,109]!=f(*[106,107,108,109])
+    error("#12.11")
+  end
+
+  if [2,4] != List.map([1,2];|x| 2*x)
+    error("#12.12")
+  end
+
+  if [2,4] != List.map([1,2];*[|x| 2*x])
+    error("#12.13")
+  end
+end()
+
+a = (|[x,y]| [x+y,x]).orbit([1,1]).map(|x| x[1]).list(10)
+if a!=list(1..10).map(fib)
+  error("#13.1")
+end
+
+curry = fn|f|
+  n = f.argc()
+  a = list(0..n-1)
+  return (2..n).reduce(
+    fn|x| a[n-1]=x; f(*a) end,
+    |g,i| fn|x| a[n-i]=x; g end)
+end
+
+uncurry = |f| |*a| a.reduce(f,|g,x| g(x))
+
+if [1] != curry(|x| [x])(1)
+  error("#14.1")
+end
+
+if [1,2] != curry(|x,y| [x,y])(1)(2)
+  error("#14.2")
+end
+
+if [1,2,3] != curry(|x,y,z| [x,y,z])(1)(2)(3)
+  error("#14.3")
+end
+
+if [1,2,3,4] != curry(|x,y,z,w| [x,y,z,w])(1)(2)(3)(4)
+  error("#14.4")
+end
+
+if [1] != uncurry(|x| [x])(1)
+  error("#14.5")
+end
+
+if [1,2] != uncurry(|x| |y| [x,y])(1,2)
+  error("#14.6")
+end
+
+if [1,2,3] != uncurry(|x| |y| |z| [x,y,z])(1,2,3)
+  error("#14.7")
+end
+
+if [1,2,3,4] != uncurry(|x| |y| |z| |w| [x,y,z,w])(1,2,3,4)
+  error("#14.8")
+end
+
+curry = fn|n,f|
+  a = list(0..n-1)
+  return (2..n).reduce(
+    fn|x| a[n-1]=x; f(*a) end,
+    |g,i| fn|x| a[n-i]=x; g end)
+end
+
+if list(0..9) != curry(10,|*a| a)(0)(1)(2)(3)(4)(5)(6)(7)(8)(9)
+  error("#14.9")
+end
+
+# Use sys.call(1000000,main) to set up a bigger call stack.
+# Even then a high value of n results in a stack overflow,
+# but this time an overflow of the machine stack.
+# The source is a recursively called destructor that
+# cleans up the linked list of closures, produced in curry.
+function main
+  n = 20
+  u = list(1..n)
+  if u != uncurry(curry(n,|*a| a))(*u)
+    error("#14.10")
+  end
+end
+
+# sys.call(1000000,main)
+main()
+
+
+

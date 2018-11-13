@@ -16,6 +16,11 @@ Options:
 -e "1+2"    Evaluate some Moss code inline.
 
 -d          Debug mode: compile assert statements.
+
+-unsafe     Unsafe mode: run the interpreter in privileged mode,
+            which allows write access to files, network access
+            and execution of shell commands. Running an untrusted
+            module in unsafe mode is a security hazard.
 "#;
 
 const MATH: &'static str = r#"
