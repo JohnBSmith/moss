@@ -3,7 +3,7 @@ use std::rc::Rc;
 use std::cell::RefCell;
 use std::any::Any;
 use std::fs;
-use std::io::Read;
+use std::io::{Read,Write};
 use std::path::Path;
 
 use object::{
@@ -32,23 +32,45 @@ impl Interface for File {
 }
 
 fn open(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
-    match argv.len() {
-        1 => {}, n => return env.argc_error(n,1,1,"open")
-    }
+    let mode = match argv.len() {
+        1 => {'r'},
+        2 => {
+            match argv[1] {
+                Object::String(ref s) => {
+                    if s.data == &['w'] {'w'} else {'r'}
+                },
+                ref x => return env.type_error1(
+                    "Type error in open(path,mode): mode is not a string.","mode",x)
+            }
+        },
+        n => return env.argc_error(n,1,2,"open")
+    };
     let file_id: String = match argv[0] {
         Object::String(ref s) => s.to_string(),
-        _ => return env.type_error("Type error in open(id): id is not a string.")
+        ref x => return env.type_error1(
+            "Type error in open(path): path is not a string.","path",x)
     };
-    if !env.rte().read_access(&file_id) {
-        return env.std_exception(&format!(
-            "Error in open(id): Could not open file id=='{}': permission denied.",
-            file_id
-        ));
-    }
-    let file = match fs::File::open(&file_id) {
+    let open_result = if mode=='r' {
+        if !env.rte().read_access(&file_id) {
+            return env.std_exception(&format!(
+                "Error in open(path): permission denied.\n\
+                 Note: path = '{}'", file_id
+            ));
+        }
+        fs::File::open(&file_id)
+    }else{
+        if !env.rte().write_access(&file_id) {
+            return env.std_exception(&format!(
+                "Error in open(path,'w'): permission denied.\n\
+                 Note: path = '{}'.", file_id
+            ));
+        }
+        fs::File::create(&file_id)
+    };
+    let file = match open_result {
         Ok(file) => file,
         Err(_) => return env.std_exception(
-            &format!("Error in open(id): Could not open file id=='{}'.",
+            &format!("Error in open(path): could not open file, path = '{}'.",
             file_id))
     };
     let f = File{
@@ -90,6 +112,35 @@ fn file_read(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
         }
     }else{
         env.type_error("Type error in f.read(): f is not a file.")
+    }
+}
+
+fn file_write(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+    match argv.len() {
+        1 => {}, n => return env.argc_error(n,1,1,"write")
+    }
+    if let Some(file) = downcast::<File>(pself) {
+        if let Object::String(ref s) = argv[0] {
+            let data = &s.to_string().into_bytes();
+            match file.file.borrow_mut().write_all(data) {
+                Ok(()) => return Ok(Object::Null),
+                Err(_) => {}
+            }
+        }else if let Some(a) = downcast::<Bytes>(&argv[0]) {
+            let data = &a.data.borrow();
+            match file.file.borrow_mut().write_all(data) {
+                Ok(()) => return Ok(Object::Null),
+                Err(_) => {}
+            }
+        }else{
+            return env.type_error1(
+                "Type error in f.write(data): data must be a string or binary data.",
+                 "data",&argv[0]);
+        }
+        env.std_exception(&format!(
+            "Error in f.write(data): failed to write to file '{}'.",file.id))
+    }else{
+        env.type_error("Type error in f.write(data): f is not a file.")
     }
 }
 
@@ -184,13 +235,14 @@ pub fn load_fs(env: &mut Env) -> Object
     {
         let mut m = type_file.map.borrow_mut();
         m.insert_fn_plain("read",file_read,0,1);
+        m.insert_fn_plain("write",file_write,1,1);
     }
     interface_types_set(env.rte(),interface_index::FILE,type_file);
 
     let fs = new_module("fs");
     {
         let mut m = fs.map.borrow_mut();
-        m.insert_fn_plain("open",open,1,1);
+        m.insert_fn_plain("open",open,1,2);
         m.insert_fn_plain("is_file",is_file,1,1);
         m.insert_fn_plain("is_dir",is_dir,1,1);
         m.insert_fn_plain("ls",read_dir,1,1);

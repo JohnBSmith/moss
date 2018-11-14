@@ -3666,6 +3666,7 @@ pub fn interface_types_set(rte: &RTE, index: usize, x: Rc<Table>) {
 
 pub struct Capabilities{
     pub read: bool,
+    pub write: bool,
     pub command: bool
 }
 
@@ -3756,6 +3757,7 @@ impl RTE{
             compiler_config: RefCell::new(None),
             capabilities: RefCell::new(Capabilities{
                 read: true,
+                write: false,
                 command: false
             }),
 
@@ -3791,8 +3793,11 @@ impl RTE{
         // function). The gtab may also contain itself.
         self.delay.borrow_mut().push(gtab);
     }
-    pub fn read_access(&self, _id: &str) -> bool {
+    pub fn read_access(&self, _path: &str) -> bool {
         return self.capabilities.borrow().read;
+    }
+    pub fn write_access(&self, _path: &str) -> bool {
+        return self.capabilities.borrow().write;
     }
     pub fn set(&self, id: &str, x: Object) {
         self.gtab.borrow_mut().insert(id,x);

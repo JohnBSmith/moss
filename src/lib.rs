@@ -182,6 +182,7 @@ impl Interpreter{
     pub fn set_capabilities(&self, root_mode: bool) {
         if root_mode {
             let mut capabilities = self.rte.capabilities.borrow_mut();
+            capabilities.write = true;
             capabilities.command = true;
         }
     }
