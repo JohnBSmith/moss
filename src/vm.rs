@@ -3636,7 +3636,7 @@ fn load_u64(a: &[u32], ip: usize) -> u64{
 fn new_table(prototype: Object, map: Object) -> Object {
     match map {
         Object::Map(map) => {
-            Object::Table(Rc::new(Table{prototype, map, extra: None}))
+            Object::Table(Rc::new(Table{prototype, map}))
         },
         _ => panic!()
     }
@@ -3661,6 +3661,21 @@ pub fn interface_types_set(rte: &RTE, index: usize, x: Rc<Table>) {
             v.push(unimplemented.clone());
         }
         v.push(x);
+    }
+}
+
+pub fn secondary_env<'a>(rte: &Rc<RTE>, pstate: &'a mut Option<State>) -> Env<'a> {
+    if let Some(state) = pstate {
+        return get_env(state);
+    }else{
+        let env = EnvPart::new(10,rte.clone());
+        let mut state = State{sp: 0, env, stack: vec![Object::Null;1000]};
+        *pstate = Some(state);
+        if let Some(state) = pstate {
+            return get_env(state);
+        }else{
+            unreachable!();
+        }
     }
 }
 
@@ -3697,6 +3712,10 @@ pub struct RTE{
     pub interface_types: RefCell<Vec<Rc<Table>>>,
     pub seed_rng: RefCell<Rand>,
     pub compiler_config: RefCell<Option<Box<CompilerExtra>>>,
+    pub secondary_state: RefCell<Option<State>>,
+    pub root_drop: Cell<bool>,
+    pub drop_buffer: RefCell<Vec<Table>>,
+    pub empty_map: Rc<RefCell<Map>>,
     pub capabilities: RefCell<Capabilities>,
 
     pub key_string: Object,
@@ -3755,6 +3774,10 @@ impl RTE{
             interface_types: RefCell::new(Vec::new()),
             seed_rng: RefCell::new(Rand::new(0)),
             compiler_config: RefCell::new(None),
+            secondary_state: RefCell::new(None),
+            root_drop: Cell::new(true),
+            drop_buffer: RefCell::new(Vec::new()),
+            empty_map: Map::new(),
             capabilities: RefCell::new(Capabilities{
                 read: true,
                 write: false,
@@ -4790,7 +4813,8 @@ pub struct EnvPart{
 }
 
 impl EnvPart{
-    pub fn new(frame_stack: Vec<Frame>, rte: Rc<RTE>) -> Self {
+    pub fn new(frame_stack_size: usize, rte: Rc<RTE>) -> Self {
+        let frame_stack: Vec<Frame> = Vec::with_capacity(frame_stack_size);
         Self{frame_stack, catch_stack: Vec::new(), rte}
     }
 

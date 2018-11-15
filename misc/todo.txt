@@ -24,15 +24,11 @@
 * graphics
 
 === Linear algebra ===
-* shape order: big endian vs. little endian
 * polymorphic arrays
   * array to list
 * homogeneous arrays
   * BLAS compatible interface
   * inv, det by Gaussian elimination
-
-=== OS interface ===
-* file output
 
 === Network, Cryptography ==
 * SHA3-256 interface
@@ -89,6 +85,7 @@
 * regular expressions
 
 === Linear Algebra ===
+* shape order should the same as in notation
 * polymorphic arrays
   * scalar product
   * absolute value of a vector
@@ -97,5 +94,6 @@
 === OS interface ===
 * change directory
 * list files, subdirectories
+* file output
 
 

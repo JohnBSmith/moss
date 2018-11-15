@@ -1491,6 +1491,19 @@ fn application_term(&mut self, i: &mut TokenIterator)
             x = self.application(i,x,Symbol::BRight)?;
             self.syntax_nesting-=1;
             self.parens-=1;
+        }else if t.value == Symbol::CLeft {
+            i.index+=1;
+            self.parens+=1;
+            self.syntax_nesting+=1;
+            let y = self.map_literal(i)?;
+            self.syntax_nesting-=1;
+            self.parens-=1;
+            x = Rc::new(AST{
+                line: t.line, col: t.col,
+                symbol_type: SymbolType::Operator,
+                value: Symbol::Application, info: Info::None,
+                s: None, a: Some(Box::new([x,y]))
+            });
         }else if t.value == Symbol::Dot {
             i.index+=1;
             let p2 = i.next_token(self)?;

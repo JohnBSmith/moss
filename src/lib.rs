@@ -41,6 +41,9 @@ mod long;
 #[path = "objects/tuple.rs"]
 mod tuple;
 
+#[path = "objects/class.rs"]
+mod class;
+
 #[path = "modules/complex.rs"]
 pub mod complex;
 
@@ -90,7 +93,7 @@ use std::cell::RefCell;
 // use std::fs::File;
 // use std::io::Read;
 use object::{Object, List, CharString, TypeName, Downcast};
-use vm::{RTE,State,EnvPart,Frame,Env};
+use vm::{RTE,State,EnvPart,Env};
 pub use vm::{get_env};
 pub use compiler::{Value, CompilerExtra};
 
@@ -137,10 +140,9 @@ impl Interpreter{
             stack.push(Object::Null);
         }
 
-        let frame_stack: Vec<Frame> = Vec::with_capacity(FRAME_STACK_SIZE);
         let state = RefCell::new(State{
             stack: stack, sp: 0,
-            env: EnvPart::new(frame_stack, rte.clone())
+            env: EnvPart::new(FRAME_STACK_SIZE, rte.clone())
         });
 
         return Self{rte, state};
@@ -199,9 +201,16 @@ pub fn new_list_str(a: &[String]) -> Rc<RefCell<List>> {
 impl Drop for Interpreter {
     fn drop(&mut self) {
         let v = self.rte.delay.borrow_mut();
+        let mut buffer: Vec<Object> = Vec::new();
         for gtab in &v[..] {
             // println!("clear {}",Object::Map(gtab.clone()));
-            gtab.borrow_mut().m.clear();
+            {
+                let m = &mut gtab.borrow_mut().m;
+                for (_k,v) in m.drain() {
+                    buffer.push(v);
+                }
+            }
+            buffer.clear();
         }
     }
 }

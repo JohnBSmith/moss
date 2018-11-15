@@ -8,7 +8,7 @@ function test_extern(path)
   end
 end
 
-function test_self(path)
+function test_self()
   return fn test|name|
     print(name)
     load(name)
@@ -17,10 +17,11 @@ end
 
 path = "../target/debug/moss"
 # path = "valgrind ../target/debug/moss"
+# path = "../target/release/moss"
 # path = "moss"
 
 test = test_extern(path)
-# test = test_self(path)
+# test = test_self()
 
 tests = table{
   fast = true,

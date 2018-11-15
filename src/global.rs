@@ -23,6 +23,7 @@ use long::{Long, pow_mod};
 use tuple::Tuple;
 use iterable::new_iterator;
 use map::map_extend;
+use class::class_new;
 
 pub fn type_name(x: &Object) -> String {
     loop{
@@ -362,7 +363,7 @@ fn fobject(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
                 Object::Map(ref m) => {
                     Ok(Object::Table(Rc::new(Table{
                         prototype: argv[0].clone(),
-                        map: m.clone(), extra: None
+                        map: m.clone()
                     })))
                 },
                 _ => env.type_error1(
@@ -1068,6 +1069,7 @@ pub fn init_rte(rte: &RTE){
     gtab.insert_fn_plain("long",long,1,1);
     gtab.insert_fn_plain("panic",panic,0,1);
     gtab.insert_fn_plain("getattr",getattr,2,2);
+    gtab.insert_fn_plain("class",class_new,1,1);
     gtab.insert("empty", Object::Empty);
 
     let type_bool = rte.type_bool.clone();

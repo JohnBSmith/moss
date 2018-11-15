@@ -748,7 +748,7 @@ variable from lexical scope by mutable reference. The local variable's
 lifetime is increased from <code>'scope</code> to
 max(<code>'scope</code>,&nbsp;<code>'closure</code>).
 
-<p>In Moss, lexical scoped closures are possible, but by capture
+<p>In Moss, lexically scoped closures are possible, but by capture
 per cloning. Not possible so far is such a construct:
 <pre class="moss indent">
 function main
@@ -952,7 +952,7 @@ comprehensions as a gift.
 For example
 
 <pre class="moss indent">
-[f(x) for x in a] ≡≡ list(f(x) for x in a)
+list(f(x) for x in a)
 </pre>
 
 <p>will be transformed into:
@@ -962,7 +962,7 @@ list(fn*|| for x in a do yield f(x) end end)
 
 <p>The more complicated expression
 <pre class="moss indent">
-[f(x,y) for x in a if p(x) for y in b if q(x,y)]
+list(f(x,y) for x in a if p(x) for y in b if q(x,y))
 </pre>
 
 <p>will be transformed into:
@@ -1001,11 +1001,11 @@ an untrusted module.
 
 <p>Because of the emerging complexity, I decided to use a simpler
 security model, which allows system access in the old fashion.
-Basically, every system access needs to have a right (a capability),
-which is stored in <code>env</code>, the internal environment pointer
-used in the interpreter. As per default, any file can be read, but
-all other system access is prohibited. But running
-"<code>moss --unsafe</code>" instead of "<code>moss</code>" enters
+Basically, every system access needs to have a capability (a right,
+a permission), which is stored in <code>rte</code>, the internal
+runtime environment used in the interpreter. As per default, any file
+can be read, but all other system access is prohibited. But running
+"<code>moss -unsafe</code>" instead of "<code>moss</code>" enters
 root mode, allowing for everything. Now, calls to the runtime system
 (ordinary Moss functions) place irreversible restriction locks,
 that cannot be unlocked anymore. There might be different of such
@@ -1024,6 +1024,63 @@ restriction.
 to load untrusted modules in an authorized program. That is,
 one cannot have untrusted modules and authorization at the same
 time.
+
+<h3 data-date="20181115" id="destructors"
+>Destructors, getters, setters</h3>
+
+<p>So, implementing custom getters and setters is not very diffecult,
+as I have found. Basicly one provides a new class object from
+a class constructor, but this is an <code>Object::Interface</code>
+instead of an <code>Object::Table</code>. Let me explain,
+<code>Interface</code> is the residual enum variant that contains
+a dyn trait pointer, i.e. is the interface to all differnt kinds
+of objects, for example long integers, multidimensional arrays,
+file objects etc.
+
+<p>If a table object has such a class object <code>A</code> as its
+prototype, the behavior of the dot operator will be determined by
+methods of <code>A</code>. Ideally, the additional behavior is shadowed
+by a branch on <code>Object::Interface</code>, i.e. against a simple
+integer loaded from a pointer. That's a very small runtime penalty.
+
+<p>Implementing custom destructors is more difficult. Here the
+problem arises that function calls need a reference to the calling
+environment <code>env</code>. This reference must be given as an
+argument to the destructor. But objects are designed to be destructed
+everywhere. A custom <code>Drop</code> may be implemented, but
+<code>drop</code> takes no additional arguments. Linear typing could
+provide additional arguments, but this leads to very ugly code
+and changes the overall design.
+
+<p>The solution I came up with is as follows. A class object
+<code>A</code> contains an Rc-pointer to the runtime environment
+<code>rte</code>. If an object is a child of <code>A</code>, by
+calling <code>drop</code> it will be stored togehter with its
+destructor in a buffer inside of <code>rte</code>. A flag of type
+<code>Cell&lt;bool&gt;</code> inside of <code>rte</code> will be
+set, indicating a non-empty buffer. Now, when returning from a
+function, after a branch on the flag, the delayed destructions
+are processed, because we have access to <code>env</code>.
+
+<p>But note, branching at this point is particularly time critical.
+Any additional code will affect the calling mechanism and thus
+the general interpreter performance. So, one branch on a
+<code>Cell&lt;bool&gt;</code> behind a pointer to a struct
+is bearable, but not more. But wait, we can do better.
+
+<p>To circumvent this, there is a slight modification of this technique.
+A secondary calling environment will be stored inside of
+<code>rte</code>. A flag in <code>rte</code> indicates whether
+we are in a root destructor. All custom sub-destructions will be
+stored in the buffer. After returning from all drops, the buffer will
+be processed in the root destructor with the secondary calling
+environment. We need to do it this way, because otherwise
+sub-destructions would need a third calling environment,
+sub-sub-destructions a fourth calling environment and so on.
+Don't get confused, but I would consider it somewhat similar
+to trampolining tail calls.
+
+
 
 </body>
 </html>

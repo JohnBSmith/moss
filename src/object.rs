@@ -7,8 +7,9 @@ use std::any::Any;
 use std::mem::replace;
 
 use complex::Complex64;
-use vm::{Module,RTE};
+use vm::{Module,RTE,secondary_env};
 pub use vm::Env;
+use class::Class;
 
 pub enum Object{
     Null,
@@ -163,7 +164,7 @@ pub struct Exception{
 
 impl Exception{
     pub fn new(s: &str, prototype: Object) -> Box<Exception> {
-        let t = Table{prototype, map: Map::new(), extra: None};
+        let t = Table{prototype, map: Map::new()};
         t.map.borrow_mut().insert("value", CharString::new_object_str(s));
         Box::new(Exception{
             value: Object::Table(Rc::new(t)),
@@ -288,22 +289,14 @@ impl Function{
     }
 }
 
-pub struct TableExtra{
-    pub get: Object,
-    pub set: Object
-    // pub drop: Object
-    // pub rte: Rc<RTE>
-}
-
 pub struct Table{
     pub prototype: Object,
-    pub map: Rc<RefCell<Map>>,
-    pub extra: Option<Box<TableExtra>>
+    pub map: Rc<RefCell<Map>>
 }
 
 impl Table{
     pub fn new(prototype: Object) -> Rc<Table> {
-        Rc::new(Table{prototype: prototype, map: Map::new(), extra: None})
+        Rc::new(Table{prototype: prototype, map: Map::new()})
     }
 
     pub fn get(&self, key: &Object) -> Option<Object> {
@@ -322,12 +315,45 @@ impl Table{
     }
 }
 
+impl Drop for Table {
+    fn drop(&mut self) {
+        if let Some(class) = downcast::<Class>(&self.prototype) {
+            if class.rte.root_drop.get() {
+                let state = &mut class.rte.secondary_state.borrow_mut();
+                let env = &mut secondary_env(&class.rte,state);
+                let t = Table{
+                    prototype: self.prototype.clone(),
+                    map: replace(&mut self.map, class.rte.empty_map.clone())
+                };
+                class.rte.root_drop.set(false);
+                class.destructor(t,env);
+                loop{
+                    let x = class.rte.drop_buffer.borrow_mut().pop();
+                    if let Some(mut t) = x {
+                        class.destructor(t,env);
+                    }else{
+                        break;
+                    }
+                }
+                class.rte.root_drop.set(true);
+            }else{
+                let buffer = &mut class.rte.drop_buffer.borrow_mut();
+                buffer.push(Table{
+                    prototype: self.prototype.clone(),
+                    map: replace(&mut self.map, class.rte.empty_map.clone())
+                });
+            }
+        }
+    }
+}
+
 pub fn new_module(_id: &str) -> Table{
-    Table{prototype: Object::Null, map: Map::new(), extra: None}
+    Table{prototype: Object::Null, map: Map::new()}
 }
 
 pub trait Interface{
     fn as_any(&self) -> &Any;
+    fn instance_of_class(&self) -> bool {true}
     fn to_string(&self, _env: &mut Env) -> Result<String,Box<Exception>> {
         Ok("interface object".to_string())
     }
