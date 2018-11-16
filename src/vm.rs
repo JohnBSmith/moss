@@ -23,6 +23,7 @@ use rand::Rand;
 use list::cartesian_power;
 use iterable::iter;
 use map::{subseteq,subset};
+use class::{Class,Instance};
 
 // use ::Interpreter;
 use system::{History,getline_history,init_search_paths};
@@ -440,9 +441,7 @@ fn complex_to_string(z: Complex64) -> String {
     }
 }
 
-fn table_to_string(env: &mut Env, t: &Rc<Table>)
--> Result<String,Box<Exception>>
-{
+fn table_to_string(env: &mut Env, t: &Rc<Table>) -> Result<String,Box<Exception>> {
     if let Some(f) = type_get(&t.prototype,&env.rte().key_string) {
         let s = env.call(&f,&Object::Table(t.clone()),&[])?;
         return s.string(env);
@@ -3208,8 +3207,7 @@ fn list_get(a: &Rc<RefCell<List>>, key: &Object) -> Option<Object> {
     return None;
 }
 
-pub fn table_get(t: &Table, key: &Object) -> Option<Object> {
-    let mut p = t;
+pub fn table_get(mut p: &Table, key: &Object) -> Option<Object> {
     loop{
         if let Some(y) = p.map.borrow().m.get(key) {
             return Some(y.clone());
@@ -3261,9 +3259,9 @@ fn operator_dot(env: &mut EnvPart, sp: usize, stack: &mut [Object])
 {
     match stack[sp-2].clone() {
         Object::Table(t) => {
-            if let Some(x) = table_get(&t,&stack[sp-1]) {
+            let key = stack[sp-1].take();
+            if let Some(x) = table_get(&t,&key) {
                 stack[sp-2] = x;
-                stack[sp-1] = Object::Null;
                 return Ok(());
             }
         },
@@ -3636,7 +3634,15 @@ fn load_u64(a: &[u32], ip: usize) -> u64{
 fn new_table(prototype: Object, map: Object) -> Object {
     match map {
         Object::Map(map) => {
-            Object::Table(Rc::new(Table{prototype, map}))
+            'interface: loop{
+                if let Object::Interface(ref x) = prototype {
+                    if let Some(_) = x.as_any().downcast_ref::<Class>() {
+                        break 'interface;
+                    }
+                }
+                return Object::Table(Rc::new(Table{prototype, map}));
+            }
+            return Object::Interface(Rc::new(Instance{prototype, map}));
         },
         _ => panic!()
     }
@@ -3714,7 +3720,7 @@ pub struct RTE{
     pub compiler_config: RefCell<Option<Box<CompilerExtra>>>,
     pub secondary_state: RefCell<Option<State>>,
     pub root_drop: Cell<bool>,
-    pub drop_buffer: RefCell<Vec<Table>>,
+    pub drop_buffer: RefCell<Vec<Instance>>,
     pub empty_map: Rc<RefCell<Map>>,
     pub capabilities: RefCell<Capabilities>,
 

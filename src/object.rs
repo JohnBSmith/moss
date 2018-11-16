@@ -7,9 +7,8 @@ use std::any::Any;
 use std::mem::replace;
 
 use complex::Complex64;
-use vm::{Module,RTE,secondary_env};
+use vm::{Module,RTE};
 pub use vm::Env;
-use class::Class;
 
 pub enum Object{
     Null,
@@ -310,38 +309,6 @@ impl Table{
                         _ => {return None;}
                     }
                 }
-            }
-        }
-    }
-}
-
-impl Drop for Table {
-    fn drop(&mut self) {
-        if let Some(class) = downcast::<Class>(&self.prototype) {
-            if class.rte.root_drop.get() {
-                let state = &mut class.rte.secondary_state.borrow_mut();
-                let env = &mut secondary_env(&class.rte,state);
-                let t = Table{
-                    prototype: self.prototype.clone(),
-                    map: replace(&mut self.map, class.rte.empty_map.clone())
-                };
-                class.rte.root_drop.set(false);
-                class.destructor(t,env);
-                loop{
-                    let x = class.rte.drop_buffer.borrow_mut().pop();
-                    if let Some(mut t) = x {
-                        class.destructor(t,env);
-                    }else{
-                        break;
-                    }
-                }
-                class.rte.root_drop.set(true);
-            }else{
-                let buffer = &mut class.rte.drop_buffer.borrow_mut();
-                buffer.push(Table{
-                    prototype: self.prototype.clone(),
-                    map: replace(&mut self.map, class.rte.empty_map.clone())
-                });
             }
         }
     }
