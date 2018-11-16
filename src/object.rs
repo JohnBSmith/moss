@@ -416,8 +416,13 @@ pub trait Interface{
     fn sgn(&self, env: &mut Env) -> FnResult {
         env.std_exception("Error: sgn(x) is not implemented for objects of this type.")
     }
-    fn get(&self, _key: &Object, env: &mut Env) -> FnResult {
-        env.std_exception("Type error in t.x: getter is not implemented for objects of this type.")
+    fn get(&self, key: &Object, env: &mut Env) -> FnResult {
+        env.std_exception(&format!(
+            "Type error in t.{}: getter is not implemented for objects of this type.",key))
+    }
+    fn set(&self, env: &mut Env, key: Object, _value: Object) -> FnResult {
+        env.std_exception(&format!(
+            "Type error in t.{} = value: getter is not implemented for objects of this type.",key))
     }
     fn index(&self, _indices: &[Object], env: &mut Env) -> FnResult {
         env.std_exception("Type error in a[i]: indexing is not implemented for objects of this type.")

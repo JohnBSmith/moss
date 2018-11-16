@@ -2560,6 +2560,18 @@ fn operator_is(sp: usize, stack: &mut [Object]) -> OperatorResult {
                 }
             }
         },
+        Object::Interface(ref a) => {
+            match stack[sp-1].take() {
+                Object::Interface(ref b) => {
+                    stack[sp-2] = Object::Bool(Rc::ptr_eq(a,b));
+                    Ok(())
+                },
+                _ => {
+                    stack[sp-2] = Object::Bool(false);
+                    Ok(())
+                }
+            }
+        },
         _ => {
             stack[sp-1] = Object::Null;
             stack[sp-2] = Object::Bool(false);
@@ -3393,6 +3405,14 @@ fn operator_dot_set(env: &mut EnvPart, sp: usize, stack: &mut [Object])
                 None => {}
             }
             Ok(())
+        },
+        Object::Interface(t) => {
+            let key = stack[sp-1].take();
+            let value = stack[sp-3].take();
+            match t.set(&mut Env{env,sp,stack},key,value) {
+                Ok(_) => Ok(()),
+                Err(e) => Err(e)
+            }
         },
         a => Err(env.type_error1_plain(sp,stack,
             "Type error in a.x: a is not a table.",
