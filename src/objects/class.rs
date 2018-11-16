@@ -13,6 +13,7 @@ type PToString = Box<dyn Fn(&mut Env,&Instance)->Result<String,Box<Exception>>>;
 
 pub struct Class{
     pub rte: Rc<RTE>,
+    pub call_drop: bool,
     pub destructor: Object,
     pub pget: PGet,
     pub pset: PSet,
@@ -111,11 +112,13 @@ pub fn class_new(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
         1 => {}, n => return env.argc_error(n,1,1,"class")
     }
     let mut destructor = Object::Null;
+    let mut call_drop = false;
     match argv[0] {
         Object::Map(ref m) => {
             let m = &m.borrow().m;
             if let Some(x) = m.get(&Object::from("drop")) {
                 destructor = x.clone();
+                call_drop = true;
             }
             let name: String = match m.get(&Object::from("name")) {
                 Some(value) => value.to_string(),
@@ -135,7 +138,7 @@ pub fn class_new(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
             };
             return Ok(Object::Interface(Rc::new(Class{
                 rte: env.rte().clone(),
-                destructor, pget, pset,
+                destructor, call_drop, pget, pset,
                 name, to_string
             })));
         },
@@ -189,6 +192,7 @@ impl Interface for Instance {
 impl Drop for Instance {
     fn drop(&mut self) {
         if let Some(class) = downcast::<Class>(&self.prototype) {
+            if !class.call_drop {return;}
             if class.rte.root_drop.get() {
                 let state = &mut class.rte.secondary_state.borrow_mut();
                 let env = &mut secondary_env(&class.rte,state);

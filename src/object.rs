@@ -320,7 +320,6 @@ pub fn new_module(_id: &str) -> Table{
 
 pub trait Interface{
     fn as_any(&self) -> &Any;
-    fn instance_of_class(&self) -> bool {true}
     fn to_string(&self, _env: &mut Env) -> Result<String,Box<Exception>> {
         Ok("interface object".to_string())
     }

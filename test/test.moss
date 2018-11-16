@@ -1,6 +1,10 @@
 
 use sys: cmd
 
+small = 0
+medium = 1
+full = 2
+
 function test_extern(path)
   return fn test|name|
     print(name)
@@ -15,38 +19,36 @@ function test_self()
   end
 end
 
-path = "../target/debug/moss"
-# path = "valgrind ../target/debug/moss"
-# path = "../target/release/moss"
-# path = "moss"
+function tests(scale,path)
+  print("Starting tests: ",path)
+  if path=="self"
+    test = test_self()
+  else
+    test = test_extern(path)
+  end
 
-test = test_extern(path)
-# test = test_self()
-
-tests = table{
-  fast = true,
-  medium = true,
-  slow = false
-}
-
-if tests.fast
   test("test-basic")
   test("test-import")
   test("test-sudoku")
   test("test-la")
   test("test-generators")
   test("test-exceptions")
+  
+  if scale>small
+    test("test-cf")
+    test("test-la-inv")
+    test("test-long")
+  end
+
+  if scale>medium
+    test("test-la-inv-complex")
+    # too slow in debug mode
+  end
 end
 
-if tests.medium
-  test("test-cf")
-  test("test-la-inv")
-  test("test-long")
-end
-
-if tests.slow
-  test("test-la-inv-complex")
-  # too slow in debug mode
-end
-
+tests(medium,"../target/debug/moss")
+tests(full,"../target/release/moss")
+tests(full,"self")
+tests(full,"moss")
+# tests(small,"valgrind ../target/debug/moss")
 
