@@ -187,7 +187,7 @@ pub fn scan(s: &str, line_start: usize, file: &str, new_line_start: bool)
             while i<n {
                 if a[i].is_digit(10) {
                     i+=1; col+=1;
-                }else if a[i]=='.' && token_type != SymbolType::Float{
+                }else if a[i]=='.' && token_type != SymbolType::Float {
                     if i+1<n && a[i+1]=='.' {break;}
                     i+=1; col+=1;
                     token_type = SymbolType::Float;

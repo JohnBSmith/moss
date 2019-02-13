@@ -1080,7 +1080,44 @@ sub-sub-destructions a fourth calling environment and so on.
 Don't get confused, but I would consider it somewhat similar
 to trampolining tail calls.
 
+<h3 data-date="20190212" id="type-system"
+>A type system</h3>
 
+<p>A typed programming language Moss is planned, the compiler
+producing Moss byte code. The syntax will be so similar that both
+languages will have the same file extension. The typed Moss will
+only have a few more keywords. For comparison, an example:
+
+<pre class="moss indent">
+function map(a,f)
+  b = []
+  for x in a
+    b.push(f(x))
+  end
+  return b
+end
+
+function map[X,Y,n](a: List[X,n], f: |X| Y): List[Y,n]
+begin
+    let mut b: List[Y] = [];
+    for x in a do
+        b.push(f(x));
+    end
+    return b;
+end
+</pre>
+
+<p>The dynamic Moss is actually more general, emulated by:
+<pre class="moss indent">
+function map[n](a: List[Object,n], f: |Object| Object): List[Object,n]
+begin
+    let mut b: List[Object] = [];
+    for x in a do
+        b.push(f(x));
+    end
+    return b;
+end
+</pre>
 
 </body>
 </html>

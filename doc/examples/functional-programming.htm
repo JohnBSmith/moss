@@ -62,19 +62,19 @@ uncurry = |f| |*a| a.reduce(f,|g,x| g(x))
 <h2 id="fix">Fixed-point combinator</h2>
 
 <pre class="moss">
-# Y combinator
+# Y combinator.
 fix = |F| (|x| x(x))(|x| F(|n| x(x)(n)))
 
 
-# by built-in recursion
+# By built-in recursion.
 fix = |F| fn g|n| F(g)(n) end
 
 
-# without currying
+# Without currying.
 fix = |F| fn g|n| F(g,n) end
 
 
-# with memoization
+# With memoization.
 fix = fn|F|
   m = {}
   return fn g|n|
@@ -84,17 +84,17 @@ fix = fn|F|
 end
 
 
-# one argument example: factorial function
+# One argument example: factorial function.
 fac = fix(|f| |n| 1 if n==0 else n*f(n-1))
 
-# without currying
+# Without currying.
 fac = fix(|f,n| 1 if n==0 else n*f(n-1))
 
 
-# two argument example: integer power
+# Two argument example: integer power.
 pow = fix(|f| |[x,n]| 1 if n==0 else x*f([x,n-1]))
 
-# without currying
+# Without currying.
 pow = fix(|f,[x,n]| 1 if n==0 else x*f([x,n-1]))
 
 
@@ -107,7 +107,7 @@ for n in 0..10
 end
 
 
-# variadic versions
+# Variadic versions.
 fix = |F| (|x| x(x))(|x| F(|*n| x(x)(*n)))
 fix = |F| fn g|*n| F(g)(*n) end
 
@@ -116,12 +116,36 @@ pow = fix(|f| |x,n| 1 if n==0 else x*f(x,n-1))
 print(pow(2,10))
 
 
-# variadic, without currying
+# Variadic, without currying.
 fix = |F| fn g|*n| F(*([g]+n)) end
 
 fac = fix(|f,n| 1 if n==0 else n*f(n-1))
 pow = fix(|f,x,n| 1 if n==0 else x*f(x,n-1))
 print(pow(2,10))
+
+
+# To be more flexible, the memoisation buffer should
+# be made explicit. This allows to state the initial
+# conditions in the bufffer.
+fix = fn|m,F|
+  return fn g|n|
+    if n not in m then m[n] = F(g,n) end
+    return m[n]
+  end
+end
+
+fac = fix({0: 1}, |f,n| n*f(n-1))
+fib = fix({1: 1, 2: 1}, |f,n| f(n-1)+f(n-2))
+
+# Interestingly, stating the initial conditions of the
+# power function becomes impossible, as there is advanced
+# pattern matching on a variable involved.
+
+# This is impossible, as [x,0] is not a pattern:
+pow = fix({[x,0]: 1}, |f,[x,n]| x*f([x,n-1]))
+
+# A somewhat ugly way to circumvent the problem:
+pow = |x| fix({0: 1}, |f,n| x*f(n-1))
 </pre>
 
 <h2 id="composition">Composition</h2>

@@ -1,0 +1,12 @@
+[package]
+name = "mossc"
+version = "0.0.1"
+authors = ["Finn <finn.bcd@gmail.com>"]
+license = "CC0-1.0"
+
+description = "Moss compiler"
+homepage = "https://johnbsmith.github.io/moss/home.htm"
+repository = "https://github.com/JohnBSmith/moss"
+
+[dependencies]
+

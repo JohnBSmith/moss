@@ -10,7 +10,7 @@ function error(s)
   exit(1)
 end
 
-Ba = fix(|B,n| 1 if n==0 else
+Ba = fix({},|B,n| 1 if n==0 else
   1-rat(1,n+1)*(0..n-1).sum(|k| B(k)*bc(n+1,k)))
 
 Bb = |n| rat(

@@ -274,8 +274,9 @@ System = table{
     csys = self.csys
     cgrid = self.cgrid
     fscale = self.fscale
-    w = self.w
-    h = self.h
+    w = self.w; ax = self.ax
+    h = self.h; ay = self.ay
+
     a = 0
     {clear = true} = argm
     self.lock = true
@@ -284,7 +285,7 @@ System = table{
         canvas.clear(*bg)
       end
       if self.grid
-        grid(canvas,w,h,csys,cgrid,fscale)
+        grid(canvas,w,h,ax,ay,csys,cgrid,fscale)
       end
       canvas.rgb(*palette[0])
       f(a)

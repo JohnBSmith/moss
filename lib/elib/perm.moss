@@ -1,0 +1,22 @@
+
+begin
+global perm_matrix, perm_matrices
+
+use math.la: scalar
+use itertools: permutations
+
+function perm_matrix(p)
+  n = size(p)
+  P = scalar(n,0,0)
+  for k in n
+    P[k][p[k]] = 1
+  end
+  return P
+end
+
+function perm_matrices(n)
+  return permutations(n).map(perm_matrix)
+end
+
+end
+

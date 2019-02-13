@@ -45,10 +45,12 @@ after <code>n</code> calls.
 <p>Functional programming.
 
 <dl class="code">
-<dt>fix(F)
+<dt>fix(m,F)
 <dd>Memoizing fixed point combinator.
 <pre class="moss">
-fib = fix(|f,n| 1 if n==1 or n==2 else f(n-1)+f(n-2))
+fib = fix({},|f,n| 1 if n==1 or n==2 else f(n-1)+f(n-2))
+
+fib = fix({1: 1, 2: 1}, |f,n| f(n-1)+f(n-2))
 </pre>
 
 <dt>lazy(|| expression)

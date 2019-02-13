@@ -1,7 +1,6 @@
 
 
-function fix(F)
-  m={}
+function fix(m,F)
   return fn f|n|
     if n not in m then m[n] = F(f,n) end
     return m[n]
