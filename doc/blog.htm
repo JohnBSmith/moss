@@ -1097,7 +1097,7 @@ function map(a,f)
   return b
 end
 
-function map[X,Y,n](a: List[X,n], f: |X| Y): List[Y,n]
+function map[X,Y,n](a: List[X,n], f: X=&gt;Y): List[Y,n]
 begin
     let mut b: List[Y] = [];
     for x in a do
@@ -1109,7 +1109,7 @@ end
 
 <p>The dynamic Moss is actually more general, emulated by:
 <pre class="moss indent">
-function map[n](a: List[Object,n], f: |Object| Object): List[Object,n]
+function map[n](a: List[Object,n], f: Object=&gt;Object): List[Object,n]
 begin
     let mut b: List[Object] = [];
     for x in a do
@@ -1117,6 +1117,14 @@ begin
     end
     return b;
 end
+</pre>
+
+<p>Another example:
+<pre class="moss indent">
+let qsort[T: Ord, n]: List[T,n]=>List[T,n] =
+    |a| [] if a==[] else
+        qsort(a[1..].filter(|x| x&lt;a[0]))+[a[0]]+
+        qsort(a[1..].filter(|x| x&gt;=a[0]));
 </pre>
 
 </body>
