@@ -22,11 +22,11 @@ fn syntax_error(line: usize, col: usize, text: String) -> Error {
 
 #[derive(Clone,Copy,PartialEq,Eq,Debug)]
 enum Symbol {
-    None, Terminal, Identifier, Int, String,
+    None, Terminal, Item,
     Comma, Dot, Colon, Semicolon, Neg,
     Plus, Minus, Ast, Div, Pow, Mod, Idiv, Tilde, Amp, Vert, Svert,
     PLeft, PRight, BLeft, BRight, CLeft, CRight, Assignment, To,
-    List, Application, Block,
+    List, Application, Block, Unit,
     Assert, And, Begin, Break, Catch, Continue, Do, Elif, Else,
     End, False, For, Fn, Function, Global, Goto, Label, Let,
     If, In, Is, Not, Null, Of, Or, Public, Raise, Return,
@@ -35,7 +35,7 @@ enum Symbol {
 
 #[derive(Debug)]
 enum Item {
-    None, Int(i32), String(String)
+    None, Int(i32), Id(String), String(String)
 }
 
 pub struct Token {
@@ -50,6 +50,7 @@ impl std::fmt::Debug for Token {
         match &self.item {
             Item::None => write!(f, "{:?}", self.value),
             Item::Int(x) => write!(f, "{:?}({})", self.value, x),
+            Item::Id(id) => write!(f, "{:?}({})", self.value, id),
             Item::String(s) =>  write!(f, "{:?}({})", self.value, s)
         }
     }
@@ -131,7 +132,7 @@ pub fn scan(s: &str) -> Result<Vec<Token>,Error> {
             let s: String = a[j..i].iter().collect();
             let value = s.parse::<i32>().unwrap();
             v.push(Token{line, col,
-                value: Symbol::Int, item: Item::Int(value)
+                value: Symbol::Item, item: Item::Int(value)
             });
         }else if c.is_alphabetic() && c.is_ascii() || a[i]=='_' {
             let j = i;
@@ -145,7 +146,7 @@ pub fn scan(s: &str) -> Result<Vec<Token>,Error> {
                 v.push(Token::symbol(line,col,*t.v));
             }else{
                 v.push(Token{line, col,
-                    value: Symbol::Identifier, item: Item::String(id)
+                    value: Symbol::Item, item: Item::Id(id)
                 });
             }
         }else{
@@ -260,7 +261,7 @@ pub fn scan(s: &str) -> Result<Vec<Token>,Error> {
                     }
                     let literal: String = a[j..i].iter().collect();
                     v.push(Token{line, col,
-                        value: Symbol::String, item: Item::String(literal)
+                        value: Symbol::Item, item: Item::String(literal)
                     });
                     i+=1;
                 },
@@ -291,12 +292,16 @@ impl<'a> TokenIterator<'a> {
     }
 }
 
-#[derive(Debug)]
-enum Info {
-    None, Int(i32), String(String)
+struct FnHeader {
+    argv: Vec<Argument>,
+    id: String,
+    ret_type: Rc<AST>
 }
 
-#[derive(Debug)]
+enum Info {
+    None, Int(i32), Id(String), String(String), FnHeader(Box<FnHeader>)
+}
+
 struct AST {
     line: usize,
     col: usize,
@@ -318,21 +323,29 @@ impl AST {
     {
         Rc::new(AST{line,col,value,info: Info::None, a: Some(a)})
     }
+    
+    fn symbol(line: usize, col: usize, value: Symbol) -> Rc<AST> {
+        Rc::new(AST{line,col,value,info: Info::None, a: None})
+    }
 }
 
 const INDENT_SHIFT: usize = 4;
 
 fn ast_to_string(buffer: &mut String, t: &AST, indent: usize) {
     write!(buffer,"{: <1$}","",indent).ok();
-    if t.value == Symbol::Identifier {
-        let id = match &t.info {Info::String(s) => s, _ => unreachable!()};
-        write!(buffer,"{:?}({})\n",t.value,id).ok();
-    }else if t.value == Symbol::String {
-        let s = match &t.info {Info::String(s) => s, _ => unreachable!()};
-        write!(buffer,"\"{}\"\n",s).ok();
-    }else if t.value == Symbol::Int {
-        let x = match &t.info {Info::Int(x) => x, _ => unreachable!()};
-        write!(buffer,"Int({})\n",x).ok();
+    if t.value == Symbol::Item {
+        match t.info {
+            Info::Id(ref id) => {
+                write!(buffer,"Id({})\n",id).ok();
+            },
+            Info::String(ref s) => {
+                write!(buffer,"\"{}\"\n",s).ok();
+            },
+            Info::Int(ref x) => {
+                write!(buffer,"Int({})\n",x).ok();
+            },
+            _ => unreachable!()
+        }
     }else{
         write!(buffer,"{:?}\n",t.value).ok();
     }
@@ -383,18 +396,55 @@ fn lambda_expression(t0: &Token, i: &TokenIterator) -> Result<Rc<AST>,Error> {
     ));
 }
 
+fn expect(i: &TokenIterator, value: Symbol) -> Result<(),Error> {
+    let t = i.get();
+    if t.value == value {
+        i.advance();
+        return Ok(());
+    }else{
+        return Err(syntax_error(t.line,t.col,
+            format!("expected '{:?}'",value)
+        ));
+    }
+}
+
+fn identifier_raw(i: &TokenIterator) -> Result<String,Error> {
+    let t = i.get();
+    if let Item::Id(ref id) = t.item {
+        i.advance();
+        return Ok(id.clone());
+    }else{
+        return Err(syntax_error(t.line,t.col,
+            String::from("expected identifer.")
+        ));
+    }
+}
+
+fn identifier(i: &TokenIterator) -> Result<Rc<AST>,Error> {
+    let t = i.get();
+    if let Item::Id(ref id) = t.item {
+        i.advance();
+        return Ok(AST::node(t.line,t.col,Symbol::Item,
+            Info::Id(id.clone()), None
+        ));
+    }else{
+        return Err(syntax_error(t.line,t.col,
+            String::from("expected identifer.")
+        ));
+    }
+}
+
 fn atom(i: &TokenIterator) -> Result<Rc<AST>,Error> {
     let t = i.get();
-    if t.value == Symbol::Identifier || t.value == Symbol::String {
+    if t.value == Symbol::Item {
         i.advance();
-        return Ok(AST::node(t.line,t.col,t.value,
-            Info::String(expect_string(&t.item)), None
-        ));
-    }else if t.value == Symbol::Int {
-        i.advance();
-        return Ok(AST::node(t.line,t.col,t.value,
-            Info::Int(expect_int(&t.item)), None
-        ));
+        let info = match &t.item {
+            Item::Int(x) => Info::Int(*x),
+            Item::Id(s) => Info::Id(s.clone()),
+            Item::String(s) => Info::String(s.clone()),
+            Item::None => unreachable!()
+        };
+        return Ok(AST::node(t.line,t.col,Symbol::Item,info,None));
     }else if t.value == Symbol::PLeft {
         i.advance();
         let x = expression(i)?;
@@ -511,16 +561,60 @@ fn expression(i: &TokenIterator) -> Result<Rc<AST>,Error> {
     return addition(i);
 }
 
-fn expect_semicolon(i: &TokenIterator) -> Result<(),Error> {
+struct Argument {
+    id: String,
+    ty: Rc<AST>
+}
+
+fn formal_argument_list(i: &TokenIterator) -> Result<Vec<Argument>,Error> {
+    let mut argv: Vec<Argument> = Vec::new();
     let t = i.get();
-    if t.value == Symbol::Semicolon {
+    if t.value == Symbol::PRight {
         i.advance();
-        return Ok(());
-    }else{
-        return Err(syntax_error(t.line,t.col,
-            String::from("expected semicolon")
-        ));
+        return Ok(argv);
     }
+    loop{
+        let id = identifier_raw(i)?;
+        expect(i,Symbol::Colon)?;
+        let ty = type_expression(i)?;
+        let t = i.get();
+        argv.push(Argument{id, ty});
+        if t.value == Symbol::PRight {
+            i.advance();
+            break;
+        }
+        expect(i,Symbol::Comma)?;
+    }
+    return Ok(argv);
+}
+
+fn function_statement(t0: &Token, i: &TokenIterator)
+-> Result<Rc<AST>,Error>
+{
+    i.advance();
+    let id = identifier_raw(i)?;
+    let t = i.get();
+    let argv = if t.value == Symbol::Colon || t.value == Symbol::Begin {
+        Vec::<Argument>::new()
+    }else{
+        expect(i,Symbol::PLeft)?;
+        formal_argument_list(i)?
+    };
+    let t = i.get();
+    let ret_type = if t.value == Symbol::Colon {
+        i.advance();
+        type_expression(i)?
+    }else{
+        AST::symbol(t.line,t.col,Symbol::Unit)
+    };
+    expect(i,Symbol::Begin)?;
+    let block = statements(i)?;
+    expect(i,Symbol::End)?;
+    
+    let header = Box::new(FnHeader{argv, id, ret_type});
+    return Ok(AST::node(t0.line, t0.col,
+        Symbol::Function, Info::FnHeader(header), Some(Box::new([block]))
+    ));
 }
 
 fn statements(i: &TokenIterator) -> Result<Rc<AST>,Error> {
@@ -530,7 +624,8 @@ fn statements(i: &TokenIterator) -> Result<Rc<AST>,Error> {
         let t = i.get();
         let line = t.line;
         let col = t.col;
-        if t.value == Symbol::Let {
+        let value = t.value;
+        if value == Symbol::Let {
             i.advance();
             let id = atom(i)?;
 
@@ -550,7 +645,7 @@ fn statements(i: &TokenIterator) -> Result<Rc<AST>,Error> {
                     Some(Box::new([id,texp,x]))
                 );
                 a.push(let_exp);
-                expect_semicolon(i)?;
+                expect(i,Symbol::Semicolon)?;
             }else if t.value == Symbol::Semicolon {
                 i.advance();
                 let let_exp = AST::node(line,col,Symbol::Let,Info::None,
@@ -562,12 +657,15 @@ fn statements(i: &TokenIterator) -> Result<Rc<AST>,Error> {
                     String::from("expected '='")
                 ));
             }
-        }else if t.value == Symbol::Terminal {
+        }else if value == Symbol::Function {
+            let x = function_statement(t,i)?;
+            a.push(x);
+        }else if value == Symbol::Terminal || value == Symbol::End {
             break;
         }else{
             let x = expression(i)?;
             a.push(x);
-            expect_semicolon(i)?;
+            expect(i,Symbol::Semicolon)?;
         }
     }
     return Ok(AST::node(t0.line, t0.col, Symbol::Block,
@@ -577,10 +675,10 @@ fn statements(i: &TokenIterator) -> Result<Rc<AST>,Error> {
 
 fn type_atom(i: &TokenIterator) -> Result<Rc<AST>,Error> {
     let t = i.get();
-    if t.value == Symbol::Identifier {
+    if let Item::Id(ref id) = t.item {
         i.advance();
-        return Ok(AST::node(t.line,t.col,t.value,
-            Info::String(expect_string(&t.item)), None
+        return Ok(AST::node(t.line,t.col,Symbol::Item,
+            Info::Id(id.clone()), None
         ));
     }else if t.value == Symbol::PLeft {
         i.advance();
@@ -597,7 +695,7 @@ fn type_atom(i: &TokenIterator) -> Result<Rc<AST>,Error> {
         }else{
             return Err(syntax_error(t.line,t.col,
                 String::from("expected ',' or ')'.")
-            ));        
+            ));
         }
     }else{
         return Err(syntax_error(t.line,t.col,
