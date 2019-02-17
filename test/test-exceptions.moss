@@ -2,31 +2,31 @@
 use sys: exit
 
 function error(s)
-  print("Error: exceptions test ", s, " failed.")
-  exit(1)
+   print("Error: exceptions test ", s, " failed.")
+   exit(1)
 end
 
 Callcc = object()
 
 function callcc(f,*a)
-  a = [null]
-  callback = fn|x|
-    a[0] = x
-    raise Callcc
-  end
-  try
-    return f(*([callback]+a))
-  catch e if e is Callcc
-    return a[0]
-  end
+   a = [null]
+   callback = fn|x|
+      a[0] = x
+      raise Callcc
+   end
+   try
+      return f(*([callback]+a))
+   catch e if e is Callcc
+      return a[0]
+   end
 end
 
 function f(ret,x)
-  ret("fy")
+   ret("fy")
 end
 
 if callcc(f)!="fy"
-  error("#1")
+   error("#1")
 end
 
 

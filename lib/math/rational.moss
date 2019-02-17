@@ -3,126 +3,126 @@ begin
 public rat, Rat
 
 function gcd(a,b)
-  while b!=0 do a,b=b,a%b end
-  return a
+   while b!=0 do a,b=b,a%b end
+   return a
 end
 
 function rat_int(n)
-  return table Rat{n=n,d=1}
+   return table Rat{n=n,d=1}
 end
 
 function rat(n,d=1)
-  t = gcd(n,d)
-  return table Rat{n=n//t, d=d//t}
+   t = gcd(n,d)
+   return table Rat{n=n//t, d=d//t}
 end
 
 Rat = table{
-  function string
-    s = "-" if sgn(self.n)*sgn(self.d)<0 else ""
-    if abs(self.d)==1
-      return "{}{}" % [s,abs(self.n)]
-    else
-      return "{}{}/{}" % [s,abs(self.n),abs(self.d)]
-    end
-  end,
+   function string
+      s = "-" if sgn(self.n)*sgn(self.d)<0 else ""
+      if abs(self.d)==1
+         return "{}{}" % [s,abs(self.n)]
+      else
+         return "{}{}/{}" % [s,abs(self.n),abs(self.d)]
+      end
+   end,
 
-  function neg(a;)
-    return table Rat{n=-a.n,d=a.d}
-  end,
+   function neg(a;)
+      return table Rat{n=-a.n,d=a.d}
+   end,
 
-  function add(a;b)
-    if b: Rat
-      n = a.n*b.d+b.n*a.d
-      d = a.d*b.d
-      return rat(n,d)
-    elif b: Int or b: Long
-      return rat(a.n+b*a.d,a.d)
-    else
-      return b+a
-    end
-  end,
+   function add(a;b)
+      if b: Rat
+         n = a.n*b.d+b.n*a.d
+         d = a.d*b.d
+         return rat(n,d)
+      elif b: Int or b: Long
+         return rat(a.n+b*a.d,a.d)
+      else
+         return b+a
+      end
+   end,
 
-  function radd(a;b)
-    return rat(a*b.d+b.n,b.d)
-  end,
+   function radd(a;b)
+      return rat(a*b.d+b.n,b.d)
+   end,
 
-  function sub(a;b)
-    if b: Rat
-      n = a.n*b.d-b.n*a.d
-      d = a.d*b.d
-      return rat(n,d)
-    elif b: Int or b: Long
-      return rat(a.n-b*a.d,a.d)
-    else
-      return -(b-a)
-    end
-  end,
+   function sub(a;b)
+      if b: Rat
+         n = a.n*b.d-b.n*a.d
+         d = a.d*b.d
+         return rat(n,d)
+      elif b: Int or b: Long
+         return rat(a.n-b*a.d,a.d)
+      else
+         return -(b-a)
+      end
+   end,
 
-  function rsub(a;b)
-    return rat(a*b.d-b.n,b.d)
-  end,
+   function rsub(a;b)
+      return rat(a*b.d-b.n,b.d)
+   end,
 
-  function mul(a;b)
-    if b: Rat
-      n = a.n*b.n
-      d = a.d*b.d
-      return rat(n,d)
-    elif b: Int or b: Long
-      return rat(a.n*b,a.d)
-    else
-      return b*a
-    end
-  end,
+   function mul(a;b)
+      if b: Rat
+         n = a.n*b.n
+         d = a.d*b.d
+         return rat(n,d)
+      elif b: Int or b: Long
+         return rat(a.n*b,a.d)
+      else
+         return b*a
+      end
+   end,
 
-  function rmul(a;b)
-    return rat(a*b.n,b.d)
-  end,
+   function rmul(a;b)
+      return rat(a*b.n,b.d)
+   end,
 
-  function div(a;b)
-    if b: Rat
-      return rat(a.n*b.d,a.d*b.n)
-    elif b: Int or b: Long
-      return rat(a.n,a.d*b)
-    else
-      return b.rdiv(a;b)
-    end
-  end,
+   function div(a;b)
+      if b: Rat
+         return rat(a.n*b.d,a.d*b.n)
+      elif b: Int or b: Long
+         return rat(a.n,a.d*b)
+      else
+         return b.rdiv(a;b)
+      end
+   end,
 
-  function rdiv(a;b)
-    return rat(a*b.d,b.n)
-  end,
+   function rdiv(a;b)
+      return rat(a*b.d,b.n)
+   end,
 
-  function pow(a;b)
-    if b>0
-      return rat(a.n^b, a.d^b)
-    elif b<0
-      return rat(a.d^(-b), a.n^(-b))
-    else
-      return rat(1,1)
-    end
-  end,
+   function pow(a;b)
+      if b>0
+         return rat(a.n^b, a.d^b)
+      elif b<0
+         return rat(a.d^(-b), a.n^(-b))
+      else
+         return rat(1,1)
+      end
+   end,
 
-  function lt(a;b)
-    if b: Rat
-      return sgn(a.d)*a.n*abs(b.d) < sgn(b.d)*b.n*abs(a.d)
-    else
-      return sgn(a.d)*a.n < b*abs(a.d)
-    end
-  end,
+   function lt(a;b)
+      if b: Rat
+         return sgn(a.d)*a.n*abs(b.d) < sgn(b.d)*b.n*abs(a.d)
+      else
+         return sgn(a.d)*a.n < b*abs(a.d)
+      end
+   end,
 
-  function eq(a;b)
-    if b: Rat
-      return (abs(a.n)==abs(b.n) and abs(a.d)==abs(b.d) and
-        sgn(a.n)*sgn(a.d) == sgn(b.n)*sgn(b.d))
-    else
-      return (abs(a.n)==abs(b) and abs(a.d)==1 and
-        sgn(a.n)*sgn(a.d) == sgn(b))
-    end
-  end,
+   function eq(a;b)
+      if b: Rat
+         return (abs(a.n)==abs(b.n) and abs(a.d)==abs(b.d) and
+            sgn(a.n)*sgn(a.d) == sgn(b.n)*sgn(b.d))
+      else
+         return (abs(a.n)==abs(b) and abs(a.d)==1 and
+            sgn(a.n)*sgn(a.d) == sgn(b))
+      end
+   end,
 
-  abs = fn|a;|
-    return table Rat{n=abs(a.n), d=abs(a.d)}
-  end
+   abs = fn|a;|
+      return table Rat{n=abs(a.n), d=abs(a.d)}
+   end
 }
 
 end

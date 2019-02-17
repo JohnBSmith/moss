@@ -31,7 +31,7 @@
 use math.la: vector
 
 function diffvh(h)
-  return |v,f,x| (f(x+h*v)-f(x-h*v))/(2*h)
+   return |v,f,x| (f(x+h*v)-f(x-h*v))/(2*h)
 end
 
 diffv = diffvh(0.001)
@@ -85,16 +85,16 @@ use math.la: unit, vector
 
 # Nabla operator
 function nabla(f,p)
-  n = p.shape[0]
-  E = list(0..n-1).map(|k| unit(n,k))
-  return vector(*E.map(|e| diffv(e,f,p)))
+   n = p.shape[0]
+   E = list(0..n-1).map(|k| unit(n,k))
+   return vector(*E.map(|e| diffv(e,f,p)))
 end
 
 # Tangential plane of f at p
 function T(f,p)
-  a = nabla(f,p)
-  y = f(p)
-  return |x| y+a*(x-p)
+   a = nabla(f,p)
+   y = f(p)
+   return |x| y+a*(x-p)
 end
 
 
@@ -117,23 +117,23 @@ use math.la: unit, vector, matrix
 
 # The Jacobian matrix is the transposed gradient
 function Jacobian(F,p)
-  return matrix(*nabla(F,p).list.map(|v| v.list)).T
+   return matrix(*nabla(F,p).list.map(|v| v.list)).T
 end
 
 
 # After simplification we obtain
 function Jacobian(F,p)
-  n = p.shape[0]
-  E = list(0..n-1).map(|k| unit(n,k))
-  return matrix(*E.map(|e| diffv(e,F,p).list)).T
+   n = p.shape[0]
+   E = list(0..n-1).map(|k| unit(n,k))
+   return matrix(*E.map(|e| diffv(e,F,p).list)).T
 end
 
 
 # Tangential plane of F at p
 function T(F,p)
-  J = Jacobian(F,p)
-  y = F(p)
-  return |x| y+J*(x-p)
+   J = Jacobian(F,p)
+   y = F(p)
+   return |x| y+J*(x-p)
 end
 </pre>
 
@@ -144,15 +144,15 @@ use math.la.inversion: det
 use math: pi, sin, cos
 
 function volume(F,[x0,x1],[y0,y1],[z0,z1])
-  return integral(x0,x1,|x| integral(y0,y1,|y| integral(z0,z1,|z|
-    abs(det(Jacobian(F,vector(x,y,z))))
-  )))
+   return integral(x0,x1,|x| integral(y0,y1,|y| integral(z0,z1,|z|
+      abs(det(Jacobian(F,vector(x,y,z))))
+   )))
 end
 
 torus = |{R}| |[r,p,t]| vector(
-  (R+r*cos(p))*cos(t),
-  (R+r*cos(p))*sin(t),
-  r*sin(p)
+   (R+r*cos(p))*cos(t),
+   (R+r*cos(p))*sin(t),
+   r*sin(p)
 )
 
 F = torus(R=2)
@@ -171,23 +171,23 @@ use math.la.inversion: det
 use math: sqrt, pi, sin, cos
 
 function metric_tensor(F)
-  return fn|p|
-    J = Jacobian(F,p)
-    return J.T*J
-  end
+   return fn|p|
+      J = Jacobian(F,p)
+      return J.T*J
+   end
 end
 
 function area(F,[x0,x1],[y0,y1])
-  g = metric_tensor(F)
-  return integral(x0,x1,|x| integral(y0,y1,|y|
-    sqrt(det(g(vector(x,y))))
-  ))
+   g = metric_tensor(F)
+   return integral(x0,x1,|x| integral(y0,y1,|y|
+      sqrt(det(g(vector(x,y))))
+   ))
 end
 
 torus = |{R,r}| |[p,t]| vector(
-  (R+r*cos(p))*cos(t),
-  (R+r*cos(p))*sin(t),
-  r*sin(p)
+   (R+r*cos(p))*cos(t),
+   (R+r*cos(p))*sin(t),
+   r*sin(p)
 )
 
 F = torus(R=2,r=1)

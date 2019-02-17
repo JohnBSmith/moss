@@ -8,49 +8,49 @@ use math.sf: PP
 legendre_table = {}
 
 function legendre_roots(n,f,f1)
-  phi = |x| x-f(x)/f1(x)
-  newton = |x,n| (phi^n)(x)
-  a = []
-  for i in 0..n//2-1
-    x = cos(pi*(4*i+3)/(4*n+2))
-    a.push(newton(x,6))
-  end
-  return a.map(|x| -x)+a.rev()
+   phi = |x| x-f(x)/f1(x)
+   newton = |x,n| (phi^n)(x)
+   a = []
+   for i in 0..n//2-1
+      x = cos(pi*(4*i+3)/(4*n+2))
+      a.push(newton(x,6))
+   end
+   return a.map(|x| -x)+a.rev()
 end
 
 function legendre_nodes(n)
-  n = n if n%2==0 else n+1
-  if n in legendre_table
-    return legendre_table[n]
-  else
-    f = |x| PP(n,0,x)
-    f1 = |x| n/(x^2-1)*(x*PP(n,0,x)-PP(n-1,0,x))
-    a = legendre_roots(n,f,f1)
-    nodes = a.map(|x| [x,2/((1-x^2)*f1(x)^2)])
-    legendre_table[n] = nodes
-    return nodes
-  end
+   n = n if n%2==0 else n+1
+   if n in legendre_table
+      return legendre_table[n]
+   else
+      f = |x| PP(n,0,x)
+      f1 = |x| n/(x^2-1)*(x*PP(n,0,x)-PP(n-1,0,x))
+      a = legendre_roots(n,f,f1)
+      nodes = a.map(|x| [x,2/((1-x^2)*f1(x)^2)])
+      legendre_table[n] = nodes
+      return nodes
+   end
 end
 
 function gauss(gl)
-  return fn integral|a,b,f,n=1|
-    h = (b-a)/n
-    p = 0.5*h
-    s = 0
-    for j in 0..n-1
-      q = p+a+j*h
-      sj = 0
-      for t in gl
-        sj += t[1]*f(p*t[0]+q)
+   return fn integral|a,b,f,n=1|
+      h = (b-a)/n
+      p = 0.5*h
+      s = 0
+      for j in 0..n-1
+         q = p+a+j*h
+         sj = 0
+         for t in gl
+            sj += t[1]*f(p*t[0]+q)
+         end
+         s += p*sj
       end
-      s += p*sj
-    end
-    return s
-  end
+      return s
+   end
 end
 
 function gauss_legendre(n)
-  return gauss(legendre_nodes(n))
+   return gauss(legendre_nodes(n))
 end
 
 end

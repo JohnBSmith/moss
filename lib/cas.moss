@@ -9,31 +9,31 @@ use math
 _eval_ = eval
 
 SymbolicExpression = table(Type,null,"SymbolicExpression") {
-  function string
-    syntax.ast_to_string(self.value)
-  end
+   function string
+      syntax.ast_to_string(self.value)
+   end
 }
 
 function symbolic(s)
-  return table SymbolicExpression{value = syntax.compile(s)}
+   return table SymbolicExpression{value = syntax.compile(s)}
 end
 
 function eval(s,m=null)
-  return table SymbolicExpression{
-    value = base.eval(syntax.compile(s),m)
-  }
+   return table SymbolicExpression{
+      value = base.eval(syntax.compile(s),m)
+   }
 end
 
 env_math = {
-  pi = math.pi,
-  e = math.e,
-  sin = math.sin,
-  cos = math.cos,
-  tan = math.tan
+   pi = math.pi,
+   e = math.e,
+   sin = math.sin,
+   cos = math.cos,
+   tan = math.tan
 }
 
 function lambda(id,t)
-  return _eval_("|{}| {}"%[id,str(t)],env_math)
+   return _eval_("|{}| {}"%[id,str(t)],env_math)
 end
 
 end

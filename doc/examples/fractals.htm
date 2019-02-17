@@ -34,26 +34,26 @@
 use gx: canvas, sleep
 
 function fractal(f,z0,argm={})
-  {w=720, h=480, n=40, p=0, r=2} = argm
-  cv = canvas(w,h)
-  for y in h
-    for x in w
-      c = p+r/h*((2*x-w)-(2*y-h)*1i)
-      z = z0(c)
-      for k in n
-        z = f(z,c)
-        if abs(z)&gt;2
-          cv.hsl(0,0,1-k/n)
-          cv.fill(x,y,1,1)
-          break
-        end
+   {w=720, h=480, n=40, p=0, r=2} = argm
+   cv = canvas(w,h)
+   for y in h
+      for x in w
+         c = p+r/h*((2*x-w)-(2*y-h)*1i)
+         z = z0(c)
+         for k in n
+            z = f(z,c)
+            if abs(z)&gt;2
+               cv.hsl(0,0,1-k/n)
+               cv.fill(x,y,1,1)
+               break
+            end
+         end
       end
-    end
-    cv.flush()
-  end
-  while cv.key()!="q"
-    sleep(0.1)
-  end
+      cv.flush()
+   end
+   while cv.key()!="q"
+      sleep(0.1)
+   end
 end
 
 # Mandelbrot set
@@ -84,32 +84,32 @@ use math.na: diffh
 use cmath: arg
 
 function basin_fractal(f,z0,argm={})
-  {w=720, h=480, n=100, dim=10, p=0, r=2} = argm
-  cv = canvas(w,h)
-  for y in h
-    for x in w
-      c = p+r/h*((2*x-w)-(2*y-h)*1i)
-      z = z0(c)
-      for k in n
-        zp = z
-        z = f(z,c) 
-        if abs(z-zp)&lt;0.01
-          cv.hsl(arg(z),0.2,1-tanh(k/dim)^2)
-          break
-        end
+   {w=720, h=480, n=100, dim=10, p=0, r=2} = argm
+   cv = canvas(w,h)
+   for y in h
+      for x in w
+         c = p+r/h*((2*x-w)-(2*y-h)*1i)
+         z = z0(c)
+         for k in n
+            zp = z
+            z = f(z,c) 
+            if abs(z-zp)&lt;0.01
+               cv.hsl(arg(z),0.2,1-tanh(k/dim)^2)
+               break
+            end
+         end
+         cv.fill(x,y,1,1)
       end
-      cv.fill(x,y,1,1)
-    end
-    cv.flush()
-  end
-  while cv.key()!="q"
-    sleep(0.1)
-  end
+      cv.flush()
+   end
+   while cv.key()!="q"
+     sleep(0.1)
+   end
 end
 
 function newton(f,argm={})
-  diff = diffh(h=0.001)
-  basin_fractal(|z,c| z-f(z)/diff(f,z), |c| c, argm)
+   diff = diffh(h=0.001)
+   basin_fractal(|z,c| z-f(z)/diff(f,z), |c| c, argm)
 end
 
 newton(|z| z^3-1)
@@ -130,8 +130,8 @@ use math.la: vector, matrix
 use math: pi, sin, cos, sqrt
 
 rot = |phi| matrix(
-  [cos(phi),-sin(phi)],
-  [sin(phi), cos(phi)]
+   [cos(phi),-sin(phi)],
+   [sin(phi), cos(phi)]
 )
 deg = pi/180
 R60 = rot(60*deg)
@@ -139,24 +139,24 @@ Rm60 = rot(-60*deg)
 Rm120 = rot(-120*deg)
 
 function snowflake_rec(s,p,v,n)
-  if n==0
-    s.line(p,p+v)
-  else
-    snowflake_rec(s,p,v/3,n-1)
-    snowflake_rec(s,p+v/3,R60*(v/3),n-1)
-    snowflake_rec(s,p+v/3+R60*(v/3),Rm60*(v/3),n-1)
-    snowflake_rec(s,p+2/3*v,v/3,n-1)
-  end
+   if n==0
+      s.line(p,p+v)
+   else
+      snowflake_rec(s,p,v/3,n-1)
+      snowflake_rec(s,p+v/3,R60*(v/3),n-1)
+      snowflake_rec(s,p+v/3+R60*(v/3),Rm60*(v/3),n-1)
+      snowflake_rec(s,p+2/3*v,v/3,n-1)
+   end
 end
 
 function snowflake(s,p,scale,n)
-  v = scale*vector(1,0)
-  p = p-sqrt(3)/3*rot(-30*deg)*v
-  for k in 3
-    snowflake_rec(s,p,v,n)
-    p = p+v
-    v = Rm120*v
-  end
+   v = scale*vector(1,0)
+   p = p-sqrt(3)/3*rot(-30*deg)*v
+   for k in 3
+      snowflake_rec(s,p,v,n)
+      p = p+v
+      v = Rm120*v
+   end
 end
 
 s = system(w=400,h=400,grid=false)

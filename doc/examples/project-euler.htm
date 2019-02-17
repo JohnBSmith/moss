@@ -70,17 +70,17 @@ print(s)
 isprime = |n| n&gt;1 and (2..).until(|i| i*i&gt;n).all(|i| n%i!=0)
 
 function factor(n)
-  primes = (2..).filter(isprime)
-  a = []
-  for p in primes
-    e = (1..).until(|k| n%(p^k)!=0).count()
-    if e!=0
-      a.push([p,e])
-      n = n//p^e
-    end
-    if p&gt;n then break end
-  end
-  return a
+   primes = (2..).filter(isprime)
+   a = []
+   for p in primes
+      e = (1..).until(|k| n%(p^k)!=0).count()
+      if e!=0
+         a.push([p,e])
+         n = n//p^e
+      end
+      if p&gt;n then break end
+   end
+   return a
 end
 
 a = factor(600851475143)
@@ -101,19 +101,19 @@ print(a[-1][0])
 # product of two 3-digit numbers.
 
 function palindromic(x)
-  s = str(x); m = size(s)//2
-  return s[..m-1] == s[..m:-1]
+   s = str(x); m = size(s)//2
+   return s[..m-1] == s[..m:-1]
 end
 
 function largest(n)
-  a = 10^(n-1)+1..10^n-1
-  for x in (10^(2*n)..:-1).filter(palindromic)
-    for d in a
-      if x%d==0 and x//d in a
-        return [x,d,x//d]
+   a = 10^(n-1)+1..10^n-1
+   for x in (10^(2*n)..:-1).filter(palindromic)
+      for d in a
+         if x%d==0 and x//d in a
+            return [x,d,x//d]
+         end
       end
-    end
-  end
+   end
 end
 
 print(largest(3))
@@ -203,8 +203,8 @@ digits = """
 """
 
 function adjacent_prod_max(n,digits)
-  a = list(digits).filter(|c| c.isdigit()).map(int)
-  return list(0..size(a)-n).map(|k| a[k..k+n-1]).max(|t| t.prod())
+   a = list(digits).filter(|c| c.isdigit()).map(int)
+   return list(0..size(a)-n).map(|k| a[k..k+n-1]).max(|t| t.prod())
 end
 
 a = adjacent_prod_max(13,digits)
@@ -227,27 +227,27 @@ print(a.prod())
 # a + b + c = 1000. Find the product a*b*c.
 
 function partitions(n,k,max)
-  if n==0
-    return [[]]
-  elif n&gt;k*max
-    return []
-  elif n==k*max
-    return [[max]*k]
-  elif k==1
-    return [[n]]
-  else
-    a = []
-    for x in 1..min(max,n-1)
-      for t in partitions(n-x,k-1,x)
-        a.push(t+[x])
+   if n==0
+      return [[]]
+   elif n&gt;k*max
+      return []
+   elif n==k*max
+      return [[max]*k]
+   elif k==1
+      return [[n]]
+   else
+      a = []
+      for x in 1..min(max,n-1)
+         for t in partitions(n-x,k-1,x)
+            a.push(t+[x])
+         end
       end
-    end
-    return a
-  end
+      return a
+   end
 end
 
 function triplets(n)
-  partitions(n,3,n).filter(|[x,y,z]| x^2+y^2==z^2)
+   partitions(n,3,n).filter(|[x,y,z]| x^2+y^2==z^2)
 end
 
 triplets(1000).each(print)

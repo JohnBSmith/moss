@@ -1,29 +1,29 @@
 
 
 function fix(m,F)
-  return fn f|n|
-    if n not in m then m[n] = F(f,n) end
-    return m[n]
-  end
+   return fn f|n|
+      if n not in m then m[n] = F(f,n) end
+      return m[n]
+   end
 end
 
 Lazy = table(Type,null,"Lazy"){
-  function string
-    "lazy expression"
-  end,
-  function value
-    if self.x is null
-      x = self.f()
-      self.x = x
-      return x
-    else
-      return self.x
-    end
-  end
+   function string
+      "lazy expression"
+   end,
+   function value
+      if self.x is null
+         x = self.f()
+         self.x = x
+         return x
+      else
+         return self.x
+      end
+   end
 }
 
 function lazy(f)
-  return table Lazy{f=f,x=null}
+   return table Lazy{f=f,x=null}
 end
 
 Function.add = |f;g| |x| f(x)+g(x)

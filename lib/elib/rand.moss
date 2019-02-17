@@ -1,31 +1,31 @@
 
 begin
-  public cs_rand_int
-  use fs: open
+   public cs_rand_int
+   use fs: open
 
-  function cs_rand_int(n)
-    f = open("/dev/urandom")
-    return || f.read(n).reduce(0,|x,y| 256*x+y)
-  end
+   function cs_rand_int(n)
+      f = open("/dev/urandom")
+      return || f.read(n).reduce(0,|x,y| 256*x+y)
+   end
 end
 
 begin
-  public rand_normal
+   public rand_normal
 
-  use math: pi, sqrt, ln
-  a = 0.147
-  A = 2/(pi*a) 
+   use math: pi, sqrt, ln
+   a = 0.147
+   A = 2/(pi*a) 
 
-  function inv_erf(x)
-    y = ln(1-x^2)
-    t = A+0.5*y
-    return sgn(x)*sqrt(sqrt(t^2-y/a)-t)
-  end
+   function inv_erf(x)
+      y = ln(1-x^2)
+      t = A+0.5*y
+      return sgn(x)*sqrt(sqrt(t^2-y/a)-t)
+   end
 
-  function rand_normal(mu,sigma)
-    a = sqrt(2*sigma^2)
-    rng = rand()
-    return || mu+a*inv_erf(2*rng()-1)
-  end
+   function rand_normal(mu,sigma)
+      a = sqrt(2*sigma^2)
+      rng = rand()
+      return || mu+a*inv_erf(2*rng()-1)
+   end
 end
 

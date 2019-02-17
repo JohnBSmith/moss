@@ -8,554 +8,554 @@ use cmath: re, im, arg
 use gx: sleep
 
 palette = [
-  [0,0,0.6],
-  [0,0.4,0],
-  [0.6,0,0.4],
-  [0,0.4,0.4],
-  [0.30,0.18,0]
+   [0,0,0.6],
+   [0,0.4,0],
+   [0.6,0,0.4],
+   [0,0.4,0.4],
+   [0.30,0.18,0]
 ]
 
 palette_dark = [
-  [0.8,0.7,0],
-  [0.8,0,0.8],
-  [0,0.6,0.6]
+   [0.8,0.7,0],
+   [0.8,0,0.8],
+   [0,0.6,0.6]
 ]
 
 palette_3d = [
-  [0.2,0.4,0.6,0.4],
-  [0.8,0.2,0.6,0.4],
-  [0,0.4,0,0.4]
+   [0.2,0.4,0.6,0.4],
+   [0.8,0.2,0.6,0.4],
+   [0,0.4,0,0.4]
 ]
 
 function hline(canvas,w,y)
-  canvas.fill(0,y,w,2)
+   canvas.fill(0,y,w,2)
 end
 
 function vline(canvas,h,x)
-  canvas.fill(x,0,2,h)
+   canvas.fill(x,0,2,h)
 end
 
 function draw_line(canvas,x1,y1,x2,y2)
-  dx = x2-x1
-  dy = y2-y1
-  d = hypot(dx,dy)
-  step = 0.002/d
-  for t in 0..1: step
-    x = x1+dx*t
-    y = y1+dy*t
-    canvas.point(x,y)
-  end
+   dx = x2-x1
+   dy = y2-y1
+   d = hypot(dx,dy)
+   step = 0.002/d
+   for t in 0..1: step
+      x = x1+dx*t
+      y = y1+dy*t
+      canvas.point(x,y)
+   end
 end
 
 function draw_dotted_line(canvas,x1,y1,x2,y2)
-  dx = x2-x1
-  dy = y2-y1
-  d = hypot(dx,dy)
-  step = 0.01/d
-  for t in 0..1: step
-    x = x1+dx*t
-    y = y1+dy*t
-    canvas.point(x,y)
-  end
+   dx = x2-x1
+   dy = y2-y1
+   d = hypot(dx,dy)
+   step = 0.01/d
+   for t in 0..1: step
+      x = x1+dx*t
+      y = y1+dy*t
+      canvas.point(x,y)
+   end
 end
 
 function draw_vector(canvas,x1,y1,x2,y2)
-  draw_line(canvas,x1,y1,x2,y2)
-  dx = x2-x1; dy = y2-y1
-  d = hypot(dx,dy)
-  dx = dx/d; dy = dy/d
-  phi = 0.4
-  c = cos(phi); s = sin(phi)
-  x = c*dx-s*dy; y = s*dx+c*dy
-  draw_line(canvas,x2,y2,x2-0.02*x,y2-0.02*y)
-  x = c*dx+s*dy; y = c*dy-s*dx
-  draw_line(canvas,x2,y2,x2-0.02*x,y2-0.02*y)
+   draw_line(canvas,x1,y1,x2,y2)
+   dx = x2-x1; dy = y2-y1
+   d = hypot(dx,dy)
+   dx = dx/d; dy = dy/d
+   phi = 0.4
+   c = cos(phi); s = sin(phi)
+   x = c*dx-s*dy; y = s*dx+c*dy
+   draw_line(canvas,x2,y2,x2-0.02*x,y2-0.02*y)
+   x = c*dx+s*dy; y = c*dy-s*dx
+   draw_line(canvas,x2,y2,x2-0.02*x,y2-0.02*y)
 end
 
 function grid(canvas,w,h,ax,ay,csys,cgrid,scale=1)
-  canvas.rgb(*cgrid)
-  step = w/20*scale
-  x = w//2+int(ax*w/2)
-  y = h//2-int(ay*w/2)
-  xcount = int(10/scale)
-  ycount = int(10*h/w/scale)
-  xshift = int(10*ax/scale)
-  yshift = int(10*ay/scale)
-  for k in -ycount+yshift..ycount+yshift
-    hline(canvas,w,y+int(k*step))
-  end
-  for k in -xcount-xshift..xcount-xshift
-    vline(canvas,h,x+int(k*step))
-  end
-  canvas.rgb(*csys)
-  hline(canvas,w,y)
-  vline(canvas,h,x)
+   canvas.rgb(*cgrid)
+   step = w/20*scale
+   x = w//2+int(ax*w/2)
+   y = h//2-int(ay*w/2)
+   xcount = int(10/scale)
+   ycount = int(10*h/w/scale)
+   xshift = int(10*ax/scale)
+   yshift = int(10*ay/scale)
+   for k in -ycount+yshift..ycount+yshift
+      hline(canvas,w,y+int(k*step))
+   end
+   for k in -xcount-xshift..xcount-xshift
+      vline(canvas,h,x+int(k*step))
+   end
+   canvas.rgb(*csys)
+   hline(canvas,w,y)
+   vline(canvas,h,x)
 end
 
 w = rand()
 
 System = table{
-  function plot(f,argm={})
-    canvas = self.c
-    wx = self.wx; px = self.px; ax = self.ax
-    wy = self.wy; py = self.py; ay = self.ay
-    {n = self.n, point = canvas.point} = argm
-    step = wx/n
-    px = px-ax*wx
-    py = py-ay*wy
-    a = [f] if f: Function else f
-    for f in a
-      for x in px-wx..px+wx: step
-        y = f(x)
-        if y: Complex
-          point(canvas;(x-px)/wx,(re(y)-py)/wy)
-          point(canvas;(x-px)/wx,(im(y)-py)/wy)
-        else
-          point(canvas;(x-px)/wx,(y-py)/wy)
-        end
+   function plot(f,argm={})
+      canvas = self.c
+      wx = self.wx; px = self.px; ax = self.ax
+      wy = self.wy; py = self.py; ay = self.ay
+      {n = self.n, point = canvas.point} = argm
+      step = wx/n
+      px = px-ax*wx
+      py = py-ay*wy
+      a = [f] if f: Function else f
+      for f in a
+         for x in px-wx..px+wx: step
+            y = f(x)
+            if y: Complex
+               point(canvas;(x-px)/wx,(re(y)-py)/wy)
+               point(canvas;(x-px)/wx,(im(y)-py)/wy)
+            else
+               point(canvas;(x-px)/wx,(y-py)/wy)
+            end
+         end
+         if not self.lock
+            self.next_color()
+         end
       end
-      if not self.lock
-        self.next_color()
+   end,
+
+   function vplot(f,argm={})
+      canvas = self.c
+      wx = self.wx; px = self.px; ax = self.ax
+      wy = self.wy; py = self.py; ay = self.ay
+      { n=self.n, t0=0, t1=2*pi,
+         point = canvas.point
+      } = argm
+      step = 1/n
+      a = [f] if f: Function else f
+      for f in a
+         for t in t0..t1: step
+            x,y = f(t)
+            point(canvas;ax+(x-px)/wx,ay+(y-py)/wy)
+         end
+         if not self.lock
+            self.next_color()
+         end
       end
-    end
-  end,
+   end,
 
-  function vplot(f,argm={})
-    canvas = self.c
-    wx = self.wx; px = self.px; ax = self.ax
-    wy = self.wy; py = self.py; ay = self.ay
-    { n=self.n, t0=0, t1=2*pi,
-      point = canvas.point
-    } = argm
-    step = 1/n
-    a = [f] if f: Function else f
-    for f in a
-      for t in t0..t1: step
-        x,y = f(t)
-        point(canvas;ax+(x-px)/wx,ay+(y-py)/wy)
+   function vector_field(f,argm={})
+      canvas = self.c
+      wx = self.wx; px = self.px; ax = self.ax
+      wy = self.wy; py = self.py; ay = self.ay
+      px = px-ax*wx
+      py = py-ay*wy
+      {point = canvas.point,
+       color = [0.8,0.9,1] if self.dark else [0,0,0]
+      } = argm
+      R,G,B = color
+      step = 0.5; L = 0.1*step
+      for y in py-wy..py+wy: step
+         for x in px-wx..px+wx: step
+            vx,vy = f(x,y)
+            r = hypot(vx,vy)
+            canvas.rgb(R,G,B,tanh(r/10))
+            if r!=0
+               x0 = (x-px)/wx
+               y0 = (y-py)/wy
+               draw_vector(canvas,x0,y0,x0+L*vx/r,y0+L*vy/r)
+            end
+         end
       end
-      if not self.lock
-        self.next_color()
-      end
-    end
-  end,
-
-  function vector_field(f,argm={})
-    canvas = self.c
-    wx = self.wx; px = self.px; ax = self.ax
-    wy = self.wy; py = self.py; ay = self.ay
-    px = px-ax*wx
-    py = py-ay*wy
-    {point = canvas.point,
-     color = [0.8,0.9,1] if self.dark else [0,0,0]
-    } = argm
-    R,G,B = color
-    step = 0.5; L = 0.1*step
-    for y in py-wy..py+wy: step
-      for x in px-wx..px+wx: step
-        vx,vy = f(x,y)
-        r = hypot(vx,vy)
-        canvas.rgb(R,G,B,tanh(r/10))
-        if r!=0
-          x0 = (x-px)/wx
-          y0 = (y-py)/wy
-          draw_vector(canvas,x0,y0,x0+L*vx/r,y0+L*vy/r)
-        end
-      end
-    end
-    self.color(0)
-  end,
-
-  function scatter(a,argm=null)
-    canvas = self.c
-    wx = self.wx; px = self.px; ax = self.ax
-    wy = self.wy; py = self.py; ay = self.ay
-    if argm is null
-      mark = canvas.disc
-      radius = 0.008
-    else
-      {type = "disc", radius = 0.008} = argm
-      if type=="disc"
-        mark = canvas.disc
-      elif type=="circle"
-        mark = canvas.circle
-      elif type=="box"
-        mark = canvas.box
-      end
-    end
-    for x,y in a
-      mark(canvas;ax+(x-px)/wx,ay+(y-py)/wy,radius)
-    end
-  end,
-
-  function line([x1,y1],[x2,y2])
-    wx = self.wx; px = self.px; ax = self.ax
-    wy = self.wy; py = self.py; ay = self.ay
-    draw_line(self.c,
-      ax+(x1-px)/wx,ay+(y1-py)/wy,ax+(x2-px)/wx,ay+(y2-py)/wy)
-  end,
-
-  function dotted_line([x1,y1],[x2,y2])
-    wx = self.wx; px = self.px; ax = self.ax
-    wy = self.wy; py = self.py; ay = self.ay
-    draw_dotted_line(self.c,
-      ax+(x1-px)/wx,ay+(y1-py)/wy,ax+(x2-px)/wx,ay+(y2-py)/wy)
-  end,
-
-  function vector([x1,y1],[x2,y2])
-    wx = self.wx; px = self.px; ax = self.ax
-    wy = self.wy; py = self.py; ay = self.ay
-    draw_vector(self.c,
-      ax+(x1-px)/wx,ay+(y1-py)/wy,ax+(x2-px)/wx,ay+(y2-py)/wy)
-  end,
-
-  function path(a,line=null)
-    if line is null
-      line = self.line
-    end
-    if size(a)!=0
-      t1 = a[0]
-      for t in a[1..]
-        line(self;t1,t)
-        t1 = t
-      end
-    end
-  end,
-
-  function idle
-    canvas = self.c
-    canvas.vcflush()
-    canvas.flush()
-    while true
-      key = canvas.key()
-      if key=="q" then break end
-      sleep(0.1)
-    end
-  end,
-
-  function system
-    if self.grid
-      grid(self.c,self.w,self.h,
-        self.csys,self.cgrid,self.fscale)
       self.color(0)
-    end
-  end,
+   end,
 
-  function lock_color(lock=true)
-    self.lock = lock
-  end,
-
-  function color(n)
-    a = self.palette
-    index = n%size(a)
-    self.rgb(*a[index])
-    self.color_index = index
-  end,
-
-  function next_color
-    a = self.palette
-    index = (self.color_index+1)%size(a)
-    self.color_index = index
-    self.c.rgb(*a[index])
-  end,
-
-  function rgb(*t)
-    self.c.rgb(*t)
-  end,
-
-  function hsl(*t)
-    self.c.hsl(*t)
-  end,
-
-  function animate(f,argm={})
-    canvas = self.c
-    palette = self.palette
-    bg = self.bg
-    csys = self.csys
-    cgrid = self.cgrid
-    fscale = self.fscale
-    w = self.w; ax = self.ax
-    h = self.h; ay = self.ay
-
-    a = 0
-    {clear = true} = argm
-    self.lock = true
-    while true
-      if clear
-        canvas.clear(*bg)
+   function scatter(a,argm=null)
+      canvas = self.c
+      wx = self.wx; px = self.px; ax = self.ax
+      wy = self.wy; py = self.py; ay = self.ay
+      if argm is null
+         mark = canvas.disc
+         radius = 0.008
+      else
+         {type = "disc", radius = 0.008} = argm
+         if type=="disc"
+            mark = canvas.disc
+         elif type=="circle"
+            mark = canvas.circle
+         elif type=="box"
+            mark = canvas.box
+         end
       end
-      if self.grid
-        grid(canvas,w,h,ax,ay,csys,cgrid,fscale)
+      for x,y in a
+         mark(canvas;ax+(x-px)/wx,ay+(y-py)/wy,radius)
       end
-      canvas.rgb(*palette[0])
-      f(a)
+   end,
+
+   function line([x1,y1],[x2,y2])
+      wx = self.wx; px = self.px; ax = self.ax
+      wy = self.wy; py = self.py; ay = self.ay
+      draw_line(self.c,
+         ax+(x1-px)/wx,ay+(y1-py)/wy,ax+(x2-px)/wx,ay+(y2-py)/wy)
+   end,
+
+   function dotted_line([x1,y1],[x2,y2])
+      wx = self.wx; px = self.px; ax = self.ax
+      wy = self.wy; py = self.py; ay = self.ay
+      draw_dotted_line(self.c,
+         ax+(x1-px)/wx,ay+(y1-py)/wy,ax+(x2-px)/wx,ay+(y2-py)/wy)
+   end,
+
+   function vector([x1,y1],[x2,y2])
+      wx = self.wx; px = self.px; ax = self.ax
+      wy = self.wy; py = self.py; ay = self.ay
+      draw_vector(self.c,
+         ax+(x1-px)/wx,ay+(y1-py)/wy,ax+(x2-px)/wx,ay+(y2-py)/wy)
+   end,
+
+   function path(a,line=null)
+      if line is null
+         line = self.line
+      end
+      if size(a)!=0
+         t1 = a[0]
+         for t in a[1..]
+            line(self;t1,t)
+            t1 = t
+         end
+      end
+   end,
+
+   function idle
+      canvas = self.c
       canvas.vcflush()
       canvas.flush()
-      a+=0.02
-      key = canvas.key()
-      if key=="q" then break end
-      sleep(0.01)
-    end
-  end,
-
-  function cplot(f,argm={})
-    canvas = self.c
-    {n=4,alpha=0.94} = argm
-    W = self.w//n
-    H = self.h//n
-    ratio = H/W
-    ai = 2/(W-1)
-    aj = 2/(H-1)
-    wx = self.wx; px = self.px; ax = self.ax
-    wy = self.wy; py = self.py; ay = self.ay
-    grid(canvas,self.w,self.h,ax,ay,[0,0,0],[0,0,0,0.4],self.fscale)
-    px = px-ax*wx
-    py = py-ay*wy
-    for j in 0..H-1
-      for i in 0..W-1
-        x = px+(ai*i-1)*wx
-        y = py-(aj*j-1)*ratio*wy
-        w = f(x+y*1i)
-        phi = arg(w)
-        if phi<0 then phi=phi+tau end
-        r = tanh(0.1*abs(w))
-        canvas.hsl(phi,1,r,alpha)
-        canvas.fill(i*n,j*n,n,n)
+      while true
+         key = canvas.key()
+         if key=="q" then break end
+         sleep(0.1)
       end
-    end
-    # grid(canvas,self.w,self.h,[0.7,0.7,0.7,0.4],[0.9,0.9,0.9,0.2])
-  end,
+   end,
 
-  function field(f,argm={})
-    canvas = self.c
-    {n=4,alpha=0.94} = argm
-    W = self.w//n
-    H = self.h//n
-    ratio = H/W
-    ai = 2/(W-1)
-    aj = 2/(H-1)
-    wx = self.wx; px = self.px; ax = self.ax
-    wy = self.wy; py = self.py; ay = self.ay
-    grid(canvas,self.w,self.h,ax,ay,[0,0,0],[0,0,0,0.4],self.fscale)
-    px = px-ax*wx
-    py = py-ay*wy
-    for j in 0..H-1
-      for i in 0..W-1
-        x = px+(ai*i-1)*wx
-        y = py-(aj*j-1)*ratio*wy
-        vx,vy = f(x,y)
-        phi = atan2(vy,vx)
-        if phi<0 then phi=phi+tau end
-        r = tanh(0.1*hypot(vx,vy))
-        canvas.hsl(phi,1,r,alpha)
-        canvas.fill(i*n,j*n,n,n)
+   function system
+      if self.grid
+         grid(self.c,self.w,self.h,
+            self.csys,self.cgrid,self.fscale)
+         self.color(0)
       end
-    end
-  end
+   end,
+
+   function lock_color(lock=true)
+      self.lock = lock
+   end,
+
+   function color(n)
+      a = self.palette
+      index = n%size(a)
+      self.rgb(*a[index])
+      self.color_index = index
+   end,
+
+   function next_color
+      a = self.palette
+      index = (self.color_index+1)%size(a)
+      self.color_index = index
+      self.c.rgb(*a[index])
+   end,
+
+   function rgb(*t)
+      self.c.rgb(*t)
+   end,
+
+   function hsl(*t)
+      self.c.hsl(*t)
+   end,
+
+   function animate(f,argm={})
+      canvas = self.c
+      palette = self.palette
+      bg = self.bg
+      csys = self.csys
+      cgrid = self.cgrid
+      fscale = self.fscale
+      w = self.w; ax = self.ax
+      h = self.h; ay = self.ay
+
+      a = 0
+      {clear = true} = argm
+      self.lock = true
+      while true
+         if clear
+            canvas.clear(*bg)
+         end
+         if self.grid
+            grid(canvas,w,h,ax,ay,csys,cgrid,fscale)
+         end
+         canvas.rgb(*palette[0])
+         f(a)
+         canvas.vcflush()
+         canvas.flush()
+         a+=0.02
+         key = canvas.key()
+         if key=="q" then break end
+         sleep(0.01)
+      end
+   end,
+
+   function cplot(f,argm={})
+      canvas = self.c
+      {n=4,alpha=0.94} = argm
+      W = self.w//n
+      H = self.h//n
+      ratio = H/W
+      ai = 2/(W-1)
+      aj = 2/(H-1)
+      wx = self.wx; px = self.px; ax = self.ax
+      wy = self.wy; py = self.py; ay = self.ay
+      grid(canvas,self.w,self.h,ax,ay,[0,0,0],[0,0,0,0.4],self.fscale)
+      px = px-ax*wx
+      py = py-ay*wy
+      for j in 0..H-1
+         for i in 0..W-1
+            x = px+(ai*i-1)*wx
+            y = py-(aj*j-1)*ratio*wy
+            w = f(x+y*1i)
+            phi = arg(w)
+            if phi<0 then phi=phi+tau end
+            r = tanh(0.1*abs(w))
+            canvas.hsl(phi,1,r,alpha)
+            canvas.fill(i*n,j*n,n,n)
+         end
+      end
+      # grid(canvas,self.w,self.h,[0.7,0.7,0.7,0.4],[0.9,0.9,0.9,0.2])
+   end,
+
+   function field(f,argm={})
+      canvas = self.c
+      {n=4,alpha=0.94} = argm
+      W = self.w//n
+      H = self.h//n
+      ratio = H/W
+      ai = 2/(W-1)
+      aj = 2/(H-1)
+      wx = self.wx; px = self.px; ax = self.ax
+      wy = self.wy; py = self.py; ay = self.ay
+      grid(canvas,self.w,self.h,ax,ay,[0,0,0],[0,0,0,0.4],self.fscale)
+      px = px-ax*wx
+      py = py-ay*wy
+      for j in 0..H-1
+         for i in 0..W-1
+            x = px+(ai*i-1)*wx
+            y = py-(aj*j-1)*ratio*wy
+            vx,vy = f(x,y)
+            phi = atan2(vy,vx)
+            if phi<0 then phi=phi+tau end
+            r = tanh(0.1*hypot(vx,vy))
+            canvas.hsl(phi,1,r,alpha)
+            canvas.fill(i*n,j*n,n,n)
+         end
+      end
+   end
 }
 
 function point3d(canvas,c,s,x,y,z)
-  xt = c*x-s*y
-  yt = s*x+c*y
-  xp = yt-xt
-  yp = z-0.5*xt-0.5*yt
-  canvas.point(xp,yp)
+   xt = c*x-s*y
+   yt = s*x+c*y
+   xp = yt-xt
+   yp = z-0.5*xt-0.5*yt
+   canvas.point(xp,yp)
 end
 
 function rotate(c,s,x,y)
-  return c*x-s*y, s*x+c*y
+   return c*x-s*y, s*x+c*y
 end
 
 function sys3d(canvas,c,s)
-  x,y = rotate(c,s,0,0.5)
-  draw_line(canvas,0,0,y-x,-0.5*x-0.5*y)
+   x,y = rotate(c,s,0,0.5)
+   draw_line(canvas,0,0,y-x,-0.5*x-0.5*y)
 
-  x,y = rotate(c,s,0.5,0)
-  draw_line(canvas,0,0,y-x,-0.5*x-0.5*y)
+   x,y = rotate(c,s,0.5,0)
+   draw_line(canvas,0,0,y-x,-0.5*x-0.5*y)
 
-  draw_line(canvas,0,0,0,0.5)
+   draw_line(canvas,0,0,0,0.5)
 end
 
 System3d = table{
-  idle = System.idle,
-  rgb = System.rgb,
-  function plot(f,argm={})
-    {color = null} = argm
-    canvas = self.c
-    wx = self.wx; wy = self.wy; wz = self.wz
-    px = self.px; py = self.py; pz = self.pz
-    mx = self.mx; my = self.my
-    nx = self.nx; ny = self.ny
-    phi = self.phi
-    m = 0.5
-    c = cos(phi)
-    s = sin(phi)
+   idle = System.idle,
+   rgb = System.rgb,
+   function plot(f,argm={})
+      {color = null} = argm
+      canvas = self.c
+      wx = self.wx; wy = self.wy; wz = self.wz
+      px = self.px; py = self.py; pz = self.pz
+      mx = self.mx; my = self.my
+      nx = self.nx; ny = self.ny
+      phi = self.phi
+      m = 0.5
+      c = cos(phi)
+      s = sin(phi)
 
-    if not color is null
-      canvas.rgb(*color)
-    end
-
-    for x in -wx..wx: wx/mx
-      for y in -wy..wy: wy/ny
-        z = f(x,y)
-        point3d(canvas,c,s,m*x/wx,m*y/wy,m*z/wz)
+      if not color is null
+         canvas.rgb(*color)
       end
-    end
-    for y in -wy..wy: wy/my
-      for x in -wx..wx: wx/nx
-        z = f(x,y)
-        point3d(canvas,c,s,m*x/wx,m*y/wy,m*z/wz)
+
+      for x in -wx..wx: wx/mx
+         for y in -wy..wy: wy/ny
+            z = f(x,y)
+            point3d(canvas,c,s,m*x/wx,m*y/wy,m*z/wz)
+         end
       end
-    end
-    canvas.rgb(0,0,0,0.8)
-    sys3d(canvas,c,s)
-  end,
-
-  function splot(f,argm={})
-    {color = null,
-     u0=0, u1=1, v0=0, v1=1,
-     mu=5, mv=5, nu=200, nv=200
-    } = argm
-    canvas = self.c
-    wx = self.wx; wy = self.wy; wz = self.wz
-    px = self.px; py = self.py; pz = self.pz
-    mx = self.mx; my = self.my
-    nx = self.nx; ny = self.ny
-    phi = self.phi
-    m = 0.5
-    c = cos(phi)
-    s = sin(phi)
-
-    if not color is null
-      canvas.rgb(*color)
-    end
-
-    for u in u0..u1: 1/mu
-      for v in v0..v1: 1/nv
-        x,y,z = f(u,v)
-        point3d(canvas,c,s,m*x/wx,m*y/wy,m*z/wz)
+      for y in -wy..wy: wy/my
+         for x in -wx..wx: wx/nx
+            z = f(x,y)
+            point3d(canvas,c,s,m*x/wx,m*y/wy,m*z/wz)
+         end
       end
-    end
-    for v in v0..v1: 1/mv
-      for u in u0..u1: 1/nu
-        x,y,z = f(u,v)
-        point3d(canvas,c,s,m*x/wx,m*y/wy,m*z/wz)
+      canvas.rgb(0,0,0,0.8)
+      sys3d(canvas,c,s)
+   end,
+
+   function splot(f,argm={})
+      {color = null,
+       u0=0, u1=1, v0=0, v1=1,
+       mu=5, mv=5, nu=200, nv=200
+      } = argm
+      canvas = self.c
+      wx = self.wx; wy = self.wy; wz = self.wz
+      px = self.px; py = self.py; pz = self.pz
+      mx = self.mx; my = self.my
+      nx = self.nx; ny = self.ny
+      phi = self.phi
+      m = 0.5
+      c = cos(phi)
+      s = sin(phi)
+
+      if not color is null
+         canvas.rgb(*color)
       end
-    end
-    canvas.rgb(0,0,0,0.8)
-    sys3d(canvas,c,s)
-  end,
 
-  function vplot(f,argm={})
-    {color = null,
-     t0=0, t1=10, n=100
-    } = argm
-    canvas = self.c
-    wx = self.wx; wy = self.wy; wz = self.wz
-    px = self.px; py = self.py; pz = self.pz
-    mx = self.mx; my = self.my
-    nx = self.nx; ny = self.ny
-    phi = self.phi
-    m = 0.5
-    c = cos(phi)
-    s = sin(phi)
+      for u in u0..u1: 1/mu
+         for v in v0..v1: 1/nv
+            x,y,z = f(u,v)
+            point3d(canvas,c,s,m*x/wx,m*y/wy,m*z/wz)
+         end
+      end
+      for v in v0..v1: 1/mv
+         for u in u0..u1: 1/nu
+            x,y,z = f(u,v)
+            point3d(canvas,c,s,m*x/wx,m*y/wy,m*z/wz)
+         end
+      end
+      canvas.rgb(0,0,0,0.8)
+      sys3d(canvas,c,s)
+   end,
 
-    if color is null
-      canvas.rgb(0,0,0.4)
-    else
-      canvas.rgb(*color)
-    end
+   function vplot(f,argm={})
+      {color = null,
+       t0=0, t1=10, n=100
+      } = argm
+      canvas = self.c
+      wx = self.wx; wy = self.wy; wz = self.wz
+      px = self.px; py = self.py; pz = self.pz
+      mx = self.mx; my = self.my
+      nx = self.nx; ny = self.ny
+      phi = self.phi
+      m = 0.5
+      c = cos(phi)
+      s = sin(phi)
 
-    for t in t0..t1: 1/n
-      x,y,z = f(t)
-      point3d(canvas,c,s,m*x/wx,m*y/wy,m*z/wz)
-    end
+      if color is null
+         canvas.rgb(0,0,0.4)
+      else
+         canvas.rgb(*color)
+      end
 
-    canvas.rgb(0,0,0,0.2)
-    for t in t0..t1: 1/n
-      x,y,z = f(t)
-      point3d(canvas,c,s,m*x/wx,m*y/wy,0)
-    end
+      for t in t0..t1: 1/n
+         x,y,z = f(t)
+         point3d(canvas,c,s,m*x/wx,m*y/wy,m*z/wz)
+      end
 
-    canvas.rgb(0,0,0,0.8)
-    sys3d(canvas,c,s)
-  end
+      canvas.rgb(0,0,0,0.2)
+      for t in t0..t1: 1/n
+         x,y,z = f(t)
+         point3d(canvas,c,s,m*x/wx,m*y/wy,0)
+      end
+
+      canvas.rgb(0,0,0,0.8)
+      sys3d(canvas,c,s)
+   end
 }
 
 alignx_tab = {
-  "center": 0,
-  "left": -0.9,
-  "right": 0.9
+   "center": 0,
+   "left": -0.9,
+   "right": 0.9
 }
 
 aligny_tab = {
-  "center": 0,
-  "bottom": -0.85,
-  "top": 0.85
+   "center": 0,
+   "bottom": -0.85,
+   "top": 0.85
 }
 
 function system(argm = {})
-  {w=960,h=640,scale = null} = argm
-  canvas = gx.canvas(w,h)
-  if scale is null
-    fscale = 1
-  else
-    fscale = scale
-  end
-  {wx=10/fscale,wy=10/fscale,px=0,py=0,n=1000,dark=false,
-   alignx="center", aligny="center"
-  } = argm
-  show_grid = argm("grid") else true
-  ax = alignx_tab[alignx]
-  ay = aligny_tab[aligny]*h/w
-  if dark
-    bg = [0,0.02,0.06]
-    csys = [0.3,0.3,0.3]
-    cgrid = [0.1,0.1,0.1]
-    palette = palette_dark
-  else
-    bg = [1,1,1]
-    csys = [0.7,0.7,0.7]
-    cgrid = [0.9,0.9,0.9]
-    palette = palette
-  end
-  canvas.clear(*bg)
-  if show_grid
-    grid(canvas,w,h,ax,ay,csys,cgrid,fscale)
-  end
-  canvas.rgb(*palette[0])
-  return table System{
-    c=canvas, w=w, h=h, n=n,
-    wx=wx, wy=wy, px=px, py=py, ax=ax, ay=ay,
-    point = canvas.point, needle = canvas.needle,
-    color_index = 0, palette = palette, bg=bg,
-    csys=csys, cgrid=cgrid, grid = show_grid,
-    lock = false, fscale = fscale, dark = dark
-  }
+   {w=960,h=640,scale = null} = argm
+   canvas = gx.canvas(w,h)
+   if scale is null
+      fscale = 1
+   else
+      fscale = scale
+   end
+   {wx=10/fscale,wy=10/fscale,px=0,py=0,n=1000,dark=false,
+    alignx="center", aligny="center"
+   } = argm
+   show_grid = argm("grid") else true
+   ax = alignx_tab[alignx]
+   ay = aligny_tab[aligny]*h/w
+   if dark
+      bg = [0,0.02,0.06]
+      csys = [0.3,0.3,0.3]
+      cgrid = [0.1,0.1,0.1]
+      palette = palette_dark
+   else
+      bg = [1,1,1]
+      csys = [0.7,0.7,0.7]
+      cgrid = [0.9,0.9,0.9]
+      palette = palette
+   end
+   canvas.clear(*bg)
+   if show_grid
+      grid(canvas,w,h,ax,ay,csys,cgrid,fscale)
+   end
+   canvas.rgb(*palette[0])
+   return table System{
+      c=canvas, w=w, h=h, n=n,
+      wx=wx, wy=wy, px=px, py=py, ax=ax, ay=ay,
+      point = canvas.point, needle = canvas.needle,
+      color_index = 0, palette = palette, bg=bg,
+      csys=csys, cgrid=cgrid, grid = show_grid,
+      lock = false, fscale = fscale, dark = dark
+   }
 end
 
 function system3d(argm = {})
-  { w=960,h=640,
-    wx=10,wy=10,wz=10,px=0,py=0,pz=0,
-    nx=1000, ny=1000, mx=10, my=10, dark=false,
-    phi = 2.0
-  } = argm
-  canvas = gx.canvas(w,h)
-  if dark
-    bg = [0,0.02,0.06]
-    palette = palette_dark
-  else
-    bg = [1,1,1]
-    palette = palette_3d
-  end
-  canvas.clear(*bg)
-  canvas.rgb(0.2,0.4,0.6,0.4)
-  return table System3d{
-    c=canvas, w=w, h=h, mx=mx, my=my, nx=nx, ny=ny,
-    wx=wx, wy=wy, wz=wz, px=px, py=py, pz=pz,
-    point = canvas.point, needle = canvas.needle,
-    color_index = 0, palette = palette, bg=bg, phi = phi
-  }
+   { w=960,h=640,
+      wx=10,wy=10,wz=10,px=0,py=0,pz=0,
+      nx=1000, ny=1000, mx=10, my=10, dark=false,
+      phi = 2.0
+   } = argm
+   canvas = gx.canvas(w,h)
+   if dark
+      bg = [0,0.02,0.06]
+      palette = palette_dark
+   else
+      bg = [1,1,1]
+      palette = palette_3d
+   end
+   canvas.clear(*bg)
+   canvas.rgb(0.2,0.4,0.6,0.4)
+   return table System3d{
+      c=canvas, w=w, h=h, mx=mx, my=my, nx=nx, ny=ny,
+      wx=wx, wy=wy, wz=wz, px=px, py=py, pz=pz,
+      point = canvas.point, needle = canvas.needle,
+      color_index = 0, palette = palette, bg=bg, phi = phi
+   }
 end
 
 end

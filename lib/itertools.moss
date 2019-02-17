@@ -1,73 +1,69 @@
 
 
-
 function permutations(a)
-  a = list(a)
-  return fn*||
-    if size(a)<=1
-      yield copy(a)
-    else
-      x = a[..0]
-      for p in permutations(a[1..])
-        for i in 0..size(a)-1
-          yield p[..i-1]+x+p[i..]
-        end
+   a = list(a)
+   return fn*||
+      if size(a)<=1
+         yield copy(a)
+      else
+         x = a[..0]
+         for p in permutations(a[1..])
+            for i in 0..size(a)-1
+               yield p[..i-1]+x+p[i..]
+            end
+         end
       end
-    end
-  end
+   end
 end
-
 
 function accumulate(a,f,g=null)
-  if g is null
-    i = iter(a)
-    return fn*||
-      y = i()
-      yield y
-      for x in i
-        y = f(y,x)
-        yield y
+   if g is null
+      i = iter(a)
+      return fn*||
+         y = i()
+         yield y
+         for x in i
+            y = f(y,x)
+            yield y
+         end
       end
-    end
-  else
-    y = f
-    f = g    
-    return fn*||
-      yield y
-      for x in a
-        y = f(y,x)
-        yield y
+   else
+      y = f
+      f = g    
+      return fn*||
+         yield y
+         for x in a
+            y = f(y,x)
+            yield y
+         end
       end
-    end
-  end
+   end
 end
 
-
 function chain(*argv)
-  return fn*||
-    for a in argv
-      for x in a
-        yield x
+   return fn*||
+      for a in argv
+         for x in a
+            yield x
+         end
       end
-    end
-  end
+   end
 end
 
 function repeat(x,n=null)
-  if n is null
-    return fn*||
-      while true
-        yield x
+   if n is null
+      return fn*||
+        while true
+           yield x
+        end
       end
-    end
-  else
-    return fn*||
-      for i in n
-        yield x
+   else
+      return fn*||
+        for i in n
+           yield x
+        end
       end
-    end
-  end
+   end
 end
-
 
 

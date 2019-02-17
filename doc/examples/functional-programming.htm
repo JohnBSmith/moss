@@ -41,20 +41,22 @@ last  = |f,*a| |*b| f(*(b+a))
 <h2 id="currying">Currying</h2>
 <pre class="moss">
 function curry(f)
-  n = f.argc()
-  a = list(0..n-1)
-  g = fn|x| a[n-1]=x; f(*a) end
-  for i in 2..n
-    g = fn|x| a[n-i]=x; g end
-  end
-  return g
+   n = f.argc()
+   a = list(0..n-1)
+   g = fn|x| a[n-1] = x; f(*a) end
+   for i in 2..n
+      g = fn|x| a[n-i] = x; g end
+   end
+   return g
 end
 
-curry = fn|f|
-  n = f.argc(); a = list(0..n-1)
-  return (2..n).reduce(
-    fn|x| a[n-1] = x; f(*a) end,
-    |g,i| fn|x| a[n-i] = x; g end) end
+function curry(f)
+   n = f.argc()
+   a = list(0..n-1)
+   return (2..n).reduce(
+      fn|x| a[n-1] = x; f(*a) end,
+      |g,i| fn|x| a[n-i] = x; g end)
+end
 
 uncurry = |f| |*a| a.reduce(f,|g,x| g(x))
 </pre>
@@ -76,11 +78,11 @@ fix = |F| fn g|n| F(g,n) end
 
 # With memoization.
 fix = fn|F|
-  m = {}
-  return fn g|n|
-    if n not in m then m[n] = F(g,n) end
-    return m[n]
-  end
+   m = {}
+   return fn g|n|
+      if n not in m then m[n] = F(g,n) end
+      return m[n]
+   end
 end
 
 
@@ -99,11 +101,11 @@ pow = fix(|f,[x,n]| 1 if n==0 else x*f([x,n-1]))
 
 
 for n in 0..10
-  print([n,fac(n)])
+   print([n,fac(n)])
 end
 
 for n in 0..10
-  print([n,pow([2,n])])
+   print([n,pow([2,n])])
 end
 
 
@@ -128,10 +130,10 @@ print(pow(2,10))
 # be made explicit. This allows to state the initial
 # conditions in the bufffer.
 fix = fn|m,F|
-  return fn g|n|
-    if n not in m then m[n] = F(g,n) end
-    return m[n]
-  end
+   return fn g|n|
+      if n not in m then m[n] = F(g,n) end
+      return m[n]
+   end
 end
 
 fac = fix({0: 1}, |f,n| n*f(n-1))

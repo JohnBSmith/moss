@@ -53,7 +53,7 @@ programming language.</i>
 List.map = |a;f| [] if a==[] else [f(a[0])]+a[1..].map(f)
 
 List.filter = |a;p| ([] if a==[] else
-  ([a[0]] if p(a[0]) else [])+a[1..].filter(p))
+   ([a[0]] if p(a[0]) else [])+a[1..].filter(p))
 
 List.reduce = |a;e,f| e if a==[] else f(a[0],a[1..].reduce(e,f))
 
@@ -76,8 +76,8 @@ print(chain(a))
 <h3 id="qsort">Quicksort</h3>
 <pre class="moss">
 qsort = |a| ([] if a==[] else
-  qsort(a[1..].filter(|x| x&lt;a[0]))+[a[0]]+
-  qsort(a[1..].filter(|x| x&gt;=a[0])))
+   qsort(a[1..].filter(|x| x&lt;a[0]))+[a[0]]+
+   qsort(a[1..].filter(|x| x&gt;=a[0])))
 </pre>
 <br>
 
@@ -98,7 +98,7 @@ print((1..).filter(|n| (1..n).count(|k| n%k==0)==2).list(100))
 isprime = |n| (1..n).count(|k| n%k==0)==2
 
 factor = |n| (list(2..n).filter(|k| n%k==0 and isprime(k))
-  .map(|p| [p,(1..).until(|k| n%(p^k)!=0).count()]))
+   .map(|p| [p,(1..).until(|k| n%(p^k)!=0).count()]))
 
 print(factor(360))
 
@@ -109,8 +109,8 @@ print(factor(360))
 <pre class="moss">
 # Convert f(x,y) to f(x)(y).
 curry = fn|f| n = f.argc(); a = list(n);
-  (2..n).reduce(fn|x| a[n-1] = x; f(*a) end,
-  |g,i| fn|x| a[n-i] = x; g end) end
+   (2..n).reduce(fn|x| a[n-1] = x; f(*a) end,
+   |g,i| fn|x| a[n-i] = x; g end) end
 
 
 # Convert f(x)(y) to f(x,y).
@@ -139,16 +139,16 @@ print(P({0,1,2}))
 <h3 id="mandelbrot">Mandelbrot set</h3>
 <pre class="moss">
 (0..25).map(|x|
-  (0..39).map(fn|y| c = (x/10-2)+(y/10-2)*1i;
-    "*" if abs(((|z| z^2+c)^10)(0))&lt;2 else "\s"
-  end).join()).each(print)
+   (0..39).map(fn|y| c = (x/10-2)+(y/10-2)*1i;
+      "*" if abs(((|z| z^2+c)^10)(0))&lt;2 else "\s"
+   end).join()).each(print)
 
 </pre>
 
 <h3 id="fizz-buzz">Fizz buzz</h3>
 <pre class="moss">
 (1..100).map(|i| [i]+[3,5].map(|d| int(i%d==0))).map(|[i,x,y]|
-  i if x+y==0 else "Fizz"*x+"Buzz"*y).each(print)
+   i if x+y==0 else "Fizz"*x+"Buzz"*y).each(print)
 </pre>
 
 </body>

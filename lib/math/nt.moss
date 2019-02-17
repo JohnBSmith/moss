@@ -1,173 +1,175 @@
 
 function gcd(a,b)
-  while b!=0
-    h = b; b = a%b; a = h
-  end
-  return a
+   while b!=0
+      h = b; b = a%b; a = h
+   end
+   return a
 end
 
 function lcm(a,b=null)
-  if b is null
-    return a.reduce(|x,y| x*y//gcd(x,y))
-  else
-    return a*b//gcd(a,b)
-  end
+   if b is null
+      return a.reduce(|x,y| x*y//gcd(x,y))
+   else
+      return a*b//gcd(a,b)
+   end
 end
 
 begin
-  global isprime
+   global isprime
 
-  function isprime_trial_division(n)
-    if n<2
+   function isprime_trial_division(n)
+      if n<2
+         return false
+      else
+         k = 2
+         while k*k<=n
+            if n%k==0
+               return false
+            end
+            k+=1
+         end
+         return true
+      end
+   end
+
+   prime_tab = (2..).filter(isprime_trial_division).list(10)
+   TooLarge = table ValueError{
+      value="Value error in isprime(n): n is too large."
+   }
+
+   function witness(a,d,n,r)
+      if pow(a,d,n)==1
+         return true
+      else
+         for i in 0..r-1
+            if pow(a,d*2^i,n)==n-1
+               return true
+            end
+         end
+      end
       return false
-    else
-      k=2
-      while k*k<=n
-        if n%k==0
-          return false
-        end
-        k+=1
+   end
+
+   b0 = [2,3]
+   b1 = [2,3,5]
+   b2 = [2,3,5,7,11]
+   b3 = [2,3,5,7,11,13,17]
+   b4 = [2,3,5,7,11,13,17,19,23]
+   b5 = [2,3,5,7,11,13,17,19,23,29,31,37]
+   b6 = [2,3,5,7,11,13,17,19,23,29,31,37,41]
+
+   function isprime_deterministic(n)
+      if n==2 or n==3
+         return true
+      elif n%2==0 or n<2
+         return false
+      end
+      r = 0
+      d = n-1
+      while d%2==0
+         r+=1; d = d//2
+      end
+      if n < 1373653
+         b = b0
+      elif n < 25326001
+         b = b1
+      elif n < 2152302898747
+         b = b2
+      elif n < 341550071728321
+         b = b3
+      elif n < 3825123056546413051
+         b = b4
+      elif n < 318665857834031151167461
+         b = b5
+      elif n < 3317044064679887385961981
+         b = b6
+      else
+         raise TooLarge
+      end
+      return b.all(|a| witness(a,d,n,r))
+   end
+
+   function isprime_probalistic(n,m)
+      if n==2 or n==3
+         return true
+      elif n%2==0 or n<2
+         return false
+      end
+      r = 0
+      d = n-1
+      while d%2==0
+         r+=1; d = d//2
+      end
+      if n: Int
+         rng = rand(2..n-2)
+      else
+         rng = rand(2..100000)
+      end
+      for k in 1..m
+         a = rng()
+         if not witness(a,d,n,r)
+            return false
+         end
       end
       return true
-    end
-  end
+   end
 
-  prime_tab = (2..).filter(isprime_trial_division).list(10)
-  TooLarge = table ValueError{
-    value="Value error in isprime(n): n is too large."
-  }
-
-  function witness(a,d,n,r)
-    if pow(a,d,n)==1
-      return true
-    else
-      for i in 0..r-1
-        if pow(a,d*2^i,n)==n-1
-          return true
-        end
+   function isprime(n,m=null)
+      for k in prime_tab
+         if n%k==0
+            return n==k
+         end
       end
-    end
-    return false
-  end
-
-  b0 = [2,3]
-  b1 = [2,3,5]
-  b2 = [2,3,5,7,11]
-  b3 = [2,3,5,7,11,13,17]
-  b4 = [2,3,5,7,11,13,17,19,23]
-  b5 = [2,3,5,7,11,13,17,19,23,29,31,37]
-  b6 = [2,3,5,7,11,13,17,19,23,29,31,37,41]
-
-  function isprime_deterministic(n)
-    if n==2 or n==3
-      return true
-    elif n%2==0 or n<2
-      return false
-    end
-    r=0; d = n-1
-    while d%2==0
-      r+=1; d = d//2
-    end
-    if n < 1373653
-      b = b0
-    elif n < 25326001
-      b = b1
-    elif n < 2152302898747
-      b = b2
-    elif n < 341550071728321
-      b = b3
-    elif n < 3825123056546413051
-      b = b4
-    elif n < 318665857834031151167461
-      b = b5
-    elif n < 3317044064679887385961981
-      b = b6
-    else
-      raise TooLarge
-    end
-    return b.all(|a| witness(a,d,n,r))
-  end
-
-  function isprime_probalistic(n,m)
-    if n==2 or n==3
-      return true
-    elif n%2==0 or n<2
-      return false
-    end
-    r=0; d = n-1
-    while d%2==0
-      r+=1; d = d//2
-    end
-    if n: Int
-      rng = rand(2..n-2)
-    else
-      rng = rand(2..100000)
-    end
-    for k in 1..m
-      a = rng()
-      if not witness(a,d,n,r)
-        return false
+      if m is null
+         return isprime_deterministic(n)
+      else
+         return isprime_probalistic(n,m)
       end
-    end
-    return true
-  end
-
-  function isprime(n,m=null)
-    for k in prime_tab
-      if n%k==0
-        return n==k
-      end
-    end
-    if m is null
-      return isprime_deterministic(n)
-    else
-      return isprime_probalistic(n,m)
-    end
-  end
+   end
 end
 
 function divisors(n)
-  (1..n).filter(|k| n%k==0).list()
+   (1..n).filter(|k| n%k==0).list()
 end
 
 function factor(n)
-  a=[]
-  if n<=0
-    if n==0
-      return [[0,1]]
-    else
-      a.push([-1,1])
-      n = -n
-    end
-  end
-  k=2
-  while true
-    e=0
-    while n%k==0
-      n = n//k
-      e+=1
-    end
-    if e!=0
-      a.push([k,e])
-    end
-    if n==1
-      return a
-    end
-    k+=1
-  end
+   a = []
+   if n<=0
+      if n==0
+         return [[0,1]]
+      else
+         a.push([-1,1])
+         n = -n
+      end
+   end
+   k = 2
+   while true
+      e = 0
+      while n%k==0
+         n = n//k
+         e+=1
+      end
+      if e!=0
+         a.push([k,e])
+      end
+      if n==1
+         return a
+      end
+      k+=1
+   end
 end
 
 function phi(n)
-  0 if n<1 else factor(n).prod(|[p,e]| p^(e-1)*(p-1))
+   0 if n<1 else factor(n).prod(|[p,e]| p^(e-1)*(p-1))
 end
 
 function base(n,b)
-  a = []
-  while n!=0
-    a.push(n%b)
-    n = n//b
-  end
-  return a
+   a = []
+   while n!=0
+      a.push(n%b)
+      n = n//b
+   end
+   return a
 end
 
 

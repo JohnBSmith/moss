@@ -25,87 +25,86 @@
 
 <pre class="moss">
 function empty_error(id)
-  return table ValueError{
-    value = "Value error in a.{}: a is empty."%[id]}
+   return table ValueError{
+      value = "Value error in a.{}: a is empty."%[id]}
 end
 
 function link(a)
-  y = table LinkedList{pfirst=null, plast=null}
-  for x in a
-    y.push(x)
-  end
-  return y
+   y = table LinkedList{pfirst=null, plast=null}
+   for x in a
+      y.push(x)
+   end
+   return y
 end
 
 LinkedList = table(Type,Iterable,"LinkedList"){
-  function string
-    self.map(str).join(", ","link([","])")
-  end,
+   function string
+      self.map(str).join(", ","link([","])")
+   end,
 
-  function empty
-    return self.pfirst is null
-  end,
+   function empty
+      return self.pfirst is null
+   end,
 
-  function iter
-    t = self.pfirst
-    return fn*||
-      while not t is null
-        yield t[0]
-        t = t[1]
+   function iter
+      t = self.pfirst
+      return fn*||
+         while not t is null
+            yield t[0]
+            t = t[1]
+         end
       end
-    end
-  end,
+   end,
 
-  function push(x)
-    if self.pfirst is null
-      self.plast = [x,null]
-      self.pfirst = self.plast
-    else
-      self.plast[1] = [x,null]
-      self.plast = self.plast[1]
-    end
-  end,
+   function push(x)
+      if self.pfirst is null
+         self.plast = [x,null]
+         self.pfirst = self.plast
+      else
+         self.plast[1] = [x,null]
+         self.plast = self.plast[1]
+      end
+   end,
   
-  function unshift(x)
-    if self.pfirst is null
-      self.plast = [x,null]
-      self.pfirst = self.plast
-    else
-      self.pfirst = [x,self.pfirst]
-    end
-  end,
+   function unshift(x)
+      if self.pfirst is null
+         self.plast = [x,null]
+         self.pfirst = self.plast
+      else
+         self.pfirst = [x,self.pfirst]
+      end
+   end,
 
-  function shift
-    if self.pfirst is null
-      raise empty_error("shift()")
-    else
-      value = self.pfirst[0]
-      self.pfirst = self.pfirst[1]
-      return value
-    end
-  end,
+   function shift
+      if self.pfirst is null
+         raise empty_error("shift()")
+      else
+         value = self.pfirst[0]
+         self.pfirst = self.pfirst[1]
+         return value
+      end
+   end,
   
-  function first
-    if self.pfirst is null
-      raise empty_error("first()")
-    else
-      return self.pfirst[0]
-    end
-  end,
+   function first
+      if self.pfirst is null
+         raise empty_error("first()")
+      else
+         return self.pfirst[0]
+      end
+   end,
 
-  function rest
-    if self.pfirst is null
-      raise empty_error("rest()")
-    else
-      return table LinkedList{
-        pfirst = self.pfirst[1],
-        plast = self.plast
-      }
-    end
-  end
+   function rest
+      if self.pfirst is null
+         raise empty_error("rest()")
+      else
+         return table LinkedList{
+            pfirst = self.pfirst[1],
+            plast = self.plast
+         }
+      end
+   end
 }
 </pre>
-
 
 
 </body>

@@ -5,6 +5,8 @@ use std::io::Read;
 use std::env;
 
 mod parser;
+mod typing;
+
 use parser::{parse,Error};
 
 fn print_error(e: &Error, file: &str) {

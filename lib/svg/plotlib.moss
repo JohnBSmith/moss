@@ -5,86 +5,86 @@ public system
 use math: pi, isnan, isinf
 
 color_table = [
-  "002080",
-  "006000",
-  "800060"
+   "002080",
+   "006000",
+   "800060"
 ]
 
 function fstr(x)
-  str(x,"f",2)
+   str(x,"f",2)
 end
 
 function hline(s,y)
-  s.a.push('<line x1="0" y1="{0}" x2="10" y2="{0}" stroke="#848480" stroke-width="0.02"/>\n' %
-    [y].map(fstr))
+   s.a.push('<line x1="0" y1="{0}" x2="10" y2="{0}" stroke="#848480" stroke-width="0.02"/>\n' %
+      [y].map(fstr))
 end
 
 function vline(s,x)
-  s.a.push('<line x1="{0}" y1="0" x2="{0}" y2="10" stroke="#848480" stroke-width="0.02"/>\n' %
-    [x].map(fstr))
+   s.a.push('<line x1="{0}" y1="0" x2="{0}" y2="10" stroke="#848480" stroke-width="0.02"/>\n' %
+      [x].map(fstr))
 end
 
 function path_push(s,color,points)
-  if size(points)!=0
-    s.a.push('<polyline fill="none" stroke="#{}" stroke-width="0.06"\npoints="{}"/>\n' % [
-      color, points.join(" ")
-    ])
-    points.clear()
-  end
+   if size(points)!=0
+      s.a.push('<polyline fill="none" stroke="#{}" stroke-width="0.06"\npoints="{}"/>\n' % [
+         color, points.join(" ")
+      ])
+      points.clear()
+   end
 end
 
 function path(s,a,color)
-  mx = 5/s.wx; px = s.px
-  my = 5/s.wy; py = s.py
-  points = []
-  for [x,y] in a
-    if isnan(y) or isinf(y)
-      path_push(s,color,points)
-    else
-      vx = 5+(x-px)*mx
-      vy = 5-(y-py)*my
-      if -1000<vy and vy<1000
-        points.push([fstr(vx),fstr(vy)].join(","))
+   mx = 5/s.wx; px = s.px
+   my = 5/s.wy; py = s.py
+   points = []
+   for [x,y] in a
+      if isnan(y) or isinf(y)
+         path_push(s,color,points)
       else
-        path_push(s,color,points)
+         vx = 5+(x-px)*mx
+         vy = 5-(y-py)*my
+         if -1000<vy and vy<1000
+            points.push([fstr(vx),fstr(vy)].join(","))
+         else
+            path_push(s,color,points)
+         end
       end
-    end
-  end
-  path_push(s,color,points)
+   end
+   path_push(s,color,points)
 end
 
 function vpath(s,a,color)
-  mx = 5/s.wx; px = s.px
-  my = 5/s.wy; py = s.py
-  points = []
-  for [x,y] in a
-    if isnan(x) or isinf(x) or isnan(y) or isinf(y)
-      path_push(s,color,points)
-    else
-      vx = 5+(x-px)*mx
-      vy = 5-(y-py)*my
-      if abs(x)<1000 and abs(y)<1000
-        points.push([fstr(vx),fstr(vy)].join(","))
+   mx = 5/s.wx; px = s.px
+   my = 5/s.wy; py = s.py
+   points = []
+   for [x,y] in a
+      if isnan(x) or isinf(x) or isnan(y) or isinf(y)
+         path_push(s,color,points)
       else
-        path_push(s,color,points)
+         vx = 5+(x-px)*mx
+         vy = 5-(y-py)*my
+         if abs(x)<1000 and abs(y)<1000
+            points.push([fstr(vx),fstr(vy)].join(","))
+         else
+            path_push(s,color,points)
+         end
       end
-    end
-  end
-  path_push(s,color,points)
+   end
+   path_push(s,color,points)
 end
 
 function getfx(s)
-  mx = 5/s.wx; px = s.px
-  return |x| fstr(5+(x-px)*mx)
+   mx = 5/s.wx; px = s.px
+   return |x| fstr(5+(x-px)*mx)
 end
 
 function getfy(s)
-  my = 5/s.wy; py = s.py
-  return |y| fstr(5-(y-py)*my)
+   my = 5/s.wy; py = s.py
+   return |y| fstr(5-(y-py)*my)
 end
 
 function scatter_circle(s,fx,fy,x,y,color)
-  s.a.push('<circle cx="{}" cy="{}" r="0.12" fill="#{}"/>\n' % [fx(x),fy(y),color])
+   s.a.push('<circle cx="{}" cy="{}" r="0.12" fill="#{}"/>\n' % [fx(x),fy(y),color])
 end
 
 head = """\
@@ -112,123 +112,123 @@ defs = """\
 """
 
 function to_s(x)
-  x = 0.01*int(100*x)
-  if x == int(x)
-    x = int(x)
-  end
-  if x<0
-    return "\x{2212}{}"%[abs(x)]
-  else
-    return str(x)
-  end
+   x = 0.01*int(100*x)
+   if x == int(x)
+      x = int(x)
+   end
+   if x<0
+      return "\x{2212}{}"%[abs(x)]
+   else
+      return str(x)
+   end
 end
 
 function text(s,x,y,txt)
-  s.a.push('<text x="{}" y="{}" font-size="0.5" text-anchor="end">{}</text>\n' % [fstr(x),fstr(y),txt])
+   s.a.push('<text x="{}" y="{}" font-size="0.5" text-anchor="end">{}</text>\n' % [fstr(x),fstr(y),txt])
 end
 
 function scale(s)
-  wx = s.wx; px = s.px
-  wy = s.wy; py = s.py
+   wx = s.wx; px = s.px
+   wy = s.wy; py = s.py
 
-  x_adjust = 5.2
-  y_adjust = 5.5
-  for x in 1..4
-    text(s,x_adjust+x,y_adjust,to_s(px+x*wx/5))
-  end
-  for x in -4..-1
-    text(s,x_adjust+x,y_adjust,to_s(px+x*wx/5))
-  end
+   x_adjust = 5.2
+   y_adjust = 5.5
+   for x in 1..4
+      text(s,x_adjust+x,y_adjust,to_s(px+x*wx/5))
+   end
+   for x in -4..-1
+      text(s,x_adjust+x,y_adjust,to_s(px+x*wx/5))
+   end
 
-  x_adjust = 4.86
-  y_adjust = 5.1
-  for y in 1..4
-    text(s,x_adjust,y_adjust-y,to_s(py+y*wy/5))
-  end
-  for y in -4..-1
-    text(s,x_adjust,y_adjust-y,to_s(py+y*wy/5))
-  end
+   x_adjust = 4.86
+   y_adjust = 5.1
+   for y in 1..4
+      text(s,x_adjust,y_adjust-y,to_s(py+y*wy/5))
+   end
+   for y in -4..-1
+      text(s,x_adjust,y_adjust-y,to_s(py+y*wy/5))
+   end
 end
 
 function axes(s)
-  hline(s,5)
-  vline(s,5)
-  scale(s)
+   hline(s,5)
+   vline(s,5)
+   scale(s)
 end
 
 function grid(s)
-  s.defs = defs
-  s.a.push('<rect fill="url(#grid)" stroke="#dadad0" stroke-width="0.1" x="0" y="0" width="10" height="10"/>\n')
+   s.defs = defs
+   s.a.push('<rect fill="url(#grid)" stroke="#dadad0" stroke-width="0.1" x="0" y="0" width="10" height="10"/>\n')
 end
 
 Graphics = table{
-  function string
-    "system"
-  end,
+   function string
+      "system"
+   end,
 
-  function rect(x,y,h,w)
-    self.a.push('<rect x="{}" y="{}" width="{}" height="{}" stroke-width="0.1"/>\n' %
-      [x,y,h,w].map(fstr))
-  end,
+   function rect(x,y,h,w)
+      self.a.push('<rect x="{}" y="{}" width="{}" height="{}" stroke-width="0.1"/>\n' %
+         [x,y,h,w].map(fstr))
+   end,
 
-  function line(x1,y1,x2,y2)
-    mx = 5/self.wx
-    my = 5/self.wy
-    self.a.push('<line x1="{}" y1="{}" x2="{}" y2="{}" stroke="black" stroke-width="0.1"/>\n' %
-      [5+mx*x1,5-my*y1,5+mx*x2,5-my*y2].map(fstr))
-  end,
+   function line(x1,y1,x2,y2)
+      mx = 5/self.wx
+      my = 5/self.wy
+      self.a.push('<line x1="{}" y1="{}" x2="{}" y2="{}" stroke="black" stroke-width="0.1"/>\n' %
+         [5+mx*x1,5-my*y1,5+mx*x2,5-my*y2].map(fstr))
+   end,
 
-  function plot(f)
-    px = self.px
-    py = self.py
-    a = list(px-self.wx..px+self.wx: 1/self.n)
-    if f: List
-      for fk in f
-        color = self.color_it()
-        path(self,a.map(|x| [x,fk(x)]),color)
+   function plot(f)
+      px = self.px
+      py = self.py
+      a = list(px-self.wx..px+self.wx: 1/self.n)
+      if f: List
+         for fk in f
+            color = self.color_it()
+            path(self,a.map(|x| [x,fk(x)]),color)
+         end
+      else
+         color = self.color_it()
+         path(self,a.map(|x| [x,f(x)]),color)
       end
-    else
+   end,
+
+   function vplot(f,argm={})
+      {t0 = self.t0, t1 = self.t1, n = self.n} = argm
+      a = list(t0..t1: 1/n)
       color = self.color_it()
-      path(self,a.map(|x| [x,f(x)]),color)
-    end
-  end,
+      vpath(self,a.map(f),color)
+   end,
+   
+   function scatter(a,m = null)
+      fx = getfx(self)
+      fy = getfy(self)
+      if m is null
+         color = "8080a0"
+      else
+         {color = "8080a0"} = m
+      end
+      for x,y in a
+         scatter_circle(self,fx,fy,x,y,color)
+      end
+   end,
 
-  function vplot(f,argm={})
-    {t0 = self.t0, t1 = self.t1, n = self.n} = argm
-    a = list(t0..t1: 1/n)
-    color = self.color_it()
-    vpath(self,a.map(f),color)
-  end,
-  
-  function scatter(a,m = null)
-    fx = getfx(self)
-    fy = getfy(self)
-    if m is null
-      color = "8080a0"
-    else
-      {color = "8080a0"} = m
-    end
-    for x,y in a
-      scatter_circle(self,fx,fy,x,y,color)
-    end
-  end,
-
-  function flush
-    self.a.join("",head % [self.w,self.h,self.w//10,self.h//10,self.defs],foot)
-  end
+   function flush
+      self.a.join("",head % [self.w,self.h,self.w//10,self.h//10,self.defs],foot)
+   end
 }
 
 function system(d={})
-  {w=400, h=400, wx=5, wy=5, px=0, py=0, n=10, t0=0, t1=2*pi} = d
-  s = table Graphics{
-    a=[], w=w, h=h,
-    wx=wx, wy=wy, px=px, py=py,
-    defs="", n=n, t0=t0, t1=t1,
-    color_it = cycle(color_table)
-  }
-  grid(s)
-  axes(s)
-  return s
+   {w=400, h=400, wx=5, wy=5, px=0, py=0, n=10, t0=0, t1=2*pi} = d
+   s = table Graphics{
+      a=[], w=w, h=h,
+      wx=wx, wy=wy, px=px, py=py,
+      defs="", n=n, t0=t0, t1=t1,
+      color_it = cycle(color_table)
+   }
+   grid(s)
+   axes(s)
+   return s
 end
 
 end

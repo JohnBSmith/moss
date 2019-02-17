@@ -1,73 +1,73 @@
 
 function inspect(m)
-  if not m: Map
-    m = record(m)
-  end
+   if not m: Map
+      m = record(m)
+   end
 
-  lower = |x| x.lower()
-  fns = m.filter(|x| m[x]: Function).sort(lower)
-  values = m.filter(|x| not m[x]: Function).sort(lower)
+   lower = |x| x.lower()
+   fns = m.filter(|x| m[x]: Function).sort(lower)
+   values = m.filter(|x| not m[x]: Function).sort(lower)
 
-  buffer = []
+   buffer = []
 
-  if size(values)!=0
-    vcol = max(9,values.map(size).max())
-    buffer.push("Value\s\s\s\s| Type\n")
-    for v in values
-      x = v.ljust(vcol)
-      y = type(m[v])
-      buffer.push("{}| {}\n" % [x,y])
-    end
-  end
+   if size(values)!=0
+      vcol = max(9,values.map(size).max())
+      buffer.push("Value\s\s\s\s| Type\n")
+      for v in values
+         x = v.ljust(vcol)
+         y = type(m[v])
+         buffer.push("{}| {}\n" % [x,y])
+      end
+   end
 
-  if size(fns)!=0
-    fcol = max(9,fns.map(size).max())
-    if size(buffer)!=0
-      buffer.push("\n")
-    end
-    buffer.push("Function | Argc\n")
-    for f in fns
-      x = f.ljust(fcol)
-      y = m[f].argc()
-      buffer.push("{}| {:r3}\n" % [x,y])
-    end
-  end
+   if size(fns)!=0
+      fcol = max(9,fns.map(size).max())
+      if size(buffer)!=0
+         buffer.push("\n")
+      end
+      buffer.push("Function | Argc\n")
+      for f in fns
+         x = f.ljust(fcol)
+         y = m[f].argc()
+         buffer.push("{}| {:r3}\n" % [x,y])
+      end
+   end
 
-  return buffer.join()
+   return buffer.join()
 end
 
 index = [
-  "fs/tree",
-  "functional",
-  "itertools",
-  "json",
-  "math",
-  "math/cf",
-  "math/cmath",
-  "math/la",
-  "math/la/inversion",
-  "math/multiset",
-  "math/na",
-  "math/na/difftab",
-  "math/na/quad",
-  "math/nt",
-  "math/ode",
-  "math/rational",
-  "math/sf",
-  "math/sf/ei",
-  "plotlib",
-  "plotlib/implicit",
-  "svg/plotlib"
+   "fs/tree",
+   "functional",
+   "itertools",
+   "json",
+   "math",
+   "math/cf",
+   "math/cmath",
+   "math/la",
+   "math/la/inversion",
+   "math/multiset",
+   "math/na",
+   "math/na/difftab",
+   "math/na/quad",
+   "math/nt",
+   "math/ode",
+   "math/rational",
+   "math/sf",
+   "math/sf/ei",
+   "plotlib",
+   "plotlib/implicit",
+   "svg/plotlib"
 ]
 
 elib_index = [
-  "elib/continuations",
-  "elib/itertools",
-  "elib/lang",
-  "elib/mod",
-  "elib/optimizer",
-  "elib/pc",
-  "elib/rand",
-  "elib/stackless"
+   "elib/continuations",
+   "elib/itertools",
+   "elib/lang",
+   "elib/mod",
+   "elib/optimizer",
+   "elib/pc",
+   "elib/rand",
+   "elib/stackless"
 ]
 

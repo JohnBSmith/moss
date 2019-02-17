@@ -26,17 +26,17 @@
 
 <pre class="moss">
 begin
-  public day_of_the_week
+   public day_of_the_week
 
-  w = ["Satur", "Sun", "Mon", "Tues", "Wednes", "Thurs", "Fri"]
+   w = ["Satur", "Sun", "Mon", "Tues", "Wednes", "Thurs", "Fri"]
 
-  function day_of_the_week(year,month,day)
-    J = year//100
-    K = (year  if month in 3..12 else year-1)%100
-    m = (month if month in 3..12 else month+12)
-    n = (day + (m+1)*13//5 + K + K//4 + J//4 - 2*J)%7
-    return w[n]+"day"
-  end
+   function day_of_the_week(year,month,day)
+      J = year//100
+      K = (year  if month in 3..12 else year-1)%100
+      m = (month if month in 3..12 else month+12)
+      n = (day + (m+1)*13//5 + K + K//4 + J//4 - 2*J)%7
+      return w[n]+"day"
+   end
 end
 </pre>
 
@@ -45,10 +45,10 @@ end
 
 <pre class="moss">
 triples = |n| list([x,y,z]
-  for x in 1..n
-  for y in x..n
-  for z in y..n
-  if x^2+y^2==z^2)
+   for x in 1..n
+   for y in x..n
+   for z in y..n
+   if x^2+y^2==z^2)
 
 triples(20).each(print)
 # [3, 4, 5]

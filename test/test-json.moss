@@ -2,15 +2,15 @@
 use json
 
 t = {
-  a = [1,2,3,4],
-  b = {x=1,y=2},
-  c = "Text"
+   a = [1,2,3,4],
+   b = {x=1,y=2},
+   c = "Text"
 }
 
 s = json.dump(t)
 
 if t!=json.load(s)
-  print("json-test failed")
+   print("json-test failed")
 end
 
 

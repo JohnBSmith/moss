@@ -8,98 +8,98 @@ public complex, Complex
 use math: sqrt
 
 function complex(x,y)
-  return table Complex{re=x, im=y}
+   return table Complex{re=x, im=y}
 end
 
 Complex = table{
-  function string
-    im = str(self.im)
-    s = "" if size(im)>0 and im[0]=='-' else "+"
-    return "{}{}{}*i" % [self.re, s, im]
-  end,
+   function string
+      im = str(self.im)
+      s = "" if size(im)>0 and im[0]=='-' else "+"
+      return "{}{}{}*i" % [self.re, s, im]
+   end,
 
-  function neg(a;)
-    return table Complex{re = -a.re, im = -a.im}
-  end,
+   function neg(a;)
+      return table Complex{re = -a.re, im = -a.im}
+   end,
 
-  function add(a;b)
-    if b: Complex
-      return table Complex{re=a.re+b.re, im=a.im+b.im}
-    else
-      return table Complex{re=a.re+b, im=a.im}
-    end
-  end,
+   function add(a;b)
+      if b: Complex
+         return table Complex{re=a.re+b.re, im=a.im+b.im}
+      else
+         return table Complex{re=a.re+b, im=a.im}
+      end
+   end,
 
-  function radd(a;b)
-    return table Complex{re=a+b.re, im=b.im}
-  end,
+   function radd(a;b)
+      return table Complex{re=a+b.re, im=b.im}
+   end,
 
-  function sub(a;b)
-    if b: Complex
-      return table Complex{re=a.re-b.re, im=a.im-b.im}
-    else
-      return table Complex{re=a.re-b, im=a.im}
-    end
-  end,
+   function sub(a;b)
+      if b: Complex
+         return table Complex{re=a.re-b.re, im=a.im-b.im}
+      else
+         return table Complex{re=a.re-b, im=a.im}
+      end
+   end,
 
-  function rsub(a;b)
-    return table Complex{re=a-b.re, im=-b.im}
-  end,
+   function rsub(a;b)
+      return table Complex{re=a-b.re, im=-b.im}
+   end,
 
-  function mul(a;b)
-    if b: Complex
-      return table Complex{
-        re = a.re*b.re-a.im*b.im,
-        im = a.re*b.im+a.im*b.re
-      }
-    else
-      return table Complex{re = a.re*b, im = a.im*b}
-    end
-  end,
+   function mul(a;b)
+      if b: Complex
+         return table Complex{
+            re = a.re*b.re-a.im*b.im,
+            im = a.re*b.im+a.im*b.re
+         }
+      else
+         return table Complex{re = a.re*b, im = a.im*b}
+      end
+   end,
 
-  function rmul(a;b)
-    return table Complex{re = a*b.re, im = a*b.im}
-  end,
+   function rmul(a;b)
+      return table Complex{re = a*b.re, im = a*b.im}
+   end,
 
-  function div(a;b)
-    if b: Complex
+   function div(a;b)
+      if b: Complex
+         r2 = b.re*b.re+b.im*b.im
+         return table Complex{
+            re = (a.re*b.re+a.im*b.im)/r2,
+            im = (a.im*b.re-a.re*b.im)/r2
+         }
+      else
+         return table Complex{re = a.re/b, im = a.im/b}
+      end
+   end,
+
+   function rdiv(a;b)
       r2 = b.re*b.re+b.im*b.im
       return table Complex{
-        re = (a.re*b.re+a.im*b.im)/r2,
-        im = (a.im*b.re-a.re*b.im)/r2
+         re = a*b.re/r2,
+         im = -a*b.im/r2
       }
-    else
-      return table Complex{re = a.re/b, im = a.im/b}
-    end
-  end,
+   end,
 
-  function rdiv(a;b)
-    r2 = b.re*b.re+b.im*b.im
-    return table Complex{
-      re = a*b.re/r2,
-      im = -a*b.im/r2
-    }
-  end,
+   function pow(a;n)
+      return (1..n).prod(|k| a)
+   end,
 
-  function pow(a;n)
-    return (1..n).prod(|k| a)
-  end,
+   function abs(a;)
+      return sqrt(a.re*a.re+a.im*a.im)
+   end,
 
-  function abs(a;)
-    return sqrt(a.re*a.re+a.im*a.im)
-  end,
+   function ord(a)
+      return a.re*a.re+a.im*a.im
+   end,
 
-  function ord(a)
-    return a.re*a.re+a.im*a.im
-  end,
-
-  function eq(a;b)
-    if b: Complex
-      return a.re==b.re and a.im==b.im
-    else
-      return a.re==b and a.im==0
-    end
-  end
+   function eq(a;b)
+      if b: Complex
+         return a.re==b.re and a.im==b.im
+      else
+         return a.re==b and a.im==0
+      end
+   end
 }
 
 end

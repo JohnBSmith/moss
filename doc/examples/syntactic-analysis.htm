@@ -33,47 +33,47 @@
 SyntaxError = table{}
 
 function syntax_error(s)
-  return table SyntaxError{value = "Syntax error: {}."%[s]}
+   return table SyntaxError{value = "Syntax error: {}."%[s]}
 end
 
 function scan(s)
-  a = []
-  n = size(s)
-  i = 0
-  while i&lt;n
-    if s[i] in "+-*/^(){}[];,"
-      a.push(s[i])
-      i+=1
-    elif s[i].isalpha()
-      j = i
-      while i&lt;n and s[i].isalnum()
-        i+=1
+   a = []
+   n = size(s)
+   i = 0
+   while i&lt;n
+      if s[i] in "+-*/^(){}[];,"
+         a.push(s[i])
+         i+=1
+      elif s[i].isalpha()
+         j = i
+         while i&lt;n and s[i].isalnum()
+            i+=1
+         end
+         a.push(s[j..i-1])
+      elif s[i].isdigit()
+         j = i
+         while i&lt;n and s[i].isdigit()
+            i+=1
+         end
+         a.push(int(s[j..i-1]))
+      elif s[i].isspace()
+         i+=1
+      else
+         raise syntax_error(
+            "unexpected character: '{}'"%[s[i]])
       end
-      a.push(s[j..i-1])
-    elif s[i].isdigit()
-      j = i
-      while i&lt;n and s[i].isdigit()
-        i+=1
-      end
-      a.push(int(s[j..i-1]))
-    elif s[i].isspace()
-      i+=1
-    else
-      raise syntax_error(
-        "unexpected character: '{}'"%[s[i]])
-    end
-  end
-  a.push(null)
-  return a
+   end
+   a.push(null)
+   return a
 end
 
 while true
-  s = input("&gt; ")
-  try
-    print(scan(s))
-  catch e if e: SyntaxError
-    print(e.value)
-  end
+   s = input("&gt; ")
+   try
+      print(scan(s))
+   catch e if e: SyntaxError
+      print(e.value)
+   end
 end
 </pre>
 
@@ -100,95 +100,95 @@ end
 
 
 function expect(a,i)
-  if a[i] is null
-    raise syntax_error("unexpected end of input")
-  else
-    return a[i]
-  end
+   if a[i] is null
+      raise syntax_error("unexpected end of input")
+   else
+      return a[i]
+   end
 end
 
 function atom(a,i)
-  t = expect(a,i)
-  if t: Int
-    return i+1,a[i]
-  elif t: String and t[0].isalpha()
-    return i+1,a[i]
-  elif t=="("
-    i,x = expression(a,i+1)
-    if expect(a,i)!=")"
+   t = expect(a,i)
+   if t: Int
+      return i+1,a[i]
+   elif t: String and t[0].isalpha()
+      return i+1,a[i]
+   elif t=="("
+      i,x = expression(a,i+1)
+      if expect(a,i)!=")"
+         raise syntax_error(
+            "expected ')', but got '{}'"%[a[i]])
+      end
+      return i+1,x
+   else
       raise syntax_error(
-        "expected ')', but got '{}'"%[a[i]])
-    end
-    return i+1,x
-  else
-    raise syntax_error(
-      "unexpected symbol: '{}'"%[t])
-  end
+         "unexpected symbol: '{}'"%[t])
+   end
 end
 
 function power(a,i)
-  i,x = atom(a,i)
-  if a[i]=="^"
-    i,y = negation(a,i+1)
-    return i,["^",x,y]
-  else
-    return i,x
-  end
+   i,x = atom(a,i)
+   if a[i]=="^"
+      i,y = negation(a,i+1)
+      return i,["^",x,y]
+   else
+      return i,x
+   end
 end
 
 function negation(a,i)
-  if a[i]=="-"
-    i,x = power(a,i+1)
-    return i,["~",x]
-  else
-    return power(a,i)
-  end
+   if a[i]=="-"
+      i,x = power(a,i+1)
+      return i,["~",x]
+   else
+      return power(a,i)
+   end
 end
 
 function multiplication(a,i)
-  i,x = negation(a,i)
-  op = a[i]
-  while op=="*" or op=="/"
-    i,y = negation(a,i+1)
-    x = [op,x,y]
-    op = a[i]
-  end
-  return i,x
+   i,x = negation(a,i)
+   op = a[i]
+   while op=="*" or op=="/"
+      i,y = negation(a,i+1)
+      x = [op,x,y]
+      op = a[i]
+   end
+   return i,x
 end
 
 function addition(a,i)
-  i,x = multiplication(a,i)
-  op = a[i]
-  while op=="+" or op=="-"
-    i,y = multiplication(a,i+1)
-    x = [op,x,y]
-    op = a[i]
-  end
-  return i,x
+   i,x = multiplication(a,i)
+   op = a[i]
+   while op=="+" or op=="-"
+      i,y = multiplication(a,i+1)
+      x = [op,x,y]
+      op = a[i]
+   end
+   return i,x
 end
 
 function expression(a,i)
-  return addition(a,i)
+   return addition(a,i)
 end
 
 function ast(a)
-  i,t = expression(a,0)
-  if a[i] is null
-    return t
-  else
-    raise syntax_error(
-      "unexpected symbol: '{}'"%[a[i]])
-  end
+   i,t = expression(a,0)
+   if a[i] is null
+      return t
+   else
+      raise syntax_error(
+         "unexpected symbol: '{}'"%[a[i]])
+   end
 end
 
 while true
-  s = input("&gt; ")
-  try
-    a = scan(s)
-    print(ast(a))
-  catch e if e: SyntaxError
-    print(e.value)
-  end
+   s = input("&gt; ")
+   try
+      a = scan(s)
+      print(ast(a))
+   catch e if e: SyntaxError
+      print(e.value)
+   end
 end
 </pre>
 
@@ -197,39 +197,39 @@ end
 
 <pre class="moss">
 function eval(t)
-  if t: Int
-    return t
-  elif t: List
-    op = t[0]
-    if op=="+"
-      return eval(t[1])+eval(t[2])
-    elif op=="-"
-      return eval(t[1])-eval(t[2])
-    elif op=="*"
-      return eval(t[1])*eval(t[2])
-    elif op=="/"
-      return eval(t[1])/eval(t[2])
-    elif op=="^"
-      return eval(t[1])^eval(t[2])
-    elif op=="~"
-      return -eval(t[1])
-    else
+   if t: Int
+      return t
+   elif t: List
+      op = t[0]
+      if op=="+"
+         return eval(t[1])+eval(t[2])
+      elif op=="-"
+         return eval(t[1])-eval(t[2])
+      elif op=="*"
+         return eval(t[1])*eval(t[2])
+      elif op=="/"
+         return eval(t[1])/eval(t[2])
+      elif op=="^"
+         return eval(t[1])^eval(t[2])
+      elif op=="~"
+         return -eval(t[1])
+      else
+        panic()
+      end
+   else
       panic()
-    end
-  else
-    panic()
-  end
+   end
 end
 
 while true
-  s = input("&gt; ")
-  try
-    a = scan(s)
-    t = ast(a)
-    print(eval(t))
-  catch e if e: SyntaxError
-    print(e.value)
-  end
+   s = input("&gt; ")
+   try
+      a = scan(s)
+      t = ast(a)
+      print(eval(t))
+   catch e if e: SyntaxError
+      print(e.value)
+   end
 end
 
 

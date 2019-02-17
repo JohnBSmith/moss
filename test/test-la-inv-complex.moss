@@ -7,29 +7,29 @@ use math.cmath: complex
 use sys: exit
 
 function error(A)
-  print("Error in test-la-inv:\n",A)
-  exit(1)
+   print("Error in test-la-inv:\n",A)
+   exit(1)
 end
 
 i = complex(0,1)
 
 function random_matrix(m,n,rng)
-  return matrix(*rng.chunks(n).list(m))
+   return matrix(*rng.chunks(n).list(m))
 end
 
 function check(n,N,a,b)
-  E = scalar(n,1,0)
-  for k in 1..N
-    A = random_matrix(n,n,rand(a..b)).map(rat)
-    B = random_matrix(n,n,rand(a..b)).map(rat)
-    C = A+B*i
-    # print(C)
-    if det(C)!=0
-      if C*inv(C)!=E
-        error(C)
+   E = scalar(n,1,0)
+   for k in 1..N
+      A = random_matrix(n,n,rand(a..b)).map(rat)
+      B = random_matrix(n,n,rand(a..b)).map(rat)
+      C = A+B*i
+      # print(C)
+      if det(C)!=0
+         if C*inv(C)!=E
+            error(C)
+         end
       end
-    end
-  end
+   end
 end
 
 check(2,400,-10,10)

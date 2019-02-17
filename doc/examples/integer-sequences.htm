@@ -27,11 +27,11 @@
 <pre class="moss">
 # Recursive
 function fix(F)
-  m = {}
-  return fn g|n|
-    if n not in m then m[n] = F(g,n) end
-    return m[n]
-  end
+   m = {}
+   return fn g|n|
+      if n not in m then m[n] = F(g,n) end
+      return m[n]
+   end
 end
 
 fib = fix(|f,n| 1 if n in 1..2 else f(n-1)+f(n-2))
@@ -45,11 +45,11 @@ fib = |n| (Fib^n)([0,1])[0]
 # By a general algorithm for
 # a(n) := f(n,a(n-2),a(n-1))
 rec = |a0,a1,f| fn|n|
-  x,y = a0,a1
-  for k in 0..n-1
-    x,y = y,f(k,x,y)
-  end
-  return x
+   x,y = a0,a1
+   for k in 0..n-1
+      x,y = y,f(k,x,y)
+   end
+   return x
 end
 
 fib = rec(0,1,|n,x,y| x+y)
@@ -61,42 +61,41 @@ fib = rec(0,1,|n,x,y| x+y)
 collatz = |n| n//2 if n%2==0 else 3*n+1
 
 for x in 1..20
-  a = collatz.orbit(x).until(|n| n==1).list()
-  print(a)
+   a = collatz.orbit(x).until(|n| n==1).list()
+   print(a)
 end
 
 function tab(m)
-  d = {}
-  for x in 1..m
-    i = collatz.orbit(x)
-    a = i()
-    for b in i
-      if b in d
-        d[b].add(a)
-        break
+   d = {}
+   for x in 1..m
+      i = collatz.orbit(x)
+      a = i()
+      for b in i
+         if b in d
+            d[b].add(a)
+            break
+         end
+         d[b] = {a}
+         a = b
       end
-      d[b] = {a}
-      a = b
-    end
-  end
-  d[4] = {8}
-  return d
+   end
+   d[4] = {8}
+   return d
 end
 
 function tree(n,d,s,max)
-  if s&lt;max
-    print("| "*s,n)
-    if n in d
-      for x in list(d[n]).sort()
-        tree(x,d,s+1,max)
+   if s&lt;max
+      print("| "*s,n)
+      if n in d
+         for x in list(d[n]).sort()
+            tree(x,d,s+1,max)
+         end
       end
-    end
-  end
+   end
 end
 
 tree(1,tab(100),0,20)
 </pre>
-
 
 
 </body>

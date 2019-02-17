@@ -26,35 +26,35 @@
 use gx: canvas, sleep
 
 function neighbourhood(indices)
-  |a,y,x,w,h| indices.count(|[i,j]| a[(y+i)%h][(x+j)%w]==1)
+   |a,y,x,w,h| indices.count(|[i,j]| a[(y+i)%h][(x+j)%w]==1)
 end
 
 function game(argm={})
-  {w=40, h=40, csize=8, speed=1, color=[0.6,0.6,0.4],
-   f0 = |count| 1 if count==3 else 0,
-   f1 = |count| 1 if count in 2..3 else 0,
-   count = neighbourhood([-1,0,1]*[-1,1]+[[-1,0],[1,0]]),
-   a = list(h).map(|y| rand(0..1).list(w))
-  } = argm
-  psize = csize-2
-  b = list(h).map(|y| [0]*w)
-  c = canvas(csize*w,csize*h)
-  while true
-    for i in 0..h-1
-      for j in 0..w-1
-        c.rgb(*(color if a[i][j]==1 else [0,0,0]))
-        c.fill(csize*j,csize*i,psize,psize)
-        n = count(a,i,j,w,h)
-        b[i][j] = (f0 if a[i][j]==0 else f1)(n)
+   {w=40, h=40, csize=8, speed=1, color=[0.6,0.6,0.4],
+    f0 = |count| 1 if count==3 else 0,
+    f1 = |count| 1 if count in 2..3 else 0,
+    count = neighbourhood([-1,0,1]*[-1,1]+[[-1,0],[1,0]]),
+    a = list(h).map(|y| rand(0..1).list(w))
+   } = argm
+   psize = csize-2
+   b = list(h).map(|y| [0]*w)
+   c = canvas(csize*w,csize*h)
+   while true
+      for i in 0..h-1
+         for j in 0..w-1
+            c.rgb(*(color if a[i][j]==1 else [0,0,0]))
+            c.fill(csize*j,csize*i,psize,psize)
+            n = count(a,i,j,w,h)
+            b[i][j] = (f0 if a[i][j]==0 else f1)(n)
+         end
       end
-    end
-    c.flush()
-    sleep(0.1/speed)
-    if c.key()=="q"
-      break
-    end
-    a,b = b,a
-  end
+      c.flush()
+      sleep(0.1/speed)
+      if c.key()=="q"
+         break
+      end
+      a,b = b,a
+   end
 end
 
 game()
@@ -69,17 +69,17 @@ game()
 
 <pre class="moss">
 function insert(a,x,y,data)
-  line=0; col=0
-  for c in data
-    if c=='x'
-      a[y+line][x+col]=1
-    end
-    if c=='\n'
-      line+=1; col=0
-    else
-      col+=1
-    end
-  end
+   line=0; col=0
+   for c in data
+      if c=='x'
+         a[y+line][x+col]=1
+      end
+      if c=='\n'
+         line+=1; col=0
+      else
+         col+=1
+      end
+   end
 end
 
 a = list(80).map(|y| [0]*80)
@@ -93,10 +93,10 @@ x..x.xxx.xxx.xxx..xx
 ")
 
 game({
-  w=80, h=80, csize=6,
-  f0 = |count| 1 if count%2==1 else 0,
-  f1 = |count| 1 if count%2==1 else 0,
-  a=a, speed=0.1
+   w=80, h=80, csize=6,
+   f0 = |count| 1 if count%2==1 else 0,
+   f1 = |count| 1 if count%2==1 else 0,
+   a=a, speed=0.1
 })
 </pre>
 

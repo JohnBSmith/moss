@@ -6,36 +6,36 @@ use functional: fix
 use sys: exit
 
 function error(s)
-  print("Error in test-cf: test ", s, " failed.")
-  exit(1)
+   print("Error in test-cf: test ", s, " failed.")
+   exit(1)
 end
 
 Ba = fix({},|B,n| 1 if n==0 else
-  1-rat(1,n+1)*(0..n-1).sum(|k| B(k)*bc(n+1,k)))
+   1-rat(1,n+1)*(0..n-1).sum(|k| B(k)*bc(n+1,k)))
 
 Bb = |n| rat(
-  n*(0..n-1).sum(|k| (-1)^k*euler1(n-1,k)),
-  2^n*(2^n-1)
+   n*(0..n-1).sum(|k| (-1)^k*euler1(n-1,k)),
+   2^n*(2^n-1)
 )
 
 Bc = |n| (0..n).sum(|k|
-  rat((-1)^k*fac(k)*stirling2(n+1,k+1),k+1))
+   rat((-1)^k*fac(k)*stirling2(n+1,k+1),k+1))
 
 Bd = |n| rat(1,2) if n==1 else (0..n).sum(|k|
-  rat((-1)^k*fac(k)*stirling2(n,k),k+1))
+   rat((-1)^k*fac(k)*stirling2(n,k),k+1))
 
 Be = |n| rat(n,2^(n+1)-2)*(0..n-1).sum(|k|
-  rat(fac(k)*stirling2(n,k+1),(-2)^k))
+   rat(fac(k)*stirling2(n,k+1),(-2)^k))
 
 # Bernoulli numbers test
 N = 100
 
 if (1..N).any(|n| Ba(n)!=Bb(n) or Bb(n)!=Bc(n))
-  error("#1.1")
+   error("#1.1")
 end
 
 if (1..N).any(|n| Bb(n)!=Bd(n) or Bb(n)!=Be(n))
-  error("#1.2")
+   error("#1.2")
 end
 
 

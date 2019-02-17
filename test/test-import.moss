@@ -2,15 +2,15 @@
 use elib.mod: index, elib_index
 
 for path in index+elib_index
-  try
-    load(path)
-  catch e
-    print("Test of module imports failed.")
-    print("Module: '{}'."%[path])
-    print("Exception:")
-    print(e)
-    break
-  end
+   try
+      load(path)
+   catch e
+      print("Test of module imports failed.")
+      print("Module: '{}'."%[path])
+      print("Exception:")
+      print(e)
+      break
+   end
 end
 
 

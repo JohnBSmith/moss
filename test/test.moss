@@ -6,44 +6,44 @@ medium = 1
 full = 2
 
 function test_extern(path)
-  return fn test|name|
-    print(name)
-    cmd(path,[name])
-  end
+   return fn test|name|
+      print(name)
+      cmd(path,[name])
+   end
 end
 
 function test_self()
-  return fn test|name|
-    print(name)
-    load(name)
-  end
+   return fn test|name|
+      print(name)
+      load(name)
+   end
 end
 
 function tests(scale,path)
-  print("Starting tests: ",path)
-  if path=="self"
-    test = test_self()
-  else
-    test = test_extern(path)
-  end
+   print("Starting tests: ",path)
+   if path=="self"
+      test = test_self()
+   else
+      test = test_extern(path)
+   end
 
-  test("test-basic")
-  test("test-import")
-  test("test-sudoku")
-  test("test-la")
-  test("test-generators")
-  test("test-exceptions")
-  
-  if scale>small
-    test("test-cf")
-    test("test-la-inv")
-    test("test-long")
-  end
+   test("test-basic")
+   test("test-import")
+   test("test-sudoku")
+   test("test-la")
+   test("test-generators")
+   test("test-exceptions")
+   
+   if scale>small
+      test("test-cf")
+      test("test-la-inv")
+      test("test-long")
+   end
 
-  if scale>medium
-    test("test-la-inv-complex")
-    # too slow in debug mode
-  end
+   if scale>medium
+      test("test-la-inv-complex")
+      # too slow in debug mode
+   end
 end
 
 tests(medium,"../target/debug/moss")

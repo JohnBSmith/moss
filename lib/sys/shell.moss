@@ -8,16 +8,16 @@ use regex: re
 space = re("{_}")
 
 function cmd(command,argv=null)
-  if argv is null
-    a = space.split(command)
-    return sys.cmd(a[0],a[1..])
-  else
-    return sys.cmd(command,argv)
-  end
+   if argv is null
+      a = space.split(command)
+      return sys.cmd(a[0],a[1..])
+   else
+      return sys.cmd(command,argv)
+   end
 end
 
 function sh(command)
-  return sys.cmd("sh",["-c",command])
+   return sys.cmd("sh",["-c",command])
 end
 
 end

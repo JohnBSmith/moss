@@ -2,22 +2,22 @@
 Callcc = object()
 
 callcc = fn|f,x=null|
-  a = [null]
-  callback = fn|y|
-    a[0] = y
-    raise Callcc
-  end
-  try
-    return f(callback,x)
-  catch e if e is Callcc
-    return a[0]
-  end
+   a = [null]
+   callback = fn|y|
+      a[0] = y
+      raise Callcc
+   end
+   try
+      return f(callback,x)
+   catch e if e is Callcc
+      return a[0]
+   end
 end
 
 /*
 function message(cc,x)
-  cc("Some people like {}."%[x])
-  print("Phantom")
+   cc("Some people like {}."%[x])
+   print("Phantom")
 end
 
 print(callcc(message))

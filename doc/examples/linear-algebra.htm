@@ -30,55 +30,55 @@
 use math.la: id, scalar
 
 function pivoting(A,B,n,j)
-  m = abs(A[j,j])
-  k = j
-  for i in j+1..n-1
-    if m&lt;abs(A[i,j])
-      m = abs(A[i,j])
-      k = i
-    end
-  end
-  A[j],A[k] = A[k],id(A[j])
-  B[j],B[k] = B[k],id(B[j])
+   m = abs(A[j,j])
+   k = j
+   for i in j+1..n-1
+      if m&lt;abs(A[i,j])
+         m = abs(A[i,j])
+         k = i
+      end
+   end
+   A[j],A[k] = A[k],id(A[j])
+   B[j],B[k] = B[k],id(B[j])
 end
 
 function gauss_jordan(A,B,n)
-  for j in 0..n-1
-    pivoting(A,B,n,j)
-    B[j] = B[j]/A[j,j]
-    A[j] = A[j]/A[j,j]
-    for i in j+1..n-1
-      if A[i,j]!=0
-        B[i] = B[i]/A[i,j]-B[j]
-        A[i] = A[i]/A[i,j]-A[j]
+   for j in 0..n-1
+      pivoting(A,B,n,j)
+      B[j] = B[j]/A[j,j]
+      A[j] = A[j]/A[j,j]
+      for i in j+1..n-1
+         if A[i,j]!=0
+            B[i] = B[i]/A[i,j]-B[j]
+            A[i] = A[i]/A[i,j]-A[j]
+         end
       end
-    end
-  end
+   end
 
-  for i in 0..n-2
-    for j in i+1..n-1
-      B[i] = B[i]-A[i,j]*B[j]
-      A[i] = A[i]-A[i,j]*A[j]
-    end
-  end
+   for i in 0..n-2
+      for j in i+1..n-1
+         B[i] = B[i]-A[i,j]*B[j]
+         A[i] = A[i]-A[i,j]*A[j]
+      end
+   end
 
-  return B
+   return B
 end
 
 # A: a square matrix
 # B: a matrix or a vector
 function solve(A,B)
-  n = A.shape[0]
-  A = A.copy
-  B = B.copy
-  return gauss_jordan(A,B,n)
+   n = A.shape[0]
+   A = A.copy
+   B = B.copy
+   return gauss_jordan(A,B,n)
 end
 
 function inv(A)
-  n = A.shape[0]
-  A = A.copy
-  E = scalar(n,1,0)
-  return gauss_jordan(A,E,n)
+   n = A.shape[0]
+   A = A.copy
+   E = scalar(n,1,0)
+   return gauss_jordan(A,E,n)
 end
 </pre>
 
@@ -87,39 +87,39 @@ end
 use math.la: id
 
 function pivoting_det(A,n,j)
-  m = abs(A[j,j])
-  k = j
-  for i in j+1..n-1
-    if m&lt;abs(A[i,j])
-      m = abs(A[i,j])
-      k = i
-    end
-  end
-  if k==j
-    return false
-  else
-    A[j],A[k] = A[k],id(A[j])
-    return true
-  end
+   m = abs(A[j,j])
+   k = j
+   for i in j+1..n-1
+      if m&lt;abs(A[i,j])
+         m = abs(A[i,j])
+         k = i
+      end
+   end
+   if k==j
+      return false
+   else
+      A[j],A[k] = A[k],id(A[j])
+      return true
+   end
 end
 
 function det(A)
-  n = A.shape[0]
-  A = A.copy
-  y = 1
-  for j in 0..n-1
-    if pivoting_det(A,n,j)
-      y = -y
-    end
-    for i in j+1..n-1
-      if A[i,j]!=0
-        y = y/A[j,j]
-        A[i] = A[i]*A[j,j]-A[j]*A[i,j]
+   n = A.shape[0]
+   A = A.copy
+   y = 1
+   for j in 0..n-1
+      if pivoting_det(A,n,j)
+         y = -y
       end
-    end
-    y = y*A[j,j]
-  end
-  return y
+      for i in j+1..n-1
+         if A[i,j]!=0
+            y = y/A[j,j]
+            A[i] = A[i]*A[j,j]-A[j]*A[i,j]
+         end
+      end
+      y = y*A[j,j]
+   end
+   return y
 end
 </pre>
 

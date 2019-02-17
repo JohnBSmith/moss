@@ -22,48 +22,48 @@ use regex: re
 use sys: argv
 
 function walk(path)
-  return fn*||
-    try
-      it = ls(path)
-    catch e
-      it = []
-    end
-    for x in it
-      if is_dir(x)
-        for y in walk(x)
-          yield y
-        end
-      elif is_file(x)
-        yield x
+   return fn*||
+      try
+         it = ls(path)
+      catch e
+         it = []
       end
-    end
-  end
+      for x in it
+         if is_dir(x)
+            for y in walk(x)
+               yield y
+            end
+         elif is_file(x)
+            yield x
+         end
+      end
+   end
 end
 
 function grep(pattern,path)
-  r = re(pattern)
-  return fn*||
-    for id in walk(path)
-      try
-        s = read(id)
-      catch e
-        continue
+   r = re(pattern)
+   return fn*||
+      for id in walk(path)
+         try
+            s = read(id)
+         catch e
+            continue
+         end
+         for n,line in re("{n}").split(s).enum()
+            if size(r.list(line))>0
+               yield [id,n,line]
+            end
+         end
       end
-      for n,line in re("{n}").split(s).enum()
-        if size(r.list(line))>0
-          yield [id,n,line]
-        end
-      end
-    end
-  end
+   end
 end
 
 function main
-  pattern = argv[1]
-  path = argv[2]
-  for t in grep(pattern,path)
-    print("File: {}\nLine: {}\n{}\n"%t)
-  end
+   pattern = argv[1]
+   path = argv[2]
+   for t in grep(pattern,path)
+      print("File: {}\nLine: {}\n{}\n"%t)
+   end
 end
 
 main()

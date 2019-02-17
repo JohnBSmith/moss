@@ -29,11 +29,11 @@
 <pre class="moss">
 # Iterative
 fac = fn|n|
-  y = 1
-  for i in 1..n
-    y = y*i
-  end
-  return y
+   y = 1
+   for i in 1..n
+      y = y*i
+   end
+   return y
 end
 
 
@@ -53,11 +53,11 @@ fac = |n| Fac.orbit([0,1]).skip(n)()[1]
 
 # Tail-recursive
 function call(f,n,y)
-  x = f(n,y)
-  while x: Function
-    x = x()
-  end
-  return x
+   x = f(n,y)
+   while x: Function
+      x = x()
+   end
+   return x
 end
 
 Fac = |n,y| y if n==0 else || Fac(n-1,y*n)
@@ -71,11 +71,11 @@ fac = Y(|f||n| 1 if n==0 else n*f(n-1))
 
 # Corecursive
 fac = |n| fn*||
-  y=1; k=1
-  while true
-    yield y
-    y, k = y*k, k+1
-  end
+   y=1; k=1
+   while true
+      yield y
+      y, k = y*k, k+1
+   end
 end.skip(n)()
 
 
@@ -99,72 +99,71 @@ fac = |n| permutations(n).count()
 <pre class="moss">
 # Generate all permutations of a list
 function permutations(a)
-  if size(a)&lt;=1
-    return [copy(a)]
-  else
-    b = []
-    x = a[..0]
-    for p in permutations(a[1..])
-      for i in 0..size(a)-1
-        b.push(p[..i-1]+x+p[i..])
+   if size(a)&lt;=1
+      return [copy(a)]
+   else
+      b = []
+      x = a[..0]
+      for p in permutations(a[1..])
+         for i in 0..size(a)-1
+            b.push(p[..i-1]+x+p[i..])
+         end
       end
-    end
-    return b
-  end
+      return b
+   end
 end
 
 
 # Return an interator instead of a list
 function permutations(a)
-  return fn*||
-    if size(a)&lt;=1
-      yield copy(a)
-    else
-      x = a[..0]
-      for p in permutations(a[1..])
-        for i in 0..size(a)-1
-          yield p[..i-1]+x+p[i..]
-        end
+   return fn*||
+      if size(a)&lt;=1
+         yield copy(a)
+      else
+         x = a[..0]
+         for p in permutations(a[1..])
+            for i in 0..size(a)-1
+               yield p[..i-1]+x+p[i..]
+            end
+         end
       end
-    end
-  end
+   end
 end
 
 for n in 0..4
-  permutations(list(n)).each(print)
+   permutations(list(n)).each(print)
 end
 
 
 # Generate all permutations of an ordered
 # list in lexicographical order
 function permutations(a)
-  if size(a)==0
-    return [[]]
-  else
-    b = []
-    for i in 0..size(a)-1
-      for x in permutations(a[..i-1]+a[i+1..])
-        b.push([a[i]]+x)
+   if size(a)==0
+      return [[]]
+   else
+      b = []
+      for i in 0..size(a)-1
+         for x in permutations(a[..i-1]+a[i+1..])
+            b.push([a[i]]+x)
+         end
       end
-    end
-    return b
-  end
+      return b
+   end
 end
-
 
 # Return an iterator instead of a list
 function permutations(a)
-  return fn*||
-    if size(a)==0
-      yield []
-    else
-      for i in 0..size(a)-1
-        for x in permutations(a[..i-1]+a[i+1..])
-          yield [a[i]]+x
-        end
+   return fn*||
+      if size(a)==0
+         yield []
+      else
+         for i in 0..size(a)-1
+            for x in permutations(a[..i-1]+a[i+1..])
+               yield [a[i]]+x
+            end
+         end
       end
-    end
-  end
+   end
 end
 
 
@@ -178,7 +177,7 @@ perm = |a| permutations(list(a))
 <pre class="moss">
 # as a list
 prod = |*a| [[]] if a==[] else list(
-  [x]+t for x in a[0] for t in prod(*a[1..]))
+   [x]+t for x in a[0] for t in prod(*a[1..]))
   
 # as a set
 prod = |*a| {[]} if a==[] else set(
@@ -219,7 +218,7 @@ B = fix({},|B,n| 1 if n==0 else
 
 
 for n in 0..8
-  print([n,B(n)])
+   print([n,B(n)])
 end
 # [0, 1]
 # [1, 1/2]

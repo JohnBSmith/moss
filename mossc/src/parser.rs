@@ -21,7 +21,7 @@ fn syntax_error(line: usize, col: usize, text: String) -> Error {
 }
 
 #[derive(Clone,Copy,PartialEq,Eq,Debug)]
-enum Symbol {
+pub enum Symbol {
     None, Terminal, Item,
     Comma, Dot, Colon, Semicolon, Neg,
     Plus, Minus, Ast, Div, Pow, Mod, Idiv, Tilde, Amp, Vert, Svert,
@@ -34,15 +34,15 @@ enum Symbol {
 }
 
 #[derive(Debug)]
-enum Item {
+pub enum Item {
     None, Int(i32), Id(String), String(String)
 }
 
 pub struct Token {
-    value: Symbol,
-    item: Item,
-    line: usize,
-    col: usize
+    pub value: Symbol,
+    pub item: Item,
+    pub line: usize,
+    pub col: usize
 }
 
 impl std::fmt::Debug for Token {
@@ -292,22 +292,22 @@ impl<'a> TokenIterator<'a> {
     }
 }
 
-struct FnHeader {
+pub struct FnHeader {
     argv: Vec<Argument>,
     id: String,
     ret_type: Rc<AST>
 }
 
-enum Info {
+pub enum Info {
     None, Int(i32), Id(String), String(String), FnHeader(Box<FnHeader>)
 }
 
-struct AST {
-    line: usize,
-    col: usize,
-    value: Symbol,
-    info: Info,
-    a: Option<Box<[Rc<AST>]>>
+pub struct AST {
+    pub line: usize,
+    pub col: usize,
+    pub value: Symbol,
+    pub info: Info,
+    pub a: Option<Box<[Rc<AST>]>>
 }
 
 impl AST {
@@ -594,7 +594,7 @@ fn function_statement(t0: &Token, i: &TokenIterator)
     i.advance();
     let id = identifier_raw(i)?;
     let t = i.get();
-    let argv = if t.value == Symbol::Colon || t.value == Symbol::Begin {
+    let argv = if t.value == Symbol::Colon || t.value == Symbol::Semicolon {
         Vec::<Argument>::new()
     }else{
         expect(i,Symbol::PLeft)?;
@@ -607,6 +607,7 @@ fn function_statement(t0: &Token, i: &TokenIterator)
     }else{
         AST::symbol(t.line,t.col,Symbol::Unit)
     };
+    expect(i,Symbol::Semicolon)?;
     expect(i,Symbol::Begin)?;
     let block = statements(i)?;
     expect(i,Symbol::End)?;
@@ -614,6 +615,16 @@ fn function_statement(t0: &Token, i: &TokenIterator)
     let header = Box::new(FnHeader{argv, id, ret_type});
     return Ok(AST::node(t0.line, t0.col,
         Symbol::Function, Info::FnHeader(header), Some(Box::new([block]))
+    ));
+}
+
+fn return_statement(t0: &Token, i: &TokenIterator)
+-> Result<Rc<AST>,Error>
+{
+    i.advance();
+    let x = expression(i)?;
+    return Ok(AST::node(t0.line, t0.col,
+        Symbol::Return, Info::None, Some(Box::new([x]))
     ));
 }
 
@@ -662,6 +673,10 @@ fn statements(i: &TokenIterator) -> Result<Rc<AST>,Error> {
             a.push(x);
         }else if value == Symbol::Terminal || value == Symbol::End {
             break;
+        }else if value == Symbol::Return {
+            let x = return_statement(t,i)?;
+            expect(i,Symbol::Semicolon)?;
+            a.push(x);
         }else{
             let x = expression(i)?;
             a.push(x);

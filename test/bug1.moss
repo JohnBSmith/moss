@@ -2,23 +2,23 @@
 use sys: call
 
 function ack(m, n)
-  if m<4
-    if m<2
-      return m+n+1
-    elif m==2
-      return 2*n+3
-    else m==3
-      return 2^(n+3)-3
-    end
-  elif n==0
-    return ack(m-1, 1)
-  else
-    return ack(m-1, ack(m, n-1))
-  end
+   if m<4
+      if m<2
+         return m+n+1
+      elif m==2
+         return 2*n+3
+      else m==3
+         return 2^(n+3)-3
+      end
+   elif n==0
+      return ack(m-1, 1)
+   else
+      return ack(m-1, ack(m, n-1))
+   end
 end
 
 function main
-  print(ack(4,3))
+   print(ack(4,3))
 end
 
 call(10^6,main)

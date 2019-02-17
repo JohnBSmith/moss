@@ -1,334 +1,334 @@
 
 function is_number(x)
-  return x: Int or x: Long
+   return x: Int or x: Long
 end
 
 function is_int(x)
-  return x: Int or x: Long
+   return x: Int or x: Long
 end
 
 function gcd(a,b)
-  while b!=0
-    h = b; b = a%b; a = h
-  end
-  return a
+   while b!=0
+      h = b; b = a%b; a = h
+   end
+   return a
 end
 
 function fac(n)
-  y = 1
-  for i in 1..n
-    y = y*i
-  end
-  return y
+   y = 1
+   for i in 1..n
+      y = y*i
+   end
+   return y
 end
 
 function flatten_associative(t,op)
-  if t: List
-    a = t[1..].map(|x| flatten_associative(x,op))
-    if t[0]==op
-      v = [op]
-      for x in a
-        if x: List and x[0]==op
-          for y in x[1..]
-            v.push(y)
-          end
-        else
-          v.push(x)
-        end
+   if t: List
+      a = t[1..].map(|x| flatten_associative(x,op))
+      if t[0]==op
+         v = [op]
+         for x in a
+            if x: List and x[0]==op
+               for y in x[1..]
+                  v.push(y)
+               end
+            else
+               v.push(x)
+            end
+         end
+         return v
+      else
+         return [t[0]]+a
       end
-      return v
-    else
-      return [t[0]]+a
-    end
-  else
-    return t
-  end
+   else
+      return t
+   end
 end
 
 function flatten(t)
-  t = flatten_associative(t,"+")
-  t = flatten_associative(t,"*")
-  return t
+   t = flatten_associative(t,"+")
+   t = flatten_associative(t,"*")
+   return t
 end
 
 function bag_add(m,x,n)
-  if x in m
-    m[x]+=n
-  else
-    m[x] = n
-  end
+   if x in m
+      m[x]+=n
+   else
+      m[x] = n
+   end
 end
 
 function rest_prod(t)
-  if size(t)==3
-    return t[2]
-  else
-    return ["*"]+t[2..]
-  end
+   if size(t)==3
+      return t[2]
+   else
+      return ["*"]+t[2..]
+   end
 end
 
 function simplify_sum(a)
-  sum = 0
-  m = {}
-  for x in a
-    if is_number(x)
-      sum+=x
-    else
-      if x: List and x[0]=="*" and is_number(x[1])
-        bag_add(m,rest_prod(x),x[1])
+   sum = 0
+   m = {}
+   for x in a
+      if is_number(x)
+         sum+=x
       else
-        bag_add(m,x,1)
+         if x: List and x[0]=="*" and is_number(x[1])
+            bag_add(m,rest_prod(x),x[1])
+         else
+            bag_add(m,x,1)
+         end
       end
-    end
-  end
-  v = list(m.items().map(|[x,n]|
-    x if n==1 else ["*",n,x]))
-  v.sort()
-  if sum==0
-    if size(v)==1
-      return v[0]
-    else
-      return ["+"]+v
-    end
-  else
-    if size(v)==0
-      return sum
-    else
-      v.push(sum)
-      return ["+"]+v
-    end
-  end
+   end
+   v = list(m.items().map(|[x,n]|
+      x if n==1 else ["*",n,x]))
+   v.sort()
+   if sum==0
+      if size(v)==1
+         return v[0]
+      else
+         return ["+"]+v
+      end
+   else
+      if size(v)==0
+         return sum
+      else
+         v.push(sum)
+         return ["+"]+v
+      end
+   end
 end
 
 function simplify_prod(a)
-  prod = 1
-  v = []
-  for x in a
-    if is_number(x)
-      if x==0 then return 0 end
-      prod*=x
-    else
-      v.push(x)
-    end
-  end
-  if prod==1
-    if size(v)==1
-      return v[0]
-    else
-      return ["*"]+v
-    end
-  else
-    if size(v)==0
-      return prod
-    else
-      return ["*",prod]+v
-    end
-  end
+   prod = 1
+   v = []
+   for x in a
+      if is_number(x)
+         if x==0 then return 0 end
+         prod*=x
+      else
+         v.push(x)
+      end
+   end
+   if prod==1
+      if size(v)==1
+         return v[0]
+      else
+         return ["*"]+v
+      end
+   else
+      if size(v)==0
+         return prod
+      else
+         return ["*",prod]+v
+      end
+   end
 end
 
 simplify_table = {
-  "sin": |[x]| 0 if is_int(x) and x==0 else ["sin",x],
-  "cos": |[x]| 1 if is_int(x) and x==0 else ["cos",x]
+   "sin": |[x]| 0 if is_int(x) and x==0 else ["sin",x],
+   "cos": |[x]| 1 if is_int(x) and x==0 else ["cos",x]
 }
 
 function simplify_rec(t)
-  if t: List
-    op = t[0]
-    a = t[1..].map(simplify_rec)
-    if op=="*"
-      return simplify_prod(a)
-    elif op=="+"
-      return simplify_sum(a)
-    elif op=="^"
-      if is_number(a[0]) and is_number(a[1])
-        return a[0]^a[1]
-      elif a[1]==1
-        return a[0]
-      elif a[1]==0
-        return 1
+   if t: List
+      op = t[0]
+      a = t[1..].map(simplify_rec)
+      if op=="*"
+         return simplify_prod(a)
+      elif op=="+"
+         return simplify_sum(a)
+      elif op=="^"
+         if is_number(a[0]) and is_number(a[1])
+            return a[0]^a[1]
+         elif a[1]==1
+            return a[0]
+         elif a[1]==0
+            return 1
+         else
+            return [op]+a
+         end
+      elif op=="/"
+         if a[0]==0
+            return 0
+         elif a[1]==1
+            return a[0]
+         elif is_int(a[0]) and is_int(a[1])
+            p = abs(a[0]); q = abs(a[1])
+            s = sgn(a[0])*sgn(a[1])
+            d = gcd(p,q)
+            return ["/",s*p//d,q//d]
+         else
+            return [op]+a
+         end
+      elif op=="fac" and is_number(a[0])
+         return fac(a[0])
+      elif op in simplify_table
+         return simplify_table[op](a)
       else
-        return [op]+a
+         return [op]+a
       end
-    elif op=="/"
-      if a[0]==0
-        return 0
-      elif a[1]==1
-        return a[0]
-      elif is_int(a[0]) and is_int(a[1])
-        p = abs(a[0]); q = abs(a[1])
-        s = sgn(a[0])*sgn(a[1])
-        d = gcd(p,q)
-        return ["/",s*p//d,q//d]
-      else
-        return [op]+a
-      end
-    elif op=="fac" and is_number(a[0])
-      return fac(a[0])
-    elif op in simplify_table
-      return simplify_table[op](a)
-    else
-      return [op]+a
-    end
-  else
-    return t
-  end
+   else
+      return t
+   end
 end
 
 function simplify(t)
-  return simplify_rec(flatten(t))
+   return simplify_rec(flatten(t))
 end
 
 diff_table = {
-  "+": |a,id| ["+"]+a.map(|t| diff(t,id)),
-  "*": fn|a,id|
-    if size(a)==2
-      if is_certainly_const(a[0],id)
-        return ["*",a[0],diff(a[1],id)]
-      elif is_certainly_const(a[1],id)
-        return ["*",diff(a[0],id),a[1]]
+   "+": |a,id| ["+"]+a.map(|t| diff(t,id)),
+   "*": fn|a,id|
+      if size(a)==2
+         if is_certainly_const(a[0],id)
+            return ["*",a[0],diff(a[1],id)]
+         elif is_certainly_const(a[1],id)
+            return ["*",diff(a[0],id),a[1]]
+         else
+            return ["+",
+               ["*",a[0],diff(a[1],id)],
+               ["*",diff(a[0],id),a[1]]]
+         end
       else
-        return ["+",
-          ["*",a[0],diff(a[1],id)],
-          ["*",diff(a[0],id),a[1]]]
+         v = ["+"]
+         for i in size(a)
+             v.push(["*",a[..i-1],diff(a[i],id),a[i+1..]].chain())
+         end
+         return v
       end
-    else
-      v = ["+"]
-      for i in size(a)
-         v.push(["*",a[..i-1],diff(a[i],id),a[i+1..]].chain())
+   end,
+   "/": fn|[f,g],id|
+      return ["/",
+         ["+",
+            ["*",diff(f,id),g],
+            ["*",-1,f,diff(g,id)]],
+         ["^",g,2]]
+   end,
+   "^": fn|[f,g],id|
+      if is_certainly_const(g,id)
+         return ["*", ["*",g,["^",f,["+",g,-1]]], diff(f,id)]
+      else
+         panic()
       end
-      return v
-    end
-  end,
-  "/": fn|[f,g],id|
-    return ["/",
-      ["+",
-        ["*",diff(f,id),g],
-        ["*",-1,f,diff(g,id)]],
-      ["^",g,2]]
-  end,
-  "^": fn|[f,g],id|
-    if is_certainly_const(g,id)
-      return ["*", ["*",g,["^",f,["+",g,-1]]], diff(f,id)]
-    else
-      panic()
-    end
-  end,
-  "sin": |[f],id| ["*",diff(f,id),["cos",f]],
-  "cos": |[f],id| ["*",-1,diff(f,id),["sin",f]]
+   end,
+   "sin": |[f],id| ["*",diff(f,id),["cos",f]],
+   "cos": |[f],id| ["*",-1,diff(f,id),["sin",f]]
 }
 
 function is_certainly_const(t,id)
-  if is_number(t) or t: String and t[0]!=id
-    return true
-  else
-    return false
-  end
+   if is_number(t) or t: String and t[0]!=id
+      return true
+   else
+      return false
+   end
 end
 
 function diff(t,id)
-  if t: String and t==id
-    return 1
-  elif t: List and t[0] in diff_table
-    return diff_table[t[0]](t[1..],id)
-  elif is_certainly_const(t,id)
-    return 0
-  else
-    return ["diff",t,id]
-  end
+   if t: String and t==id
+      return 1
+   elif t: List and t[0] in diff_table
+      return diff_table[t[0]](t[1..],id)
+   elif is_certainly_const(t,id)
+      return 0
+   else
+      return ["diff",t,id]
+   end
 end
 
 function substitute(t,m)
-  if t: List
-    return [t[0]]+t[1..].map(|u| substitute(u,m))
-  elif t: String and t in m
-    return m[t]
-  else
-    return t
-  end
+   if t: List
+      return [t[0]]+t[1..].map(|u| substitute(u,m))
+   elif t: String and t in m
+      return m[t]
+   else
+      return t
+   end
 end
 
 function sum(t,id,m,n)
-  return ((m..n)
-    .map(|k| substitute(t,{id: k}))
-    .reduce(|x,y| ["+",x,y]))
+   return ((m..n)
+      .map(|k| substitute(t,{id: k}))
+      .reduce(|x,y| ["+",x,y]))
 end
 
 function diffn(f,id,n)
-  for k in n
-    f = simplify(diff(f,id))
-  end
-  return f
+   for k in n
+      f = simplify(diff(f,id))
+   end
+   return f
 end
 
 function taylor(t,id,id0,n)
-  return simplify((0..n)
-    .map(|k| ["*",
-      ["/",substitute(diffn(t,id,k),{id: id0}),fac(k)],
-      ["^",["+",id,["*",-1,id0]],k]])
-    .reduce(|x,y| ["+",x,y]))
+   return simplify((0..n)
+      .map(|k| ["*",
+         ["/",substitute(diffn(t,id,k),{id: id0}),fac(k)],
+         ["^",["+",id,["*",-1,id0]],k]])
+      .reduce(|x,y| ["+",x,y]))
 end
 
 function expand(t)
-  if t: List and t[0]=="*"
-    return t[1..].map(expand).reduce(fn|x,y|
-      if x: List and x[0]=="+"
-        if y: List and y[0]=="+"
-          return ["+"]+(x[1..]*y[1..]).map(|[u,v]| ["*",u,v])
-        else
-          return ["+"]+x[1..].map(|u| ["*",u,y])
-        end
-      elif y: List and y[0]=="+"
-        return ["+"]+y[1..].map(|v| ["*",x,v])
-      else
-        return ["*",x,y]
-      end
-    end)
-  else
-    return t
-  end
+   if t: List and t[0]=="*"
+      return t[1..].map(expand).reduce(fn|x,y|
+         if x: List and x[0]=="+"
+            if y: List and y[0]=="+"
+               return ["+"]+(x[1..]*y[1..]).map(|[u,v]| ["*",u,v])
+            else
+               return ["+"]+x[1..].map(|u| ["*",u,y])
+            end
+         elif y: List and y[0]=="+"
+            return ["+"]+y[1..].map(|v| ["*",x,v])
+         else
+            return ["*",x,y]
+         end
+      end)
+   else
+      return t
+   end
 end
 
 eval_table = {
-  "diff": fn|a|
-     f = a[0]; id = a[1]
-     if size(a)==3
-       for k in a[2]
-         f = simplify(diff(f,id))
+   "diff": fn|a|
+       f = a[0]; id = a[1]
+       if size(a)==3
+          for k in a[2]
+             f = simplify(diff(f,id))
+          end
+          return f
+       else
+          return simplify(diff(f,id))
        end
-       return f
-     else
-       return simplify(diff(f,id))
-     end
-  end,
-  "simplify": |[t]| simplify(t),
-  "sum": fn|[[op,id,m],n,t]|
-    if m: Int and n: Int
-      return simplify(sum(t,id,m,n))
-    else
-      return ["sum",[op,id,m],n,t]
-    end
-  end,
-  "taylor": fn|[t,id,id0,n]|
-    return taylor(t,id,id0,n)
-  end,
-  "expand": fn|[t]|
-    return flatten(expand(flatten(t)))
-  end
+   end,
+   "simplify": |[t]| simplify(t),
+   "sum": fn|[[op,id,m],n,t]|
+      if m: Int and n: Int
+         return simplify(sum(t,id,m,n))
+      else
+         return ["sum",[op,id,m],n,t]
+      end
+   end,
+   "taylor": fn|[t,id,id0,n]|
+      return taylor(t,id,id0,n)
+   end,
+   "expand": fn|[t]|
+      return flatten(expand(flatten(t)))
+   end
 }
 
 function eval(t,m=null)
-  if not m is null
-    t = substitute(t,m)
-  end
-  if t: List
-    if t[0] in eval_table
-      return eval_table[t[0]](t[1..].map(eval))
-    else
-      return [t[0]]+t[1..].map(eval)
-    end
-  else
-    return t
-  end
+   if not m is null
+      t = substitute(t,m)
+   end
+   if t: List
+      if t[0] in eval_table
+         return eval_table[t[0]](t[1..].map(eval))
+      else
+         return [t[0]]+t[1..].map(eval)
+      end
+   else
+      return t
+   end
 end
 
 

@@ -1,93 +1,93 @@
 
 List.map = fn|f|
-  a = []
-  for x in self
-    a.push(f(x))
-  end
-  return a
+   a = []
+   for x in self
+      a.push(f(x))
+   end
+   return a
 end
 
 List.filter = fn|p|
-  a = []
-  for x in self
-    if p(x)
-      a.push(x)
-    end
-  end
-  return a
+   a = []
+   for x in self
+      if p(x)
+         a.push(x)
+      end
+   end
+   return a
 end
 
 Iterable.map = fn|f|
-  a = self
-  fn*||
-    for x in a
-      yield f(x)
-    end
-  end
+   a = self
+   fn*||
+      for x in a
+         yield f(x)
+      end
+   end
 end
 
 Iterable.filter = fn|p|
-  a = self
-  fn*||
-    for x in a
-      if p(x)
-        yield x
+   a = self
+   fn*||
+      for x in a
+         if p(x)
+            yield x
+         end
       end
-    end
-  end
+   end
 end
 
 Iterable.all = fn|p|
-  for x in self
-    if not p(x)
-      return false
-    end
-  end
-  return true
+   for x in self
+      if not p(x)
+         return false
+      end
+   end
+   return true
 end
 
 Iterable.any = fn|p|
-  for x in self
-    if p(x)
-      return true
-    end
-  end
-  return false
+   for x in self
+      if p(x)
+         return true
+      end
+   end
+   return false
 end
 
 Iterable.count = fn|p=null|
-  k=0
-  if p is null
-    if self: String or self: List or self: Map
-      return size(self)
-    end
-    for x in self
-      k+=1
-    end
-  else
-    for x in self
-      if p(x) then k+=1 end
-    end
-  end
-  return k
+   k=0
+   if p is null
+      if self: String or self: List or self: Map
+         return size(self)
+      end
+      for x in self
+         k+=1
+      end
+   else
+      for x in self
+         if p(x) then k+=1 end
+      end
+   end
+   return k
 end
 
 Iterable.reduce = fn|e,f=null|
-  if f is null
-    f = e
-    i = iter(self)
-    x = i()
-    for y in self
-      x = f(x,y)
-    end
-    return x
-  else
-    x = e
-    for y in self
-      x = f(x,y)
-    end
-    return x
-  end
+   if f is null
+      f = e
+      i = iter(self)
+      x = i()
+      for y in self
+         x = f(x,y)
+      end
+      return x
+   else
+      x = e
+      for y in self
+         x = f(x,y)
+      end
+      return x
+   end
 end
 
 

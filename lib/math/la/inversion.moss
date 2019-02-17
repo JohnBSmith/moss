@@ -6,91 +6,91 @@ use math.la: id, scalar
 
 
 function pivoting(A,B,n,j,ord)
-  m = ord(A[j,j])
-  k = j
-  for i in j+1..n-1
-    if m<ord(A[i,j])
-      m = ord(A[i,j])
-      k = i
-    end
-  end
-  A[j],A[k] = A[k],id(A[j])
-  B[j],B[k] = B[k],id(B[j])
+   m = ord(A[j,j])
+   k = j
+   for i in j+1..n-1
+      if m<ord(A[i,j])
+         m = ord(A[i,j])
+         k = i
+      end
+   end
+   A[j],A[k] = A[k],id(A[j])
+   B[j],B[k] = B[k],id(B[j])
 end
 
 function gauss_jordan(A,B,n)
-  ord = getattr(A[0,0],"ord") else abs
-  for j in 0..n-1
-    pivoting(A,B,n,j,ord)
-    B[j] = B[j]/A[j,j]
-    A[j] = A[j]/A[j,j]
-    for i in j+1..n-1
-      if A[i,j]!=0
-        B[i] = B[i]/A[i,j]-B[j]
-        A[i] = A[i]/A[i,j]-A[j]
+   ord = getattr(A[0,0],"ord") else abs
+   for j in 0..n-1
+      pivoting(A,B,n,j,ord)
+      B[j] = B[j]/A[j,j]
+      A[j] = A[j]/A[j,j]
+      for i in j+1..n-1
+         if A[i,j]!=0
+            B[i] = B[i]/A[i,j]-B[j]
+            A[i] = A[i]/A[i,j]-A[j]
+         end
       end
-    end
-  end
+   end
 
-  for i in 0..n-2
-    for j in i+1..n-1
-      B[i] = B[i]-B[j]*A[i,j]
-      A[i] = A[i]-A[j]*A[i,j]
-    end
-  end
+   for i in 0..n-2
+      for j in i+1..n-1
+         B[i] = B[i]-B[j]*A[i,j]
+         A[i] = A[i]-A[j]*A[i,j]
+      end
+   end
 
-  return B
+   return B
 end
 
 function pivoting_det(A,n,j,ord)
-  m = ord(A[j,j])
-  k = j
-  for i in j+1..n-1
-    if m<ord(A[i,j])
-      m = ord(A[i,j])
-      k = i
-    end
-  end
-  if k==j
-    return false
-  else
-    A[j],A[k] = A[k],id(A[j])
-    return true
-  end
+   m = ord(A[j,j])
+   k = j
+   for i in j+1..n-1
+      if m<ord(A[i,j])
+         m = ord(A[i,j])
+         k = i
+      end
+   end
+   if k==j
+      return false
+   else
+      A[j],A[k] = A[k],id(A[j])
+      return true
+   end
 end
 
 function det(A)
-  n = A.shape[0]
-  A = A.copy
-  y = 1
-  ord = getattr(A[0,0],"ord") else abs
-  for j in 0..n-1
-    if pivoting_det(A,n,j,ord)
-      y = -y
-    end
-    for i in j+1..n-1
-      if A[i,j]!=0
-        y = y/A[j,j]
-        A[i] = A[i]*A[j,j]-A[j]*A[i,j]
+   n = A.shape[0]
+   A = A.copy
+   y = 1
+   ord = getattr(A[0,0],"ord") else abs
+   for j in 0..n-1
+      if pivoting_det(A,n,j,ord)
+         y = -y
       end
-    end
-    y = y*A[j,j]
-  end
-  return y
+      for i in j+1..n-1
+         if A[i,j]!=0
+            y = y/A[j,j]
+            A[i] = A[i]*A[j,j]-A[j]*A[i,j]
+         end
+      end
+      y = y*A[j,j]
+   end
+   return y
 end
 
 function solve(A,B)
-  n = A.shape[0]
-  A = A.copy
-  B = B.copy
-  return gauss_jordan(A,B,n)
+   n = A.shape[0]
+   A = A.copy
+   B = B.copy
+   return gauss_jordan(A,B,n)
 end
 
 function inv(A)
-  n = A.shape[0]
-  A = A.copy
-  E = scalar(n,1,0)
-  return gauss_jordan(A,E,n)
+   n = A.shape[0]
+   A = A.copy
+   E = scalar(n,1,0)
+   return gauss_jordan(A,E,n)
 end
 
 end

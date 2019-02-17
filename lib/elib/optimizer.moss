@@ -2,23 +2,23 @@
 use math.na: inv
 
 function zeroes_bisection(f,a,b,n)
-  zeroes = []
-  h = (b-a)/n
-  for k in 0..n-1
-    x0 = a+h*k
-    x1 = a+h*(k+1)
-    if sgn(f(x0))!=sgn(f(x1))
-      # print([x0,x1,f(x0),f(x1)])
-      if f(x0)==0
-        zeroes.push(x0)
-      elif f(x1)==0
-        zeroes.push(x1)
-      else
-        zeroes.push(inv(f,0,x0,x1))
+   zeroes = []
+   h = (b-a)/n
+   for k in 0..n-1
+      x0 = a+h*k
+      x1 = a+h*(k+1)
+      if sgn(f(x0))!=sgn(f(x1))
+         # print([x0,x1,f(x0),f(x1)])
+         if f(x0)==0
+            zeroes.push(x0)
+         elif f(x1)==0
+            zeroes.push(x1)
+         else
+            zeroes.push(inv(f,0,x0,x1))
+         end
       end
-    end
-  end
-  return zeroes
+   end
+   return zeroes
 end
 
 
