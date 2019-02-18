@@ -8,6 +8,7 @@ mod parser;
 mod typing;
 
 use parser::{parse,Error};
+use typing::{type_check,Env,SymbolTable};
 
 fn print_error(e: &Error, file: &str) {
     print!("File '{}', line {}, col {}:\n",file,e.line+1,e.col+1);
@@ -15,13 +16,21 @@ fn print_error(e: &Error, file: &str) {
 }
 
 fn compile(s: &str, file: &str) -> Result<(),()> {
-    let _t = match parse(s) {
-        Ok(()) => {},
+    let t = match parse(s) {
+        Ok(t) => t,
         Err(e) => {
             print_error(&e,file);
             return Err(());
         }
     };
+    let env = Env::new();
+    let mut symbol_table = SymbolTable::new();
+    match type_check(&env,&t,&mut symbol_table) {
+        Ok(()) => {},
+        Err(e) => {
+            e.print();
+        }
+    }
     return Ok(());
 }
 

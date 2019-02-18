@@ -125,16 +125,18 @@ pub fn scan(s: &str) -> Result<Vec<Token>,Error> {
     while i<n {
         let c = a[i];
         if c.is_digit(10) {
+            let hcol = col;
             let j = i;
             while i<n && a[i].is_digit(10) {
                 i+=1;
             }
             let s: String = a[j..i].iter().collect();
             let value = s.parse::<i32>().unwrap();
-            v.push(Token{line, col,
+            v.push(Token{line, col: hcol,
                 value: Symbol::Item, item: Item::Int(value)
             });
         }else if c.is_alphabetic() && c.is_ascii() || a[i]=='_' {
+            let hcol = col;
             let j = i;
             while i<n && (a[i].is_alphabetic() && a[i].is_ascii()
                 || a[i].is_digit(10) || a[i]=='_'
@@ -143,9 +145,9 @@ pub fn scan(s: &str) -> Result<Vec<Token>,Error> {
             }
             let id: String = a[j..i].iter().collect();
             if let Some(t) = is_keyword(&id) {
-                v.push(Token::symbol(line,col,*t.v));
+                v.push(Token::symbol(line,hcol,*t.v));
             }else{
-                v.push(Token{line, col,
+                v.push(Token{line, col: hcol,
                     value: Symbol::Item, item: Item::Id(id)
                 });
             }
@@ -154,6 +156,7 @@ pub fn scan(s: &str) -> Result<Vec<Token>,Error> {
                 ' ' => {
                     i+=1; col+=1;
                 },
+                '\r' => {i+=1;},
                 '\n' => {
                     i+=1; line+=1;
                     col = 0;
@@ -775,13 +778,13 @@ fn type_expression(i: &TokenIterator) -> Result<Rc<AST>,Error> {
     return type_fn(i);
 }
 
-pub fn parse(s: &str) -> Result<(),Error> {
+pub fn parse(s: &str) -> Result<Rc<AST>,Error> {
     let v = scan(s)?;
     println!("{:?}\n",v);
     let i = TokenIterator::new(&v);
     let x = statements(&i)?;
     print_ast(&x);
-    return Ok(());
+    return Ok(x);
 }
 
 
