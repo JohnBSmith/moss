@@ -30,6 +30,7 @@ use system::{History,getline_history,init_search_paths};
 use compiler;
 use compiler::{CompilerExtra};
 
+#[allow(dead_code)]
 pub mod interface_index{
     pub const POLY_ARRAY: usize = 0;
     pub const ARRAY: usize = 1;

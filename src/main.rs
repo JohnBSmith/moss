@@ -5,7 +5,7 @@ use moss::object::{Object,Map};
 use moss::CompilerExtra;
 
 const HELP: &'static str = r#"
-Usage: moss [options] [file] [arguments]
+Usage: moss [options] [file [arguments]]
 
 Options:
 -i file     Include and execute a file before normal execution.

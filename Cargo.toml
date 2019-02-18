@@ -28,7 +28,10 @@ doc = false
 
 [dependencies]
 libc = "0.2"
+
+[target.'cfg(unix)'.dependencies]
 termios = "0.2"
+# see .cargo/config
 
 [profile.dev]
 debug = true

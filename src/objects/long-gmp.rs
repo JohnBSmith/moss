@@ -55,7 +55,12 @@ extern "C" {
     fn __gmpz_neg(rop: mpz_ptr, op: mpz_srcptr);
     fn __gmpz_abs(rop: mpz_ptr, op: mpz_srcptr);
     fn __gmpz_sizeinbase (op: mpz_srcptr, base: c_int) -> libc::size_t;
+
+    #[cfg(target_pointer_width = "32")]
     fn __gmpz_fits_slong_p(op: mpz_srcptr) -> c_int;
+
+    #[cfg(target_pointer_width = "64")]
+    fn __gmpz_fits_sint_p(op: mpz_srcptr) -> c_int;
 }
 
 extern "C" {
@@ -213,10 +218,20 @@ impl Mpz {
     fn as_ui(&self) -> c_ulong {
         unsafe {__gmpz_get_ui(&self.mpz)}
     }
-    
+
+    #[cfg(target_pointer_width = "32")]
     fn try_as_si(&self) -> Result<i32,()> {
         if unsafe{__gmpz_fits_slong_p(&self.mpz)}!=0 {
             return Ok(unsafe{__gmpz_get_si(&self.mpz)});
+        }else{
+            return Err(());
+        }
+    }
+
+    #[cfg(target_pointer_width = "64")]
+    fn try_as_si(&self) -> Result<i32,()> {
+        if unsafe{__gmpz_fits_sint_p(&self.mpz)}!=0 {
+            return Ok(unsafe{__gmpz_get_si(&self.mpz)} as i32);
         }else{
             return Err(());
         }
@@ -243,7 +258,7 @@ impl Mpz {
     }
 
     fn cmp_int(&self, b: i32) -> c_int {
-        unsafe{__gmpz_cmp_si(&self.mpz, b)}
+        unsafe{__gmpz_cmp_si(&self.mpz, b.into())}
     }
 
     fn neg(&mut self, x: &Mpz) {
@@ -266,7 +281,7 @@ impl PartialEq for Mpz {
 }
 impl PartialEq<i32> for Mpz {
     fn eq(&self, b: &i32) -> bool {
-        unsafe{__gmpz_cmp_si(&self.mpz, *b)==0}
+        unsafe{__gmpz_cmp_si(&self.mpz, (*b).into())==0}
     }
 }
 
@@ -277,11 +292,11 @@ pub struct Long{
 impl Long {
     #[allow(dead_code)]
     pub fn from_int(x: i32) -> Long {
-        Long{value: Mpz::from_int(x)}
+        Long{value: Mpz::from_int(x.into())}
     }
 
     pub fn object_from_int(x: i32) -> Object {
-        Object::Interface(Rc::new(Long{value: Mpz::from_int(x)}))
+        Object::Interface(Rc::new(Long{value: Mpz::from_int(x.into())}))
     }
     
     pub fn object_from_string(a: &[char]) -> Result<Object,()> {
@@ -320,27 +335,27 @@ impl Long {
         Mpz::try_as_si(&self.value)
     }
     pub fn add_int_int(a: i32, b: i32) -> Object {
-        let x = Mpz::from_int(a);
+        let x = Mpz::from_int(a.into());
         let mut y = Mpz::new();
-        y.add_int(&x,b);
+        y.add_int(&x,b.into());
         return Object::Interface(Rc::new(Long{value: y}));
     }
     pub fn sub_int_int(a: i32, b: i32) -> Object {
-        let x = Mpz::from_int(a);
+        let x = Mpz::from_int(a.into());
         let mut y = Mpz::new();
-        y.sub_int(&x,b);
+        y.sub_int(&x,b.into());
         return Object::Interface(Rc::new(Long{value: y}));
     }
     pub fn mpy_int_int(a: i32, b: i32) -> Object {
-        let x = Mpz::from_int(a);
+        let x = Mpz::from_int(a.into());
         let mut y = Mpz::new();
-        y.mul_int(&x,b);
+        y.mul_int(&x,b.into());
         return Object::Interface(Rc::new(Long{value: y}));
     }
     pub fn pow_int_uint(a: i32, b: u32) -> Object {
-        let x = Mpz::from_int(a);
+        let x = Mpz::from_int(a.into());
         let mut y = Mpz::new();
-        y.pow_uint(&x,b);
+        y.pow_uint(&x,b.into());
         return Object::Interface(Rc::new(Long{value: y}));
     }
 }
@@ -360,7 +375,7 @@ impl Interface for Long {
     fn add(&self, b: &Object, env: &mut Env) -> FnResult {
         if let Object::Int(b) = *b {
             let mut y = Mpz::new();
-            y.add_int(&self.value,b);
+            y.add_int(&self.value,b.into());
             return Ok(Object::Interface(Rc::new(Long{value: y})));
         }else if let Some(b) = downcast::<Long>(b) {
             let mut y = Mpz::new();
@@ -377,7 +392,7 @@ impl Interface for Long {
     fn sub(&self, b: &Object, env: &mut Env) -> FnResult {
         if let Object::Int(b) = *b {
             let mut y = Mpz::new();
-            y.sub_int(&self.value,b);
+            y.sub_int(&self.value,b.into());
             return Ok(Object::Interface(Rc::new(Long{value: y})));
         }else if let Some(b) = downcast::<Long>(b) {
             let mut y = Mpz::new();
@@ -394,7 +409,7 @@ impl Interface for Long {
     fn mul(&self, b: &Object, env: &mut Env) -> FnResult {
         if let Object::Int(b) = *b {
             let mut y = Mpz::new();
-            y.mul_int(&self.value,b);
+            y.mul_int(&self.value,b.into());
             return Ok(Object::Interface(Rc::new(Long{value: y})));
         }else if let Some(b) = downcast::<Long>(b) {
             let mut y = Mpz::new();
@@ -411,7 +426,7 @@ impl Interface for Long {
     fn radd(&self, a: &Object, env: &mut Env) -> FnResult {
         if let Object::Int(a) = *a {
             let mut y = Mpz::new();
-            y.add_int(&self.value,a);
+            y.add_int(&self.value,a.into());
             return Ok(Object::Interface(Rc::new(Long{value: y})));
         }else if let Object::Float(a) = *a {
             let b = Mpz::as_f64(&self.value);
@@ -424,7 +439,7 @@ impl Interface for Long {
     fn rsub(&self, a: &Object, env: &mut Env) -> FnResult {
         if let Object::Int(a) = *a {
             let mut y = Mpz::new();
-            y.int_sub(a,&self.value);
+            y.int_sub(a.into(),&self.value);
             return Ok(Object::Interface(Rc::new(Long{value: y})));
         }else if let Object::Float(a) = *a {
             let b = Mpz::as_f64(&self.value);
@@ -437,7 +452,7 @@ impl Interface for Long {
     fn rmul(&self, a: &Object, env: &mut Env) -> FnResult {
         if let Object::Int(a) = *a {
             let mut y = Mpz::new();
-            y.mul_int(&self.value,a);
+            y.mul_int(&self.value,a.into());
             return Ok(Object::Interface(Rc::new(Long{value: y})));
         }else if let Object::Float(a) = *a {
             let b = Mpz::as_f64(&self.value);
@@ -476,7 +491,7 @@ impl Interface for Long {
                 return env.value_error("Value error in a//b: b==0.");
             }
             let mut y = Mpz::new();
-            y.fdiv_int(&self.value,b);
+            y.fdiv_int(&self.value,b.into());
             return Ok(Object::Interface(Rc::new(Long{value: y})));
         }else if let Some(b) = downcast::<Long>(b) {
             if b.value.cmp_int(0)==0 {
@@ -495,7 +510,7 @@ impl Interface for Long {
             if self.value.cmp_int(0)==0 {
                 return env.value_error("Value error in a//b: b==0.");
             }
-            let a = Mpz::from_int(a);
+            let a = Mpz::from_int(a.into());
             let mut y = Mpz::new();
             y.fdiv(&a,&self.value);
             return Ok(Object::Interface(Rc::new(Long{value: y})));
@@ -507,7 +522,7 @@ impl Interface for Long {
     fn imod(&self, b: &Object, env: &mut Env) -> FnResult {
         if let Object::Int(b) = *b {
             let mut y = Mpz::new();
-            y.fdiv_int_rem(&self.value,b);
+            y.fdiv_int_rem(&self.value,b.into());
             return Ok(Object::Interface(Rc::new(Long{value: y})));
         }else if let Some(b) = downcast::<Long>(b) {
             let mut y = Mpz::new();
@@ -520,7 +535,7 @@ impl Interface for Long {
     
     fn rimod(&self, a: &Object, env: &mut Env) -> FnResult {
         if let Object::Int(a) = *a {
-            let a = Mpz::from_int(a);
+            let a = Mpz::from_int(a.into());
             let mut y = Mpz::new();
             y.fdiv_rem(&a,&self.value);
             return Ok(Object::Interface(Rc::new(Long{value: y})));
@@ -535,7 +550,7 @@ impl Interface for Long {
                 return env.value_error("Value error in a^b: b<0.");
             }
             let mut y = Mpz::new();
-            y.pow_uint(&self.value,b as u32);
+            y.pow_uint(&self.value,(b as u32).into());
             return Ok(Object::Interface(Rc::new(Long{value: y})));      
         }else{
             return env.type_error("Type error in a^b.");
@@ -682,7 +697,7 @@ impl Interface for Long {
 
 fn to_mpz(x: &Object) -> Result<Mpz,()> {
     if let Object::Int(x) = *x {
-        return Ok(Mpz::from_int(x));
+        return Ok(Mpz::from_int(x.into()));
     }else if let Some(x) = downcast::<Long>(x) {
         let mut y = Mpz::new();
         y.set(&x.value);

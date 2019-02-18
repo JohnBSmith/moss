@@ -5,7 +5,12 @@ pub const FRAME_STACK_SIZE: usize = 200;
 
 // Assert size of usize is at least 32 bit.
 
+#[cfg(not(windows))]
 #[path = "system/system.rs"]
+mod system;
+
+#[cfg(windows)]
+#[path = "system/system-windows.rs"]
 mod system;
 
 #[macro_use]

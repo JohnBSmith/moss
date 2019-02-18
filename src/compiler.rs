@@ -258,6 +258,7 @@ pub fn scan(s: &str, line_start: usize, file: &str, new_line_start: bool)
                 ' ' | '\t' => {
                     i+=1; col+=1;
                 },
+                '\r' => {i+=1;},
                 '\n' => {
                     v.push(Token{token_type: SymbolType::Separator,
                         value: Symbol::Newline, line: line, col: col,

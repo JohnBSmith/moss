@@ -15,14 +15,19 @@
 <ul>
 <li><a href="#cmd">Command-line options</a>
 <li><a href="#building">Building</a>
+  <ul>
+  <li><a href="#linux">Linux</a>
+  <li><a href="#x86-64">Cross compilation, target: x86-64</a>
+  <li><a href="#windows">Cross compilation, target: Windows</a>
+  </ul>
 <li><a href="#installation">Installation</a>
 <li><a href="#dev-tools">Development tools</a>
 </ul>
 
-
+<br>
 <h2 id="cmd">Command-line options</h2>
 <pre>
-<b>moss [options] [file] [arguments]</b>
+<b>moss [options] [file [arguments]]</b>
 
 <b>Options</b>:
 -i file     Include and execute a file before normal execution.
@@ -33,19 +38,25 @@
 -e "1+2"    Evaluate some Moss code inline.
 
 -d          Debug mode: compile assert statements.
+
+-unsafe     Unsafe mode: run the interpreter in privileged mode,
+            which allows write access to files, network access
+            and execution of shell commands. Running an untrusted
+            module in unsafe mode is a security hazard.
 </pre>
 
-
+<br>
 <h2 id="building">Building</h2>
+<h3 id="linux">Linux</h3>
 
-<p>Obtain Ubuntu, or else Debian, or else OpenSuse, or else another
+<p>Obtain Ubuntu, or else Debian, or else another
 fancy Linux, or else a fancy POSIX system, or else Windows.
 If some dependency cannot be fulfilled, set up a minimal build
 and then add feature after feature until some error occurs.
 
 <p>Windows is currently not supported.
 If you want to port to Windows, edit the operating system interface:
-<p class="indent"><code>src/system/system.rs</code>
+<p class="indent"><code>src/system/system-windows.rs</code>
 <p>and send upstream pull request to:
 <p class="indent">
 <a href="https://github.com/JohnBSmith/moss">github.com/JohnBSmith/moss</a>
@@ -55,6 +66,11 @@ If you want to port to Windows, edit the operating system interface:
 <b>Install dependencies</b>:
 sudo apt install rustc
 sudo apt install cargo
+
+
+<b>Alternatively (enables cross compilation)</b>:
+sudo apt install curl
+curl https://sh.rustup.rs -sSf | sh
 
 
 <b>Install optional dependencies</b>:
@@ -93,6 +109,37 @@ cargo build --release
 sh make.sh
 </pre>
 
+<h3 id="x86-64">Cross compilation, target: x86-64</h3>
+<pre>
+rustup target add x86_64-unknown-linux-gnu
+sudo apt install qemu-user
+
+sudo apt install gcc-multilib
+# Workaround for a bug:
+# /usr/bin/ld: cannot find Scrt1.o: No such file or directory
+# /usr/bin/ld: cannot find crti.o: No such file or directory
+
+cargo build --target x86_64-unknown-linux-gnu
+qemu-x86_64 ./moss
+</pre>
+
+<h3 id="windows">Cross compilation, target: Windows</h3>
+<pre>
+rustup target add i686-pc-windows-gnu
+sudo apt install wine
+
+# Workaround for a linker bug:
+# Add these lines to .cargo/config:
+[target.x86_64-pc-windows-gnu]
+linker = "/usr/bin/x86_64-w64-mingw32-gcc"
+[target.i686-pc-windows-gnu]
+linker = "/usr/bin/i686-w64-mingw32-gcc"
+rustflags = "-C panic=abort"
+
+cargo build --target i686-pc-windows-gnu
+wine ./moss
+</pre>
+
 
 <h2 id="installation">Installation</h2>
 
@@ -109,21 +156,22 @@ moss library locally. The library will be found at:
 
 <p class="indent"><code>/home/account/.moss</code>
 
+
 <h2 id="dev-tools">Development tools</h2>
 <pre>
 # IDE
-apt install geany
+sudo apt install geany
 
 # Debugger, dynamic program analysis
-apt install valgrind
-apt install kcachegrind
-apt install gdb
+sudo apt install valgrind
+sudo apt install kcachegrind
+sudo apt install gdb
 
 # Emulator for cross compiler output
-apt install wine
+sudo apt install wine
 
 # Compare a file and its modification
-apt install kompare
+sudo apt install kompare
 
 # Find all occurrences of a pattern
 egrep -nrwi "regex" ./
@@ -132,7 +180,7 @@ egrep -nrwi "regex" ./
   ^ $ \&lt; \&gt; \w \b
 
 # GNU Scientific Library
-apt install libgsl-dev
+sudo apt install libgsl-dev
 </pre>
 
 </body>

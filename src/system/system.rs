@@ -274,13 +274,13 @@ pub fn getline_history(prompt: &str, history: &History) -> io::Result<String> {
     return Ok(s);
 }
 
-pub fn getline(prompt: &str) -> io::Result<String>{
+pub fn getline(prompt: &str) -> io::Result<String> {
     let history = History{first: None};
     return getline_history(prompt,&history);
 }
 
 /*
-pub fn getline(prompt: &str) -> io::Result<String>{
+pub fn getline(prompt: &str) -> io::Result<String> {
     print!("> ");
     io::stdout().flush().ok();
     let mut input = String::new();

@@ -7,12 +7,15 @@ pub struct Long{}
 
 impl Long {
     pub fn to_long(_x: &Object) -> Result<Object,()> {Err(())}
-    pub fn downcast(_x: &Object) -> Option<&Long> {None}
+    // pub fn downcast(_x: &Object) -> Option<&Long> {None}
     pub fn as_f64(&self) -> f64 {NAN}
+    pub fn object_from_string(_a: &[char]) -> Result<Object,()> {Err(())}
+    pub fn try_as_int(&self) -> Result<i32,()> {Err(())}
+
     pub fn add_int_int(_a: i32, _b: i32) -> Object {
         panic!("Overflow in a+b.")
     }
-    pub fn sub_int_int(a: i32, b: i32) -> Object {
+    pub fn sub_int_int(_a: i32, _b: i32) -> Object {
         panic!("Overflow in a-b.")
     }
     pub fn mpy_int_int(_a: i32, _b: i32) -> Object {
