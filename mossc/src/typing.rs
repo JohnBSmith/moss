@@ -9,7 +9,10 @@ pub struct Env {
     type_unit: Rc<str>,
     type_bool: Rc<str>,
     type_int: Rc<str>,
-    type_string: Rc<str>
+    type_string: Rc<str>,
+    type_object: Rc<str>,
+    type_list: Rc<str>,
+    type_tuple: Rc<str>
 }
 
 impl Env {
@@ -18,7 +21,10 @@ impl Env {
             type_unit: Rc::from("Unit"),
             type_int: Rc::from("Int"),
             type_bool: Rc::from("Bool"),
-            type_string: Rc::from("String")
+            type_string: Rc::from("String"),
+            type_object: Rc::from("Object"),
+            type_list: Rc::from("List"),
+            type_tuple: Rc::from("Tuple")
         }
     }
 }
@@ -43,6 +49,43 @@ impl SymbolTable {
 pub enum Type {
     None, Atomic(Rc<str>), App(Rc<Vec<Type>>)
 }
+
+impl Type {
+    fn is_app(&self, id: &Rc<str>) -> Option<&[Type]> {
+        if let Type::App(a) = self {
+            if let Type::Atomic(f) = &a[0] {
+                if Rc::ptr_eq(f,id) {
+                    return Some(&a[1..]);
+                }
+            }
+        }
+        return None;
+    }
+}
+
+impl std::fmt::Display for Type {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Type::Atomic(s) => write!(f,"{}",s),
+            Type::App(v) => {
+                write!(f,"{}[",v[0])?;
+                let mut first = true;
+                for x in &v[1..] {
+                    if first {
+                        first = false;
+                        write!(f,"{}",x)?;
+                    }else{
+                        write!(f,", {}",x)?;
+                    }
+                }
+                write!(f,"]")?;
+                return Ok(());
+            },
+            _ => unimplemented!()
+        }
+    }
+}
+
 
 #[derive(PartialEq,Eq)]
 enum ErrorKind {
@@ -76,14 +119,6 @@ fn type_error(line: usize, col: usize, text: String) -> SemanticError {
 
 fn undefined_symbol(line: usize, col: usize, text: String) -> SemanticError {
     SemanticError{line,col,text,kind: ErrorKind::UndefinedSymbol}
-}
-
-fn get_argv(t: &AST) -> &[Rc<AST>] {
-    if let Some(a) = &t.a {
-        return a;
-    }else{
-        unreachable!();
-    }
 }
 
 #[derive(PartialEq,Eq)]
@@ -132,15 +167,69 @@ fn compare_types(t1: &Type, t2: &Type) -> TypeCmp {
     }
 }
 
+fn is_homogeneous(a: &[Type]) -> bool {
+    let x = &a[0];
+    for y in &a[1..] {
+        match compare_types(x,y) {
+            TypeCmp::None => return false,
+            TypeCmp::False => return false,
+            TypeCmp::True => {}
+        }
+    }
+    return true;
+}
+
+fn is_atomic_type(ty: &Type, id: &Rc<str>) -> bool {
+    if let Type::Atomic(ty) = ty {
+        return Rc::ptr_eq(ty,id);
+    }
+    return false;
+}
+
+fn is_subtype_of_eq_elementwise(env: &Env, a: &[Type], b: &[Type]) -> bool {
+    for i in 0..a.len() {
+        if !is_subtype_of_eq(env,&a[i],&b[i]) {return false;}
+    }
+    return true;
+}
+
+fn is_subtype_of_eq(env: &Env, t1: &Type, t2: &Type) -> bool {
+    match compare_types(t1,t2) {
+        TypeCmp::True => return true,
+        TypeCmp::False => {},
+        TypeCmp::None => {}
+    }
+    if is_atomic_type(t2,&env.type_object) {
+        return true;
+    }
+    if let Some(a) = t1.is_app(&env.type_tuple) {
+        if let Some(b) = t2.is_app(&env.type_list) {
+            if is_atomic_type(&b[0],&env.type_object) {
+                return true;
+            }
+            if is_homogeneous(a) {
+                return is_subtype_of_eq(env,&a[0],&b[0]);
+            }
+        }else if let Some(b) = t2.is_app(&env.type_tuple) {
+            if a.len()==b.len() {
+                return is_subtype_of_eq_elementwise(env,a,b);
+            }
+        }
+    }
+    return false;
+}
+
 fn type_check_binary_operator(env: &Env, t: &AST, symbol_table: &mut SymbolTable)
 -> Result<Type,SemanticError>
 {
-    let a = get_argv(t);
+    let a = t.argv();
     let ty1 = type_check_node(env,&a[0],symbol_table)?;
     let ty2 = type_check_node(env,&a[1],symbol_table)?;
     return match compare_types(&ty1,&ty2) {
         TypeCmp::True => Ok(ty1),
-        TypeCmp::False => Err(type_error(t.line,t.col,String::from("todo"))),
+        TypeCmp::False => Err(type_error(t.line,t.col,format!(
+            "x{}y is not defined for x: {}, y: {}.",t.value,ty1,ty2
+        ))),
         TypeCmp::None => unimplemented!()
     };
 }
@@ -148,7 +237,7 @@ fn type_check_binary_operator(env: &Env, t: &AST, symbol_table: &mut SymbolTable
 fn type_check_block(env: &Env, t: &AST, symbol_table: &mut SymbolTable)
 -> Result<Type,SemanticError>
 {
-    let a = get_argv(t);
+    let a = t.argv();
     let n = a.len();
     for i in 0..n-1 {
         let _ = type_check_node(env,&a[i],symbol_table)?;
@@ -165,10 +254,29 @@ fn type_from_signature(env: &Env, t: &AST) -> Type {
             "Bool" => return Type::Atomic(env.type_bool.clone()),
             "Int" => return Type::Atomic(env.type_int.clone()),
             "String" => return Type::Atomic(env.type_string.clone()),
+            "Object" => return Type::Atomic(env.type_object.clone()),
             _ => panic!()
         }
     }else if t.value == Symbol::Application {
-        unimplemented!();
+        let a = t.argv();
+        if let Info::Id(id) = &a[0].info {
+            if id=="List" {
+                let parameter = type_from_signature(env,&a[1]);
+                return Type::App(Rc::new(vec![Type::Atomic(env.type_list.clone()),parameter]));
+            }else if id=="Tuple" {
+                let mut v: Vec<Type> = Vec::with_capacity(a.len());
+                v.push(Type::Atomic(env.type_tuple.clone()));
+                for x in &a[1..] {
+                    let parameter = type_from_signature(env,x);
+                    v.push(parameter);
+                }
+                return Type::App(Rc::new(v));
+            }else{
+                panic!();
+            }
+        }else{
+            panic!();
+        }
     }else{
         panic!();
     }
@@ -177,19 +285,29 @@ fn type_from_signature(env: &Env, t: &AST) -> Type {
 fn type_check_let(env: &Env, t: &AST, symbol_table: &mut SymbolTable)
 -> Result<Type,SemanticError>
 {
-    let a = get_argv(t);
+    let a = t.argv();
     let id = match &a[0].info {Info::Id(id) => id.clone(), _ => unreachable!()};
     let ty = type_from_signature(env,&a[1]);
     let ty_expr = type_check_node(env,&a[2],symbol_table)?;
+    let ty_of_id;
     if let Type::None = ty_expr {
         unimplemented!()
     }else{
         if let Type::None = ty {
-            // pass
+            ty_of_id = ty_expr;
         }else{
             match compare_types(&ty,&ty_expr) {
-                TypeCmp::True => {},
-                TypeCmp::False => return Err(type_error(t.line,t.col,String::from("todo"))),
+                TypeCmp::True => {ty_of_id = ty;},
+                TypeCmp::False => {
+                    if is_subtype_of_eq(env,&ty_expr,&ty) {
+                        ty_of_id = ty;
+                    }else{
+                        return Err(type_error(t.line,t.col,
+                            format!("\n    expected {}: {},\n     found type {}.",
+                                id,ty,ty_expr)
+                        ))
+                    }
+                },
                 TypeCmp::None => {unimplemented!()}
             }
         }
@@ -197,7 +315,7 @@ fn type_check_let(env: &Env, t: &AST, symbol_table: &mut SymbolTable)
             panic!();
         }
         symbol_table.variables.insert(id,VariableInfo{
-            mutable: false, ty: ty_expr
+            mutable: false, ty: ty_of_id
         });
     }
     return Ok(Type::Atomic(env.type_unit.clone()));
@@ -211,6 +329,19 @@ fn type_check_variable(t: &AST, id: &String, symbol_table: &mut SymbolTable)
     }else{
         return Err(undefined_symbol(t.line,t.col,format!("{}",id)));
     }
+}
+
+fn type_check_tuple(env: &Env, t: &AST, symbol_table: &mut SymbolTable)
+-> Result<Type,SemanticError>
+{
+    let a = t.argv();
+    let mut v: Vec<Type> = Vec::with_capacity(a.len()+1);
+    v.push(Type::Atomic(env.type_tuple.clone()));
+    for x in a {
+        let ty = type_check_node(env,x,symbol_table)?;
+        v.push(ty);
+    }
+    return Ok(Type::App(Rc::new(v)));
 }
 
 fn type_check_node(env: &Env, t: &AST, symbol_table: &mut SymbolTable)
@@ -236,6 +367,9 @@ fn type_check_node(env: &Env, t: &AST, symbol_table: &mut SymbolTable)
         },
         Symbol::Let => {
             return type_check_let(env,t,symbol_table);
+        },
+        Symbol::List => {
+            return type_check_tuple(env,t,symbol_table);
         },
         _ => {
             unimplemented!()

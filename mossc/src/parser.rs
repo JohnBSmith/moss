@@ -105,6 +105,79 @@ static KEYWORDS: &'static [KeywordsElement] = &[
       KeywordsElement{s: "yield",   v: &Symbol::Yield}
 ];
 
+impl std::fmt::Display for Symbol {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Symbol::None  => write!(f,"None"),
+            Symbol::Terminal => write!(f,"Terminal"),
+            Symbol::Item  => write!(f,"Item"),
+            Symbol::Neg   => write!(f,"-"),
+            Symbol::Plus  => write!(f,"+"),
+            Symbol::Minus => write!(f,"-"),
+            Symbol::Ast   => write!(f,"*"),
+            Symbol::Div   => write!(f,"/"),
+            Symbol::Pow   => write!(f,"^"),
+            Symbol::Mod   => write!(f,"%"),
+            Symbol::Idiv  => write!(f,"//"),
+            Symbol::Tilde => write!(f,"~"),
+            Symbol::Amp   => write!(f,"&"),
+            Symbol::Vert  => write!(f,"|"),
+            Symbol::Svert => write!(f,"$"),
+            Symbol::Comma => write!(f,","),
+            Symbol::Dot   => write!(f,"."),
+            Symbol::Colon => write!(f,":"),
+            Symbol::Semicolon => write!(f,";"),
+            Symbol::PLeft => write!(f,"("),
+            Symbol::PRight=> write!(f,")"),
+            Symbol::BLeft => write!(f,"["),
+            Symbol::BRight=> write!(f,"]"),
+            Symbol::CLeft => write!(f,"{{"),
+            Symbol::CRight=> write!(f,"}}"),
+            Symbol::Assignment => write!(f,"="),
+            Symbol::To    => write!(f,"=>"),
+            Symbol::List  => write!(f,"List"),
+            Symbol::Application => write!(f,"Application"),
+            Symbol::Block => write!(f,"Block"),
+            Symbol::Unit  => write!(f,"Unit"),
+            Symbol::Assert=> write!(f,"assert"),
+            Symbol::And   => write!(f,"and"),
+            Symbol::Begin => write!(f,"begin"),
+            Symbol::Break => write!(f,"break"),
+            Symbol::Catch => write!(f,"catch"),
+            Symbol::Continue => write!(f,"continue"),
+            Symbol::Do    => write!(f,"do"),
+            Symbol::Elif  => write!(f,"elif"),
+            Symbol::Else  => write!(f,"else"),
+            Symbol::End   => write!(f,"end"),
+            Symbol::False => write!(f,"false"),
+            Symbol::For   => write!(f,"for"),
+            Symbol::Fn    => write!(f,"fn"),
+            Symbol::Function => write!(f,"function"),
+            Symbol::Global=> write!(f,"global"),
+            Symbol::Goto  => write!(f,"goto"),
+            Symbol::Label => write!(f,"label"),
+            Symbol::Let   => write!(f,"let"),
+            Symbol::If    => write!(f,"if"),
+            Symbol::In    => write!(f,"in"),
+            Symbol::Is    => write!(f,"is"),
+            Symbol::Not   => write!(f,"not"),
+            Symbol::Null  => write!(f,"null"),
+            Symbol::Of    => write!(f,"of"),
+            Symbol::Or    => write!(f,"or"),
+            Symbol::Public=> write!(f,"public"),
+            Symbol::Raise => write!(f,"raise"),
+            Symbol::Return=> write!(f,"return"),
+            Symbol::Table => write!(f,"table"),
+            Symbol::Then  => write!(f,"then"),
+            Symbol::True  => write!(f,"true"),
+            Symbol::Try   => write!(f,"try"),
+            Symbol::Use   => write!(f,"use"),
+            Symbol::While => write!(f,"while"),
+            Symbol::Yield => write!(f,"yield")
+        }
+    }
+}
+
 fn is_keyword(id: &String) -> Option<&'static KeywordsElement> {
     let n: usize = KEYWORDS.len();
     for i in 0..n {
@@ -330,6 +403,14 @@ impl AST {
     fn symbol(line: usize, col: usize, value: Symbol) -> Rc<AST> {
         Rc::new(AST{line,col,value,info: Info::None, a: None})
     }
+
+    pub fn argv(&self) -> &[Rc<AST>] {
+        if let Some(a) = &self.a {
+            return a;
+        }else{
+            unreachable!();
+        }
+    }
 }
 
 const INDENT_SHIFT: usize = 4;
@@ -345,12 +426,12 @@ fn ast_to_string(buffer: &mut String, t: &AST, indent: usize) {
                 write!(buffer,"\"{}\"\n",s).ok();
             },
             Info::Int(ref x) => {
-                write!(buffer,"Int({})\n",x).ok();
+                write!(buffer,"{}\n",x).ok();
             },
             _ => unreachable!()
         }
     }else{
-        write!(buffer,"{:?}\n",t.value).ok();
+        write!(buffer,"{}\n",t.value).ok();
     }
     if let Some(a) = &t.a {
         for x in a.iter() {
@@ -359,11 +440,14 @@ fn ast_to_string(buffer: &mut String, t: &AST, indent: usize) {
     }
 }
 
-fn print_ast(t: &AST){
-    let mut buffer = String::new();
-    ast_to_string(&mut buffer,t,INDENT_SHIFT);
-    println!("{}",buffer);
+impl std::fmt::Display for AST {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        let mut buffer = String::new();
+        ast_to_string(&mut buffer,self,INDENT_SHIFT);
+        return write!(f,"{}",buffer);
+    }
 }
+
 
 fn expect_string(x: &Item) -> String {
     match x {Item::String(s) => s.clone(), _ => unreachable!()}
@@ -459,6 +543,10 @@ fn atom(i: &TokenIterator) -> Result<Rc<AST>,Error> {
                 String::from("expected symbol ')'")
             ));
         }
+        return Ok(x);
+    }else if t.value == Symbol::BLeft {
+        i.advance();
+        let x = argument_list(t,i,Symbol::BRight)?;
         return Ok(x);
     }else if t.value == Symbol::Vert {
         i.advance();
@@ -707,9 +795,10 @@ fn type_atom(i: &TokenIterator) -> Result<Rc<AST>,Error> {
             return Ok(x);
         }else if t.value == Symbol::Comma {
             i.advance();
-            let mut v: Vec<Rc<AST>> = Vec::with_capacity(2);
-            v.push(x);
-            return type_argument_list(t,v,i,Symbol::PRight);
+            let a = type_argument_list(vec![x],i,Symbol::PRight)?;
+            return Ok(AST::node(t.line,t.col,Symbol::List,
+                Info::None, Some(a.into_boxed_slice())
+            ));
         }else{
             return Err(syntax_error(t.line,t.col,
                 String::from("expected ',' or ')'.")
@@ -722,13 +811,13 @@ fn type_atom(i: &TokenIterator) -> Result<Rc<AST>,Error> {
     }
 }
 
-fn type_argument_list(t0: &Token, mut argv: Vec<Rc<AST>>,
+fn type_argument_list(mut a: Vec<Rc<AST>>,
   i: &TokenIterator, terminator: Symbol
-) -> Result<Rc<AST>,Error>
+) -> Result<Vec<Rc<AST>>,Error>
 {
     loop{
         let x = type_expression(i)?;
-        argv.push(x);
+        a.push(x);
         let t = i.get();
         if t.value == terminator {
             break;
@@ -741,9 +830,7 @@ fn type_argument_list(t0: &Token, mut argv: Vec<Rc<AST>>,
         }
     }
     i.advance();
-    return Ok(AST::node(t0.line, t0.col, Symbol::List,
-        Info::None, Some(argv.into_boxed_slice())
-    ));
+    return Ok(a);
 }
 
 fn type_application(i: &TokenIterator) -> Result<Rc<AST>,Error> {
@@ -751,9 +838,9 @@ fn type_application(i: &TokenIterator) -> Result<Rc<AST>,Error> {
     let t = i.get();
     if t.value == Symbol::BLeft {
         i.advance();
-        let argv = type_argument_list(t,Vec::new(),i,Symbol::BRight)?;
+        let a = type_argument_list(vec![x],i,Symbol::BRight)?;
         return Ok(AST::node(t.line, t.col, Symbol::Application,
-            Info::None, Some(Box::new([x,argv]))
+            Info::None, Some(a.into_boxed_slice())
         ));
     }else{
         return Ok(x);
@@ -783,7 +870,7 @@ pub fn parse(s: &str) -> Result<Rc<AST>,Error> {
     println!("{:?}\n",v);
     let i = TokenIterator::new(&v);
     let x = statements(&i)?;
-    print_ast(&x);
+    println!("{}",x);
     return Ok(x);
 }
 
