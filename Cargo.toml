@@ -10,11 +10,12 @@ repository = "https://github.com/JohnBSmith/moss"
 
 [features]
 # default = []
-default = ["long-gmp", "la", "math-la", "math-sf", "gx"]
-long-gmp = []
+# default = ["la", "math-la", "math-sf"]
+default = ["la", "math-la", "math-sf", "long-gmp", "gx"]
 la = []
 math-la = []
 math-sf = []
+long-gmp = []
 gx = []
 
 [lib]
@@ -31,11 +32,9 @@ libc = "0.2"
 
 [target.'cfg(unix)'.dependencies]
 termios = "0.2"
-# see .cargo/config
 
 [profile.dev]
 debug = true
-
 
 
 

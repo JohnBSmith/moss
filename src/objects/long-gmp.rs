@@ -1,6 +1,4 @@
 
-
-extern crate libc;
 use std::os::raw::{c_int, c_ulong, c_long, c_void, c_char, c_double};
 use std::mem::uninitialized;
 use std::ptr::null;
@@ -12,6 +10,9 @@ use object::{
     downcast
 };
 use vm::{Env, RTE};
+
+#[allow(non_camel_case_types)]
+type size_t = usize;
 
 #[repr(C)]
 struct mpz_struct {
@@ -54,7 +55,7 @@ extern "C" {
     fn __gmpz_get_d(op: mpz_srcptr) -> c_double;
     fn __gmpz_neg(rop: mpz_ptr, op: mpz_srcptr);
     fn __gmpz_abs(rop: mpz_ptr, op: mpz_srcptr);
-    fn __gmpz_sizeinbase (op: mpz_srcptr, base: c_int) -> libc::size_t;
+    fn __gmpz_sizeinbase (op: mpz_srcptr, base: c_int) -> size_t;
 
     #[cfg(target_pointer_width = "32")]
     fn __gmpz_fits_slong_p(op: mpz_srcptr) -> c_int;
@@ -64,7 +65,7 @@ extern "C" {
 }
 
 extern "C" {
-    fn strlen(cs: *const c_char) -> libc::size_t;
+    fn strlen(cs: *const c_char) -> size_t;
     fn free(p: *mut c_void);
 }
 

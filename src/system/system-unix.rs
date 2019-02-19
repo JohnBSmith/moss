@@ -292,7 +292,7 @@ pub fn getline(prompt: &str) -> io::Result<String> {
 */
 
 pub fn init_search_paths() -> List {
-    let mut a: Vec<Object> = Vec::new();
+    let mut a: Vec<Object> = Vec::with_capacity(2);
     a.push(Object::from("./"));
     let mut path = match var("HOME") {
         Ok(s) => PathBuf::from(s),

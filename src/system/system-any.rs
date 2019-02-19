@@ -1,6 +1,5 @@
 
 use std::str;
-use std::env::var;
 use std::fs::File;
 use std::io::Read;
 use std::io;
@@ -30,23 +29,18 @@ pub fn getline_history(prompt: &str, _history: &History) -> io::Result<String> {
     return getline(prompt);
 }
 
-static FALLBACK_PATH: &str = "C:/prog/moss/";
+static PATH: &[&str] = &[
+    "/usr/local/lib/moss/",
+    "C:/prog/moss/"
+];
 
 pub fn init_search_paths() -> List {
     let mut a: Vec<Object> = Vec::with_capacity(3);
     a.push(Object::from("./"));
-    match var("HOMEPATH") {
-        Ok(s) => {
-            let mut path = PathBuf::from(s);
-            path.push("prog/moss/");
-            match path.as_path().to_str() {
-                Some(s) => a.push(Object::from(s)),
-                None => unreachable!()
-            }
-        }
-        Err(_) => {}
-    };
-    a.push(Object::from(FALLBACK_PATH));
+
+    for path in PATH {
+        a.push(Object::from(*path));
+    }
     return List{v: a, frozen: false};
 }
 
@@ -61,7 +55,6 @@ pub fn read_module_file(search_paths: &[Object], id: &str)
         };
         path.push(id);
         path.set_extension("moss");
-        // println!("path: '{}'",path.to_str().unwrap());
         if let Ok(mut f) = File::open(&path) {
             let mut s = String::new();
             if let Err(_) = f.read_to_string(&mut s) {
