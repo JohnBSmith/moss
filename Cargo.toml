@@ -9,12 +9,13 @@ homepage = "https://johnbsmith.github.io/moss/home.htm"
 repository = "https://github.com/JohnBSmith/moss"
 
 [features]
-# default = []
-# default = ["la", "math-la", "math-sf"]
-default = ["la", "math-la", "math-sf", "long-gmp", "gx"]
+# default = ["long-none"]
+# default = ["long-none", "la", "math-la", "math-sf"]
+default = ["long-gmp", "la", "math-la", "math-sf", "gx"]
 la = []
 math-la = []
 math-sf = []
+long-none = []
 long-gmp = []
 gx = []
 

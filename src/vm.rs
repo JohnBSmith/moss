@@ -782,8 +782,13 @@ fn operator_add(env: &mut EnvPart, sp: usize, stack: &mut [Object])
             match stack[sp-1] {
                 Object::Int(y) => {
                     stack[sp-2] = match x.checked_add(y) {
-                        Some(z) => Object::Int(z),
-                        None => Long::add_int_int(x,y)
+                        Some(value) => Object::Int(value),
+                        None => {
+                            #[cfg(feature="long-none")]
+                            {return ::long::overflow_from_add(env,x,y);}
+                            #[cfg(not(feature="long-none"))]
+                            {Long::add_int_int(x,y)}
+                        }
                     };
                     return Ok(());
                 },
@@ -945,7 +950,12 @@ fn operator_sub(env: &mut EnvPart, sp: usize, stack: &mut [Object])
                 Object::Int(y) => {
                     stack[sp-2] = match x.checked_sub(y) {
                         Some(z) => Object::Int(z),
-                        None => Long::sub_int_int(x,y)
+                        None => {
+                            #[cfg(feature="long-none")]
+                            {return ::long::overflow_from_sub(env,x,y);}
+                            #[cfg(not(feature="long-none"))]
+                            {Long::sub_int_int(x,y)}
+                        }
                     };
                     Ok(())
                 },
@@ -1108,7 +1118,12 @@ fn operator_mul(env: &mut EnvPart, sp: usize, stack: &mut [Object])
                 Object::Int(y) => {
                     stack[sp-2] = match x.checked_mul(y) {
                         Some(z) => Object::Int(z),
-                        None => Long::mpy_int_int(x,y)
+                        None => {
+                            #[cfg(feature="long-none")]
+                            {return ::long::overflow_from_mul(env,x,y);}
+                            #[cfg(not(feature="long-none"))]
+                            {Long::mul_int_int(x,y)}
+                        }
                     };
                     Ok(())
                 },
@@ -1516,7 +1531,12 @@ fn operator_idiv(env: &mut EnvPart, sp: usize, stack: &mut [Object])
                     if let Some(value) = checked_div_floor(x,y) {
                         stack[sp-2] = Object::Int(value);
                     }else{
-                        stack[sp-2] = Long::add_int_int(i32::max_value(),1);
+                        #[cfg(feature="long-none")] {
+                            return ::long::overflow_from_idiv(env,x,y);
+                        }
+                        #[cfg(not(feature="long-none"))] {
+                            stack[sp-2] = Long::add_int_int(i32::max_value(),1);
+                        }
                     }
                     Ok(())
                 },
@@ -1721,7 +1741,12 @@ fn operator_pow(env: &mut EnvPart, sp: usize, stack: &mut [Object])
                     }else{
                         stack[sp-2] = match checked_pow(x,y as u32) {
                             Some(z) => Object::Int(z),
-                            None => Long::pow_int_uint(x,y as u32)
+                            None => {
+                                #[cfg(feature="long-none")]
+                                {return ::long::overflow_from_pow(env,x,y);}
+                                #[cfg(not(feature="long-none"))]
+                                {Long::pow_int_uint(x,y as u32)}
+                            }
                         };
                     }
                     Ok(())

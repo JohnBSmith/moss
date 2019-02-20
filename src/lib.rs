@@ -39,7 +39,7 @@ mod string;
 #[path = "objects/long-gmp.rs"]
 mod long;
 
-#[cfg(all(not(feature = "long"),not(feature = "long-gmp")))]
+#[cfg(feature = "long-none")]
 #[path = "objects/long-none.rs"]
 mod long;
 

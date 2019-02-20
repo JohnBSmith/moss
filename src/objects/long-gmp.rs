@@ -347,7 +347,7 @@ impl Long {
         y.sub_int(&x,b.into());
         return Object::Interface(Rc::new(Long{value: y}));
     }
-    pub fn mpy_int_int(a: i32, b: i32) -> Object {
+    pub fn mul_int_int(a: i32, b: i32) -> Object {
         let x = Mpz::from_int(a.into());
         let mut y = Mpz::new();
         y.mul_int(&x,b.into());
