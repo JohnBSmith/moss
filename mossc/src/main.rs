@@ -24,7 +24,7 @@ fn compile(s: &str, file: &str) -> Result<(),()> {
         }
     };
     let env = Env::new();
-    let mut symbol_table = SymbolTable::new();
+    let mut symbol_table = SymbolTable::new(&env);
     match type_check(&env,&t,&mut symbol_table) {
         Ok(()) => {},
         Err(e) => {

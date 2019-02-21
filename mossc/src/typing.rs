@@ -12,7 +12,8 @@ pub struct Env {
     type_string: Rc<str>,
     type_object: Rc<str>,
     type_list: Rc<str>,
-    type_tuple: Rc<str>
+    type_tuple: Rc<str>,
+    type_fn: Rc<str>
 }
 
 impl Env {
@@ -24,7 +25,8 @@ impl Env {
             type_string: Rc::from("String"),
             type_object: Rc::from("Object"),
             type_list: Rc::from("List"),
-            type_tuple: Rc::from("Tuple")
+            type_tuple: Rc::from("Tuple"),
+            type_fn: Rc::from("Fn")
         }
     }
 }
@@ -34,14 +36,27 @@ pub struct VariableInfo {
     pub ty: Type
 }
 
+impl VariableInfo {
+    fn new(ty: Type) -> Self {
+        VariableInfo{mutable: false, ty: ty}
+    }
+}
+
 pub struct SymbolTable {
     context: Option<Box<SymbolTable>>,
     variables: HashMap<String,VariableInfo>
 }
 
 impl SymbolTable {
-    pub fn new() -> Self {
-        SymbolTable{context: None, variables: HashMap::new()}
+    pub fn new(env: &Env) -> Self {
+        let mut variables: HashMap<String,VariableInfo> = HashMap::new();
+        let print_type = Type::App(Rc::new(vec![
+            Type::Atomic(env.type_fn.clone()),
+            Type::Atomic(env.type_object.clone()),
+            Type::Atomic(env.type_unit.clone())
+        ]));
+        variables.insert("print".into(),VariableInfo::new(print_type));
+        SymbolTable{context: None, variables}
     }
 }
 
@@ -344,6 +359,38 @@ fn type_check_tuple(env: &Env, t: &AST, symbol_table: &mut SymbolTable)
     return Ok(Type::App(Rc::new(v)));
 }
 
+fn type_check_application(env: &Env, t: &AST, symbol_table: &mut SymbolTable)
+-> Result<Type,SemanticError>
+{
+    let a = t.argv();
+    let argv = &a[1..];
+    let fn_type = type_check_node(env,&a[0],symbol_table)?;
+    if let Type::App(ref sig) = fn_type {
+        if argv.len()+2 != sig.len() {
+            let id = match a[0].info {Info::Id(ref s)=>s, _ => panic!()};
+            return Err(type_error(t.line,t.col,
+                format!("\n  function {} has argument count {},\n  found application of argument count {}.",
+                    id,sig.len()-2,argv.len())
+            ));
+        }
+        if is_atomic_type(&sig[0],&env.type_fn) {
+            for i in 0..argv.len() {
+                let ty = type_check_node(env,&argv[i],symbol_table)?;
+                if !is_subtype_of_eq(env,&ty,&sig[i+1]) {
+                    return Err(type_error(t.line,t.col,
+                        format!("function argument {}\n  expected type {},\n  found type {}.",
+                            i,sig[i+1],ty)
+                    ));
+                }
+            }
+            return Ok(sig[sig.len()-1].clone());
+        }
+    }
+    return Err(type_error(t.line,t.col,
+        format!("cannot apply a value of type {}.",fn_type)
+    ));
+}
+
 fn type_check_node(env: &Env, t: &AST, symbol_table: &mut SymbolTable)
 -> Result<Type,SemanticError>
 {
@@ -370,6 +417,9 @@ fn type_check_node(env: &Env, t: &AST, symbol_table: &mut SymbolTable)
         },
         Symbol::List => {
             return type_check_tuple(env,t,symbol_table);
+        },
+        Symbol::Application => {
+            return type_check_application(env,t,symbol_table);
         },
         _ => {
             unimplemented!()

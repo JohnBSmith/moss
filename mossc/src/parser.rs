@@ -546,8 +546,10 @@ fn atom(i: &TokenIterator) -> Result<Rc<AST>,Error> {
         return Ok(x);
     }else if t.value == Symbol::BLeft {
         i.advance();
-        let x = argument_list(t,i,Symbol::BRight)?;
-        return Ok(x);
+        let a = argument_list(i,Vec::new(),Symbol::BRight)?;
+        return Ok(AST::node(t.line, t.col, Symbol::List,
+            Info::None, Some(a.into_boxed_slice())
+        ));
     }else if t.value == Symbol::Vert {
         i.advance();
         return lambda_expression(t,i);
@@ -558,10 +560,10 @@ fn atom(i: &TokenIterator) -> Result<Rc<AST>,Error> {
     }
 }
 
-fn argument_list(t0: &Token, i: &TokenIterator, terminator: Symbol)
--> Result<Rc<AST>,Error>
+fn argument_list(i: &TokenIterator,
+    mut argv: Vec<Rc<AST>>, terminator: Symbol
+) -> Result<Vec<Rc<AST>>,Error>
 {
-    let mut argv: Vec<Rc<AST>> = Vec::new();
     loop{
         let x = expression(i)?;
         argv.push(x);
@@ -577,9 +579,7 @@ fn argument_list(t0: &Token, i: &TokenIterator, terminator: Symbol)
         }
     }
     i.advance();
-    return Ok(AST::node(t0.line, t0.col, Symbol::List,
-        Info::None, Some(argv.into_boxed_slice())
-    ));
+    return Ok(argv);
 }
 
 fn application(i: &TokenIterator) -> Result<Rc<AST>,Error> {
@@ -587,9 +587,9 @@ fn application(i: &TokenIterator) -> Result<Rc<AST>,Error> {
     let t = i.get();
     if t.value == Symbol::PLeft {
         i.advance();
-        let argv = argument_list(&t,i,Symbol::PRight)?;
+        let argv = argument_list(i,vec![x],Symbol::PRight)?;
         return Ok(AST::node(t.line, t.col, Symbol::Application,
-            Info::None, Some(Box::new([x, argv]))
+            Info::None, Some(argv.into_boxed_slice())
         ));
     }
     return Ok(x);
