@@ -296,9 +296,11 @@ fn load(env: &mut Env, id: Rc<CharString>, hot_plug: bool) -> FnResult{
         "math/sf/ei" => ::sf::load_sf_ei(),
 
         "cmath" => ::math::load_cmath(),
-        "sys"   => ::sys::load_sys(env.rte()),
         "regex" => ::regex::load_regex(env),
+        "sys"   => ::sys::load_sys(env.rte()),
+        "time"  => ::time::load_time(),
         "data" => ::data::load_data(env),
+        
         
         #[cfg(feature = "gx")]
         "gx" => ::gx::load_gx(),

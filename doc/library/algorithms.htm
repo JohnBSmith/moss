@@ -32,13 +32,30 @@
 [1, 2, 1, 2, 3, 4]
 </pre>
 
+<dt>prod(*iterables)
+<dd>Return an iterator over the cartesian product of the iterables.
+<pre class="moss">
+&gt; prod(["x","y"],[0,1]).list()  
+[["x", 0], ["x", 1], ["y", 0], ["y", 1]]
+</pre>
+
 <dt>permutations(a)
 <dd>Return an iterator over all permutations of <code>a</code>.
+<pre class="moss">
+&gt; permutations("abc").map(|t| t.join()).join("|") 
+"abc|bac|bca|acb|cab|cba"
+</pre>
 
 <dt>repeat(x), repeat(x,n)
 <dd>Return an iterator that returns <code>x</code> over and over
 again. If <code>n</code> is given, the iterator will be exhausted
 after <code>n</code> calls.
+
+<dt>i.step(m)
+<dd>Returns an iterator that steps by skipping elements:
+<pre class="moss">
+a.step(m).list() == [a[0],a[m],a[2*m],...]
+</pre>
 </dl>
 
 <h2 id="functional">Module functional</h2>

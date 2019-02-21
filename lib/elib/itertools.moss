@@ -18,79 +18,9 @@ zip = fn|a|
    end
 end
 
-chain = |a| fn*||
-   for i in a
-      for x in i
-         yield x
-      end
-   end
-end
-
-Iterable.reduce = fn reduce|x0,f|
-   y = x0
-   for x in self
-      y = f(y,x)
-   end
-   return y
-end
-
-Iterable.accumulate = fn accumulate|x0,f|
-   a = self
-   return fn*||
-      y = x0
-      yield y
-      for x in a
-         y = f(y,x)
-         yield y
-      end
-   end
-end
-
-Iterable.take = fn take|n|
-   i = iter(self)
-   return fn*||
-      for k in 1..n
-         yield i()
-      end
-   end
-end
-
-Iterable.skip = fn skip|n|
-   i = iter(self)
-   for k in 1..n
-      i()
-   end
-   return i
-end
-
 Iterable.at = fn at|n|
    return self.skip(n)()
 end
 
-function cycle(x)
-   a = x.list()
-   i=0; n=size(a)
-   return fn*||
-      while true
-         i = 1 if i==n else i+1
-         yield a[i-1]
-      end
-   end
-end
-
-function permutations(a)
-   fn* ||
-      if size(a)<=1
-         yield copy(a)
-      else
-         x = a[..0]
-         for p in permutations(a[1..])
-            for i in 0..size(a)-1
-               yield p[..i-1]+x+p[i..]
-            end
-         end
-      end
-   end
-end
 
 

@@ -64,6 +64,9 @@ mod format;
 #[path = "modules/sys.rs"]
 mod sys;
 
+#[path = "modules/time.rs"]
+mod time;
+
 #[cfg(feature = "la")]
 #[path = "modules/la.rs"]
 mod la;

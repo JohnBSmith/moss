@@ -18,6 +18,7 @@
 <ol>
 <li><a href="#time">Module <code>time</code> &mdash; time measurement</a>
 <li><a href="#sys">Module <code>sys</code> &mdash; runtime system interface</a>
+<li><a href="#stackless">Module <code>sys.stackless</code> &mdash; avoid the hardware callstack</a>
 <li><a href="#fs">Module <code>fs</code> &mdash; file system interface</a>
 </ol>
 </div>
@@ -54,27 +55,10 @@ print(template % time.time())
 <h2 id="sys">Module sys</h2>
 
 <p>Interface to the runtime system.
-</p>
 
 <dl class="code">
 <dt>argv
 <dd>List of command-line arguments.</dd>
-
-<dt>call(n,main,*argv)
-<dd>Call <code>main</code> with a new call stack of
-size <code>n</code>. This is used to have unlimited recursion
-depth.
-<pre class="moss">
-use sys: call
-
-f = |n| 0 if n==0 else f(n-1)+1
-
-function main
-  print(f(100000))
-end
-
-call(1000000,main)
-</pre>
 
 <dt>exit(n)
 <dd>Exit the program with integer return value <code>n</code>.
@@ -83,12 +67,52 @@ Zero means success, other values indicate an error.
 <dt>path
 <dd>List of search paths for module loading, analogous to
 the environment variable <code>PATH</code>.
-This list may be changed freely and can contain relative paths.
+This list may be changed freely and may contain relative paths.
 But note that relative paths are problematic: they becomde invalid
 if the current working directory changes. That <code>path[0]</code>
 should be the absolute path of the directory where <code>argv[0]</code>
-is found.</dd>
+is found.
+
+<dt>call(n,main,*argv)
+<dd>Call <code>main</code> with a new call stack of
+size <code>n</code>. This is used to obtain unlimited recursion
+depth.
+<pre class="moss">
+use sys: call
+
+f = |n| 0 if n==0 else f(n-1)+1
+
+function main
+   print(f(10^5))
+end
+
+call(10^6,main)
+</pre>
+
+<dt>cmd(command,argv)
+<dd>Call the command with the specified argument list, the
+output directed to stdout. Permission denied if not in unsafe mode.
+Returns <code>null</code> if the process was successful, otherwise
+an integer.
+
+<pre class="moss">
+&gt; cmd("sh",["-c","GET en.wikipedia.org > /tmp/0"])
+&gt; s = read("/tmp/0")
+</pre>
 </dl>
+
+<h2 id="stackless">Module sys.stackless</h2>
+<p>This modules patches functions (that take callbacks)
+with Moss implementations to dispense with the hardware callstack.
+It should be used together with <code>sys.call</code> to
+enable unlimited recursion depth.
+
+<p>The following functions are patched:
+<pre>
+List.map, List.filter,
+Iterable.map, Iterable.filter, Iterable.all, Iterable.any,
+Iterable.count, Iterable.reduce
+</pre>
 
 <h2 id="fs">Module fs</h2>
 <dl class="code">

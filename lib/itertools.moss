@@ -1,4 +1,11 @@
 
+function prod(*a)
+   if size(a)==0
+      return iter([[]])
+   else
+      return [x]+t for x in a[0] for t in prod(*a[1..])
+   end
+end
 
 function permutations(a)
    a = list(a)
@@ -8,7 +15,7 @@ function permutations(a)
       else
          x = a[..0]
          for p in permutations(a[1..])
-            for i in 0..size(a)-1
+            for i in size(a)
                yield p[..i-1]+x+p[i..]
             end
          end
@@ -65,5 +72,17 @@ function repeat(x,n=null)
       end
    end
 end
+
+Iterable.step = fn step|m|
+   i = iter(self)
+   n = m-1
+   return fn*||
+      while true
+          yield i()
+          for k in n do i() end
+      end
+   end
+end
+
 
 

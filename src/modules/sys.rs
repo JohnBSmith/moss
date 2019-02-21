@@ -52,7 +52,9 @@ fn cmd(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     };
     if env.rte().capabilities.borrow().command {
         match process::Command::new(&cmd_name).args(&a[..]).status() {
-            Ok(status) => Ok(Object::Bool(status.success())),
+            Ok(status) => {
+                Ok(if status.success() {Object::Null} else {Object::Int(1)})
+            },
             Err(_) => env.std_exception(&format!(
                 "Error in cmd(command,argv): failed to execute command=='{}'.",cmd_name))
         }

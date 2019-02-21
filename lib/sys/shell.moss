@@ -16,8 +16,14 @@ function cmd(command,argv=null)
    end
 end
 
-function sh(command)
-   return sys.cmd("sh",["-c",command])
+function sh(command,m=null)
+   if m is null or not m["text"]
+      return sys.cmd("sh",["-c",command])
+   else
+      value = sys.cmd("sh",["-c",command+" > /tmp/f04e3a427dd35c24"])
+      text = read("/tmp/f04e3a427dd35c24")
+      return table{value=value, text=text}
+   end
 end
 
 end
