@@ -57,7 +57,8 @@ index = [
    "math/sf/ei",
    "plotlib",
    "plotlib/implicit",
-   "svg/plotlib"
+   "svg/plotlib",
+   "sys/stackless"
 ]
 
 elib_index = [
@@ -67,7 +68,6 @@ elib_index = [
    "elib/mod",
    "elib/optimizer",
    "elib/pc",
-   "elib/rand",
-   "elib/stackless"
+   "elib/rand"
 ]
 

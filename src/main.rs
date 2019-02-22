@@ -49,6 +49,7 @@ struct Info{
     cmd: Option<String>,
     exit: bool,
     math: bool,
+    compile: bool,
     debug_mode: bool,
     unsafe_mode: bool
 }
@@ -63,6 +64,7 @@ impl Info{
             exit: false,
             math: false,
             debug_mode: false,
+            compile: false,
             unsafe_mode: false
         };
         let mut first = true;
@@ -91,6 +93,8 @@ impl Info{
                     return Box::new(info);
                 }else if s=="-d" {
                     info.debug_mode = true;
+                }else if s=="-c" {
+                    info.compile = true;
                 }else if s=="-unsafe" {
                     info.unsafe_mode = true;
                 }else{
@@ -144,6 +148,8 @@ fn main(){
     if let Some(ref id) = info.argv.first() {
         if id.len()==0 {
             env.command_line_session(gtab);
+        }else if info.compile {
+            moss::module::compile_file(&i.rte,id);
         }else{
             env.eval_file(id,gtab);
         }

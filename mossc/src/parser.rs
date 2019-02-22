@@ -564,6 +564,11 @@ fn argument_list(i: &TokenIterator,
     mut argv: Vec<Rc<AST>>, terminator: Symbol
 ) -> Result<Vec<Rc<AST>>,Error>
 {
+    let t = i.get();
+    if t.value == terminator {
+        i.advance();
+        return Ok(argv);
+    }
     loop{
         let x = expression(i)?;
         argv.push(x);

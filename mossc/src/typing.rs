@@ -12,8 +12,7 @@ pub struct Env {
     type_string: Rc<str>,
     type_object: Rc<str>,
     type_list: Rc<str>,
-    type_tuple: Rc<str>,
-    type_fn: Rc<str>
+    type_tuple: Rc<str>
 }
 
 impl Env {
@@ -25,8 +24,7 @@ impl Env {
             type_string: Rc::from("String"),
             type_object: Rc::from("Object"),
             type_list: Rc::from("List"),
-            type_tuple: Rc::from("Tuple"),
-            type_fn: Rc::from("Fn")
+            type_tuple: Rc::from("Tuple")
         }
     }
 }
@@ -50,19 +48,28 @@ pub struct SymbolTable {
 impl SymbolTable {
     pub fn new(env: &Env) -> Self {
         let mut variables: HashMap<String,VariableInfo> = HashMap::new();
-        let print_type = Type::App(Rc::new(vec![
-            Type::Atomic(env.type_fn.clone()),
-            Type::Atomic(env.type_object.clone()),
-            Type::Atomic(env.type_unit.clone())
-        ]));
+        let print_type = Type::Fn(Rc::new(FnType{
+            argc_min: 0, argc_max: VARIADIC,
+            arg: vec![Type::Atomic(env.type_object.clone())],
+            ret: Type::Atomic(env.type_unit.clone())
+        }));
         variables.insert("print".into(),VariableInfo::new(print_type));
         SymbolTable{context: None, variables}
     }
 }
 
+const VARIADIC: usize = ::std::usize::MAX;
+
+pub struct FnType {
+    pub argc_min: usize,
+    pub argc_max: usize,
+    pub arg: Vec<Type>,
+    pub ret: Type
+}
+
 #[derive(Clone)]
 pub enum Type {
-    None, Atomic(Rc<str>), App(Rc<Vec<Type>>)
+    None, Atomic(Rc<str>), App(Rc<Vec<Type>>), Fn(Rc<FnType>)
 }
 
 impl Type {
@@ -169,15 +176,20 @@ fn compare_types(t1: &Type, t2: &Type) -> TypeCmp {
             match t2 {
                 Type::Atomic(t2) => TypeCmp::from(t1==t2),
                 Type::None => TypeCmp::None,
-                Type::App(_) => TypeCmp::False
+                Type::App(_) => TypeCmp::False,
+                Type::Fn(_) => panic!()
             }
         },
         Type::App(ref p1) => {
             match t2 {
                 Type::None => TypeCmp::None,
                 Type::Atomic(_) => TypeCmp::False,
-                Type::App(ref p2) => compare_app_types(p1,p2)
+                Type::App(ref p2) => compare_app_types(p1,p2),
+                Type::Fn(_) => panic!()
             }
+        },
+        Type::Fn(_) => {
+            panic!();
         }
     }
 }
@@ -364,27 +376,27 @@ fn type_check_application(env: &Env, t: &AST, symbol_table: &mut SymbolTable)
 {
     let a = t.argv();
     let argv = &a[1..];
+    let argc = argv.len();
     let fn_type = type_check_node(env,&a[0],symbol_table)?;
-    if let Type::App(ref sig) = fn_type {
-        if argv.len()+2 != sig.len() {
+    if let Type::Fn(ref sig) = fn_type {
+        if argc<sig.argc_min || argc>sig.argc_max {
             let id = match a[0].info {Info::Id(ref s)=>s, _ => panic!()};
             return Err(type_error(t.line,t.col,
-                format!("\n  function {} has argument count {},\n  found application of argument count {}.",
-                    id,sig.len()-2,argv.len())
+                format!("\n  function {} has argument count {}..{},\n  found application of argument count {}.",
+                    id,sig.argc_min,sig.argc_max,argc)
             ));
         }
-        if is_atomic_type(&sig[0],&env.type_fn) {
-            for i in 0..argv.len() {
-                let ty = type_check_node(env,&argv[i],symbol_table)?;
-                if !is_subtype_of_eq(env,&ty,&sig[i+1]) {
-                    return Err(type_error(t.line,t.col,
-                        format!("function argument {}\n  expected type {},\n  found type {}.",
-                            i,sig[i+1],ty)
-                    ));
-                }
+        for i in 0..argc {
+            let ty = type_check_node(env,&argv[i],symbol_table)?;
+            let j = if i<sig.arg.len() {i} else {sig.arg.len()-1};
+            if !is_subtype_of_eq(env,&ty,&sig.arg[j]) {
+                return Err(type_error(t.line,t.col,
+                    format!("function argument {}\n  expected type {},\n  found type {}.",
+                        i,sig.arg[j],ty)
+                ));
             }
-            return Ok(sig[sig.len()-1].clone());
         }
+        return Ok(sig.ret.clone());
     }
     return Err(type_error(t.line,t.col,
         format!("cannot apply a value of type {}.",fn_type)

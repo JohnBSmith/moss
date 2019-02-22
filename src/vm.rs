@@ -4704,8 +4704,8 @@ fn list_from_slice(a: &[Object]) -> Object {
 }
 
 pub fn eval(env: &mut Env,
-    module: Rc<Module>, gtab: Rc<RefCell<Map>>, command_line: bool)
-    -> Result<Object,Box<Exception>>
+    module: Rc<Module>, gtab: Rc<RefCell<Map>>, command_line: bool
+) -> Result<Object,Box<Exception>>
 {
     let fnself = Rc::new(Function{
         f: EnumFunction::Plain(::global::fpanic),
@@ -5086,7 +5086,7 @@ pub fn command_line_session(&mut self, gtab: Rc<RefCell<Map>>){
             Ok(s) => {
                 if s=="" {continue;}
                 history.append(&s);
-                input=s;
+                input = s;
             },
             Err(error) => {println!("Error: {}", error);},
         };
@@ -5142,26 +5142,25 @@ pub fn eval_env(&mut self, s: &str, gtab: Rc<RefCell<Map>>) -> Object {
 }
 
 pub fn eval_file(&mut self, id: &str, gtab: Rc<RefCell<Map>>){
-    let mut path: String = String::from(id);
-    path += ".moss";
-    let mut f = match File::open(&path) {
-        Ok(f) => f,
-        Err(_) => {
-            match File::open(id) {
-                Ok(f) => f,
-                Err(_) => {
-                    println!("File '{}' not found.",id);
-                    return;
-                }
+    let mut f = match ::module::open_file(id) {
+        Some(f) => f, None => return
+    };
+    if is_binary(&mut f) {
+        match ::module::eval_module(self,gtab,&mut f,id) {
+            Ok(_) => {},
+            Err(e) => {
+                println!("{}",exception_to_string(self,&e));
             }
         }
-    };
-    let mut s = String::new();
-    f.read_to_string(&mut s).expect("something went wrong reading the file");
-
-    match self.eval_string(&s,id,gtab,compiler::Value::Optional) {
-        Ok(_) => {}, Err(e) => {
-            println!("{}",exception_to_string(self,&e));
+    }else{
+        let mut s = String::new();
+        f.read_to_string(&mut s).expect("something went wrong reading the file");
+    
+        match self.eval_string(&s,id,gtab,compiler::Value::Optional) {
+            Ok(_) => {},
+            Err(e) => {
+                println!("{}",exception_to_string(self,&e));
+            }
         }
     }
 }
@@ -5260,6 +5259,17 @@ where T: Downcast<Output=T>+TypeName
 
 } // impl Env
 
+fn is_binary(f: &mut File) -> bool {
+    use std::io::{Seek,SeekFrom};
+
+    let buf: &mut [u8] = &mut [0];
+    let value = f.read_exact(buf);
+    f.seek(SeekFrom::Start(0)).unwrap();
+    return match value {
+        Ok(()) => buf[0]==0,
+        Err(_) => false
+    };
+}
 
 pub fn sys_call(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     if argv.len()<2 {

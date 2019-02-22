@@ -49,6 +49,9 @@ mod tuple;
 #[path = "objects/class.rs"]
 mod class;
 
+#[path = "modules/module.rs"]
+pub mod module;
+
 #[path = "modules/complex.rs"]
 pub mod complex;
 

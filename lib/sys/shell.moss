@@ -17,7 +17,7 @@ function cmd(command,argv=null)
 end
 
 function sh(command,m=null)
-   if m is null or not m["text"]
+   if m is null or not m["capture"]
       return sys.cmd("sh",["-c",command])
    else
       value = sys.cmd("sh",["-c",command+" > /tmp/f04e3a427dd35c24"])
