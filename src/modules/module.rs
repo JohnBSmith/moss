@@ -5,9 +5,9 @@ use std::fs::File;
 use std::io::{Read,Write};
 
 use system::History;
-use object::{Object,Exception,Map};
+use object::{Object,FnResult,Map};
 use vm::{Module,RTE,Env,eval};
-use compiler::EnumError;
+use compiler::{compile,Value};
 
 fn push_u32(bv: &mut Vec<u8>, x: u32) {
     bv.push(x as u8);
@@ -72,7 +72,7 @@ fn load_object(bv: &[u8], index: usize) -> (usize,Object) {
 }
 
 fn load_from_u8(rte: &Rc<RTE>, id: &str, bv: &[u8])
--> Result<Rc<Module>,Box<EnumError>>
+-> Result<Rc<Module>,()>
 {
     let data_index = load_u32(&bv[4..8]) as usize;
     let program_size = (data_index-8)/4;
@@ -114,34 +114,33 @@ pub fn compile_file(rte: &Rc<RTE>, id: &str) {
     f.read_to_string(&mut s).expect("something went wrong reading the file");
 
     let history = &mut History::new();
-    match ::compiler::scan(&s,1,id,false) {
-        Ok(v) => {
-            match ::compiler::compile(v,false,::compiler::Value::Optional,history,id,rte) {
-                Ok(module) => save_module(&module),
-                Err(e) => ::compiler::print_error(&e)
-            };
-        },
-        Err(error) => ::compiler::print_error(&error)
+    match compile(&s,id,false,Value::Optional,history,rte) {
+        Ok(module) => save_module(&module),
+        Err(e) => ::compiler::print_error(&e)
     }
 }
 
 fn load_module(rte: &Rc<RTE>, f: &mut File, id: &str)
--> Result<Rc<Module>,Box<EnumError>>
+-> Result<Rc<Module>,()>
 {
     let mut bv: Vec<u8> = Vec::new();
     match f.read_to_end(&mut bv) {
         Ok(_) => {},
-        Err(_) => panic!()
+        Err(_) => {
+            println!("Could open but not read file '{}'.",id);
+            return Err(());
+        }
     }
     return load_from_u8(rte,id,&bv);
 }
 
 pub fn eval_module(env: &mut Env, gtab: Rc<RefCell<Map>>, f: &mut File, id: &str)
--> Result<Object,Box<Exception>>
+-> FnResult
 {
     let m = match load_module(env.rte(),f,id) {
         Ok(m) => m,
-        Err(_) => panic!()
+        Err(()) => return env.std_exception(&format!(
+            "Could not load module '{}'.",id))
     };
     return eval(env,m,gtab,false);
 }

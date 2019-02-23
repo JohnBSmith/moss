@@ -3259,7 +3259,7 @@ fn compile_compound_assignment(
         let op_code = match t.value {
             Symbol::APlus => bc::ADD,
             Symbol::AMinus => bc::SUB,
-            Symbol::AAst => bc::MPY,
+            Symbol::AAst => bc::MUL,
             Symbol::ADiv => bc::DIV,
             Symbol::AIdiv => bc::IDIV,
             Symbol::AMod => bc::MOD,
@@ -3476,7 +3476,7 @@ fn compile_ast(&mut self, bv: &mut Vec<u32>, t: &Rc<AST>)
         }else if value == Symbol::Minus {
             self.compile_operator(bv,t,bc::SUB)?;
         }else if value == Symbol::Ast {
-            self.compile_operator(bv,t,bc::MPY)?;
+            self.compile_operator(bv,t,bc::MUL)?;
         }else if value == Symbol::Div {
             self.compile_operator(bv,t,bc::DIV)?;
         }else if value == Symbol::Idiv {
@@ -3816,7 +3816,7 @@ fn asm_listing(a: &[u32]) -> String {
             bc::FNSELF => {s.push_str("function self\n"); i+=BCSIZE;},
             bc::ADD => {s.push_str("add\n"); i+=BCSIZE;},
             bc::SUB => {s.push_str("sub\n"); i+=BCSIZE;},
-            bc::MPY => {s.push_str("mpy\n"); i+=BCSIZE;},
+            bc::MUL => {s.push_str("mpy\n"); i+=BCSIZE;},
             bc::DIV => {s.push_str("div\n"); i+=BCSIZE;},
             bc::IDIV => {s.push_str("idiv\n"); i+=BCSIZE;},
             bc::MOD => {s.push_str("mod\n"); i+=BCSIZE;},
@@ -4106,7 +4106,7 @@ pub struct CompilerExtra{
     pub debug_mode: bool
 }
 
-pub fn compile(v: Vec<Token>, mode_cmd: bool, value: Value,
+fn compile_token_vector(v: Vec<Token>, mode_cmd: bool, value: Value,
     history: &mut system::History, id: &str, rte: &Rc<RTE>
 ) -> Result<Rc<Module>,Error>
 {
@@ -4153,4 +4153,14 @@ pub fn compile(v: Vec<Token>, mode_cmd: bool, value: Value,
         id: id.to_string()
     });
     return Ok(m);
+}
+
+pub fn compile(s: &str, id: &str, mode_cmd: bool, value: Value,
+   history: &mut system::History, rte: &Rc<RTE>
+) -> Result<Rc<Module>,Box<EnumError>>
+{
+    let v = scan(s,1,id,false)?;
+    return compile_token_vector(
+        v, mode_cmd, value, history, id, rte
+    );
 }

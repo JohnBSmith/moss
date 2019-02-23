@@ -48,7 +48,7 @@ pub const BCAASIZE: usize = 3;
 
 pub mod bc{
     pub const NULL: u8 = 00;
-    pub const OF: u8 = 01;
+    pub const OF:   u8 = 01;
     pub const FALSE:u8 = 02;
     pub const TRUE: u8 = 03;
     pub const INT:  u8 = 04;
@@ -57,7 +57,7 @@ pub mod bc{
     pub const NEG:  u8 = 07;
     pub const ADD:  u8 = 08;
     pub const SUB:  u8 = 09;
-    pub const MPY:  u8 = 10;
+    pub const MUL:  u8 = 10;
     pub const DIV:  u8 = 11;
     pub const IDIV: u8 = 12;
     pub const POW:  u8 = 13;
@@ -115,7 +115,7 @@ pub mod bc{
     pub const AOP:  u8 = 65;
     pub const RAISE:u8 = 66;
     pub const AOP_INDEX:u8 = 67;
-    pub const OP:  u8 = 68;
+    pub const OP:   u8 = 68;
     pub const TRY:  u8 = 69;
     pub const TRYEND:u8 = 70;
     pub const GETEXC:u8 = 71;
@@ -137,7 +137,7 @@ pub mod bc{
             NEG => "NEG",
             ADD => "ADD",
             SUB => "SUB",
-            MPY => "MPY",
+            MUL => "MUL",
             DIV => "DIV",
             IDIV => "IDIV",
             MOD => "MOD",
@@ -3487,7 +3487,7 @@ fn operate(op: u32, env: &mut EnvPart, sp: usize, stack: &mut [Object],
     match op as u8 {
         bc::ADD  => {operator_add (env,sp+2,stack)?;},
         bc::SUB  => {operator_sub (env,sp+2,stack)?;},
-        bc::MPY  => {operator_mul (env,sp+2,stack)?;},
+        bc::MUL  => {operator_mul (env,sp+2,stack)?;},
         bc::DIV  => {operator_div (env,sp+2,stack)?;},
         bc::IDIV => {operator_idiv(env,sp+2,stack)?;},
         bc::BAND => {operator_band(env,sp+2,stack)?;},
@@ -4022,7 +4022,7 @@ fn vm_loop(
           sp-=1;
           ip+=BCSIZE;
       },
-      bc::MPY => {
+      bc::MUL => {
           match operator_mul(env, sp, &mut stack) {
               Ok(())=>{}, Err(e)=>{exception=Err(e); break;}
           }
@@ -5062,18 +5062,11 @@ pub fn eval_string(&mut self, s: &str, id: &str, gtab: Rc<RefCell<Map>>,
 ) -> Result<Object,Box<Exception>>
 {
     let mut history = History::new();
-    match compiler::scan(s,1,id,false) {
-        Ok(v) => {
-            match compiler::compile(v,false,value,&mut history,id,self.rte()) {
-                Ok(module) => {
-                    return eval(self,module.clone(),gtab.clone(),false);
-                },
-                Err(e) => {compiler::print_error(&e);}
-            };
+    match compiler::compile(s,id,false,value,&mut history,self.rte()) {
+        Ok(module) => {
+            return eval(self,module,gtab,false);
         },
-        Err(error) => {
-            compiler::print_error(&error);
-        }
+        Err(e) => compiler::print_error(&e)
     }
     return Ok(Object::Null);
 }
@@ -5099,25 +5092,19 @@ pub fn command_line_session(&mut self, gtab: Rc<RefCell<Map>>){
                 continue;
             }
         }
-        match compiler::scan(&input,1,"command line",false) {
-            Ok(v) => {
-                // compiler::print_vtoken(&v);
-                match compiler::compile(
-                    v,true,compiler::Value::Optional,&mut history,
-                    "command line", self.rte()
-                ){
-                    Ok(module) => {
-                        match eval(self,module.clone(),gtab.clone(),true) {
-                            Ok(_) => {}, Err(e) => {
-                                println!("{}",exception_to_string(self,&e));
-                            }
-                        }
-                    },
-                    Err(e) => {compiler::print_error(&e);}
-                };
+        match compiler::compile(&input, "command line", true,
+            compiler::Value::Optional, &mut history, self.rte()
+        ) {
+            Ok(module) => {
+                match eval(self,module.clone(),gtab.clone(),true) {
+                    Ok(_) => {},
+                    Err(e) => {
+                        println!("{}",exception_to_string(self,&e));
+                    }
+                }
             },
-            Err(error) => {
-                compiler::print_error(&error);
+            Err(e) => {
+                compiler::print_error(&e);
             }
         }
     }

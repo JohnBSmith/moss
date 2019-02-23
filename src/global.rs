@@ -5,6 +5,7 @@ use std::collections::HashMap;
 use std::char;
 use std::str::FromStr;
 use std::f64::NAN;
+use std::io::Read;
 
 use vm::{
     RTE, Env, op_lt, table_get,
@@ -17,7 +18,8 @@ use object::{
 };
 use rand::Rand;
 use iterable::{iter,cycle};
-use system::{History,read_module_file};
+use system::{History,open_module_file};
+use module::eval_module;
 use compiler::Value;
 use long::{Long, pow_mod};
 use tuple::Tuple;
@@ -253,21 +255,28 @@ fn load_file(env: &mut Env, id: &str) -> FnResult {
     }
     let path = env.rte().path.clone();
     let search_paths = &path.borrow().v;
-    let s = match read_module_file(search_paths,id) {
-        Ok(s)=>s,
+    let (mut f,binary) = match open_module_file(search_paths,id) {
+        Ok(value) => value,
         Err(e) => return env.std_exception(&e)
     };
+
     let module = new_module(id);
     env.rte().clear_at_exit(module.map.clone());
-    match env.eval_string(&s,id,module.map.clone(),Value::None) {
-        Ok(x) => {
-            Ok(match x {
-                Object::Null => Object::Table(Rc::new(module)),
-                x => x
-            })
-        },
-        Err(e) => Err(e)
-    }
+
+    let value = if binary {
+        eval_module(env,module.map.clone(),&mut f,id)
+    }else{
+        let mut s = String::new();
+        if let Err(_) = f.read_to_string(&mut s) {
+            return env.std_exception(&format!(
+                "Error in load: could not read file '{}.moss'.",id));
+        }
+        env.eval_string(&s,id,module.map.clone(),Value::None)
+    };
+    return Ok(match value? {
+        Object::Null => Object::Table(Rc::new(module)),
+        x => x
+    });
 }
 
 fn load(env: &mut Env, id: Rc<CharString>, hot_plug: bool) -> FnResult{
