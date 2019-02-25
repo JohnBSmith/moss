@@ -6,9 +6,13 @@ use std::env;
 
 mod parser;
 mod typing;
+mod generator;
+mod system;
 
 use parser::{parse,Error};
 use typing::{type_check,Env,SymbolTable};
+use generator::generate;
+use system::save;
 
 fn print_error(e: &Error, file: &str) {
     print!("File '{}', line {}, col {}:\n",file,e.line+1,e.col+1);
@@ -29,8 +33,11 @@ fn compile(s: &str, file: &str) -> Result<(),()> {
         Ok(()) => {},
         Err(e) => {
             e.print();
+            return Err(());
         }
     }
+    let code = generate(&t);
+    save(&code,file);
     return Ok(());
 }
 
@@ -43,16 +50,16 @@ fn read_file(path: &str) -> Result<String,std::io::Error> {
 }
 
 struct CmdInfo {
-    path: Option<String>
+    id: Option<String>
 }
 
 impl CmdInfo {
     pub fn new() -> Self {
-        let mut info = CmdInfo{path: None};
+        let mut info = CmdInfo{id: None};
         let mut first = true;
         for s in env::args() {
             if first {first = false; continue;}
-            info.path = Some(String::from(s));
+            info.id = Some(String::from(s));
         }
         return info;
     }
@@ -64,7 +71,8 @@ Usage: mossc file
 
 fn main_result() -> Result<(),()> {
     let info = CmdInfo::new();
-    if let Some(path) = info.path {
+    if let Some(id) = info.id {
+        let path = format!("{}.moss",id);
         let s = match read_file(&path) {
             Ok(s) => s,
             Err(_) => {
@@ -72,7 +80,7 @@ fn main_result() -> Result<(),()> {
                 return Err(());
             }
         };
-        compile(&s,&path)?;
+        compile(&s,&id)?;
     }else{
         println!("{}",HELP_MESSAGE);
         return Err(());

@@ -418,7 +418,9 @@ fn type_check_node(env: &Env, t: &AST, symbol_table: &mut SymbolTable)
         Symbol::False | Symbol::True => {
             return Ok(Type::Atomic(env.type_bool.clone()));
         },
-        Symbol::Plus | Symbol::Minus | Symbol::Ast | Symbol::Div => {
+        Symbol::Plus | Symbol::Minus | Symbol::Ast | Symbol::Div |
+        Symbol::Pow
+        => {
             return type_check_binary_operator(env,t,symbol_table);
         },
         Symbol::Block => {
