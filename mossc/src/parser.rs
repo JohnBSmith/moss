@@ -2,8 +2,9 @@
 #![allow(dead_code)]
 
 use std::rc::Rc;
-use std::cell::Cell;
+use std::cell::{Cell,RefCell};
 use std::fmt::Write;
+use typing::SymbolTable;
 
 pub struct Error {
     pub line: usize,
@@ -369,9 +370,10 @@ impl<'a> TokenIterator<'a> {
 }
 
 pub struct FnHeader {
-    argv: Vec<Argument>,
-    id: String,
-    ret_type: Rc<AST>
+    pub argv: Vec<Argument>,
+    pub id: Option<String>,
+    pub ret_type: Rc<AST>,
+    pub symbol_table: RefCell<Option<SymbolTable>>
 }
 
 pub enum Info {
@@ -521,6 +523,10 @@ fn identifier(i: &TokenIterator) -> Result<Rc<AST>,Error> {
     }
 }
 
+fn identifier_from_string(id: String, line: usize, col: usize) -> Rc<AST> {
+    return AST::node(line,col,Symbol::Item,Info::Id(id),None);
+}
+
 fn atom(i: &TokenIterator) -> Result<Rc<AST>,Error> {
     let t = i.get();
     if t.value == Symbol::Item {
@@ -657,9 +663,9 @@ fn expression(i: &TokenIterator) -> Result<Rc<AST>,Error> {
     return addition(i);
 }
 
-struct Argument {
-    id: String,
-    ty: Rc<AST>
+pub struct Argument {
+    pub id: String,
+    pub ty: Rc<AST>
 }
 
 fn formal_argument_list(i: &TokenIterator) -> Result<Vec<Argument>,Error> {
@@ -704,13 +710,19 @@ fn function_statement(t0: &Token, i: &TokenIterator)
         AST::symbol(t.line,t.col,Symbol::Unit)
     };
     expect(i,Symbol::Semicolon)?;
-    expect(i,Symbol::Begin)?;
     let block = statements(i)?;
     expect(i,Symbol::End)?;
-    
-    let header = Box::new(FnHeader{argv, id, ret_type});
-    return Ok(AST::node(t0.line, t0.col,
+
+    let header = Box::new(FnHeader{argv, id: Some(id.clone()), ret_type,
+        symbol_table: RefCell::new(None)
+    });
+    let fun = AST::node(t0.line, t0.col,
         Symbol::Function, Info::FnHeader(header), Some(Box::new([block]))
+    );
+    let id = identifier_from_string(id,t0.line,t0.col);
+    let none = AST::symbol(t0.line,t0.col,Symbol::None);
+    return Ok(AST::node(t0.line,t0.col,
+        Symbol::Let, Info::None, Some(Box::new([id,none,fun]))
     ));
 }
 
@@ -741,7 +753,7 @@ fn statements(i: &TokenIterator) -> Result<Rc<AST>,Error> {
                 i.advance();
                 type_expression(i)?
             }else{
-                AST::node(t.line,t.col,Symbol::None,Info::None,None)
+                AST::symbol(t.line,t.col,Symbol::None)
             };
 
             let t = i.get();

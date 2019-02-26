@@ -8,9 +8,10 @@ mod parser;
 mod typing;
 mod generator;
 mod system;
+mod debug;
 
 use parser::{parse,Error};
-use typing::{type_check,Env,SymbolTable};
+use typing::{TypeChecker,Env};
 use generator::generate;
 use system::save;
 
@@ -28,15 +29,16 @@ fn compile(s: &str, file: &str) -> Result<(),()> {
         }
     };
     let env = Env::new();
-    let mut symbol_table = SymbolTable::new(&env);
-    match type_check(&env,&t,&mut symbol_table) {
+    let mut checker = TypeChecker::new(&env);
+    match checker.type_check(&env,&t) {
         Ok(()) => {},
         Err(e) => {
             e.print();
             return Err(());
         }
     }
-    let code = generate(&t);
+    let code = generate(&t,checker.symbol_table);
+    println!("{}",code);
     save(&code,file);
     return Ok(());
 }

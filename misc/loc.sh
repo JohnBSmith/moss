@@ -1,8 +1,10 @@
 
-cd ../src
 printf "Rust: "
-find -name "*.rs" | xargs cat | wc -l
+(cd ../src; find -name "*.rs" | xargs cat | wc -l)
 
-cd ../lib
+printf "  Compiler +"
+(cd ../mossc/src; find -name "*.rs" | xargs cat | wc -l)
+
 printf "Moss: "
-find -name "*.moss" | xargs cat | wc -l
+(cd ../lib; find -name "*.moss" | xargs cat | wc -l)
+

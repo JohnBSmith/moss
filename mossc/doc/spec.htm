@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Language specification</title>
+  <style>
+body{
+  margin-top: 2em;
+  margin-left: 16%;
+  margin-bottom: 10em;
+  max-width: 40em;
+  font-family: "DejaVu Sans", "Verdana", sans-serif;
+  color: #404034;
+  line-height: 1.4em;
+}
+@media(max-width: 56em){
+  body{margin-left: 10%; margin-right: 4%;}
+}
+@media(max-width: 42em){
+  body{margin-left: 6%; margin-right: 4%;}
+}
+@media(max-width: 26em){
+  body{margin-left: 2%; margin-right: 1%; line-height: 1.2em;}
+  ol, ul{padding-left: 2em;}
+}
+h1,h2,h3,h4{color: #463c20;}
+a{color: #20506a; text-decoration: none;}
+a:hover{color: #102a40; text-decoration: underline;}
+pre, code{
+  font-family: "FreeMono", "Courier New", monospace;
+  color: #403020;
+}
+table.bt{border-collapse: collapse;}
+table.bt td, table.bt th{
+  border: 1px solid #babab2;
+  padding-left: 0.2em;
+  padding-right: 0.2em;
+  text-align: left;
+  vertical-align: top;
+}
+table.bt td{
+  background-color: #fafaf0;
+}
+table.bt th{
+  background-color: #eaeada;
+}
+.indent {
+  margin-left: 1.6em;
+}
+  </style>
+</head>
+<body>
+
+<br>
+<h1>Language specification</h1>
+<h2>Table of contents</h2>
+<ol>
+<li>Type system
+  <ol>
+  <li>Subtype rules
+  <li>Structural equality rules
+  </ol>
+</ol>
+
+<h2>Type system</h2>
+
+<h3>Subtype rules</h3>
+<pre>
+Unit &lt;: Object;
+Bool &lt;: Object;
+Int &lt;: Object;
+Float &lt;: Object;
+Complex &lt;: Object;
+
+List[T] &lt;: Object iff T &le;: Object;
+
+List[T,n] &lt;: List[T];
+
+Tuple[T<sub>0</sub>,...,T<sub>n-1</sub>] &lt;: Object iff &forall;k(T<sub>k</sub> &le;: Object);
+
+Tuple[T<sub>0</sub>,...,T<sub>n-1</sub>] &le;: List[T,n] iff &forall;k(T<sub>k</sub> &le;: T);
+
+Map[K,V] &lt;: Object iff K &le;: Object and V &le;: Object;
+
+X=&gt;Y &lt;: Object iff X &le;: Object and Y &le;: Object;
+
+(X<sub>0</sub>,...,X<sub>n-1</sub>)=&gt;Y &lt;: Object
+  iff &forall;k(X<sub>k</sub> &le;: Object) and Y &le;: Object;
+
+X=&gt;Y &lt;: U=&gt;V iff U &le;: X and Y &le;: V;
+
+(X<sub>0</sub>,...,X<sub>n-1</sub>)=&gt;Y &le;: (U<sub>0</sub>,...,U<sub>n-1</sub>)=&gt;V
+  iff &forall;k(U<sub>k</sub> &le;: X<sub>k</sub>) and Y &le;: V;
+</pre>
+
+<h3>Structural equality rules</h3>
+<pre>
+List[T,0] = Tuple[];
+List[T,1] = Tuple[T];
+List[T,2] = Tuple[T,T];
+List[T,3] = Tuple[T,T,T];
+List[T,n] = Tuple[T,T,...,T];
+</pre>
+
+</body>
+</html>
+
