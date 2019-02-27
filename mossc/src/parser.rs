@@ -2,9 +2,8 @@
 #![allow(dead_code)]
 
 use std::rc::Rc;
-use std::cell::{Cell,RefCell};
+use std::cell::Cell;
 use std::fmt::Write;
-use typing::SymbolTable;
 
 pub struct Error {
     pub line: usize,
@@ -369,11 +368,13 @@ impl<'a> TokenIterator<'a> {
     }
 }
 
+const SYMBOL_TABLE_DANGLING: usize = std::usize::MAX;
+
 pub struct FnHeader {
     pub argv: Vec<Argument>,
     pub id: Option<String>,
     pub ret_type: Rc<AST>,
-    pub symbol_table: RefCell<Option<SymbolTable>>
+    pub symbol_table_index: Cell<usize>
 }
 
 pub enum Info {
@@ -714,7 +715,7 @@ fn function_statement(t0: &Token, i: &TokenIterator)
     expect(i,Symbol::End)?;
 
     let header = Box::new(FnHeader{argv, id: Some(id.clone()), ret_type,
-        symbol_table: RefCell::new(None)
+        symbol_table_index: Cell::new(SYMBOL_TABLE_DANGLING)
     });
     let fun = AST::node(t0.line, t0.col,
         Symbol::Function, Info::FnHeader(header), Some(Box::new([block]))

@@ -311,8 +311,8 @@ fn load(env: &mut Env, id: Rc<CharString>, hot_plug: bool) -> FnResult{
         "data" => ::data::load_data(env),
         
         
-        #[cfg(feature = "gx")]
-        "gx" => ::gx::load_gx(),
+        #[cfg(feature = "graphics")]
+        "graphics" => ::graphics::load_graphics(),
 
         _ => {
             load_file(env,&s)?

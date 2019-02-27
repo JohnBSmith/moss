@@ -285,9 +285,7 @@ fn print_data(a: &[Rc<str>], f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(f,"[{}]: \"{}\"",i,a[i])?;
     }
     if a.len()==0 {
-        writeln!(f,"empty\n")?;
-    }else{
-        writeln!(f,"")?;
+        writeln!(f,"empty")?;
     }
     return Ok(());
 }

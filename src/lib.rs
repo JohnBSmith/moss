@@ -86,13 +86,13 @@ mod data;
 #[path = "modules/fs.rs"]
 mod fs;
 
-#[cfg(feature = "gx")]
+#[cfg(feature = "graphics")]
 #[path = "modules/sdl.rs"]
 mod sdl;
 
-#[cfg(feature = "gx")]
-#[path = "modules/gx.rs"]
-mod gx;
+#[cfg(feature = "graphics")]
+#[path = "modules/graphics.rs"]
+mod graphics;
 
 use std::rc::Rc;
 use std::cell::RefCell;

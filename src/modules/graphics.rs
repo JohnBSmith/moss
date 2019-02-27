@@ -756,7 +756,7 @@ fn canvas_fill(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     }
 }
 
-fn gx_sleep(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
+fn graphics_sleep(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         1 => {}, n => return env.argc_error(n,1,1,"sleep")
     }
@@ -794,7 +794,7 @@ fn canvas_scale(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     }
 }
 
-pub fn load_gx() -> Object
+pub fn load_graphics() -> Object
 {
     let type_canvas = Table::new(Object::Null);
     {
@@ -815,11 +815,11 @@ pub fn load_gx() -> Object
         m.insert_fn_plain("scale",canvas_scale,2,2);
     }
 
-    let gx = new_module("gx");
+    let graphics = new_module("graphics");
     {
-        let mut m = gx.map.borrow_mut();
+        let mut m = graphics.map.borrow_mut();
         m.insert("canvas",canvas_bind_type(type_canvas));
-        m.insert_fn_plain("sleep",gx_sleep,1,1);
+        m.insert_fn_plain("sleep",graphics_sleep,1,1);
     }
     
     // Workaround for a bug in SDL on Ubuntu 18.04 on i386.
@@ -827,6 +827,6 @@ pub fn load_gx() -> Object
     // https://bugs.launchpad.net/ubuntu/+source/libsdl2/+bug/1775067
     ::std::env::set_var("DBUS_FATAL_WARNINGS","0");
 
-    return Object::Table(Rc::new(gx));
+    return Object::Table(Rc::new(graphics));
 }
 

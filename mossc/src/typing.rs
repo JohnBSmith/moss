@@ -3,7 +3,6 @@
 
 use std::rc::Rc;
 use std::collections::HashMap;
-use std::mem::replace;
 use parser::{AST, Symbol, Info};
 
 pub struct Env {
@@ -46,9 +45,14 @@ impl VariableInfo {
     }
 }
 
-pub struct SymbolTable {
-    pub context: Option<Box<SymbolTable>>,
+pub struct SymbolTableNode {
+    pub context: Option<usize>,
     pub variables: HashMap<String,VariableInfo>
+}
+
+pub struct SymbolTable {
+    pub list: Vec<SymbolTableNode>,
+    pub index: usize
 }
 
 impl SymbolTable {
@@ -60,20 +64,28 @@ impl SymbolTable {
             ret: Type::Atomic(env.type_unit.clone())
         }));
         variables.insert("print".into(),VariableInfo::global(print_type));
-        SymbolTable{context: None, variables}
+        let node = SymbolTableNode{context: None, variables};
+        let table = SymbolTable{
+            index: 0, list: vec![node]
+        };
+        return table;
     }
     pub fn get(&self, key: &str) -> Option<&VariableInfo> {
-        if let Some(value) = self.variables.get(key) {
-            return Some(value);
-        }else if let Some(ref context) = self.context {
-            return context.get(key);
-        }else{
-            return None;
+        let mut node = &self.list[self.index];
+        loop{
+            if let Some(value) = node.variables.get(key) {
+                return Some(value);
+            }else if let Some(context) = node.context {
+                node = &self.list[context];
+            }else{
+                return None;
+            }
         }
     }
     pub fn count(&self) -> usize {
         let mut counter = 0;
-        for x in self.variables.values() {
+        let index = self.index;
+        for x in self.list[index].variables.values() {
             if let VariableKind::Local = x.kind {
                 counter+=1;
             }
@@ -341,7 +353,10 @@ impl TypeChecker {
 
 pub fn new(env: &Env) -> Self {
     let symbol_table = SymbolTable::new(&env);
-    return TypeChecker{symbol_table, ret_stack: Vec::with_capacity(8)};
+    return TypeChecker{
+        symbol_table,
+        ret_stack: Vec::with_capacity(8)
+    };
 }
 
 fn type_check_binary_operator(&mut self, env: &Env, t: &AST)
@@ -400,10 +415,12 @@ fn type_check_let(&mut self, env: &Env, t: &AST)
                 TypeCmp::None => {unimplemented!()}
             }
         }
-        if self.symbol_table.variables.contains_key(&id) {
+        let index = self.symbol_table.index;
+        let node = &mut self.symbol_table.list[index];
+        if node.variables.contains_key(&id) {
             panic!();
         }
-        self.symbol_table.variables.insert(id,VariableInfo{
+        node.variables.insert(id,VariableInfo{
             mutable: false, ty: ty_of_id, kind: VariableKind::Global
         });
     }
@@ -486,10 +503,13 @@ fn type_check_function(&mut self, env: &Env, t: &AST)
             kind: VariableKind::Argument(i+1)
         });
     }
-    let context = replace(&mut self.symbol_table,
-        SymbolTable{variables, context: None}
-    );
-    self.symbol_table.context = Some(Box::new(context));
+
+    let context = self.symbol_table.index;
+    self.symbol_table.index = self.symbol_table.list.len();
+    self.symbol_table.list.push(SymbolTableNode{
+        variables,
+        context: Some(context)
+    });
 
     let body = &t.argv()[0];
     self.ret_stack.push(ret.clone());
@@ -497,12 +517,8 @@ fn type_check_function(&mut self, env: &Env, t: &AST)
     self.ret_stack.pop();
     value?;
 
-    let context = match self.symbol_table.context.take() {
-        Some(value) => value, None => unreachable!()
-    };
-
-    *header.symbol_table.borrow_mut()
-       = Some(replace(&mut self.symbol_table,*context));
+    header.symbol_table_index.set(self.symbol_table.index);
+    self.symbol_table.index = context;
 
     return Ok(Type::Fn(Rc::new(FnType{
         argc_min: header.argv.len(),

@@ -261,9 +261,8 @@ fn compile_fn(&mut self, bv: &mut Vec<u32>, t: &AST) {
     // let jmp_stack = replace(&mut self.jmp_stack,Vec::new());
 
     // Every function has its own table of variables.
-    let stab = header.symbol_table.borrow_mut().take().unwrap();
-    let context = replace(&mut self.symbol_table,stab);
-    self.symbol_table.context = Some(Box::new(context));
+    let stab_index = self.symbol_table.index;
+    self.symbol_table.index = header.symbol_table_index.get();
 
     let count_optional = 0;
 
@@ -292,9 +291,7 @@ fn compile_fn(&mut self, bv: &mut Vec<u32>, t: &AST) {
     push_bc(bv, bc::NULL, t.line, t.col);
 
     // Restore.
-    if let Some(context) = self.symbol_table.context.take() {
-        self.symbol_table = *context;
-    }
+    self.symbol_table.index = stab_index;
 
     // The name of the function.
     match header.id {

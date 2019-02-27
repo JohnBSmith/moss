@@ -31,7 +31,7 @@
 
 <h3 id="mandelbrot">Mandelbrot set, Julia sets</h3>
 <pre class="moss">
-use gx: canvas, sleep
+use graphics: canvas, sleep
 
 function fractal(f,z0,argm={})
    {w=720, h=480, n=40, p=0, r=2} = argm
@@ -78,7 +78,7 @@ fractal(|z,c| z^2-0.6+0.5i, |c| c, n=80)
 <h3 id="newton">Newton fractals</h3>
 
 <pre class="moss">
-use gx: canvas, sleep
+use graphics: canvas, sleep
 use math: tanh
 use math.na: diffh
 use cmath: arg

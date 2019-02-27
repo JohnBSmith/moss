@@ -23,7 +23,7 @@
 <h2 id="game-of-life">Conway's Game of Life</h2>
 
 <pre class="moss">
-use gx: canvas, sleep
+use graphics: canvas, sleep
 
 function neighbourhood(indices)
    |a,y,x,w,h| indices.count(|[i,j]| a[(y+i)%h][(x+j)%w]==1)
