@@ -30,7 +30,7 @@ impl Env {
 }
 
 pub enum VariableKind {
-    Global, Local, Argument(usize)
+    Global, Local, Argument(usize), FnSelf
 }
 
 pub struct VariableInfo {
@@ -139,6 +139,13 @@ impl std::fmt::Display for Type {
                 write!(f,"]")?;
                 return Ok(());
             },
+            Type::Fn(t) => {
+                if t.arg.len()==1 {
+                    write!(f,"{}=>{}",&t.arg[0],&t.ret)
+                }else{
+                    unimplemented!();
+                }
+            },
             _ => unimplemented!()
         }
     }
@@ -205,6 +212,28 @@ fn compare_app_types(p1: &[Type], p2: &[Type]) -> TypeCmp {
     return value;
 }
 
+fn compare_fn_types(f1: &FnType, f2: &FnType) -> TypeCmp {
+    match compare_types(&f1.ret,&f2.ret) {
+        TypeCmp::None => return TypeCmp::None,
+        TypeCmp::False => return TypeCmp::False,
+        TypeCmp::True => {/*pass*/}
+    }
+    if f1.arg.len() != f2.arg.len() ||
+       f1.argc_min != f2.argc_min ||
+       f1.argc_max != f2.argc_max
+    {
+        return TypeCmp::False;
+    }
+    for i in 0..f1.arg.len() {
+        match compare_types(&f1.arg[i],&f2.arg[i]) {
+            TypeCmp::None => return TypeCmp::None,
+            TypeCmp::False => return TypeCmp::False,
+            TypeCmp::True => {/*pass*/}
+        }        
+    }
+    return TypeCmp::True;
+}
+
 fn compare_types(t1: &Type, t2: &Type) -> TypeCmp {
     match t1 {
         Type::None => TypeCmp::None,
@@ -224,8 +253,12 @@ fn compare_types(t1: &Type, t2: &Type) -> TypeCmp {
                 Type::Fn(_) => panic!()
             }
         },
-        Type::Fn(_) => {
-            panic!();
+        Type::Fn(ref f1) => {
+            if let Type::Fn(ref f2) = t2 {
+                compare_fn_types(f1,f2)
+            }else{
+                TypeCmp::False
+            }
         }
     }
 }
@@ -339,8 +372,21 @@ fn type_from_signature(env: &Env, t: &AST) -> Type {
         }else{
             panic!();
         }
+    }else if t.value == Symbol::Fn {
+        let a = t.argv();
+        let n = a.len();
+        let mut arg: Vec<Type> = Vec::with_capacity(n);
+        for x in &a[..n-1] {
+            let ty = type_from_signature(env,x);
+            arg.push(ty);
+        }
+        let ret = type_from_signature(env,&a[n-1]);
+        return Type::Fn(Rc::new(FnType {
+            argc_min: n-1, argc_max: n-1,
+            arg, ret
+        }));
     }else{
-        panic!();
+        unimplemented!("{}",t.value);
     }
 }
 
@@ -369,6 +415,106 @@ fn type_check_binary_operator(&mut self, env: &Env, t: &AST)
         TypeCmp::True => Ok(ty1),
         TypeCmp::False => Err(type_error(t.line,t.col,format!(
             "x{}y is not defined for x: {}, y: {}.",t.value,ty1,ty2
+        ))),
+        TypeCmp::None => unimplemented!()
+    };
+}
+
+fn type_check_operator_index(&mut self, env: &Env, t: &AST)
+-> Result<Type,SemanticError>
+{
+    let a = t.argv();
+    if a.len()>2 {
+        return Err(type_error(t.line,t.col,String::from(
+            "in a[...]: expected only one index."
+        )));
+    }
+
+    let ty_seq = self.type_check_node(env,&a[0])?;
+    let ty_index = self.type_check_node(env,&a[1])?;
+    if !is_atomic_type(&ty_index,&env.type_int) {
+        return Err(type_error(t.line,t.col,format!(
+            "a[i] is not defined for i: {}.", ty_index
+        )));
+    }
+    if let Some(a) = ty_seq.is_app(&env.type_list) {
+        return Ok(a[0].clone());
+    }else if let Some(a) = ty_seq.is_app(&env.type_tuple) {
+        if is_homogeneous(a) {
+            return Ok(a[0].clone());
+        }
+    }
+    return Err(type_error(t.line,t.col,format!(
+        "expected a in a[i] of indexable type,\n  found type {}.", ty_seq
+    )));
+}
+
+
+fn type_check_comparison(&mut self, env: &Env, t: &AST)
+-> Result<Type,SemanticError>
+{
+    let a = t.argv();
+    let type1 = self.type_check_node(env,&a[0])?;
+    let type2 = self.type_check_node(env,&a[1])?;
+    return match compare_types(&type1,&type2) {
+        TypeCmp::True => Ok(Type::Atomic(env.type_bool.clone())),
+        TypeCmp::False => Err(type_error(t.line,t.col,format!(
+            "x{}y is not defined for x: {}, y: {}.",t.value,type1,type2
+        ))),
+        TypeCmp::None => unimplemented!()
+    };
+}
+
+fn type_check_eq(&mut self, env: &Env, t: &AST)
+-> Result<Type,SemanticError>
+{
+    let a = t.argv();
+    let type1 = self.type_check_node(env,&a[0])?;
+    let type2 = self.type_check_node(env,&a[1])?;
+    return match compare_types(&type1,&type2) {
+        TypeCmp::True => Ok(Type::Atomic(env.type_bool.clone())),
+        TypeCmp::False => Err(type_error(t.line,t.col,format!(
+            "x{}y is not defined for x: {}, y: {}.",t.value,type1,type2
+        ))),
+        TypeCmp::None => unimplemented!()
+    };
+}
+
+fn type_check_logical_operator(&mut self, env: &Env, t: &AST)
+-> Result<Type,SemanticError>
+{
+    let a = t.argv();
+    let type1 = self.type_check_node(env,&a[0])?;
+    let type2 = self.type_check_node(env,&a[1])?;
+    if !is_atomic_type(&type1,&env.type_bool) ||
+       !is_atomic_type(&type2,&env.type_bool)
+    {
+        return Err(type_error(t.line,t.col,format!(
+            "x {} y is not defined for x: {}, y: {}.",
+            t.value, type1, type2
+        )));
+    }    
+    return Ok(Type::Atomic(env.type_bool.clone()));
+}
+
+fn type_check_if_expression(&mut self, env: &Env, t: &AST)
+-> Result<Type,SemanticError>
+{
+    let a = t.argv();
+    let type0 = self.type_check_node(env,&a[0])?;
+    let type1 = self.type_check_node(env,&a[1])?;
+    let type2 = self.type_check_node(env,&a[2])?;
+    if !is_atomic_type(&type0,&env.type_bool) {
+        return Err(type_error(t.line,t.col,format!(
+            "expected condition of type bool,\n  found type: {}.",
+            type0
+        )));
+    }
+    return match compare_types(&type1,&type2) {
+        TypeCmp::True => Ok(type1),
+        TypeCmp::False => Err(type_error(t.line,t.col,format!(
+            "x if c else y expected x and y of the same type,\n  found x: {}, y: {}.",
+            type1, type2
         ))),
         TypeCmp::None => unimplemented!()
     };
@@ -503,6 +649,18 @@ fn type_check_function(&mut self, env: &Env, t: &AST)
             kind: VariableKind::Argument(i+1)
         });
     }
+    
+    let ftype = Type::Fn(Rc::new(FnType{
+        argc_min: header.argv.len(),
+        argc_max: header.argv.len(),
+        arg, ret: ret.clone()
+    }));
+    if let Some(ref id) = header.id {
+        variables.insert(id.clone(),VariableInfo{
+            mutable: false, ty: ftype.clone(),
+            kind: VariableKind::FnSelf
+        });
+    }
 
     let context = self.symbol_table.index;
     self.symbol_table.index = self.symbol_table.list.len();
@@ -512,7 +670,7 @@ fn type_check_function(&mut self, env: &Env, t: &AST)
     });
 
     let body = &t.argv()[0];
-    self.ret_stack.push(ret.clone());
+    self.ret_stack.push(ret);
     let value = self.type_check_node(env,body);
     self.ret_stack.pop();
     value?;
@@ -520,11 +678,7 @@ fn type_check_function(&mut self, env: &Env, t: &AST)
     header.symbol_table_index.set(self.symbol_table.index);
     self.symbol_table.index = context;
 
-    return Ok(Type::Fn(Rc::new(FnType{
-        argc_min: header.argv.len(),
-        argc_max: header.argv.len(),
-        arg, ret
-    })));
+    return Ok(ftype);
 }
 
 fn type_check_return(&mut self, env: &Env, t: &AST)
@@ -564,6 +718,22 @@ fn type_check_node(&mut self, env: &Env, t: &AST)
         Symbol::Pow
         => {
             return self.type_check_binary_operator(env,t);
+        },
+        Symbol::Lt | Symbol::Le | Symbol::Gt | Symbol::Ge
+        => {
+            return self.type_check_comparison(env,t);
+        },
+        Symbol::Eq | Symbol::Ne => {
+            return self.type_check_eq(env,t);
+        },
+        Symbol::And | Symbol::Or => {
+            return self.type_check_logical_operator(env,t);
+        },
+        Symbol::Cond => {
+            return self.type_check_if_expression(env,t);
+        },
+        Symbol::Index => {
+            return self.type_check_operator_index(env,t);
         },
         Symbol::Block => {
             return self.type_check_block(env,t);

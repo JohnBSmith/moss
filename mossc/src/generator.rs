@@ -164,6 +164,9 @@ fn compile_identifier(&mut self, bv: &mut Vec<u32>, t: &AST, id: &str) {
                 push_bc(bv,bc::LOAD_ARG,t.line,t.col);
                 push_u32(bv,index as u32);
             },
+            VariableKind::FnSelf => {
+                push_bc(bv,bc::FNSELF,t.line,t.col);
+            },
             _ => panic!()
         }
     }else{
@@ -352,6 +355,56 @@ fn compile_return(&mut self, bv: &mut Vec<u32>, t: &AST) {
     push_bc(bv,bc::RET,t.line,t.col);
 }
 
+fn compile_conditional_expression(&mut self, bv: &mut Vec<u32>, t: &AST) {
+    let a = t.argv();
+    let mut jumps: Vec<usize> = Vec::new();
+    let m = a.len()/2;
+    for i in 0..m {
+        self.compile_node(bv,&a[2*i]);
+        push_bc(bv, bc::JZ, a[2*i].line, a[2*i].col);
+        let index = bv.len();
+        push_u32(bv,0xcafe);
+        self.compile_node(bv,&a[2*i+1]);
+        push_bc(bv, bc::JMP, t.line, t.col);
+        jumps.push(bv.len());
+        push_u32(bv,0xcafe);
+        let len = bv.len();
+        write_i32(&mut bv[index..index+1],(BCSIZE+len) as i32-index as i32);
+    }
+    self.compile_node(bv,&a[a.len()-1]);
+    let len = bv.len();
+    for i in 0..m {
+        let index = jumps[i];
+        write_i32(&mut bv[index..index+1],(BCSIZE+len) as i32-index as i32);
+    }
+}
+
+fn compile_operator_and(&mut self, bv: &mut Vec<u32>, t: &AST) {
+    // Uses a AND[1] b (1) instead of
+    // a JPZ[1] b JMP[2] (1) CONST_BOOL false (2).
+    let a = t.argv();
+    self.compile_node(bv,&a[0]);
+    push_bc(bv,bc::AND,t.line,t.col);
+    let index = bv.len();
+    push_i32(bv,0xcafe);
+    self.compile_node(bv,&a[1]);
+    let len = bv.len();
+    write_i32(&mut bv[index..index+1], (BCSIZE+len) as i32-index as i32);
+}
+
+fn compile_operator_or(&mut self, bv: &mut Vec<u32>, t: &AST) {
+    // Uses a OR[1] b (1) instead of
+    // a JPZ[1] CONST_BOOL true JMP[2] (1) b (2).
+    let a = t.argv();
+    self.compile_node(bv,&a[0]);
+    push_bc(bv,bc::OR,t.line,t.col);
+    let index = bv.len();
+    push_i32(bv,0xcafe);
+    self.compile_node(bv,&a[1]);
+    let len = bv.len();
+    write_i32(&mut bv[index..index+1], (BCSIZE+len) as i32-index as i32);
+}
+
 fn compile_node(&mut self, bv: &mut Vec<u32>, t: &AST) {
     match t.value {
         Symbol::Item => {
@@ -368,6 +421,12 @@ fn compile_node(&mut self, bv: &mut Vec<u32>, t: &AST) {
                 },
                 _ => unimplemented!()
             }
+        },
+        Symbol::True => {
+            push_bc(bv,bc::TRUE,t.line,t.col);
+        },
+        Symbol::False => {
+            push_bc(bv,bc::FALSE,t.line,t.col);
         },
         Symbol::Block => {
             let a = t.argv();
@@ -401,6 +460,38 @@ fn compile_node(&mut self, bv: &mut Vec<u32>, t: &AST) {
         },
         Symbol::Pow => {
             self.compile_binary_operator(bv,t,bc::POW);
+        },
+        Symbol::Lt => {
+            self.compile_binary_operator(bv,t,bc::LT);
+        },
+        Symbol::Gt => {
+            self.compile_binary_operator(bv,t,bc::GT);
+        },
+        Symbol::Le => {
+            self.compile_binary_operator(bv,t,bc::LE);
+        },
+        Symbol::Ge => {
+            self.compile_binary_operator(bv,t,bc::GE);
+        },
+        Symbol::Eq => {
+            self.compile_binary_operator(bv,t,bc::EQ);
+        },
+        Symbol::Ne => {
+            self.compile_binary_operator(bv,t,bc::NE);
+        },
+        Symbol::And => {
+            self.compile_operator_and(bv,t);
+        },
+        Symbol::Or => {
+            self.compile_operator_or(bv,t);
+        },
+        Symbol::Cond => {
+            self.compile_conditional_expression(bv,t);
+        },
+        Symbol::Index => {
+            self.compile_binary_operator(bv,t,bc::GET_INDEX);
+            let a = t.argv();
+            push_u32(bv,(a.len()-1) as u32);
         },
         _ => unimplemented!("{}",t.value)
     }

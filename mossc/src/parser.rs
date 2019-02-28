@@ -25,6 +25,7 @@ pub enum Symbol {
     None, Terminal, Item,
     Comma, Dot, Colon, Semicolon, Neg,
     Plus, Minus, Ast, Div, Pow, Mod, Idiv, Tilde, Amp, Vert, Svert,
+    Lt, Le, Gt, Ge, Eq, Ne, Cond, Index,
     PLeft, PRight, BLeft, BRight, CLeft, CRight, Assignment, To,
     List, Application, Block, Unit,
     Assert, And, Begin, Break, Catch, Continue, Do, Elif, Else,
@@ -123,6 +124,14 @@ impl std::fmt::Display for Symbol {
             Symbol::Amp   => write!(f,"&"),
             Symbol::Vert  => write!(f,"|"),
             Symbol::Svert => write!(f,"$"),
+            Symbol::Lt    => write!(f,"<"),
+            Symbol::Le    => write!(f,"<="),
+            Symbol::Gt    => write!(f,">"),
+            Symbol::Ge    => write!(f,">="),
+            Symbol::Eq    => write!(f,"=="),
+            Symbol::Ne    => write!(f,"!="),
+            Symbol::Cond  => write!(f,"cond"),
+            Symbol::Index => write!(f,"index"),
             Symbol::Comma => write!(f,","),
             Symbol::Dot   => write!(f,"."),
             Symbol::Colon => write!(f,":"),
@@ -263,8 +272,17 @@ pub fn scan(s: &str) -> Result<Vec<Token>,Error> {
                     i+=1; col+=1;
                 },
                 '/' => {
-                    v.push(Token::symbol(line,col,Symbol::Div));
-                    i+=1; col+=1;
+                    if i+1<n && a[i+1]=='*' {
+                        while i+1<n && (a[i]!='*' || a[i+1]!='/') {
+                            if a[i]=='\n' {line+=1; col=0;}
+                            else {col+=1;}
+                            i+=1;
+                        }
+                        i+=2; col+=2;
+                    }else{
+                        v.push(Token::symbol(line,col,Symbol::Div));
+                        i+=1; col+=1;
+                    }
                 },
                 '%' => {
                     v.push(Token::symbol(line,col,Symbol::Mod));
@@ -289,6 +307,24 @@ pub fn scan(s: &str) -> Result<Vec<Token>,Error> {
                 '$' => {
                     v.push(Token::symbol(line,col,Symbol::Svert));
                     i+=1; col+=1;
+                },
+                '<' => {
+                    if i+1<n && a[i+1]=='=' {
+                        v.push(Token::symbol(line,col,Symbol::Le));
+                        i+=2; col+=2;
+                    }else{
+                        v.push(Token::symbol(line,col,Symbol::Lt));
+                        i+=1; col+=1;
+                    }
+                },
+                '>' => {
+                    if i+1<n && a[i+1]=='=' {
+                        v.push(Token::symbol(line,col,Symbol::Ge));
+                        i+=2; col+=2;
+                    }else{
+                        v.push(Token::symbol(line,col,Symbol::Gt));
+                        i+=1; col+=1;
+                    }
                 },
                 '(' => {
                     v.push(Token::symbol(line,col,Symbol::PLeft));
@@ -317,6 +353,9 @@ pub fn scan(s: &str) -> Result<Vec<Token>,Error> {
                 '=' => {
                     if i+1<n && a[i+1]=='>' {
                         v.push(Token::symbol(line,col,Symbol::To));
+                        i+=2; col+=2;
+                    }else if i+1<n && a[i+1]=='=' {
+                        v.push(Token::symbol(line,col,Symbol::Eq));
                         i+=2; col+=2;
                     }else{
                         v.push(Token::symbol(line,col,Symbol::Assignment));
@@ -416,6 +455,11 @@ impl AST {
     }
 }
 
+pub struct Argument {
+    pub id: String,
+    pub ty: Rc<AST>
+}
+
 const INDENT_SHIFT: usize = 4;
 
 fn ast_to_string(buffer: &mut String, t: &AST, indent: usize) {
@@ -460,10 +504,20 @@ fn expect_int(x: &Item) -> i32 {
     match x {Item::Int(x) => *x, _ => unreachable!()}
 }
 
-fn lambda_expression(t0: &Token, i: &TokenIterator) -> Result<Rc<AST>,Error> {
+fn identifier_from_string(id: String, line: usize, col: usize) -> Rc<AST> {
+    return AST::node(line,col,Symbol::Item,Info::Id(id),None);
+}
+
+struct Parser{}
+
+impl Parser {
+
+fn lambda_expression(&mut self, t0: &Token, i: &TokenIterator)
+-> Result<Rc<AST>,Error>
+{
     let mut argv: Vec<Rc<AST>> = Vec::new();
     loop{
-        let x = atom(i)?;
+        let x = self.atom(i)?;
         argv.push(x);
         let t = i.get();
         if t.value == Symbol::Vert {
@@ -480,13 +534,15 @@ fn lambda_expression(t0: &Token, i: &TokenIterator) -> Result<Rc<AST>,Error> {
     let arg_list = AST::node(t0.line, t0.col, Symbol::List,
         Info::None, Some(argv.into_boxed_slice())
     );
-    let x = expression(i)?;
+    let x = self.expression(i)?;
     return Ok(AST::node(t0.line, t0.col, Symbol::Fn,
         Info::None, Some(Box::new([arg_list,x]))
     ));
 }
 
-fn expect(i: &TokenIterator, value: Symbol) -> Result<(),Error> {
+fn expect(&mut self, i: &TokenIterator, value: Symbol)
+-> Result<(),Error>
+{
     let t = i.get();
     if t.value == value {
         i.advance();
@@ -498,7 +554,9 @@ fn expect(i: &TokenIterator, value: Symbol) -> Result<(),Error> {
     }
 }
 
-fn identifier_raw(i: &TokenIterator) -> Result<String,Error> {
+fn identifier_raw(&mut self, i: &TokenIterator)
+-> Result<String,Error>
+{
     let t = i.get();
     if let Item::Id(ref id) = t.item {
         i.advance();
@@ -510,7 +568,9 @@ fn identifier_raw(i: &TokenIterator) -> Result<String,Error> {
     }
 }
 
-fn identifier(i: &TokenIterator) -> Result<Rc<AST>,Error> {
+fn identifier(&mut self, i: &TokenIterator)
+-> Result<Rc<AST>,Error>
+{
     let t = i.get();
     if let Item::Id(ref id) = t.item {
         i.advance();
@@ -524,13 +584,12 @@ fn identifier(i: &TokenIterator) -> Result<Rc<AST>,Error> {
     }
 }
 
-fn identifier_from_string(id: String, line: usize, col: usize) -> Rc<AST> {
-    return AST::node(line,col,Symbol::Item,Info::Id(id),None);
-}
-
-fn atom(i: &TokenIterator) -> Result<Rc<AST>,Error> {
+fn atom(&mut self, i: &TokenIterator)
+-> Result<Rc<AST>,Error>
+{
     let t = i.get();
-    if t.value == Symbol::Item {
+    let value = t.value;
+    if value == Symbol::Item {
         i.advance();
         let info = match &t.item {
             Item::Int(x) => Info::Int(*x),
@@ -539,9 +598,12 @@ fn atom(i: &TokenIterator) -> Result<Rc<AST>,Error> {
             Item::None => unreachable!()
         };
         return Ok(AST::node(t.line,t.col,Symbol::Item,info,None));
-    }else if t.value == Symbol::PLeft {
+    }else if value == Symbol::True || value == Symbol::False {
         i.advance();
-        let x = expression(i)?;
+        return Ok(AST::symbol(t.line,t.col,value));
+    }else if value == Symbol::PLeft {
+        i.advance();
+        let x = self.expression(i)?;
         let t = i.get();
         if t.value == Symbol::PRight {
             i.advance();
@@ -551,15 +613,15 @@ fn atom(i: &TokenIterator) -> Result<Rc<AST>,Error> {
             ));
         }
         return Ok(x);
-    }else if t.value == Symbol::BLeft {
+    }else if value == Symbol::BLeft {
         i.advance();
-        let a = argument_list(i,Vec::new(),Symbol::BRight)?;
+        let a = self.argument_list(i,Vec::new(),Symbol::BRight)?;
         return Ok(AST::node(t.line, t.col, Symbol::List,
             Info::None, Some(a.into_boxed_slice())
         ));
-    }else if t.value == Symbol::Vert {
+    }else if value == Symbol::Vert {
         i.advance();
-        return lambda_expression(t,i);
+        return self.lambda_expression(t,i);
     }else{
         return Err(syntax_error(t.line,t.col,
             format!("unexpected symbol: '{:?}'",t.value)
@@ -567,7 +629,7 @@ fn atom(i: &TokenIterator) -> Result<Rc<AST>,Error> {
     }
 }
 
-fn argument_list(i: &TokenIterator,
+fn argument_list(&mut self, i: &TokenIterator,
     mut argv: Vec<Rc<AST>>, terminator: Symbol
 ) -> Result<Vec<Rc<AST>>,Error>
 {
@@ -577,7 +639,7 @@ fn argument_list(i: &TokenIterator,
         return Ok(argv);
     }
     loop{
-        let x = expression(i)?;
+        let x = self.expression(i)?;
         argv.push(x);
         let t = i.get();
         if t.value == terminator {
@@ -594,51 +656,65 @@ fn argument_list(i: &TokenIterator,
     return Ok(argv);
 }
 
-fn application(i: &TokenIterator) -> Result<Rc<AST>,Error> {
-    let x = atom(i)?;
+fn application(&mut self, i: &TokenIterator)
+-> Result<Rc<AST>,Error>
+{
+    let x = self.atom(i)?;
     let t = i.get();
     if t.value == Symbol::PLeft {
         i.advance();
-        let argv = argument_list(i,vec![x],Symbol::PRight)?;
+        let argv = self.argument_list(i,vec![x],Symbol::PRight)?;
         return Ok(AST::node(t.line, t.col, Symbol::Application,
+            Info::None, Some(argv.into_boxed_slice())
+        ));
+    }else if t.value == Symbol::BLeft {
+        i.advance();
+        let argv = self.argument_list(i,vec![x],Symbol::BRight)?;
+        return Ok(AST::node(t.line, t.col, Symbol::Index,
             Info::None, Some(argv.into_boxed_slice())
         ));
     }
     return Ok(x);
 }
 
-fn power(i: &TokenIterator) -> Result<Rc<AST>,Error> {
-    let x = application(i)?;
+fn power(&mut self, i: &TokenIterator)
+-> Result<Rc<AST>,Error>
+{
+    let x = self.application(i)?;
     let t = i.get();
     if t.value == Symbol::Pow {
         i.advance();
-        let y = power(i)?;
+        let y = self.power(i)?;
         return Ok(AST::operator(t.line,t.col,t.value,Box::new([x,y])));
     }else{
         return Ok(x);
     }
 }
 
-fn negation(i: &TokenIterator) -> Result<Rc<AST>,Error> {
+fn negation(&mut self, i: &TokenIterator)
+-> Result<Rc<AST>,Error>
+{
     let t = i.get();
     if t.value == Symbol::Minus {
         i.advance();
-        let x = power(i)?;
+        let x = self.power(i)?;
         return Ok(AST::operator(t.line,t.col,Symbol::Neg,Box::new([x])));
     }else{
-        return power(i);
+        return self.power(i);
     }
 }
 
-fn multiplication(i: &TokenIterator) -> Result<Rc<AST>,Error> {
-    let mut x = negation(i)?;
+fn multiplication(&mut self, i: &TokenIterator)
+-> Result<Rc<AST>,Error>
+{
+    let mut x = self.negation(i)?;
     loop{
         let t = i.get();
         if t.value == Symbol::Ast  || t.value == Symbol::Div ||
            t.value == Symbol::Idiv || t.value == Symbol::Mod
         {
             i.advance();
-            let y = negation(i)?;
+            let y = self.negation(i)?;
             x = AST::operator(t.line,t.col,t.value,Box::new([x,y]));
         }else{
             return Ok(x);
@@ -646,13 +722,15 @@ fn multiplication(i: &TokenIterator) -> Result<Rc<AST>,Error> {
     }
 }
 
-fn addition(i: &TokenIterator) -> Result<Rc<AST>,Error> {
-    let mut x = multiplication(i)?;
+fn addition(&mut self, i: &TokenIterator)
+-> Result<Rc<AST>,Error>
+{
+    let mut x = self.multiplication(i)?;
     loop{
         let t = i.get();
         if t.value == Symbol::Plus || t.value == Symbol::Minus {
             i.advance();
-            let y = multiplication(i)?;
+            let y = self.multiplication(i)?;
             x = AST::operator(t.line,t.col,t.value,Box::new([x,y]));
         }else{
             return Ok(x);
@@ -660,16 +738,96 @@ fn addition(i: &TokenIterator) -> Result<Rc<AST>,Error> {
     }
 }
 
-fn expression(i: &TokenIterator) -> Result<Rc<AST>,Error> {
-    return addition(i);
+fn comparison(&mut self, i: &TokenIterator)
+-> Result<Rc<AST>,Error>
+{
+    let x = self.addition(i)?;
+    let t = i.get();
+    let value = t.value;
+    if value == Symbol::Lt || value == Symbol::Le ||
+       value == Symbol::Gt || value == Symbol::Ge
+    {
+        i.advance();
+        let y = self.addition(i)?;
+        return Ok(AST::operator(t.line,t.col,t.value,Box::new([x,y])));
+    }else{
+        return Ok(x);
+    }
 }
 
-pub struct Argument {
-    pub id: String,
-    pub ty: Rc<AST>
+fn eq_expression(&mut self, i: &TokenIterator)
+-> Result<Rc<AST>,Error>
+{
+    let x = self.comparison(i)?;
+    let t = i.get();
+    if t.value == Symbol::Eq || t.value == Symbol::Ne {
+        i.advance();
+        let y = self.comparison(i)?;
+        return Ok(AST::operator(t.line,t.col,t.value,Box::new([x,y])));
+    }else{
+        return Ok(x);
+    }
 }
 
-fn formal_argument_list(i: &TokenIterator) -> Result<Vec<Argument>,Error> {
+fn conjunction(&mut self, i: &TokenIterator)
+-> Result<Rc<AST>,Error>
+{
+    let mut x = self.eq_expression(i)?;
+    loop{
+        let t = i.get();
+        if t.value == Symbol::And {
+            i.advance();
+            let y = self.eq_expression(i)?;
+            x = AST::operator(t.line,t.col,t.value,Box::new([x,y]));
+        }else{
+            return Ok(x);
+        }
+    }
+}
+
+fn disjunction(&mut self, i: &TokenIterator)
+-> Result<Rc<AST>,Error>
+{
+    let mut x = self.conjunction(i)?;
+    loop{
+        let t = i.get();
+        if t.value == Symbol::Or {
+            i.advance();
+            let y = self.conjunction(i)?;
+            x = AST::operator(t.line,t.col,t.value,Box::new([x,y]));
+        }else{
+            return Ok(x);
+        }
+    }
+}
+
+fn conditional_expression(&mut self, i: &TokenIterator)
+-> Result<Rc<AST>,Error>
+{
+    let x = self.disjunction(i)?;
+    let t = i.get();
+    if t.value == Symbol::If {
+        i.advance();
+        let c = self.disjunction(i)?;
+        self.expect(i,Symbol::Else)?;
+        let y = self.expression(i)?;
+        return Ok(AST::operator(t.line, t.col, Symbol::Cond,
+            Box::new([c,x,y])
+        ));
+    }else{
+        return Ok(x);
+    }
+}
+
+fn expression(&mut self, i: &TokenIterator)
+-> Result<Rc<AST>,Error>
+{
+    return self.conditional_expression(i);
+}
+
+fn formal_argument_list(&mut self, i: &TokenIterator)
+-> Result<Vec<Argument>,Error>
+{
     let mut argv: Vec<Argument> = Vec::new();
     let t = i.get();
     if t.value == Symbol::PRight {
@@ -677,42 +835,42 @@ fn formal_argument_list(i: &TokenIterator) -> Result<Vec<Argument>,Error> {
         return Ok(argv);
     }
     loop{
-        let id = identifier_raw(i)?;
-        expect(i,Symbol::Colon)?;
-        let ty = type_expression(i)?;
+        let id = self.identifier_raw(i)?;
+        self.expect(i,Symbol::Colon)?;
+        let ty = self.type_expression(i)?;
         let t = i.get();
         argv.push(Argument{id, ty});
         if t.value == Symbol::PRight {
             i.advance();
             break;
         }
-        expect(i,Symbol::Comma)?;
+        self.expect(i,Symbol::Comma)?;
     }
     return Ok(argv);
 }
 
-fn function_statement(t0: &Token, i: &TokenIterator)
+fn function_statement(&mut self, t0: &Token, i: &TokenIterator)
 -> Result<Rc<AST>,Error>
 {
     i.advance();
-    let id = identifier_raw(i)?;
+    let id = self.identifier_raw(i)?;
     let t = i.get();
     let argv = if t.value == Symbol::Colon || t.value == Symbol::Semicolon {
         Vec::<Argument>::new()
     }else{
-        expect(i,Symbol::PLeft)?;
-        formal_argument_list(i)?
+        self.expect(i,Symbol::PLeft)?;
+        self.formal_argument_list(i)?
     };
     let t = i.get();
     let ret_type = if t.value == Symbol::Colon {
         i.advance();
-        type_expression(i)?
+        self.type_expression(i)?
     }else{
         AST::symbol(t.line,t.col,Symbol::Unit)
     };
-    expect(i,Symbol::Semicolon)?;
-    let block = statements(i)?;
-    expect(i,Symbol::End)?;
+    self.expect(i,Symbol::Semicolon)?;
+    let block = self.statements(i)?;
+    self.expect(i,Symbol::End)?;
 
     let header = Box::new(FnHeader{argv, id: Some(id.clone()), ret_type,
         symbol_table_index: Cell::new(SYMBOL_TABLE_DANGLING)
@@ -727,17 +885,19 @@ fn function_statement(t0: &Token, i: &TokenIterator)
     ));
 }
 
-fn return_statement(t0: &Token, i: &TokenIterator)
+fn return_statement(&mut self, t0: &Token, i: &TokenIterator)
 -> Result<Rc<AST>,Error>
 {
     i.advance();
-    let x = expression(i)?;
+    let x = self.expression(i)?;
     return Ok(AST::node(t0.line, t0.col,
         Symbol::Return, Info::None, Some(Box::new([x]))
     ));
 }
 
-fn statements(i: &TokenIterator) -> Result<Rc<AST>,Error> {
+fn statements(&mut self, i: &TokenIterator)
+-> Result<Rc<AST>,Error>
+{
     let mut a: Vec<Rc<AST>> = Vec::new();
     let t0 = i.get();
     loop{
@@ -747,12 +907,12 @@ fn statements(i: &TokenIterator) -> Result<Rc<AST>,Error> {
         let value = t.value;
         if value == Symbol::Let {
             i.advance();
-            let id = atom(i)?;
+            let id = self.atom(i)?;
 
             let t = i.get();
             let texp = if t.value == Symbol::Colon {
                 i.advance();
-                type_expression(i)?
+                self.type_expression(i)?
             }else{
                 AST::symbol(t.line,t.col,Symbol::None)
             };
@@ -760,12 +920,12 @@ fn statements(i: &TokenIterator) -> Result<Rc<AST>,Error> {
             let t = i.get();
             if t.value == Symbol::Assignment {
                 i.advance();
-                let x = expression(i)?;
+                let x = self.expression(i)?;
                 let let_exp = AST::node(line,col,Symbol::Let,Info::None,
                     Some(Box::new([id,texp,x]))
                 );
                 a.push(let_exp);
-                expect(i,Symbol::Semicolon)?;
+                self.expect(i,Symbol::Semicolon)?;
             }else if t.value == Symbol::Semicolon {
                 i.advance();
                 let let_exp = AST::node(line,col,Symbol::Let,Info::None,
@@ -778,18 +938,18 @@ fn statements(i: &TokenIterator) -> Result<Rc<AST>,Error> {
                 ));
             }
         }else if value == Symbol::Function {
-            let x = function_statement(t,i)?;
+            let x = self.function_statement(t,i)?;
             a.push(x);
         }else if value == Symbol::Terminal || value == Symbol::End {
             break;
         }else if value == Symbol::Return {
-            let x = return_statement(t,i)?;
-            expect(i,Symbol::Semicolon)?;
+            let x = self.return_statement(t,i)?;
+            self.expect(i,Symbol::Semicolon)?;
             a.push(x);
         }else{
-            let x = expression(i)?;
+            let x = self.expression(i)?;
             a.push(x);
-            expect(i,Symbol::Semicolon)?;
+            self.expect(i,Symbol::Semicolon)?;
         }
     }
     return Ok(AST::node(t0.line, t0.col, Symbol::Block,
@@ -797,7 +957,9 @@ fn statements(i: &TokenIterator) -> Result<Rc<AST>,Error> {
     ));
 }
 
-fn type_atom(i: &TokenIterator) -> Result<Rc<AST>,Error> {
+fn type_atom(&mut self, i: &TokenIterator)
+-> Result<Rc<AST>,Error>
+{
     let t = i.get();
     if let Item::Id(ref id) = t.item {
         i.advance();
@@ -806,14 +968,14 @@ fn type_atom(i: &TokenIterator) -> Result<Rc<AST>,Error> {
         ));
     }else if t.value == Symbol::PLeft {
         i.advance();
-        let x = type_expression(i)?;
+        let x = self.type_expression(i)?;
         let t = i.get();
         if t.value == Symbol::PRight {
             i.advance();
             return Ok(x);
         }else if t.value == Symbol::Comma {
             i.advance();
-            let a = type_argument_list(vec![x],i,Symbol::PRight)?;
+            let a = self.type_argument_list(vec![x],i,Symbol::PRight)?;
             return Ok(AST::node(t.line,t.col,Symbol::List,
                 Info::None, Some(a.into_boxed_slice())
             ));
@@ -829,12 +991,12 @@ fn type_atom(i: &TokenIterator) -> Result<Rc<AST>,Error> {
     }
 }
 
-fn type_argument_list(mut a: Vec<Rc<AST>>,
+fn type_argument_list(&mut self, mut a: Vec<Rc<AST>>,
   i: &TokenIterator, terminator: Symbol
 ) -> Result<Vec<Rc<AST>>,Error>
 {
     loop{
-        let x = type_expression(i)?;
+        let x = self.type_expression(i)?;
         a.push(x);
         let t = i.get();
         if t.value == terminator {
@@ -851,12 +1013,14 @@ fn type_argument_list(mut a: Vec<Rc<AST>>,
     return Ok(a);
 }
 
-fn type_application(i: &TokenIterator) -> Result<Rc<AST>,Error> {
-    let x = type_atom(i)?;
+fn type_application(&mut self, i: &TokenIterator)
+-> Result<Rc<AST>,Error>
+{
+    let x = self.type_atom(i)?;
     let t = i.get();
     if t.value == Symbol::BLeft {
         i.advance();
-        let a = type_argument_list(vec![x],i,Symbol::BRight)?;
+        let a = self.type_argument_list(vec![x],i,Symbol::BRight)?;
         return Ok(AST::node(t.line, t.col, Symbol::Application,
             Info::None, Some(a.into_boxed_slice())
         ));
@@ -865,12 +1029,14 @@ fn type_application(i: &TokenIterator) -> Result<Rc<AST>,Error> {
     }
 }
 
-fn type_fn(i: &TokenIterator) -> Result<Rc<AST>,Error> {
-    let x = type_application(i)?;
+fn type_fn(&mut self, i: &TokenIterator)
+-> Result<Rc<AST>,Error>
+{
+    let x = self.type_application(i)?;
     let t = i.get();
     if t.value == Symbol::To {
         i.advance();
-        let y = type_fn(i)?;
+        let y = self.type_fn(i)?;
         return Ok(AST::node(t.line, t.col, Symbol::Fn,
             Info::None, Some(Box::new([x,y]))
         ));
@@ -879,17 +1045,22 @@ fn type_fn(i: &TokenIterator) -> Result<Rc<AST>,Error> {
     }
 }
 
-fn type_expression(i: &TokenIterator) -> Result<Rc<AST>,Error> {
-    return type_fn(i);
+fn type_expression(&mut self, i: &TokenIterator)
+-> Result<Rc<AST>,Error>
+{
+    return self.type_fn(i);
+}
+
+// impl Parser
 }
 
 pub fn parse(s: &str) -> Result<Rc<AST>,Error> {
     let v = scan(s)?;
     println!("{:?}\n",v);
     let i = TokenIterator::new(&v);
-    let x = statements(&i)?;
+    let mut parser = Parser{};
+    let x = parser.statements(&i)?;
     println!("{}",x);
     return Ok(x);
 }
-
 
