@@ -23,7 +23,7 @@ body{
   body{margin-left: 2%; margin-right: 1%; line-height: 1.2em;}
   ol, ul{padding-left: 2em;}
 }
-h1,h2,h3,h4{color: #463c20;}
+h1,h2,h3,h4{color: #463c20; margin-top: 2em;}
 a{color: #20506a; text-decoration: none;}
 a:hover{color: #102a40; text-decoration: underline;}
 pre, code{
@@ -55,16 +55,17 @@ table.bt th{
 <h1>Language specification</h1>
 <h2>Table of contents</h2>
 <ol>
-<li>Type system
+<li><a href="#type-system">Type system</a>
   <ol>
-  <li>Subtype rules
-  <li>Structural equality rules
+  <li><a href="#subtype-rules">Subtype rules</a>
+  <li><a href="#structural-eq-rules">Structural equality rules</a>
+  <li><a href="#predefined-operations">Predefined operations</a>
   </ol>
 </ol>
 
-<h2>Type system</h2>
+<h2 id="type-system">Type system</h2>
 
-<h3>Subtype rules</h3>
+<h3 id="subtype-rules">Subtype rules</h3>
 <pre>
 Unit &lt;: Object;
 Bool &lt;: Object;
@@ -93,13 +94,37 @@ X=&gt;Y &lt;: U=&gt;V iff U &le;: X and Y &le;: V;
   iff &forall;k(U<sub>k</sub> &le;: X<sub>k</sub>) and Y &le;: V;
 </pre>
 
-<h3>Structural equality rules</h3>
+<h3 id="structural-eq-rules">Structural equality rules</h3>
 <pre>
 List[T,0] = Tuple[];
 List[T,1] = Tuple[T];
 List[T,2] = Tuple[T,T];
 List[T,3] = Tuple[T,T,T];
 List[T,n] = Tuple[T,T,...,T];
+</pre>
+
+<h3 id="predefined-operations">Predefined operations</h3>
+<pre>
+# Operation x+y
+add(x: Int; y: Int): Int;
+add(x: Float; y: Float): Float;
+add(x: List; y: List): List;
+add(x: Object; y: Object): Object;
+
+# Operation x-y
+sub(x: Int; y: Int): Int;
+sub(x: Float; y: Float): Float;
+sub(x: Object; y: Object): Object;
+
+# Operation x*y
+mul(x: Int; y: Int): Int;
+mul(x: Float; y: Float): Float;
+mul(x: Object; y: Object): Object;
+
+# Operation x/y
+div(x: Int; y: Int): Float;
+div(x: Float; y: Float): Float;
+div(x: Object; y: Object): Object;
 </pre>
 
 </body>

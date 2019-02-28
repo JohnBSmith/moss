@@ -223,6 +223,14 @@ fn compile_binary_operator(&mut self, bv: &mut Vec<u32>, t: &AST, code: u8) {
     push_bc(bv,code,t.line,t.col);
 }
 
+fn compile_operator(&mut self, bv: &mut Vec<u32>, t: &AST, code: u8) {
+    let a = t.argv();
+    for x in a {
+        self.compile_node(bv,x);
+    }
+    push_bc(bv,code,t.line,t.col);
+}
+
 fn compile_let_statement(&mut self, bv: &mut Vec<u32>, t: &AST) {
     let a = t.argv();
     let key = match a[0].info {Info::Id(ref value)=>value, _ => panic!()};
@@ -428,6 +436,9 @@ fn compile_node(&mut self, bv: &mut Vec<u32>, t: &AST) {
         Symbol::False => {
             push_bc(bv,bc::FALSE,t.line,t.col);
         },
+        Symbol::Null => {
+            push_bc(bv,bc::NULL,t.line,t.col);
+        },
         Symbol::Block => {
             let a = t.argv();
             for x in a {
@@ -487,6 +498,9 @@ fn compile_node(&mut self, bv: &mut Vec<u32>, t: &AST) {
         },
         Symbol::Cond => {
             self.compile_conditional_expression(bv,t);
+        },
+        Symbol::Range => {
+            self.compile_operator(bv,t,bc::RANGE);
         },
         Symbol::Index => {
             self.compile_binary_operator(bv,t,bc::GET_INDEX);

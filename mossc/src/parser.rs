@@ -25,7 +25,7 @@ pub enum Symbol {
     None, Terminal, Item,
     Comma, Dot, Colon, Semicolon, Neg,
     Plus, Minus, Ast, Div, Pow, Mod, Idiv, Tilde, Amp, Vert, Svert,
-    Lt, Le, Gt, Ge, Eq, Ne, Cond, Index,
+    Lt, Le, Gt, Ge, Eq, Ne, Cond, Index, Range,
     PLeft, PRight, BLeft, BRight, CLeft, CRight, Assignment, To,
     List, Application, Block, Unit,
     Assert, And, Begin, Break, Catch, Continue, Do, Elif, Else,
@@ -132,6 +132,7 @@ impl std::fmt::Display for Symbol {
             Symbol::Ne    => write!(f,"!="),
             Symbol::Cond  => write!(f,"cond"),
             Symbol::Index => write!(f,"index"),
+            Symbol::Range => write!(f,".."),
             Symbol::Comma => write!(f,","),
             Symbol::Dot   => write!(f,"."),
             Symbol::Colon => write!(f,":"),
@@ -248,8 +249,13 @@ pub fn scan(s: &str) -> Result<Vec<Token>,Error> {
                     i+=1; col+=1;
                 },
                 '.' => {
-                    v.push(Token::symbol(line,col,Symbol::Dot));
-                    i+=1; col+=1;
+                    if i+1<n && a[i+1]=='.' {
+                        v.push(Token::symbol(line,col,Symbol::Range));
+                        i+=2; col+=2;
+                    }else{
+                        v.push(Token::symbol(line,col,Symbol::Dot));
+                        i+=1; col+=1;
+                    }
                 },
                 ':' => {
                     v.push(Token::symbol(line,col,Symbol::Colon));
@@ -738,17 +744,44 @@ fn addition(&mut self, i: &TokenIterator)
     }
 }
 
-fn comparison(&mut self, i: &TokenIterator)
+fn range(&mut self, i: &TokenIterator)
 -> Result<Rc<AST>,Error>
 {
     let x = self.addition(i)?;
+    let t = i.get();
+    if t.value == Symbol::Range {
+        i.advance();
+        let value = i.get().value;
+        if value == Symbol::PRight || value == Symbol::BRight ||
+           value == Symbol::Comma  || value == Symbol::Semicolon
+        {
+            return Ok(AST::operator(t.line, t.col,Symbol::Range,
+               Box::new([x,
+                   AST::symbol(t.line,t.col,Symbol::Null),
+                   AST::symbol(t.line,t.col,Symbol::Null)])
+            ));
+        }else{
+            let y = self.addition(i)?;
+            return Ok(AST::operator(t.line, t.col,Symbol::Range,
+               Box::new([x,y,AST::symbol(t.line,t.col,Symbol::Null)])
+            ));
+        }
+    }else{
+        return Ok(x);
+    }
+}
+
+fn comparison(&mut self, i: &TokenIterator)
+-> Result<Rc<AST>,Error>
+{
+    let x = self.range(i)?;
     let t = i.get();
     let value = t.value;
     if value == Symbol::Lt || value == Symbol::Le ||
        value == Symbol::Gt || value == Symbol::Ge
     {
         i.advance();
-        let y = self.addition(i)?;
+        let y = self.range(i)?;
         return Ok(AST::operator(t.line,t.col,t.value,Box::new([x,y])));
     }else{
         return Ok(x);
