@@ -3,11 +3,11 @@ use std::rc::Rc;
 use std::i32;
 
 use object::{
-    Object, FnResult, Function, Table,
-    Range, VARIADIC
+    Object, FnResult, Function, Table, VARIADIC
 };
 use vm::Env;
 use iterable::new_iterator;
+use range::Range;
 
 
 fn orbit(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
@@ -38,7 +38,7 @@ fn argc(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
             }else{
                 Object::Int(f.argc_max as i32)
             }; 
-            Ok(Object::Range(Rc::new(Range{
+            Ok(Object::Interface(Rc::new(Range{
                 a: min, b: max, step: Object::Null
             })))
         }else if f.argc > i32::MAX as u32 {

@@ -11,12 +11,13 @@ use std::fmt::Write;
 
 use object::{
     Object, Map, List, Function, EnumFunction, StandardFn,
-    FnResult, OperatorResult, Exception, Table, Range, CharString,
-    VARIADIC, Downcast, TypeName
+    FnResult, OperatorResult, Exception, Table, CharString,
+    VARIADIC, Downcast, TypeName, downcast
 };
 use complex::Complex64;
 use long::Long;
 use tuple::Tuple;
+use range::Range;
 use format::u32string_format;
 use global::{type_name,list};
 use rand::Rand;
@@ -292,14 +293,6 @@ impl PartialEq for Object{
                     _ => false
                 };
             },
-            Object::Range(ref x) => {
-                return match *b {
-                    Object::Range(ref y) => {
-                        x.a==y.a && x.b==y.b && x.step==y.step
-                    },
-                    _ => false
-                };
-            },
             Object::Empty => {
                 return match *b {
                     Object::Empty => true,
@@ -510,7 +503,6 @@ pub fn object_to_string_plain(x: &Object) -> String {
             }
         },
         Object::Function(_) => "function".to_string(),
-        Object::Range(_) => "range".to_string(),
         // Object::Tuple(_) => "tuple".to_string(),
         Object::Table(ref t) => {
             match t.map.try_borrow_mut() {
@@ -566,23 +558,6 @@ pub fn object_to_string(env: &mut Env, x: &Object)
                     }
                 },
                 _ => format!("function {}",object_to_string(env,&f.id)?)
-            }
-        },
-        Object::Range(ref r) => {
-            match r.step {
-                Object::Null => {
-                    format!("{}..{}",
-                        object_to_string(env,&r.a)?,
-                        object_to_string(env,&r.b)?
-                    )
-                },
-                ref step => {
-                    format!("{}..{}: {}",
-                        object_to_string(env,&r.a)?,
-                        object_to_string(env,&r.b)?,
-                        object_to_string(env,step)?
-                    )
-                }
             }
         },
         Object::Table(ref t) => {
@@ -2092,16 +2067,6 @@ fn operator_eq(env: &mut EnvPart, sp: usize, stack: &mut [Object])
                 _ => {break 'r;}
             }
         },
-        Object::Range(x) => {
-            match stack[sp-1].clone() {
-                Object::Range(y) => {
-                    stack[sp-1] = Object::Null;
-                    stack[sp-2] = Object::Bool(x.a==y.a && x.b==y.b && x.step==y.step);
-                    Ok(())
-                },
-                _ => {break 'r;}
-            }
-        },
         Object::Interface(x) => {
             let b = stack[sp-1].clone();
             match x.eq(&b,&mut Env{env,sp,stack}) {
@@ -2770,24 +2735,8 @@ fn operator_in(env: &mut EnvPart, sp: usize, stack: &mut [Object])
             }
             return Ok(());
         },
-        Object::Range(r) => {
-            let k = match key {
-                Object::Int(x) => x,
-                _ => return Err(env.type_error_plain("Type error in 'k in i..j': k is not an integer."))
-            };
-            let i = match r.a {
-                Object::Int(x) => x,
-                _ => return Err(env.type_error_plain("Type error in 'k in i..j': i is not an integer."))
-            };
-            let j = match r.b {
-                Object::Int(x) => x,
-                _ => return Err(env.type_error_plain("Type error in 'k in i..j': j is not an integer."))
-            };
-            match r.step {
-                Object::Null => {},
-                _ => return Err(env.type_error_plain("Type error in 'k in i..j: step': step is not supported."))
-            }
-            stack[sp-2] = Object::Bool(i<=k && k<=j);
+        Object::Interface(a) => {
+            stack[sp-2] = a.rin(&key,&mut Env{sp,stack,env})?;
             return Ok(());
         },
         a => Err(env.type_error1_plain(sp,stack,
@@ -2797,7 +2746,7 @@ fn operator_in(env: &mut EnvPart, sp: usize, stack: &mut [Object])
 }
 
 fn operator_range(sp: usize, stack: &mut [Object]) -> OperatorResult {
-    let r = Object::Range(Rc::new(Range{
+    let r = Object::Interface(Rc::new(Range{
         a: stack[sp-3].take(),
         b: stack[sp-2].take(),
         step: stack[sp-1].take()
@@ -2913,58 +2862,56 @@ fn operator_index(env: &mut EnvPart, argc: usize,
                 };
                 return Ok(());
             }
-            match stack[sp-1].take() {
-                Object::Range(r) => {
-                    let n = a.v.len() as i32;
-                    let step = match r.step {
-                        Object::Null => 1,
-                        Object::Int(x) => x,
-                        _ => return Err(env.type_error1_plain(sp,stack,
-                            "Type error in a[i..j]: j is not an integer.",
-                            "j",&r.step
-                        ))
-                    };
-                    let i = match r.a {
-                        Object::Int(x) => if x<0 {x+n} else {x},
-                        Object::Null => if step<0 {n-1} else {0},
-                        _ => return Err(env.type_error1_plain(sp,stack,
-                            "Type error in a[i..j]: i is not an integer.",
-                            "i",&r.a))
-                    };
-                    let j = match r.b {
-                        Object::Int(x) => if x< -1 {x+n} else {x},
-                        Object::Null => if step<0 {0} else {n-1},
-                        _ => return Err(env.type_error1_plain(sp,stack,
-                            "Type error in a[i..j]: j is not an integer.",
-                            "j",&r.b
-                        ))
-                    };
-                    let mut v: Vec<Object> = Vec::new();
-                    let mut k=i;
-                    if step<0 {
-                        while k>=j {
-                            if 0<=k && k<n {
-                                v.push(a.v[k as usize].clone());
-                            }
-                            k+=step;              
+            let index = stack[sp-1].take();
+            if let Some(r) = downcast::<Range>(&index) {
+                let n = a.v.len() as i32;
+                let step = match r.step {
+                    Object::Null => 1,
+                    Object::Int(x) => x,
+                    _ => return Err(env.type_error1_plain(sp,stack,
+                        "Type error in a[i..j]: j is not an integer.",
+                        "j",&r.step
+                    ))
+                };
+                let i = match r.a {
+                    Object::Int(x) => if x<0 {x+n} else {x},
+                    Object::Null => if step<0 {n-1} else {0},
+                    _ => return Err(env.type_error1_plain(sp,stack,
+                        "Type error in a[i..j]: i is not an integer.",
+                        "i",&r.a))
+                };
+                let j = match r.b {
+                    Object::Int(x) => if x< -1 {x+n} else {x},
+                    Object::Null => if step<0 {0} else {n-1},
+                    _ => return Err(env.type_error1_plain(sp,stack,
+                        "Type error in a[i..j]: j is not an integer.",
+                        "j",&r.b
+                    ))
+                };
+                let mut v: Vec<Object> = Vec::new();
+                let mut k=i;
+                if step<0 {
+                    while k>=j {
+                        if 0<=k && k<n {
+                            v.push(a.v[k as usize].clone());
                         }
-                    }else{
-                        while k<=j {
-                            if 0<=k && k<n {
-                                v.push(a.v[k as usize].clone());
-                            }
-                            k+=step;
-                        }
+                        k+=step;              
                     }
-                    stack[sp-2] = List::new_object(v);
-                    Ok(())
-                },
-                i => {
-                    let x = stack[sp-2].clone();
-                    Err(env.type_error2_plain(sp,stack,
-                        "Type error in a[i]: i is not an integer.",
-                        "a","i",&x,&i))
+                }else{
+                    while k<=j {
+                        if 0<=k && k<n {
+                            v.push(a.v[k as usize].clone());
+                        }
+                        k+=step;
+                    }
                 }
+                stack[sp-2] = List::new_object(v);
+                Ok(())
+            }else{
+                let x = stack[sp-2].clone();
+                Err(env.type_error2_plain(sp,stack,
+                    "Type error in a[i]: i is not an integer.",
+                    "a","i",&x,&index))
             }
         },
         Object::String(s) => {
@@ -2990,59 +2937,57 @@ fn operator_index(env: &mut EnvPart, argc: usize,
                 };
                 return Ok(());
             }
-            match stack[sp-1].take() {
-                Object::Range(r) => {
-                    let n = s.data.len() as i32;
-                    let step = match r.step {
-                        Object::Int(x) => x,
-                        Object::Null => 1,
-                        _ => return Err(env.type_error1_plain(sp,stack,
-                            "Type error in s[i..j: step]: step is not an integer.",
-                            "j",&r.step
-                        ))
-                    };
-                    let i = match r.a {
-                        Object::Int(x) => if x<0 {x+n} else {x},
-                        Object::Null => if step<0 {n-1} else {0},
-                        _ => return Err(env.type_error1_plain(sp,stack,
-                            "Type error in s[i..j]: i is not an integer.",
-                            "i",&r.a
-                        ))
-                    };
-                    let j = match r.b {
-                        Object::Int(x) => if x< -1 {x+n} else{x},
-                        Object::Null => if step<0 {0} else {n-1},
-                        _ => return Err(env.type_error1_plain(sp,stack,
-                            "Type error in s[i..j]: j is not an integer.",
-                            "j",&r.b
-                        ))
-                    };
-                    let mut v: Vec<char> = Vec::new();
-                    let mut k = i;
-                    if step<0 {
-                        while k>=j {
-                            if 0<=k && k<n {
-                                v.push(s.data[k as usize]);
-                            }
-                            k+=step;
+            let index = stack[sp-1].take();
+            if let Some(r) = downcast::<Range>(&index) {
+                let n = s.data.len() as i32;
+                let step = match r.step {
+                    Object::Int(x) => x,
+                    Object::Null => 1,
+                    _ => return Err(env.type_error1_plain(sp,stack,
+                        "Type error in s[i..j: step]: step is not an integer.",
+                        "j",&r.step
+                    ))
+                };
+                let i = match r.a {
+                    Object::Int(x) => if x<0 {x+n} else {x},
+                    Object::Null => if step<0 {n-1} else {0},
+                    _ => return Err(env.type_error1_plain(sp,stack,
+                        "Type error in s[i..j]: i is not an integer.",
+                        "i",&r.a
+                    ))
+                };
+                let j = match r.b {
+                    Object::Int(x) => if x< -1 {x+n} else{x},
+                    Object::Null => if step<0 {0} else {n-1},
+                    _ => return Err(env.type_error1_plain(sp,stack,
+                        "Type error in s[i..j]: j is not an integer.",
+                        "j",&r.b
+                    ))
+                };
+                let mut v: Vec<char> = Vec::new();
+                let mut k = i;
+                if step<0 {
+                    while k>=j {
+                        if 0<=k && k<n {
+                            v.push(s.data[k as usize]);
                         }
-                    }else{
-                        while k<=j {
-                            if 0<=k && k<n {
-                                v.push(s.data[k as usize]);
-                            }
-                            k+=step;
-                        }
+                        k+=step;
                     }
-                    stack[sp-2] = CharString::new_object(v);
-                    Ok(())
-                },
-                i => {
-                    let x = stack[sp-2].clone();
-                    Err(env.type_error2_plain(sp,stack,
-                        "Type error in s[i]: i is not an integer.",
-                        "s","i",&x,&i))
+                }else{
+                    while k<=j {
+                        if 0<=k && k<n {
+                            v.push(s.data[k as usize]);
+                        }
+                        k+=step;
+                    }
                 }
+                stack[sp-2] = CharString::new_object(v);
+                Ok(())
+            }else{
+                let x = stack[sp-2].clone();
+                Err(env.type_error2_plain(sp,stack,
+                    "Type error in s[i]: i is not an integer.",
+                    "s","i",&x,&index))
             }
         },
         Object::Map(m) => {
@@ -3137,48 +3082,47 @@ fn index_assignment(env: &mut EnvPart, argc: usize,
     }
     match stack[sp-2].clone() {
         Object::List(a) => {
-            match stack[sp-1].take() {
-                Object::Int(i) => {
-                    let mut a = a.borrow_mut();
-                    if a.frozen {
-                        return Err(env.value_error_plain("Value error in a[i]: a is immutable."));
-                    }
-                    let index = if i<0 {
-                        let iplus = i+(a.v.len() as i32);
-                        if iplus<0 {
-                            return Err(env.index_error_plain(&format!(
-                                "Error in a[i]: i=={} is out of lower bound.",i
-                            )));
-                        }else{
-                            iplus as usize
-                        }
+            let index = stack[sp-1].take();
+            if let Object::Int(i) = index {
+                let mut a = a.borrow_mut();
+                if a.frozen {
+                    return Err(env.value_error_plain("Value error in a[i]: a is immutable."));
+                }
+                let index = if i<0 {
+                    let iplus = i+(a.v.len() as i32);
+                    if iplus<0 {
+                        return Err(env.index_error_plain(&format!(
+                            "Error in a[i]: i=={} is out of lower bound.",i
+                        )));
                     }else{
-                        i as usize
-                    };
-                    match a.v.get_mut(index) {
-                        Some(x) => {
-                            *x = stack[sp-3].take();
-                            stack[sp-2] = Object::Null;
-                        },
-                        None => {
-                            return Err(env.index_error_plain(&format!(
-                                "Error in a[i]: i=={} is out of upper bound.", i
-                            )));
-                        }
+                        iplus as usize
                     }
-                    Ok(())          
-                },
-                Object::Range(r) => {
-                    let b = stack[sp-3].take();
-                    match slice_assignment(
-                      &mut Env{env,sp,stack},
-                      &mut a.borrow_mut(),&r,&b
-                    ) {
-                        Ok(_) => Ok(()),
-                        Err(e) => Err(e)
+                }else{
+                    i as usize
+                };
+                match a.v.get_mut(index) {
+                    Some(x) => {
+                        *x = stack[sp-3].take();
+                        stack[sp-2] = Object::Null;
+                    },
+                    None => {
+                        return Err(env.index_error_plain(&format!(
+                            "Error in a[i]: i=={} is out of upper bound.", i
+                        )));
                     }
-                },
-                _ => Err(env.type_error_plain("Type error in a[i]=value: i is not an integer."))
+                }
+                Ok(())
+            }else if let Some(r) = downcast::<Range>(&index) {
+                let b = stack[sp-3].take();
+                match slice_assignment(
+                  &mut Env{env,sp,stack},
+                  &mut a.borrow_mut(),&r,&b
+                ) {
+                    Ok(_) => Ok(()),
+                    Err(e) => Err(e)
+                }
+            }else{
+                Err(env.type_error_plain("Type error in a[i]=value: i is not an integer."))
             }
         },
         Object::Map(m) => {
@@ -3378,16 +3322,6 @@ fn operator_dot(env: &mut EnvPart, sp: usize, stack: &mut [Object])
                     }
                 }
             }
-        },
-        Object::Range(_) => {
-            match env.rte.type_iterable.map.borrow().m.get(&stack[sp-1]) {
-                Some(x) => {
-                    stack[sp-2] = x.clone();
-                    stack[sp-1] = Object::Null;
-                    return Ok(());
-                },
-                None => {}
-            }      
         },
         Object::Interface(x) => {
             let key = stack[sp-1].take();

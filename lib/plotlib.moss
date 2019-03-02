@@ -5,7 +5,7 @@ public system, system3d, System
 
 use math: pi, tau, hypot, tanh, atan2, sin, cos
 use cmath: re, im, arg
-use gx: sleep
+use graphics: sleep
 
 palette = [
    [0,0,0.6],
@@ -496,7 +496,7 @@ aligny_tab = {
 
 function system(argm = {})
    {w=960,h=640,scale = null} = argm
-   canvas = gx.canvas(w,h)
+   canvas = graphics.canvas(w,h)
    if scale is null
       fscale = 1
    else
@@ -540,7 +540,7 @@ function system3d(argm = {})
       nx=1000, ny=1000, mx=10, my=10, dark=false,
       phi = 2.0
    } = argm
-   canvas = gx.canvas(w,h)
+   canvas = graphics.canvas(w,h)
    if dark
       bg = [0,0.02,0.06]
       palette = palette_dark

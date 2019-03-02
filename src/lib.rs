@@ -30,6 +30,9 @@ mod iterable;
 #[path = "objects/string.rs"]
 mod string;
 
+#[path = "objects/range.rs"]
+mod range;
+
 #[cfg(feature = "long-gmp")]
 #[path = "objects/long-gmp.rs"]
 mod long;

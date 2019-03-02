@@ -12,7 +12,7 @@ use vm::{
     interface_index, interface_types_set
 };
 use object::{
-    Object, Map, Table, List, Range, CharString,
+    Object, Map, Table, List, CharString,
     FnResult, Function, EnumFunction,
     VARIADIC, new_module, downcast
 };
@@ -26,9 +26,9 @@ use tuple::Tuple;
 use iterable::new_iterator;
 use map::map_extend;
 use class::class_new;
+use range::Range;
 
 pub fn type_name(x: &Object) -> String {
-    loop{
     return match *x {
         Object::Null => "null",
         Object::Bool(_) => "Bool",
@@ -39,16 +39,10 @@ pub fn type_name(x: &Object) -> String {
         Object::String(_) => "String",
         Object::Map(_) => "Map",
         Object::Function(_) => "Function",
-        Object::Range(_) => "Range",
         Object::Empty => "Empty",
-        _ => {break;}
+        Object::Table(_) => "Table object",
+        Object::Interface(ref x) => return x.type_name()
     }.to_string();
-    }
-    match *x {
-        Object::Table(_) => "Table object".to_string(),
-        Object::Interface(ref x) => x.type_name(),
-        _ => "type_name: error".to_string()
-    }
 }
 
 pub fn fpanic(_env: &mut Env, _pself: &Object, _argv: &[Object]) -> FnResult{
@@ -458,71 +452,75 @@ pub fn list(env: &mut Env, obj: &Object) -> FnResult {
             for i in 0..n {
                 v.push(Object::Int(i));
             }
-            Ok(List::new_object(v))
-        },
-        Object::Range(ref r) => {
-            let a = match r.a {
-                Object::Int(x)=>x,
-                Object::Float(_) => {
-                    return float_range_to_list(env,r);
-                },
-                _ => {
-                    return ::iterable::to_list(env,obj,&[])
-                }
-            };
-            let b = match r.b {
-                Object::Int(x)=>x,
-                Object::Float(_) => {
-                    return float_range_to_list(env,r);
-                },
-                _ => return env.type_error1(
-                    "Type error in list(a..b): b is not an integer.",
-                    "b",&r.b)
-            };
-            let d = match r.step {
-                Object::Null => 1,
-                Object::Int(x)=>x,
-                Object::Float(_) => {
-                    return float_range_to_list(env,r);
-                },
-                _ => return env.type_error1(
-                    "Type error in list(a..b: d): d is not an integer.",
-                    "d",&r.step)
-            };
-            if d==0 {
-                return env.value_error("Value error in list(a..b: d): d==0.");
-            }
-            let mut n = (b-a)/d+1;
-            if n<0 {n=0;}
-            let mut v: Vec<Object> = Vec::with_capacity(n as usize);
-            let mut k = a;
-            for _ in 0..n {
-                v.push(Object::Int(k));
-                k+=d;
-            }
-            Ok(List::new_object(v))
+            return Ok(List::new_object(v));
         },
         Object::List(ref a) => {
-            Ok(Object::List(a.clone()))
+            return Ok(Object::List(a.clone()));
         },
         Object::Map(ref m) => {
             let v: Vec<Object> = m.borrow().m.keys().cloned().collect();
-            Ok(List::new_object(v))
+            return Ok(List::new_object(v));
         },
         Object::String(ref s) => {
             let mut v: Vec<Object> = Vec::with_capacity(s.data.len());
             for x in &s.data {
                 v.push(CharString::new_object_char(*x));
             }
-            Ok(List::new_object(v))
+            return Ok(List::new_object(v));
         },
         Object::Function(_) => {
             return ::iterable::to_list(env,obj,&[]);
         },
-        _ => env.type_error1(
-            "Type error in list(x): cannot convert x into a list.",
-            "x",obj)
+        _ => {}
     }
+
+    if let Some(r) = downcast::<Range>(obj) {
+        let a = match r.a {
+            Object::Int(x)=>x,
+            Object::Float(_) => {
+                return float_range_to_list(env,r);
+            },
+            _ => {
+                return ::iterable::to_list(env,obj,&[])
+            }
+        };
+        let b = match r.b {
+            Object::Int(x)=>x,
+            Object::Float(_) => {
+                return float_range_to_list(env,r);
+            },
+            _ => return env.type_error1(
+                "Type error in list(a..b): b is not an integer.",
+                "b",&r.b)
+        };
+        let d = match r.step {
+            Object::Null => 1,
+            Object::Int(x)=>x,
+            Object::Float(_) => {
+                return float_range_to_list(env,r);
+            },
+            _ => return env.type_error1(
+                "Type error in list(a..b: d): d is not an integer.",
+                "d",&r.step)
+        };
+        if d==0 {
+            return env.value_error("Value error in list(a..b: d): d==0.");
+        }
+        let mut n = (b-a)/d+1;
+        if n<0 {n=0;}
+        let mut v: Vec<Object> = Vec::with_capacity(n as usize);
+        let mut k = a;
+        for _ in 0..n {
+            v.push(Object::Int(k));
+            k+=d;
+        }
+        return Ok(List::new_object(v));
+    }
+
+    return env.type_error1(
+        "Type error in list(x): cannot convert x into a list.",
+        "x", obj
+    );
 }
 
 pub fn flist(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult{
@@ -611,14 +609,15 @@ fn frand(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         0 => rand_float(env),
         1 => {
-            match argv[0] {
-                Object::Range(ref r) => rand_range(env,r),
-                Object::List(ref a) => rand_list(env,a.clone()),
-                ref x => env.type_error1(
-                    "Type error in rand(r): r is not a range.",
-                    "r",x
-                )
+            if let Some(r) = downcast::<Range>(&argv[0]) {
+                return rand_range(env,r);
+            }else if let Object::List(ref a) = argv[0] {
+                return rand_list(env,a.clone());
             }
+            return env.type_error1(
+                "Type error in rand(r): r is not a range.",
+                "r", &argv[0]
+            );
         },
         n => env.argc_error(n,0,1,"rand")
     }

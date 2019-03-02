@@ -21,7 +21,6 @@ pub enum Object{
     String(Rc<CharString>),
     Map(Rc<RefCell<Map>>),
     Function(Rc<Function>),
-    Range(Rc<Range>),
     Table(Rc<Table>),
     Interface(Rc<dyn Interface>),
     Empty
@@ -64,7 +63,7 @@ impl Clone for Object{
             Object::List(ref x) => {Object::List(x.clone())},
             Object::Map(ref x) => {Object::Map(x.clone())},
             Object::Function(ref x) => {Object::Function(x.clone())},
-            Object::Range(ref x) => {Object::Range(x.clone())},
+            // Object::Range(ref x) => {Object::Range(x.clone())},
             Object::Table(ref x) => {Object::Table(x.clone())},
             Object::Empty => {Object::Empty},
             Object::Interface(ref x) => {Object::Interface(x.clone())}
@@ -141,12 +140,6 @@ impl Map{
         
         self.m.insert(key,f);
     }
-}
-
-pub struct Range{
-    pub a: Object,
-    pub b: Object,
-    pub step: Object
 }
 
 pub struct Spot{
@@ -379,6 +372,10 @@ pub trait Interface{
     fn req(&self, _a: &Object, env: &mut Env) -> FnResult {
         Ok(Object::Table(env.rte().unimplemented.clone()))
     }
+    fn rin(&self, _x: &Object, env: &mut Env) -> FnResult {
+        Ok(Object::Table(env.rte().unimplemented.clone()))
+    }
+
     fn lt(&self, _b: &Object, env: &mut Env) -> FnResult {
         env.std_exception("Error: a<b is not implemented for objects of this type.")
     }

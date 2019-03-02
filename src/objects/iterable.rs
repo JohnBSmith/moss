@@ -2,16 +2,15 @@
 use std::rc::Rc;
 use std::cell::RefCell;
 use std::cmp::Ordering;
-use std::char;
 
 use object::{
     Object, Table, List, CharString,
     FnResult, Function, EnumFunction,
-    MutableFn, Exception, Range
+    MutableFn, Exception, downcast
 };
 use vm::{Env, op_add, op_mul, op_lt, op_le};
 use global::list;
-
+use range::Range;
 
 pub fn new_iterator(f: MutableFn) -> Object {
     Object::Function(Rc::new(Function{
@@ -21,47 +20,7 @@ pub fn new_iterator(f: MutableFn) -> Object {
     }))
 }
 
-fn float_range_iterator(env: &mut Env, r: &Range) -> FnResult {
-    let a = match r.a {
-        Object::Int(x) => x as f64,
-        Object::Float(x) => x,
-        _ => return env.type_error1(
-            "Type error in iter(a..b): a is not of type Float.",
-            "a",&r.a)
-    };
-    let b = match r.b {
-        Object::Int(x) => x as f64,
-        Object::Float(x) => x,
-        _ => return env.type_error1(
-            "Type error in iter(a..b): b is not of type Float.",
-            "b",&r.b)
-    };
-    let d = match r.step {
-        Object::Null => 1.0,
-        Object::Int(x) => x as f64,
-        Object::Float(x) => x,
-        _ => return env.type_error1(
-            "Type error in iter(a..b: d): d is not of type Float.",
-            "d",&r.step)
-    };
-
-    let q = (b-a)/d;
-    let n = if q<0.0 {0} else {(q+0.001) as usize+1};
-    let mut k = 0;
-
-    let f = Box::new(move |_env: &mut Env, _pself: &Object, _argv: &[Object]| -> FnResult {
-        return Ok(if k<n {
-            let y = a+k as f64*d;
-            k+=1;
-            Object::Float(y)
-        }else{
-            Object::Empty
-        });
-    });
-    return Ok(new_iterator(f));
-}
-
-fn int_range_iterator(mut a: i32, b: i32, d: i32) -> MutableFn {
+pub fn int_range_iterator(mut a: i32, b: i32, d: i32) -> MutableFn {
     Box::new(move |_env: &mut Env, _pself: &Object, _argv: &[Object]| -> FnResult {
         return if a<=b {
             a+=d;
@@ -70,39 +29,6 @@ fn int_range_iterator(mut a: i32, b: i32, d: i32) -> MutableFn {
             Ok(Object::Empty)
         }
     })
-}
-
-fn char_range_iterator(env: &mut Env, r: &Range) -> FnResult {
-    let mut a = if let Object::String(ref s) = r.a {
-        if s.data.len()==1 {s.data[0] as u32} else {
-            return env.value_error("
-            Value error in iter(a..b): a is not a string of size 1.")
-        }
-    }else{
-        unreachable!()
-    };
-    let b = if let Object::String(ref s) = r.b {
-        if s.data.len()==1 {s.data[0] as u32} else {
-            return env.value_error(
-            "Value error in iter(a..b): b is not a string of size 1.")
-        }
-    }else{
-        return env.type_error(
-        "Type error in iter(a..b): b is not of type String.")
-    };
-    let f = Box::new(move |_env: &mut Env, _pself: &Object, _argv: &[Object]| -> FnResult {
-        return Ok(if a<=b {
-            let value = match char::from_u32(a) {
-                Some(c) => CharString::new_object_char(c),
-                None=> Object::Null
-            };
-            a+=1;
-            value
-        }else{
-            Object::Empty
-        });
-    });
-    return Ok(new_iterator(f));
 }
 
 fn not_iterable(env: &mut Env) -> FnResult {
@@ -116,48 +42,6 @@ pub fn iter(env: &mut Env, x: &Object) -> FnResult {
         },
         Object::Function(ref f) => {
             Ok(Object::Function(f.clone()))
-        },
-        Object::Range(ref r) => {
-            let mut a = match r.a {
-                Object::Int(a)=>a,
-                Object::Float(_) => return float_range_iterator(env,r),
-                Object::String(_) => return char_range_iterator(env,r),
-                _ => {return env.type_error("Type error in iter(a..b): a is not an integer.");}
-            };
-            let d = match r.step {
-                Object::Null => 1,
-                Object::Float(_) => return float_range_iterator(env,r),
-                Object::Int(x)=>x,
-                _ => return env.type_error1(
-                    "Type error in iter(a..b: d): d is not an integer.",
-                    "d",&r.step)
-            };
-            if d==0 {
-                return env.value_error("Value error in iter(a..b: d): d==0.");
-            }
-            let f: Box<FnMut(&mut Env,&Object,&[Object])->FnResult> = match r.b {
-                Object::Int(b) => {
-                    if d<0 {
-                        Box::new(move |_env: &mut Env, _pself: &Object, _argv: &[Object]| -> FnResult{
-                            return if a>=b {
-                                a+=d;
-                                Ok(Object::Int(a-d))
-                            }else{
-                                Ok(Object::Empty)
-                            }
-                        })
-                    }else{
-                        int_range_iterator(a,b,d)
-                    }
-                },
-                Object::Null => {
-                    Box::new(move |_env: &mut Env, _pself: &Object, _argv: &[Object]| -> FnResult{
-                        a+=d; Ok(Object::Int(a-d))
-                    })
-                },
-                _ => {return env.type_error("Type error in iter(a..b): b is not an integer.");}
-            };
-            return Ok(new_iterator(f));
         },
         Object::List(ref a) => {
             let mut index: usize = 0;
@@ -251,19 +135,20 @@ pub fn cycle(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         1 => {}, n => return env.argc_error(n,1,1,"cycle")
     }
-    match argv[0] {
-        Object::Int(n) => cycle_range(env,0,n-1),
-        Object::Range(ref r) => {
-            if let Object::Int(a) = r.a {
-                if let Object::Int(b) = r.b {
-                    if let Object::Null = r.step {
-                        return cycle_range(env,a,b);
-                    }
+    let obj = &argv[0];
+    if let Object::Int(n) = obj {
+        cycle_range(env,0,n-1)
+    }else if let Some(r) = downcast::<Range>(&obj) {
+        if let Object::Int(a) = r.a {
+            if let Object::Int(b) = r.b {
+                if let Object::Null = r.step {
+                    return cycle_range(env,a,b);
                 }
             }
-            cycle_iterable(env,&argv[0])
-        },
-        ref x => cycle_iterable(env,x)
+        }
+        cycle_iterable(env,obj)
+    }else{
+        cycle_iterable(env,obj)
     }
 }
 
