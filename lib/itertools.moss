@@ -23,6 +23,31 @@ function permutations(a)
    end
 end
 
+function combinations(a,k)
+   a = list(a)
+   n = size(a)
+   return fn*||
+      if k>n then return empty end
+      indices = list(k)
+      yield list(a[i] for i in indices)
+      while true
+         finish = true
+         for i in k-1..0: -1
+            if indices[i] != i+n-k
+               finish = false
+               break
+            end
+         end
+         if finish then return empty end
+         indices[i] += 1
+         for j in i+1..k-1
+            indices[j] = indices[j-1]+1
+         end
+         yield list(a[i] for i in indices)
+      end
+   end
+end
+
 function accumulate(a,f,g=null)
    if g is null
       i = iter(a)

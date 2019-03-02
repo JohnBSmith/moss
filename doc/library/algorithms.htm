@@ -41,10 +41,16 @@
 
 <dt>permutations(a)
 <dd>Return an iterator over all permutations of <code>a</code>.
+The permuations are emitted in lexicographical order.
 <pre class="moss">
 &gt; permutations("abc").map(|t| t.join()).join("|") 
 "abc|bac|bca|acb|cab|cba"
 </pre>
+
+<dt>combinations(a,k)
+<dd>Return an iterator over all <code>k</code> length
+combinations of <code>a</code>. The combinations are emitted
+in lexicographical order.
 
 <dt>repeat(x), repeat(x,n)
 <dd>Return an iterator that returns <code>x</code> over and over

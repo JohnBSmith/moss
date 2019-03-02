@@ -109,7 +109,7 @@ pub struct InterpreterLock<'a> {
 
 impl<'a> InterpreterLock<'a> {
     pub fn env(&mut self) -> Env {
-        return get_env(&mut self.state)
+        return get_env(&mut self.state);
     }
 }
 

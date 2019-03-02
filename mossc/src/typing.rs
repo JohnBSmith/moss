@@ -105,9 +105,20 @@ pub struct FnType {
     pub ret: Type
 }
 
+pub struct TypeVariable {
+    pub id: Rc<str>,
+    pub class: Type
+}
+
+pub struct PolyType {
+    pub variables: Vec<TypeVariable>,
+    pub scheme: Type
+}
+
 #[derive(Clone)]
 pub enum Type {
-    None, Atomic(Rc<str>), App(Rc<Vec<Type>>), Fn(Rc<FnType>)
+    None, Atomic(Rc<str>), App(Rc<Vec<Type>>), Fn(Rc<FnType>),
+    Poly(Rc<PolyType>)
 }
 
 impl Type {
@@ -248,7 +259,8 @@ fn compare_types(t1: &Type, t2: &Type) -> TypeCmp {
                 Type::Atomic(t2) => TypeCmp::from(t1==t2),
                 Type::None => TypeCmp::None,
                 Type::App(_) => TypeCmp::False,
-                Type::Fn(_) => panic!()
+                Type::Fn(_) => TypeCmp::False,
+                _ => panic!()
             }
         },
         Type::App(ref p1) => {
@@ -256,7 +268,8 @@ fn compare_types(t1: &Type, t2: &Type) -> TypeCmp {
                 Type::None => TypeCmp::None,
                 Type::Atomic(_) => TypeCmp::False,
                 Type::App(ref p2) => compare_app_types(p1,p2),
-                Type::Fn(_) => panic!()
+                Type::Fn(_) => TypeCmp::False,
+                _ => panic!()
             }
         },
         Type::Fn(ref f1) => {
@@ -265,7 +278,8 @@ fn compare_types(t1: &Type, t2: &Type) -> TypeCmp {
             }else{
                 TypeCmp::False
             }
-        }
+        },
+        _ => panic!()
     }
 }
 
