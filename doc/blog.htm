@@ -545,7 +545,7 @@ turned on to inspect the situation further.
 create a slice <code>s[i..j]</code>. But as <code>s</code> is
 immutable, a slice object could be returned, without copying data.
 Now we can make every string a slice object, if we say we have a
-immutable data array and a <code>(pointer,size)</code> to a part of it.
+immutable data array and a <code>(pointer,len)</code> to a part of it.
 
 <p>At first this contradicts with the string being a struct with
 a flexible array last member. We would need a double allocation.
@@ -565,8 +565,8 @@ chosen to be immutable.
 
 <p>Moving further, such a behavior is also interesting for
 dynamic arrays (type <code>List</code> in Moss). If a slice
-is obtained from an array, the arrays size should become immutable.
-The information about immutable size, immutable data and
+is obtained from an array, the arrays length should become immutable.
+The information about immutable length, immutable data and
 slicing can be modeled as an option type (extra behavior flag),
 to separate it from the standard behavior. A problem is again,
 that the data array needs an independent reference counter.
@@ -577,12 +577,12 @@ that chooses wether to point to data or to slice another array.
 <p>So, what have we won? Let's take a look on some naive algorithms:
 <pre class="moss indent">
 # Naive quicksort
-qsort = |a| ([] if size(a)==0 else
+qsort = |a| ([] if len(a)==0 else
   qsort(a[1..].filter(|x| x&lt;a[0]))+[a[0]]+
   qsort(a[1..].filter(|x| x&gt;=a[0])))
 
 # Naive sieve of Eratosthenes
-sieve = |a| ([] if size(a)==0 else
+sieve = |a| ([] if len(a)==0 else
   [a[0]]+sieve(a[1..].filter(|x| x%a[0]!=0)))
 </pre>
 <p>Many huge copies are created by <code>a[1..]</code>.

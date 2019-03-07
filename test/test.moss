@@ -28,6 +28,7 @@ function tests(scale,path)
    end
 
    test("test-basic")
+   test("test-object-system")
    test("test-import")
    test("test-sudoku")
    test("test-la")

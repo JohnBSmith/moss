@@ -11,7 +11,7 @@ Id = table(Type,null,"Id"){}
 
 function scan(s)
    a = []
-   n = size(s)
+   n = len(s)
    i = 0
    line = 0
    col = 0
@@ -24,7 +24,7 @@ function scan(s)
          while i<n and s[i].isalnum()
             i+=1; col+=1
          end
-         if size(a)!=0 and a[-1][0] is Int
+         if len(a)!=0 and a[-1][0] is Int
             a.push([Symbol,"*",line,col])
          end
          a.push([Id,s[j..i-1],line,hcol])

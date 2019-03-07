@@ -57,7 +57,7 @@ sep = re("/")
 
 function file_name(path)
    a = sep.split(path)
-   return "" if size(a)==0 else a[-1]
+   return "" if len(a)==0 else a[-1]
 end
 
 end

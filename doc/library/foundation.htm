@@ -125,7 +125,7 @@ c = chr(x) else '?'
 [1, 2, 3, 4, 1, 2, 3, 4, 1, 2]
 </pre>
 
-<dt>size(a)
+<dt>len(a)
 <dd>Number of elements of <code>a</code>. The object <code>a</code>
 should be a data structure that has this property.
 
@@ -551,7 +551,7 @@ projection <code>p</code>.
 &gt; a.min(|t| t[1])
 [3, "ab"]
 
-&gt; a.min(|t| size(t[1]))
+&gt; a.min(|t| len(t[1]))
 [2, "b"]
 </pre>
 
@@ -631,7 +631,7 @@ about the equality case.
 &gt; a.sort(|x| x.lower())
 ["birch", "Elm", "oak", "willow"]
 
-&gt; a.sort(size)
+&gt; a.sort(len)
 ["oak", "Elm", "birch", "willow"]
 
 &gt; a.sort(null,|x,y| x&gt;y)

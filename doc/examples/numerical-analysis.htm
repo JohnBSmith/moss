@@ -38,7 +38,7 @@ use math: nan, floor
 # [x0+k*d, y[k]]
 
 function pli(x0,d,y)
-   n = size(y)
+   n = len(y)
    return fn|x|
       k = int(floor((x-x0)/d))
       if k&lt;0 or k+1&gt;=n
@@ -137,7 +137,7 @@ end
 # y = [y(x),y'(x),...,y^(m-1)(x)]
 function euler_any_order(f,{x0,y0,h,N})
    x = x0; y = copy(y0)
-   m = size(y)
+   m = len(y)
    a = [y[0]]
    for k in 1..N
       hf = h*f(x,y)
@@ -236,7 +236,7 @@ use math.la: vector
 use math.ode: runge_kutta
 
 function nbody({G,m})
-   n = size(m)
+   n = len(m)
    vindex = vector(*list(0..n-1))
    return |x| vindex.map(|i| G*(0..n-1).sum(|k|
      vector(0,0) if k==i else
@@ -295,14 +295,14 @@ s.idle()
 use math: pi, exp
 
 # Fast Fourier transform of a.
-# Note: size(a) is a power of two.
+# Note: len(a) is a power of two.
 
 function fft(a)
-   if size(a)&lt;=1
+   if len(a)&lt;=1
       return copy(a)
    else
       even = fft(a[0..:2]); odd = fft(a[1..:2])
-      N = size(a); L = list(0..N//2-1)
+      N = len(a); L = list(0..N//2-1)
       T = L.map(|k| exp(-2i*pi*k/N)*odd[k])
       return (L.map(|k| even[k]+T[k])+
               L.map(|k| even[k]-T[k]))

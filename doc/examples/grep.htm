@@ -50,7 +50,7 @@ function grep(pattern,path)
             continue
          end
          for n,line in re("{n}").split(s).enum()
-            if size(r.list(line))>0
+            if len(r.list(line))>0
                yield [id,n,line]
             end
          end

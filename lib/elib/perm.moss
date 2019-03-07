@@ -6,7 +6,7 @@ use math.la: scalar
 use itertools: permutations
 
 function perm_matrix(p)
-   n = size(p)
+   n = len(p)
    P = scalar(n,0,0)
    for k in n
       P[k][p[k]] = 1

@@ -64,7 +64,7 @@ function runge_kutta_system(argm)
    end
 
    if unilateral
-      return list(size(y0)).map(fn|k|
+      return list(len(y0)).map(fn|k|
          pli(x0,h,a.map(|y| y[k]))
       end)
    end
@@ -84,7 +84,7 @@ function runge_kutta_system(argm)
       b.push(y)
    end
 
-   return list(size(y0)).map(fn|k|
+   return list(len(y0)).map(fn|k|
       fp = pli(x0,h,a.map(|y| y[k]))
       fm = pli(x0,-h,b.map(|y| y[k]))
       return |x| fm(x) if x<0 else fp(x)

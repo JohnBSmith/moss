@@ -59,7 +59,7 @@ Iterable.count = fn|p=null|
    k=0
    if p is null
       if self: String or self: List or self: Map
-         return size(self)
+         return len(self)
       end
       for x in self
          k+=1

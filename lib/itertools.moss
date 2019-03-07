@@ -1,6 +1,6 @@
 
 function prod(*a)
-   if size(a)==0
+   if len(a)==0
       return iter([[]])
    else
       return [x]+t for x in a[0] for t in prod(*a[1..])
@@ -10,12 +10,12 @@ end
 function permutations(a)
    a = list(a)
    return fn*||
-      if size(a)<=1
+      if len(a)<=1
          yield copy(a)
       else
          x = a[..0]
          for p in permutations(a[1..])
-            for i in size(a)
+            for i in len(a)
                yield p[..i-1]+x+p[i..]
             end
          end
@@ -25,7 +25,7 @@ end
 
 function combinations(a,k)
    a = list(a)
-   n = size(a)
+   n = len(a)
    return fn*||
       if k>n then return empty end
       indices = list(k)

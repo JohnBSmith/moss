@@ -33,14 +33,14 @@
 use math: sqrt
 
 function mean(a)
-   return a.sum()/size(a)
+   return a.sum()/len(a)
 end
 
 function sigma(a,m=null)
    if m is null
       m = mean(a)
    end
-   return sqrt(a.sum(|x| (x-m)^2)/(size(a)-1))
+   return sqrt(a.sum(|x| (x-m)^2)/(len(a)-1))
 end
 
 Stat = table{
@@ -155,7 +155,7 @@ end
 # Take a list of random numbers and return the
 # cumulative distribution function of this sample.
 function cdf(a)
-   return |x| a.count(|X| X&lt;=x)/size(a)
+   return |x| a.count(|X| X&lt;=x)/len(a)
 end
 
 

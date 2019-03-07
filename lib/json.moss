@@ -67,7 +67,7 @@ end
 
 function scan(s)
    i = 0
-   n = size(s)
+   n = len(s)
    a = []
    line = 0; col = 0
    negate = false
@@ -147,8 +147,8 @@ end
 
 function get_token(i)
    n,a=i
-   if n>=size(a)
-      if size(a)>0
+   if n>=len(a)
+      if len(a)>0
          syntax_error(a[-1][2],a[-1][3],"expected a token.")
       else
          syntax_error(-1,-1,"expected a token.")
@@ -248,7 +248,7 @@ end
 
 function is_atomic(a)
    a.all(fn|x|
-      return not(x: List or x: Map) or size(x)==0
+      return not(x: List or x: Map) or len(x)==0
    end)
 end
 
@@ -288,7 +288,7 @@ function dump_rec(a,n,x)
    elif T is String
       a.push(json_str_repr(x))
    elif T is List
-      m = size(x)
+      m = len(x)
       if is_atomic(x)
          a.push("[")
          for i in 0..m-2
@@ -314,13 +314,13 @@ function dump_rec(a,n,x)
          a.push("\s"*n,"]")
      end
    elif T is Map
-      if size(x)==0
+      if len(x)==0
          a.push("{}")
          return null
       end
       a.push("{\n")
       x = list(x.items()).sort(|t| str(t[0]))
-      m = size(x)
+      m = len(x)
       for i in 0..m-2
          a.push("\s"*(n+2))
          dump_rec(a,n+2,str(x[i][0]))
@@ -350,7 +350,7 @@ function dump_rec_compressed(a,x)
    elif T is String
       a.push(json_str_repr(x))
    elif T is List
-      m = size(x)
+      m = len(x)
       a.push("[")
       for i in 0..m-2
          dump_rec_compressed(a,x[i])
@@ -363,7 +363,7 @@ function dump_rec_compressed(a,x)
    elif T is Map
       a.push("{")
       x = list(x).sort(|t| str(t[0]))
-      m = size(x)
+      m = len(x)
       for i in 0..m-2
          dump_rec_compressed(a,str(x[i][0]))
          a.push(":")
@@ -382,7 +382,7 @@ function dump_rec_compressed(a,x)
 end
 
 function dump(x,*argv)
-   t = argv[0] if size(argv)!=0 else {}
+   t = argv[0] if len(argv)!=0 else {}
    global mode_nan
    mode_nan = "nan" in t
    a = []

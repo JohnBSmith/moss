@@ -12,7 +12,7 @@ extend(Map,{
    end,
    function pow(L;n)
       if n==0
-         return {""} if size(L)==0 else {iter(L)()[1..0]}
+         return {""} if len(L)==0 else {iter(L)()[1..0]}
       else
          return (1..n-1).reduce(L,|x,y| x*L)
       end

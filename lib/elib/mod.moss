@@ -10,8 +10,8 @@ function inspect(m)
 
    buffer = []
 
-   if size(values)!=0
-      vcol = max(9,values.map(size).max())
+   if len(values)!=0
+      vcol = max(9,values.map(len).max())
       buffer.push("Value\s\s\s\s| Type\n")
       for v in values
          x = v.ljust(vcol)
@@ -20,9 +20,9 @@ function inspect(m)
       end
    end
 
-   if size(fns)!=0
-      fcol = max(9,fns.map(size).max())
-      if size(buffer)!=0
+   if len(fns)!=0
+      fcol = max(9,fns.map(len).max())
+      if len(buffer)!=0
          buffer.push("\n")
       end
       buffer.push("Function | Argc\n")

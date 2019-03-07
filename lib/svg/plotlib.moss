@@ -25,7 +25,7 @@ function vline(s,x)
 end
 
 function path_push(s,color,points)
-   if size(points)!=0
+   if len(points)!=0
       s.a.push('<polyline fill="none" stroke="#{}" stroke-width="0.06"\npoints="{}"/>\n' % [
          color, points.join(" ")
       ])

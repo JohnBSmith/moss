@@ -376,14 +376,14 @@ is to numbers.
 [true, false, false, true]
 </pre>
 
-<p>The function <code>size</code> takes a string and returns
+<p>The function <code>len</code> takes a string and returns
 the number of characters.
 
 <pre class="moss cmd-box">
-&gt; size("Bee")
+&gt; len("Bee")
 3
 
-&gt; size("")
+&gt; len("")
 0
 </pre>
 
@@ -416,7 +416,7 @@ s[i]+s[i+1]+...+s[j-1]+s[j]</code>.
 <p>Note that <code>s[i..-1]</code> is a special case:
 an empty slice for every index <code>i</code>. You can bypass this
 behavior by writing <code>s[i..]</code> or
-<code>s[i..size(s)-1]</code>.
+<code>s[i..len(s)-1]</code>.
 
 <p>There are some escape sequences that provide the notation of
 arbitrary Unicode characters inside of a string literal.
@@ -540,7 +540,7 @@ transform is also possible.
 &gt; [1,2]+[]
 [1, 2]
 </pre>
-<p>Lists are indexed like strings. The function <code>size(a)</code>
+<p>Lists are indexed like strings. The function <code>len(a)</code>
 takes a list and returns the number of its elements.
 
 <pre class="moss cmd-box">
@@ -551,7 +551,7 @@ takes a list and returns the number of its elements.
 &gt; a[2..3]
 [6, 7]
 
-&gt; size(a)
+&gt; len(a)
 5
 </pre>
 

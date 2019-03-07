@@ -12,7 +12,7 @@ begin
    for n in 0..6
       a = cf.permutations(list(0..n-1))
       b = permutations(list(0..n-1)).list()
-      if a!=b or size(a) != fac(n)
+      if a!=b or len(a)!=fac(n)
          error("#1")
       end
    end

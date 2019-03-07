@@ -5,7 +5,7 @@ public pli, inv, diffh, diffvh, integral
 use math: nan, floor
 
 function pli(x0,d,a)
-   n = size(a)
+   n = len(a)
    undefined = nan if n==0 else nan*a[0]
    return fn|x|
       k = int(floor((x-x0)/d))

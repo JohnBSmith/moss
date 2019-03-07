@@ -3,6 +3,7 @@ alias moss-test="../target/debug/moss"
 # alias moss-test="valgrind ../target/debug/moss"
 
 moss-test test-basic
+moss-test test-object-system
 moss-test test-import
 moss-test test-sudoku
 moss-test test-json

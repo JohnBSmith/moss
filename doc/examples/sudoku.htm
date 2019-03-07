@@ -64,8 +64,8 @@ function step(a)
       for j in 0..8
          if a[i][j]==0
             M = set(1..9)-(row_set(a,i)|col_set(a,j)|box_set(a,i,j))
-            if size(M)==1
-               a[i][j]=list(M)[0]
+            if len(M)==1
+               a[i][j] = list(M)[0]
                return true
             end
          end

@@ -32,7 +32,7 @@ end
 
 # multinomial coefficient
 function mc(k)
-   return size(k).prod(|i| bc(i.sum(|j| k[j]),k[i]))
+   return len(k).prod(|i| bc(i.sum(|j| k[j]),k[i]))
 end
 
 # finite difference
@@ -171,13 +171,13 @@ function bell(n)
 end
 
 function permutations(a)
-   if size(a)<=1
+   if len(a)<=1
       return [copy(a)]
    end
-   x=a[..0]
-   b=[]
+   x = a[..0]
+   b = []
    for p in permutations(a[1..])
-      for i in 0..size(a)-1
+      for i in len(a)
          b.push(p[..i-1]+x+p[i..])
       end
    end
@@ -190,7 +190,7 @@ begin
    function comb(m,s)
       if m==0
          return [s[1..0]]
-      elif size(s)==0
+      elif len(s)==0
          return []
       else
          return(comb(m-1,s[1..]).map(|a| s[..0]+a)

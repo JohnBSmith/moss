@@ -213,7 +213,7 @@ System = table{
       if line is null
          line = self.line
       end
-      if size(a)!=0
+      if len(a)!=0
          t1 = a[0]
          for t in a[1..]
             line(self;t1,t)
@@ -247,14 +247,14 @@ System = table{
 
    function color(n)
       a = self.palette
-      index = n%size(a)
+      index = n%len(a)
       self.rgb(*a[index])
       self.color_index = index
    end,
 
    function next_color
       a = self.palette
-      index = (self.color_index+1)%size(a)
+      index = (self.color_index+1)%len(a)
       self.color_index = index
       self.c.rgb(*a[index])
    end,

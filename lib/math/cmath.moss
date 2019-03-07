@@ -14,7 +14,7 @@ end
 Complex = table("Complex",Type){
    function string
       im = str(self.im)
-      s = "" if size(im)>0 and im[0]=='-' else "+"
+      s = "" if len(im)>0 and im[0]=='-' else "+"
       return "{}{}{}*i" % [self.re, s, im]
    end,
 

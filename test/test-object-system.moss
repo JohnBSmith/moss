@@ -1,0 +1,78 @@
+
+use sys: exit
+
+function error(s)
+   print("Error: object system test ", s, " failed.")
+   exit(1)
+end
+
+ItemA = table{}
+ItemB = table{}
+ItemC = table("ItemC",Type){}
+
+if not true: Bool
+   error("#1.1")
+elif not 0: Int
+   error("#1.2")
+elif not 0.0: Float
+   error("#1.3")
+elif not 2^100: Long
+   error("#1.4")
+elif not []: List
+   error("#1.5")
+elif not {}: Map
+   error("#1.6")
+elif not "": String
+   error("#1.7")
+elif not (|x| x): Function
+   error("#1.8")
+elif not table ItemA{}: ItemA
+   error("#1.9")
+elif not table ItemC{}: ItemC
+   error("#1.10")
+end
+
+tab = [
+   [true,Bool],
+   [0,Int],
+   [0.0,Float],
+   [2^100,Long],
+   [[],List],
+   [{},Map],
+   ["",String],
+   [|x| x,Function],
+   [table ItemA{},ItemA],
+   [table ItemB{},ItemB],
+   [table ItemC{},ItemC]
+]
+
+function is_diagonal(a)
+   for i in len(a)
+      for j in len(a)
+         if a[i][j] != (i==j) then return false end
+      end
+   end
+   return true
+end
+
+X,Y = list(zip(*tab))
+if not is_diagonal(X.map(|x| Y.map(|T| x: T)))
+   error("#2.1")
+end
+
+t = table{x=1,y=2}
+if t.x!=1 or t.y!=2
+   error("#3.1")
+end
+
+if not "x" in record(t)
+   error("#3.2")
+end
+
+A = table{x=1,y=2}
+t = table A{z=3}
+if t.x!=1 or t.y!=2 or t.z!=3
+   error("#3.3")
+end
+
+

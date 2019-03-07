@@ -60,7 +60,7 @@ function bag_add(m,x,n)
 end
 
 function rest_prod(t)
-   if size(t)==3
+   if len(t)==3
       return t[2]
    else
       return ["*"]+t[2..]
@@ -85,13 +85,13 @@ function simplify_sum(a)
       x if n==1 else ["*",n,x]))
    v.sort()
    if sum==0
-      if size(v)==1
+      if len(v)==1
          return v[0]
       else
          return ["+"]+v
       end
    else
-      if size(v)==0
+      if len(v)==0
          return sum
       else
          v.push(sum)
@@ -112,13 +112,13 @@ function simplify_prod(a)
       end
    end
    if prod==1
-      if size(v)==1
+      if len(v)==1
          return v[0]
       else
          return ["*"]+v
       end
    else
-      if size(v)==0
+      if len(v)==0
          return prod
       else
          return ["*",prod]+v
@@ -181,7 +181,7 @@ end
 diff_table = {
    "+": |a,id| ["+"]+a.map(|t| diff(t,id)),
    "*": fn|a,id|
-      if size(a)==2
+      if len(a)==2
          if is_certainly_const(a[0],id)
             return ["*",a[0],diff(a[1],id)]
          elif is_certainly_const(a[1],id)
@@ -193,7 +193,7 @@ diff_table = {
          end
       else
          v = ["+"]
-         for i in size(a)
+         for i in len(a)
              v.push(["*",a[..i-1],diff(a[i],id),a[i+1..]].chain())
          end
          return v
@@ -291,7 +291,7 @@ end
 eval_table = {
    "diff": fn|a|
        f = a[0]; id = a[1]
-       if size(a)==3
+       if len(a)==3
           for k in a[2]
              f = simplify(diff(f,id))
           end

@@ -217,9 +217,9 @@ fn eval(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult{
     }
 }
 
-fn size(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
+fn len(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
-        1 => {}, n => return env.argc_error(n,1,1,"size")
+        1 => {}, n => return env.argc_error(n,1,1,"len")
     }
     match argv[0] {
         Object::List(ref a) => {
@@ -232,7 +232,7 @@ fn size(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
             Ok(Object::Int(s.data.len() as i32))
         },
         _ => env.type_error1(
-            "Type error in size(a): cannot determine the size of a.",
+            "Type error in len(a): cannot determine the length of a.",
             "a", &argv[0]
         )
     }
@@ -1038,7 +1038,7 @@ pub fn init_rte(rte: &RTE){
     gtab.insert_fn_plain("sgn",sgn,1,1);
     gtab.insert_fn_plain("abs",abs,1,1);
     gtab.insert_fn_plain("eval",eval,1,1);
-    gtab.insert_fn_plain("size",size,1,1);
+    gtab.insert_fn_plain("len",len,1,1);
     gtab.insert_fn_plain("load",fload,1,1);
     gtab.insert_fn_plain("iter",fiter,1,1);
     gtab.insert_fn_plain("cycle",cycle,1,1);
