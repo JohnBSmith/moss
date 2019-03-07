@@ -88,11 +88,11 @@ to know the subprogram just before the call.
 which applies a given function to each element of a list.
 <pre class="moss indent">
 function map(a,f)
-  b=[]
-  for x in a
-    b.push(f(x))
-  end
-  return b
+   b = []
+   for x in a
+      b.push(f(x))
+   end
+   return b
 end
 
 print(map([1,2,3,4],|x| 2*x))
@@ -104,15 +104,15 @@ print(map([1,2,3,4],|x| 2*x))
 control structures. A basic for loop is written without much effort.
 <pre class="moss indent">
 function For(a,b,f)
-  i=a
-  while i&lt;=b
-    f(i)
-    i+=1
-  end
+   i=a
+   while i&lt;=b
+      f(i)
+      i+=1
+   end
 end
 
 For(1,4,fn|i|
-  print(i, "^ = ", str(2^i).rjust(2,"0"))
+   print(i, "^ = ", str(2^i).rjust(2,"0"))
 end)
 # 2^1 = 02
 # 2^2 = 04
@@ -128,8 +128,8 @@ The first way one can think to do this, is to use the
 definition of the derivative directly.
 <pre class="moss indent">
 function diff(f,x)
-  h = 0.001
-  return (f(x+h)-f(x))/h
+   h = 0.001
+   return (f(x+h)-f(x))/h
 end
 </pre>
 
@@ -137,8 +137,8 @@ end
 better, because it cancels out errors.
 <pre class="moss indent">
 function diff(f,x)
-  h = 0.001
-  return (f(x+h)-f(x-h)/(2*h)
+   h = 0.001
+   return (f(x+h)-f(x-h)/(2*h)
 end
 </pre>
 
@@ -184,7 +184,7 @@ modify the variable <code>city</code> from inside of the function
 
 <pre class="moss indent">
 function stars(s)
-  s = "*"+s+"*"
+   s = "*"+s+"*"
 end
 
 city = "London"
@@ -199,7 +199,7 @@ one element.
 
 <pre class="moss indent">
 function stars(a)
-  a[0]="*"+a[0]+"*"
+   a[0] = "*"+a[0]+"*"
 end
 
 city = ["London"]
@@ -213,7 +213,7 @@ If there are many arguments, this has better readability.
 
 <pre class="moss indent">
 function stars(s)
-  s.value = "*"+s.value+"*"
+   s.value = "*"+s.value+"*"
 end
 
 city = table{value = "London"}
@@ -289,20 +289,20 @@ If the actual argument is omitted, this default value is taken.
 named default arguments:
 <pre class="moss indent">
 function p(m)
-  {x,y,sep=", "} = m
-  return "({}{}{})" % [x,sep,y]
+   {x,y,sep=", "} = m
+   return "({}{}{})" % [x,sep,y]
 end
 
 function p({x,y,sep=", "})
-  return "({}{}{})" % [x,sep,y]
+   return "({}{}{})" % [x,sep,y]
 end
 </pre>
 
 <p>A default configuration may be given for everything:
 <pre class="moss indent">
 function p(m={})
-  {x="x", y="y", sep=", "} = m
-  return "({}{}{})" % [x,sep,y]
+   {x="x", y="y", sep=", "} = m
+   return "({}{}{})" % [x,sep,y]
 end
 </pre>
 
@@ -318,8 +318,8 @@ end
 <p>Positional and named arguments may be mixed:
 <pre class="moss indent">
 function p(x,y,m={})
-  {sep=", "} = m
-  return "({}{}{})" % [x,sep,y]
+   {sep=", "} = m
+   return "({}{}{})" % [x,sep,y]
 end
 </pre>
 <pre class="moss cmd-box">
@@ -340,18 +340,18 @@ must be done explicitely.
 ArgumentError = table{}
 
 function valid_argm(argm,valid)
-  for key in argm
-    if not key in valid
-      raise table ArgumentError{
-        value = "Unexpected named argument: {}." % [key]}
-    end
-  end
-  return argm
+   for key in argm
+      if not key in valid
+         raise table ArgumentError{
+            value = "Unexpected named argument: {}." % [key]}
+      end
+   end
+   return argm
 end
 
 p_valid = {"x","y","sep"}
 function p(argm)
-  return "({x}{sep}{y})" % valid_argm(argm,p_valid)
+   return "({x}{sep}{y})" % valid_argm(argm,p_valid)
 end
 </pre>
 
@@ -414,10 +414,10 @@ the number of arguments of a given boolean function.
 
 <pre class="moss indent">
 function truth_table(f)
-  a = [false,true]^f.argc()
-  for x in a
-    print((x+[f(*x)]).map(int))
-  end
+   a = [false,true]^f.argc()
+   for x in a
+      print((x+[f(*x)]).map(int))
+   end
 end
 </pre>
 
@@ -432,9 +432,9 @@ self argument. Viewed this way, <code>m</code> is called
 <i>a method</i> of <code>x</code>.
 
 <p>The self argument can be given explicitly:
-<pre class="moss">
-  f(a,b) ≡≡ f(null; a,b),
-  x.m(a,b) ≡≡ x.m(x; a,b).
+<pre class="moss indent">
+f(a,b) ≡≡ f(null; a,b),
+x.m(a,b) ≡≡ x.m(x; a,b).
 </pre>
 
 <p>A simple example shows how self arguments work.
@@ -501,8 +501,8 @@ Function.plus = |f;g| |x| f(x)+g(x)
 One could have written:
 <pre class="moss indent">
 Function.plus = fn|g|
-  f = self
-  return |x| f(x)+g(x)
+   f = self
+   return |x| f(x)+g(x)
 end
 </pre>
 <p>But that is not for the sake of brevity.
@@ -582,8 +582,8 @@ use math: pi, sin, cos
 f = |t,r| [r*cos(2*pi*t), r*sin(2*pi*t)]
 
 for i in 0..11
-  x,y = f(i/12,1)
-  print("x = {}; y = {}" % [x,y])
+   x,y = f(i/12,1)
+   print("x = {}; y = {}" % [x,y])
 end
 </pre>
 
@@ -604,10 +604,10 @@ its state.
 
 <pre class="moss indent">
 function counter(k)
-  return fn||
-    k+=1
-    return k-1
-  end
+   return fn||
+      k+=1
+      return k-1
+   end
 end
 </pre>
 
@@ -670,7 +670,7 @@ it like in Scheme.
 <p>This won't work:
 <pre class="moss indent">
 function tree(x)
-  table{x=x, left=tree(x), right=tree(x+1)}
+   table{x=x, left=tree(x), right=tree(x+1)}
 end
 print(tree(0).right.right.right.x)
 </pre>
@@ -679,7 +679,7 @@ print(tree(0).right.right.right.x)
 We have to use explicit lazy evaluation:
 <pre class="moss indent">
 function tree(x)
-  table{x=x, left=|| tree(x), right=|| tree(x+1)}
+   table{x=x, left=|| tree(x), right=|| tree(x+1)}
 end
 print(tree(0).right().right().right().x)
 </pre>
@@ -690,15 +690,15 @@ In this case, lazy expressions should have their own data type.
 
 <pre class="moss indent">
 Lazy = table{
-  string = || "lazy expression"
+   string = || "lazy expression"
 }
 
 function delay(f)
-  table Lazy{call=f}
+   table Lazy{call=f}
 end
 
 function force(x)
-  x.call() if x: Lazy else x
+   x.call() if x: Lazy else x
 end
 
 t = delay(|| 1+2)
@@ -709,12 +709,11 @@ print([force(2), force(t)])
 In such cases we can simply check for a function.
 <pre class="moss indent">
 function force(x)
-  x() if x: Function else x
+   x() if x: Function else x
 end
 
 print([force(2), force(|| 1+2)])
 </pre>
-
 
 
 </body>

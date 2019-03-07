@@ -28,9 +28,9 @@ is thrown an then catched.
 E = table{}
 
 try
-  raise table E{value = "Some message"}
+   raise table E{value = "Some message"}
 catch e if e: E
-  print(e.value)
+   print(e.value)
 end
 </pre>
 <p>The catch-part is only reached if the exception is of
@@ -39,13 +39,13 @@ an unconditional catch.
 
 <pre class="moss indent">
 try
-  raise table E{value = "Some message"}
+   raise table E{value = "Some message"}
 catch e
-  if e: E
-    print(e.value)
-  else
-    raise e
-  end
+   if e: E
+      print(e.value)
+   else
+      raise e
+   end
 end
 </pre>
 

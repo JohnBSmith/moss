@@ -67,7 +67,7 @@ print(*a) ≡≡ print(a.join())
 of <code>print</code> that takes a separator.
 <pre class="moss indent">
 function print(a,sep)
-  put(a.join(sep),"\n")
+   put(a.join(sep),"\n")
 end
 
 print([1,2,3],"|")
@@ -81,14 +81,14 @@ print([1,2,3],"|")
 <p>Let us have a look on the following example.
 <pre class="moss indent">
 for x in 1..8
-  print([x,2^x])
+   print([x,2^x])
 end
 </pre>
 <p>We would like it to be printed in tabular format.
 This is achieved as follows.
 <pre class="moss indent">
 for x in 1..8
-  print("{} | {:r4}" % [x,2^x])
+   print("{} | {:r4}" % [x,2^x])
 end
 </pre>
 <p>This <code>{}</code> is a placeholder for the value of <code>x</code>,
@@ -99,19 +99,19 @@ That <code>r4</code> means "right align by four spaces padding".
 <pre class="moss indent">
 # Leading zeros
 for x in 1..8
-  print("{} | {:r(0)3}" % [x,2^x])
+   print("{} | {:r(0)3}" % [x,2^x])
 end
 
 # Fill the space with dots
 for x in 1..8
-  print("{}{:r(.)5}" % [x,2^x])
+   print("{}{:r(.)5}" % [x,2^x])
 end
 </pre>
 
 <p>Alternatively:
 <pre class="moss indent">
 for x in 1..8
-  print("{} | {}" % [x,str(2^x).rjust(3,'0')])
+   print("{} | {}" % [x,str(2^x).rjust(3,'0')])
 end
 </pre>
 
@@ -173,13 +173,13 @@ looks as follows:
 # patterns.moss
 # =============
 pattern1 = {
-  color = "yellow",
-  width = 12.4,
-  center = [2,0],
-  tail = {
-    color = "blue",
-    height = 4.2
-  }
+   color = "yellow",
+   width = 12.4,
+   center = [2,0],
+   tail = {
+      color = "blue",
+      height = 4.2
+   }
 }
 
 # m.moss

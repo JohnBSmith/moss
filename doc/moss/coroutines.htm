@@ -31,10 +31,10 @@ and resumed later. At its stop it <i>yields</i> a value.
 <p>An easy example:
 <pre class="moss indent">
 g = || fn*||
-  yield 1
-  yield 2
-  yield 1
-  yield 4
+   yield 1
+   yield 2
+   yield 1
+   yield 4
 end
 </pre>
 
@@ -66,13 +66,13 @@ an iterable object by a given predicate <code>p</code>.
 
 <pre class="moss indent">
 Iterable.filter = fn|a;p|
-  y = []
-  for x in a
-    if p(x)
-      y.push(x)
-    end
-  end
-  return y
+   y = []
+   for x in a
+      if p(x)
+         y.push(x)
+      end
+   end
+   return y
 end
 </pre>
 
@@ -122,11 +122,11 @@ In order to do that, we use a coroutine.
 
 <pre class="moss indent">
 Iterable.filter = |a;p| fn*||
-  for x in a
-    if p(x)
-      yield x
-    end
-  end
+   for x in a
+      if p(x)
+         yield x
+      end
+   end
 end
 </pre>
 
@@ -155,9 +155,9 @@ the coroutine may be used like an ordinary generator:
 
 <pre class="moss indent">
 g = |a,b| fn*|x=null|
-  for k in a..b
-    yield [x,k]
-  end
+   for k in a..b
+      yield [x,k]
+   end
 end
 
 g(1,4).each(print)
@@ -188,16 +188,16 @@ print(i("d"))
 <pre class="moss indent">
 i = g(1,4)
 for x in "a".."z"
-  y = i(x)
-  if y==empty then break end
-  print(y)
+   y = i(x)
+   if y==empty then break end
+   print(y)
 end
 </pre>
 
 <p>Or more elaborately:
 <pre class="moss indent">
 for x in ("a".."z").map(g(1,4))
-  print(x)
+   print(x)
 end
 
 # Output:
@@ -211,7 +211,7 @@ end
 <code>g(1,n)</code> implicates the iterator to be exhausted too:
 <pre class="moss indent">
 for x in ("a".."d").map(g(1,100))
-  print(x)
+   print(x)
 end
 
 # Output:
@@ -221,9 +221,7 @@ end
 # ["d", 4]
 </pre>
 
+
 </body>
-
-
-
 </html>
 

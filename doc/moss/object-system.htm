@@ -48,10 +48,10 @@ Bristol.vmax = 25
 
 # via object literal
 Bristol = table{
-  id = "HMS Bristol",
-  color = "gray blue",
-  engine = "diesel",
-  vmax = 25
+   id = "HMS Bristol",
+   color = "gray blue",
+   engine = "diesel",
+   vmax = 25
 }
 </pre>
 
@@ -60,7 +60,7 @@ We will define one.
 
 <pre class="moss indent">
 Bristol.move = fn||
-  print(self.id, " moves at ", self.vmax//2, " kn.")
+   print(self.id, " moves at ", self.vmax//2, " kn.")
 end
 
 Bristol.move()
@@ -92,15 +92,15 @@ and a type/class/metaobject <code>Ship</code>.
 
 <pre class="moss indent">
 function ship(id,vmax)
-  return table Ship{id=id, vmax=vmax}
+   return table Ship{id=id, vmax=vmax}
 end
 
 Ship = table{
-  color = "gray blue",
-  engine = "diesel",
-  function move
-    print(self.id, " moves at ", self.vmax//2 " kn.")
-  end
+   color = "gray blue",
+   engine = "diesel",
+   function move
+      print(self.id, " moves at ", self.vmax//2 " kn.")
+   end
 }
 
 Bristol = ship("HMS Bristol",25)
@@ -121,13 +121,13 @@ Hermes.id = "HMS Hermes"
 Hermes.vmax = 25
 
 Hermes = table Bristol{
-  id = "HMS Hermes",
-  vmax = 24
+   id = "HMS Hermes",
+   vmax = 24
 }
 
 Hermes = table Bristol{
-  "id": "HMS Hermes",
-  "vmax": 24
+   "id": "HMS Hermes",
+   "vmax": 24
 }
 
 m = {id = "HMS Hermes", vmax = 24}
@@ -230,9 +230,9 @@ true
 </pre>
 
 <p>Here is a list of the basic data types:
-<pre>
-  Bool, Int, Long, Float, Complex,
-  Range, List, Map, String, Function.
+<pre class="indent">
+Bool, Int, Long, Float, Complex,
+Range, List, Map, String, Function.
 </pre>
 
 <p>A data type is written capitalized, the corresponding constructor
@@ -249,7 +249,7 @@ true
 be broken. A table constructor may take a tuple of three parts
 instead of a simple prototype. In general we have:
 <pre class="moss indent">
-x = table(type, prototype, name) {}
+x = table(name, type, prototype) {}
 </pre>
 
 <p>Properties are searched in <code>x</code> first and then
@@ -274,26 +274,22 @@ Iterable
 
 <p>Now, basic class construction is stated as follows:
 <pre class="moss indent">
-function class(name,prototype,properties)
-  table(Type,prototype,name)(properties)
-end
-
-Bird = class("Bird",null,{
-  function string
-    "{} is a bird." % [self.name]
-  end,
-  function fly
-    "{} can fly!" % [self.name]
-  end
+Bird = table("Bird",Type){
+   function string
+      "{} is a bird." % [self.name]
+   end,
+   function fly
+      "{} can fly!" % [self.name]
+   end
 })
 
-Duck = class("Duck",Bird,{
-  function string
-    "{} is a duck." % [self.name]
-  end,
-  function dive
-    "{} can dive!" % [self.name]
-  end
+Duck = class("Duck",Type,Bird){
+   function string
+      "{} is a duck." % [self.name]
+   end,
+   function dive
+      "{} can dive!" % [self.name]
+   end
 })
 
 d = table Duck{name = "Donald"}
@@ -316,14 +312,14 @@ print("type: ", type(d))
 
 <pre class="moss indent">
 Plane = table{
-  function take_off
-    print(self.id, " is in the sky.")
-  end
+   function take_off
+      print(self.id, " is in the sky.")
+   end
 }
 
 sea_duck = table[Ship, Plane]{
-  id = "Sea duck",
-  vmax = 40
+   id = "Sea duck",
+   vmax = 40
 }
 
 sea_duck.move()
@@ -463,80 +459,80 @@ complex integers.
 
 <pre class="moss indent">
 function complex(x,y)
-  return table Complex{re=x, im=y}
+   return table Complex{re=x, im=y}
 end
 
-Complex = table{
-  function string
-    return "({}|{})" % [self.re, self.im]
-  end,
+Complex = table("Complex",Type){
+   function string
+      return "({}|{})" % [self.re, self.im]
+   end,
 
-  function neg
-    return table Complex{re = -self.re, im = -self.im}
-  end,
+   function neg
+      return table Complex{re = -self.re, im = -self.im}
+   end,
 
-  function add(a;b)
-    if b: Complex
-      return table Complex{re = a.re+b.re, im = a.im+b.im}
-    else
-      return table Complex{re = a.re+b, im = a.im}
-    end
-  end,
+   function add(a;b)
+      if b: Complex
+         return table Complex{re = a.re+b.re, im = a.im+b.im}
+      else
+         return table Complex{re = a.re+b, im = a.im}
+      end
+   end,
 
-  function radd(a;b)
-    return table Complex{re = a+b.re, im = b.im}
-  end,
+   function radd(a;b)
+      return table Complex{re = a+b.re, im = b.im}
+   end,
 
-  function sub(a;b)
-    if b: Complex
-      return table Complex{re = a.re-b.re, im = a.im-b.im}
-    else
-      return table Complex{re = a.re-b, im = a.im}
-    end
-  end,
+   function sub(a;b)
+      if b: Complex
+         return table Complex{re = a.re-b.re, im = a.im-b.im}
+      else
+         return table Complex{re = a.re-b, im = a.im}
+      end
+   end,
 
-  function rsub(a;b)
-    return table Complex{re = a-b.re, im = -b.im}
-  end,
+   function rsub(a;b)
+      return table Complex{re = a-b.re, im = -b.im}
+   end,
 
-  function mul(a;b)
-    if b: Complex
-      return table Complex{
-        re = a.re*b.re-a.im*b.im,
-        im = a.re*b.im+a.im*b.re
-      }
-    else
-      return table Complex{re = a.re*b, im = a.im*b}
-    end
-  end,
+   function mul(a;b)
+      if b: Complex
+         return table Complex{
+            re = a.re*b.re-a.im*b.im,
+            im = a.re*b.im+a.im*b.re
+         }
+      else
+         return table Complex{re = a.re*b, im = a.im*b}
+      end
+   end,
 
-  function rmul(a;b)
-    return table Complex{re = a*b.re, im = a*b.im}
-  end,
+   function rmul(a;b)
+      return table Complex{re = a*b.re, im = a*b.im}
+   end,
 
-  function div(a;b)
-    if b: Complex
+   function div(a;b)
+      if b: Complex
+         r2 = b.re*b.re+b.im*b.im
+         return table Complex{
+            re = (a.re*b.re+a.im*b.im)/r2,
+            im = (a.im*b.re-a.re*b.im)/r2
+         }
+      else
+         return table Complex{re = a.re/b, im = a.im/b}
+      end
+   end,
+
+   function rdiv(a;b)
       r2 = b.re*b.re+b.im*b.im
       return table Complex{
-        re = (a.re*b.re+a.im*b.im)/r2,
-        im = (a.im*b.re-a.re*b.im)/r2
+         re = a*b.re/r2,
+         im = -a*b.im/r2
       }
-    else
-      return table Complex{re = a.re/b, im = a.im/b}
-    end
-  end,
+   end,
 
-  function rdiv(a;b)
-    r2 = b.re*b.re+b.im*b.im
-    return table Complex{
-      re = a*b.re/r2,
-      im = -a*b.im/r2
-    }
-  end,
-
-  function pow(a;n)
-    return (1..n).prod(|k| a)
-  end
+   function pow(a;n)
+      return (1..n).prod(|k| a)
+   end
 }
 </pre>
 
@@ -569,15 +565,15 @@ private property table.
 Ship = table{}
 
 function ship
-  private_tab = {color = "blue"}
-  return table Ship{
-    function get(property)
-      return private_tab[property]
-    end,
-    function change_color
-      private_tab["color"] = "green"
-    end
-  }
+   private_tab = {color = "blue"}
+   return table Ship{
+      function get(property)
+         return private_tab[property]
+      end,
+      function change_color
+         private_tab["color"] = "green"
+      end
+   }
 end
 
 Bristol = ship()
@@ -599,15 +595,15 @@ to see the properties.
 Ship = table{}
 
 function ship
-  private_tab = {color = "blue"}
-  return table Ship{
-    function info
-      return "A {} ship." % private_tab["color"]
-    end,
-    function change_color
-      private_tab["color"] = "green"
-    end
-  }
+   private_tab = {color = "blue"}
+   return table Ship{
+      function info
+         return "A {} ship." % private_tab["color"]
+      end,
+      function change_color
+        private_tab["color"] = "green"
+      end
+   }
 end
 
 Bristol = ship()

@@ -308,9 +308,9 @@ Here is an example, an approximation of the natural exponential
 function:
 <pre class="moss indent">
 function exp(x)
-  u = x/64
-  y = 1 + u + u^2/2 + u^3/6 + u^4/24
-  return y^64
+   u = x/64
+   y = 1 + u + u^2/2 + u^3/6 + u^4/24
+   return y^64
 end
 </pre>
 
@@ -757,8 +757,8 @@ executed, we jump to the beginning of the loop to execute them again.
 
 <pre class="moss indent">
 while true
-  c = input()
-  print(ord(c))
+   c = input()
+   print(ord(c))
 end
 </pre>
 <p>This program is so short that it can be written as an one-liner.
@@ -778,8 +778,8 @@ This is useful if the body of the loop is longer than one page.
 
 <pre class="moss indent">
 while true
-  c = input()
-  print(ord(c))
+   c = input()
+   print(ord(c))
 end of while
 </pre>
 
@@ -788,8 +788,8 @@ We take this into account in the following way.
 
 <pre class="moss indent">
 while true
-  a = list(input())
-  print(a.map(ord))
+   a = list(input())
+   print(a.map(ord))
 end
 </pre>
 
@@ -797,10 +797,10 @@ end
 <p>A standard task is to print the numbers from one to ten.
 
 <pre class="moss indent">
-i=1
+i = 1
 while i&lt;=10
-  print(i)
-  i=i+1
+   print(i)
+   i = i+1
 end
 </pre>
 <p>For arithmetic operators, there is a shorthand syntax:
@@ -817,35 +817,35 @@ than by a while-loop.
 
 <pre class="moss indent">
 for i in 1..10
-  print(i)
+   print(i)
 end
 </pre>
 
 <p>By step two.
 <pre class="moss indent">
 for i in 1..10: 2
-  print(i)
+   print(i)
 end
 </pre>
 
 <p>In reverse.
 <pre class="moss indent">
 for i in 10..1: -1
-  print(i)
+   print(i)
 end
 </pre>
 
 <p>A range of characters.
 <pre class="moss indent">
 for i in 'a'..'d'
-  print(i)
+   print(i)
 end
 </pre>
 
 <p>A list instead of a range.
 <pre class="moss indent">
 for i in [4,2,1,9]
-  print(i)
+   print(i)
 end
 </pre>
 
@@ -853,7 +853,7 @@ end
 
 <pre class="moss indent">
 for i in "abc"
-  print(i)
+   print(i)
 end
 # Output:
 # a
@@ -864,15 +864,15 @@ end
 
 <pre class="moss indent">
 for key in {a=1,b=2}
-  print(key)
+   print(key)
 end
 
 for value in {a=1,b=2}.values()
-  print(value)
+   print(value)
 end
 
 for t in {a=1,b=2}.items()
-  print(t)
+   print(t)
 end
 # Output:
 # ["a", 1]
@@ -882,7 +882,7 @@ end
 # ["a", 1]
 
 for key,value in {a=1,b=2}.items()
-  print(key,"|",value)
+   print(key,"|",value)
 end
 # Output:
 # a|1
@@ -896,13 +896,13 @@ end
 
 <pre class="moss indent">
 for i,j in ["a","b"]*[0,1]
-  print(i,j)
+   print(i,j)
 end
 # vs.
 for i in ["a","b"]
-  for j in [0,1]
-    print(i,j)
-  end
+   for j in [0,1]
+      print(i,j)
+   end
 end
 # Output:
 # a0
@@ -915,10 +915,10 @@ end
 
 <pre class="moss indent">
 for i in 1..9
-  for j in 1..9
-    put(str(i*j).rjust(3))
-  end
-  print()
+   for j in 1..9
+      put(str(i*j).rjust(3))
+   end
+   print()
 end
 # Output:
 #  1  2  3  4  5  6  7  8  9
@@ -937,7 +937,7 @@ Let <code>i</code> be the index, and <code>x</code> the element.
 
 <pre class="moss indent">
 for i,x in "abc".enum()
-  print(i,"|",x)
+   print(i,"|",x)
 end
 # Output:
 # 0|a
@@ -946,9 +946,9 @@ end
 
 a = [1,2,3,4]
 for i,x in a.enum()
-  for y in a[i+1..]
-    print([x,y])
-  end
+   for y in a[i+1..]
+      print([x,y])
+   end
 end
 # Output:
 # [1, 2]
@@ -967,9 +967,9 @@ another.
 <pre class="moss indent">
 x = int(input("A number: "))
 if x%2==0
-  print("This number is even.")
+   print("This number is even.")
 else
-  print("This number is odd.")
+   print("This number is odd.")
 end
 </pre>
 
@@ -994,24 +994,24 @@ pow = |x,n| 1 if n==0 else x*pow(x,n-1)
 <pre class="moss indent">
 theta = int(input("A temperature: "))
 print(
-  "freezing" if theta&lt; 1 else 
-  "cold"     if theta&lt; 6 else
-  "fresh"    if theta&lt;17 else
-  "warm"     if theta&lt;24 else
-  "hot"
+   "freezing" if theta&lt; 1 else 
+   "cold"     if theta&lt; 6 else
+   "fresh"    if theta&lt;17 else
+   "warm"     if theta&lt;24 else
+   "hot"
 )
 
 # By means of an if-statement
 if theta&lt;1
-  print("freezing")
+   print("freezing")
 elif theta&lt;6
-  print("cold")
+   print("cold")
 elif theta&lt;17
-  print("fresh")
+   print("fresh")
 elif theta&lt;24
-  print("warm")
+   print("warm")
 else
-  print("hot")
+   print("hot")
 end
 </pre>
 
@@ -1022,18 +1022,17 @@ some piece of functionality multiple times.
 
 <pre class="moss indent">
 function count(s,c)
-  k=0
-  for x in s
-    if x==c then k=k+1
-    end
-  end
-  return k
+   k = 0
+   for x in s
+      if x==c then k = k+1 end
+   end
+   return k
 end
 
 while true
-  s = input()
-  print("Number of left brackets: ", count(s,"(")+count(s,"["))
-  print("Number of right brackets: ", count(s,")")+count(s,"]"))
+   s = input()
+   print("Number of left brackets: ", count(s,"(")+count(s,"["))
+   print("Number of right brackets: ", count(s,")")+count(s,"]"))
 end
 </pre>
 <p>It is complicated to solve such a task without
@@ -1100,9 +1099,9 @@ use(math): pi, sin, cos
 
 # line breaks
 use math{
-  e, pi,
-  exp, ln,
-  sin, cos, tan
+   e, pi,
+   exp, ln,
+   sin, cos, tan
 }
 
 

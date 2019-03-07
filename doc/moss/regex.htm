@@ -269,13 +269,13 @@ use regex: re
 r = re("(*{d}{d}{d}{d})-(*{d}{d})-(*{d}{d})")
 
 while true
-  s = input("Date: ")
-  t = r.groups(s)
-  if t is null
-    print("A well formed date please!")
-  else
-    print(t)
-  end
+   s = input("Date: ")
+   t = r.groups(s)
+   if t is null
+      print("A well formed date please!")
+   else
+      print(t)
+   end
 end
 
 # Date: 2016-10-14
@@ -304,31 +304,31 @@ print(re("{a}+").replace(text,|x| "["+x+"]"))
 use regex: re
 
 function tokenizer(d)
-  r = re(d["r"])
-  f = d["f"] if "f" in d else null
-  return fn|s|
-    a = r.list(s)
-    return a if f is null else a.map(f)
-  end
+   r = re(d["r"])
+   f = d["f"] if "f" in d else null
+   return fn|s|
+      a = r.list(s)
+      return a if f is null else a.map(f)
+   end
 end
 
 words = tokenizer({
-  r = "{a}+"
+   r = "{a}+"
 })
 
 integers = tokenizer({
-  r = "{d}+",
-  f = int
+   r = "{d}+",
+   f = int
 })
 
 numbers = tokenizer({
-  r = "({d}|{.})+",
-  f = |x| float(x) if '.' in x else int(x)
+   r = "({d}|{.})+",
+   f = |x| float(x) if '.' in x else int(x)
 })
 
 for line in input
-  a = numbers(line)
-  print(a)
+   a = numbers(line)
+   print(a)
 end
 </pre>
 
@@ -338,8 +338,8 @@ end
 use regex: re
 
 function bind_regex(rs)
-  r = re(rs)
-  return |s| r.match(s)
+   r = re(rs)
+   return |s| r.match(s)
 end
 
 isalpha_german = bind_regex("[A-Za-zÄÖÜäöüß]*")

@@ -29,17 +29,17 @@ are visible outside of such a block.
 
 <pre class="moss indent">
 begin
-  public sind, cosd
+   public sind, cosd
 
-  use math: pi, sin, cos
-  deg = pi/180
+   use math: pi, sin, cos
+   deg = pi/180
 
-  function sind(x)
-    return sin(x*deg)
-  end
-  function cosd(x)
-    return cos(x*deg)
-  end
+   function sind(x)
+     return sin(x*deg)
+   end
+   function cosd(x)
+     return cos(x*deg)
+   end
 end
 
 print(sind(90))
@@ -60,17 +60,17 @@ is only a syntactic sugar for <code>(fn|| ... end)()</code>.
 <p>Thus, the last example is identical to:
 <pre class="moss indent">
 (fn||
-  global sind, cosd
+   global sind, cosd
 
-  use math: pi, sin, cos
-  deg = pi/180
+   use math: pi, sin, cos
+   deg = pi/180
 
-  function sind(x)
-    return sin(x*deg)
-  end
-  function cosd(x)
-    return cos(x*deg)
-  end
+   function sind(x)
+      return sin(x*deg)
+   end
+   function cosd(x)
+      return cos(x*deg)
+   end
 end)()
 
 print(sind(90))
@@ -82,20 +82,20 @@ variable may be returned from a block:
 
 <pre class="moss indent">
 sind = begin
-  deg = pi/180
-  return |x| sin(x*deg)
+   deg = pi/180
+   return |x| sin(x*deg)
 end
 </pre>
 
-<p>For more than one variable it looks a little bit clumsy:
+<p>For more than one variable this looks a little bit clumsy:
 
 <pre class="moss indent">
 {sind,cosd} = begin
-  deg = pi/180
-  return {
-    sind = |x| sin(x*deg),
-    cosd = |x| cos(x*deg)
-  }
+   deg = pi/180
+   return {
+      sind = |x| sin(x*deg),
+      cosd = |x| cos(x*deg)
+   }
 end
 </pre>
 
@@ -112,7 +112,7 @@ be a module and let us put a function <code>mean</code>
 # =================
 
 function mean(a)
-  return a.sum()/size(a)
+   return a.sum()/size(a)
 end
 
 
@@ -126,7 +126,7 @@ print(mean(a))
 </pre>
 
 <h2 id="dynamic-loading">Dynamic loading</h2>
-<p>Sometimes specific functionality is only needed irregularly.
+<p>Sometimes, specific functionality is only needed irregularly.
 In certain cases it could be favourable to not load it
 until it is needed.
 
@@ -142,8 +142,8 @@ that is not loaded until needed.
 
 # This could be a very large table:
 extended_color_table = {
-  "magenta": [0.5,0,0.2],
-  "brown": [0.4,0.2,0]
+   "magenta": [0.5,0,0.2],
+   "brown": [0.4,0.2,0]
 }
 
 print("(Extended colors loaded)")
@@ -153,40 +153,40 @@ print("(Extended colors loaded)")
 # ==================
 
 color_table = {
-  "black": [0,0,0],
-  "white": [1,1,1],
-  "gray": [0.4,0.4,0.4],
-  "red": [0.5,0.0,0],
-  "green": [0,0.4,0],
-  "blue": [0,0,0.8]
+   "black": [0,0,0],
+   "white": [1,1,1],
+   "gray": [0.4,0.4,0.4],
+   "red": [0.5,0.0,0],
+   "green": [0,0.4,0],
+   "blue": [0,0,0.8]
 }
 state = table{extended=false}
 ColorException = table{}
 
 function color(name)
-  while true
-    if name in color_table
-      return color_table[name]
-    else
-      if state.extended
-        raise table ColorException{
-          value = "Unknown color: "+name}
+   while true
+      if name in color_table
+         return color_table[name]
       else
-        use extended_colors: extended_color_table
-        color_table.update(extended_color_table)
-        state.extended = true
+         if state.extended
+            raise table ColorException{
+               value = "Unknown color: "+name}
+         else
+            use extended_colors: extended_color_table
+            color_table.update(extended_color_table)
+            state.extended = true
+         end
       end
-    end
-  end
+   end
 end
 
 while true
-  s = input("A color name please: ")
-  try
-    print(color(s),"\n")
-  catch e if e: ColorException
-    print(e.value,"\n")
-  end
+   s = input("A color name please: ")
+   try
+      print(color(s),"\n")
+   catch e if e: ColorException
+      print(e.value,"\n")
+   end
 end
 </pre>
 

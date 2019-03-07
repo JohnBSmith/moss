@@ -49,7 +49,7 @@ approach.
 n = 1000
 s = ""
 for i in 1..n
-  s = s+"."
+   s = s+"."
 end
 </pre>
 
@@ -67,7 +67,7 @@ s = [s1,s2,s3,s4,s5,s6].join()
 <pre class="moss indent">
 a = []
 for i in 1..n
-  a.push(".")
+   a.push(".")
 end
 s = a.join()
 </pre>
@@ -101,11 +101,11 @@ the computation should take only <code>N(n)=c+n</code> calls.
 <p>The following memoizing fixed point combinator achieves this.
 <pre class="moss indent">
 function fix(F)
-  m = {}
-  return fn g|n|
-    if n not in m then m[n] = F(g,n) end
-    return m[n]
-  end
+   m = {}
+   return fn g|n|
+      if n not in m then m[n] = F(g,n) end
+      return m[n]
+   end
 end
 
 fib = fix(|f,n| 1 if n==1 or n==2 else f(n-1)+f(n-2))
@@ -156,18 +156,18 @@ At first, some auxiliary functionality is to be defined.
 dtab = {}
 
 function define(m,d)
-  if m not in dtab
-    dtab[m] = d
-  else
-    dtab[m].update(d)
-  end
+   if m not in dtab
+      dtab[m] = d
+   else
+      dtab[m].update(d)
+   end
 end
 
 method = {
-  2: fn|m|
-    f = dtab[m]
-    return |x,y| f[[type(x),type(y)]](x,y)
-  end
+   2: fn|m|
+      f = dtab[m]
+      return |x,y| f[[type(x),type(y)]](x,y)
+   end
 }
 </pre>
 <p>So far, <code>dtab</code> is thought to contain a dispatch table
@@ -178,10 +178,10 @@ for each method name.
 Str = String
 
 define("f",{
-  [Int,Int]: |x,y| "({},{}) [Int,Int]"%[x,y],
-  [Str,Str]: |x,y| "({},{}) [Str,Str]"%[x,y],
-  [Int,Str]: |x,y| "({},{}) [Int,Str]"%[x,y],
-  [Str,Int]: |x,y| "({},{}) [Str,Int]"%[x,y]
+   [Int,Int]: |x,y| "({},{}) [Int,Int]"%[x,y],
+   [Str,Str]: |x,y| "({},{}) [Str,Str]"%[x,y],
+   [Int,Str]: |x,y| "({},{}) [Int,Str]"%[x,y],
+   [Str,Int]: |x,y| "({},{}) [Str,Int]"%[x,y]
 })
 
 f = method[2]("f")
@@ -236,8 +236,8 @@ use sys: call
 f = |n| 0 if n==0 else 1+f(n-1)
 
 function main
-  a = eval(str(list(1..10000)))
-  print(f(10000))
+   a = eval(str(list(1..10000)))
+   print(f(10000))
 end
 
 call(100000,main)
@@ -247,7 +247,7 @@ call(100000,main)
 you might suffer a stack overflow of the actual machine stack,
 in case the recursion involves higher order functions built-in
 in the interpreter. To circumvent this, there is a module called
-<code>stackless</code>. Loading this module replaces (monkey patches)
+<code>sys.stackless</code>. Loading this module replaces
 the built-in higher order functions with Moss code.
 
 </body>

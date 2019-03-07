@@ -68,7 +68,7 @@ difference that it returns an iterator.
 [2, 4, 6, 8]
 </pre>
 
-<p>Instead of <code>A.map(f)</code> it is possible to write
+<p>Besides <code>A.map(f)</code> it is possible to write
 <code>f[A]</code>. Here <code>A</code> is seen as a set, and
 <code>f[A]</code> the image of the set <code>A</code> under
 <code>f</code>. But it works not only on sets, but on any iterable
@@ -81,7 +81,7 @@ into the list of its character values, use <code>ord[s]</code>.
 </pre>
 
 <p>If <code>f</code> is a binary operator, <code>f[a,b]</code>
-allows us to operate <code>a</code> and <code>b</code>
+allows to operate <code>a</code> and <code>b</code>
 pointwise.
 
 <pre class="moss cmd-box">
@@ -175,7 +175,7 @@ but on any iterable:
 <h2 id="transformations">Transformations</h2>
 <h3 id="zip">Zip</h3>
 
-<p>The operation <code>zip(a,b)</code> allows us to join
+<p>The operation <code>zip(a,b)</code> joins
 <code>a</code> and <code>b</code> elementwise.
 <pre class="moss cmd-box">
 &gt; zip([1,2,3,4],["a","b","c","d"]).list()
@@ -310,7 +310,7 @@ B = |n| set((f(x) for x in A() if p(x)).take(n))
 <br>
 <h3 id="map-comprehensions">Map comprehensions</h3>
 
-<p>A map comprehension allows us to inverse a map:
+<p>A map comprehension allows to inverse a map:
 <pre class="moss indent">
 inv = |m| map([value,key] for key,value in m.items())
 </pre>
@@ -318,11 +318,11 @@ inv = |m| map([value,key] for key,value in m.items())
 <p>An imperative formulation of <code>inv</code> is slightly longer:
 <pre class="moss indent">
 function inv(m)
-  m2 = {}
-  for key in m
-    m2[m[key]] = key
-  end
-  return m2
+   m2 = {}
+   for key in m
+      m2[m[key]] = key
+   end
+   return m2
 end
 </pre>
 
@@ -332,7 +332,7 @@ from that:
 
 <pre class="moss indent">
 m = map([chr(x+ord('a')),chr(y+ord('a'))]
-  for x,y in zip(0..25,list(0..25).shuffle()))
+   for x,y in zip(0..25,list(0..25).shuffle()))
 </pre>
 
 <p>For convenience:
@@ -350,17 +350,16 @@ of the Diophantine equation
 = <var>w</var><sup>3</sup>.
 
 <p>A generator comprehension prevents the program from memory
-  exhaustion and allows us to print found solutions instantly.  
+  exhaustion and allows to print found solutions instantly.  
 
 <pre class="moss indent">
 g = |n| ([x,y,z,w]
-  for x in 1..n for y in 1..n
-  for z in 1..n for w in 1..n
-  if x^3+y^3+z^3 == w^3)
+   for x in 1..n for y in 1..n
+   for z in 1..n for w in 1..n
+   if x^3+y^3+z^3 == w^3)
 
 g(200).each(print)
 </pre>
-
 
 
 </body>
