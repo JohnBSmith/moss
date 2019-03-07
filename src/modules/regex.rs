@@ -601,10 +601,10 @@ struct Regex{
 
 impl Interface for Regex{
     fn as_any(&self) -> &Any {self}
-    fn type_name(&self) -> String {
+    fn type_name(&self, _env: &mut Env) -> String {
         "Regex".to_string()
     }
-    fn to_string(&self, _env: &mut Env) -> Result<String,Box<Exception>> {
+    fn to_string(self: Rc<Self>, _env: &mut Env) -> Result<String,Box<Exception>> {
         Ok("regex object".to_string())
     }
     fn get(&self, key: &Object, env: &mut Env) -> FnResult {
@@ -658,5 +658,5 @@ pub fn load_regex(env: &mut Env) -> Object {
         let mut m = regex.map.borrow_mut();
         m.insert("re",regex_compile(interface_index::REGEX));
     }
-    return Object::Table(Rc::new(regex));
+    return Object::Interface(Rc::new(regex));
 }

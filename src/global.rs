@@ -8,12 +8,11 @@ use std::f64::NAN;
 use std::io::Read;
 
 use vm::{
-    RTE, Env, op_lt, table_get,
-    interface_index, interface_types_set
+    RTE, Env, op_lt, interface_index, interface_types_set
 };
 use object::{
-    Object, Map, Table, List, CharString,
-    FnResult, Function, EnumFunction,
+    Object, Table, Map, List, CharString,
+    FnResult, Function, EnumFunction, Info,
     VARIADIC, new_module, downcast
 };
 use rand::Rand;
@@ -23,12 +22,13 @@ use module::eval_module;
 use compiler::Value;
 use long::{Long, pow_mod};
 use tuple::Tuple;
+use table::table_get;
 use iterable::new_iterator;
 use map::map_extend;
 use class::class_new;
 use range::Range;
 
-pub fn type_name(x: &Object) -> String {
+pub fn type_name(env: &mut Env, x: &Object) -> String {
     return match *x {
         Object::Null => "null",
         Object::Bool(_) => "Bool",
@@ -39,9 +39,13 @@ pub fn type_name(x: &Object) -> String {
         Object::String(_) => "String",
         Object::Map(_) => "Map",
         Object::Function(_) => "Function",
-        Object::Empty => "Empty",
-        Object::Table(_) => "Table object",
-        Object::Interface(ref x) => return x.type_name()
+        Object::Info(x) => {
+            match x {
+                Info::Empty => "Empty",
+                Info::Unimplemented => "Unimplemented"
+            }
+        },
+        Object::Interface(ref x) => return x.type_name(env)
     }.to_string();
 }
 
@@ -143,7 +147,7 @@ fn sgn(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
             return Ok(Object::Complex(z/z.abs()));
         },
         Object::Interface(ref x) => {
-            return x.sgn(env);
+            return x.clone().sgn(env);
         },
         _ => {
             return env.type_error1(
@@ -170,14 +174,7 @@ fn abs(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
             return Ok(Object::Float(z.abs()));
         },
         Object::Interface(ref x) => {
-            return x.abs(env);
-        },
-        Object::Table(ref x) => {
-            if let Some(f) = x.get(&env.rte().key_abs) {
-                return env.call(&f,&argv[0],&[]);
-            }else{
-                break 'type_error;
-            }
+            return x.clone().abs(env);
         },
         _ => break 'type_error
     }
@@ -268,7 +265,7 @@ fn load_file(env: &mut Env, id: &str) -> FnResult {
         env.eval_string(&s,id,module.map.clone(),Value::None)
     };
     return Ok(match value? {
-        Object::Null => Object::Table(Rc::new(module)),
+        Object::Null => Object::Interface(Rc::new(module)),
         x => x
     });
 }
@@ -344,11 +341,10 @@ fn record(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         1 => {}, n => return env.argc_error(n,1,1,"record")
     }
-    match argv[0] {
-        Object::Table(ref t) => {
-            Ok(Object::Map(t.map.clone()))
-        },
-        _ => env.type_error1(
+    if let Some(t) = downcast::<Table>(&argv[0]) {
+        Ok(Object::Map(t.map.clone()))
+    }else{
+        env.type_error1(
             "Type error in record(x): x is not a table.",
             "x", &argv[0]
         )
@@ -358,15 +354,15 @@ fn record(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
 fn fobject(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         0 => {
-            Ok(Object::Table(Table::new(Object::Null)))
+            Ok(Object::Interface(Table::new(Object::Null)))
         },
         1 => {
-            Ok(Object::Table(Table::new(argv[0].clone())))
+            Ok(Object::Interface(Table::new(argv[0].clone())))
         },
         2 => {
             match argv[1] {
                 Object::Map(ref m) => {
-                    Ok(Object::Table(Rc::new(Table{
+                    Ok(Object::Interface(Rc::new(Table{
                         prototype: argv[0].clone(),
                         map: m.clone()
                     })))
@@ -387,20 +383,13 @@ fn ftype(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     }
     return Ok(match argv[0] {
         Object::Null => Object::Null,
-        Object::Bool(_) => Object::Table(env.rte().type_bool.clone()),
-        Object::Int(_) => Object::Table(env.rte().type_int.clone()),
-        Object::Float(_) => Object::Table(env.rte().type_float.clone()),
-        Object::Complex(_) => Object::Table(env.rte().type_complex.clone()),
-        Object::String(_) => Object::Table(env.rte().type_string.clone()),
-        Object::List(_) => Object::Table(env.rte().type_list.clone()),
-        Object::Map(_) => Object::Table(env.rte().type_map.clone()),
-        Object::Table(ref t) => {
-            if let Some(pt) = downcast::<Tuple>(&t.prototype) {
-                pt.v[0].clone()
-            }else{
-                t.prototype.clone()
-            }
-        },
+        Object::Bool(_) => Object::Interface(env.rte().type_bool.clone()),
+        Object::Int(_) => Object::Interface(env.rte().type_int.clone()),
+        Object::Float(_) => Object::Interface(env.rte().type_float.clone()),
+        Object::Complex(_) => Object::Interface(env.rte().type_complex.clone()),
+        Object::String(_) => Object::Interface(env.rte().type_string.clone()),
+        Object::List(_) => Object::Interface(env.rte().type_list.clone()),
+        Object::Map(_) => Object::Interface(env.rte().type_map.clone()),
         Object::Interface(ref x) => return x.get_type(env),
         _ => Object::Null
     });
@@ -538,7 +527,7 @@ fn set(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     let mut m: HashMap<Object,Object> = HashMap::new();
     loop {
         let y = env.call(i,&Object::Null,&[])?;
-        if y == Object::Empty {break;}
+        if y.is_empty() {break;}
         m.insert(y,Object::Null);
     }
     return Ok(Map::new_object(m));
@@ -793,9 +782,11 @@ fn fconst(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
             let mut m = m.borrow_mut();
             m.frozen = true;
         },
-        Object::Table(ref t) => {
-            let mut m = t.map.borrow_mut();
-            m.frozen = true;
+        Object::Interface(ref x) => {
+            if let Some(t) = x.as_any().downcast_ref::<Table>() {
+                let mut m = t.map.borrow_mut();
+                m.frozen = true;
+            }
         },
         _ => {}
     }
@@ -870,10 +861,8 @@ fn zip(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
         let mut t: Vec<Object> = Vec::with_capacity(argc);
         for i in &v {
             let y = env.call(i,&Object::Null,&[])?;
-            match y {
-                Object::Empty => return Ok(Object::Empty),
-                y => {t.push(y);}
-            }
+            if y.is_empty() {return Ok(y);}
+            else {t.push(y);}
         }
         return Ok(List::new_object(t));
     });
@@ -951,25 +940,25 @@ fn map(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     let mut m: HashMap<Object,Object> = HashMap::new();
     loop{
         let y = env.call(&i,&Object::Null,&[])?;
-        match y {
-            Object::Empty => break,
-            Object::List(a) => {
-                let a = a.borrow_mut();
-                if a.v.len() != 2 {
-                    return env.type_error("Type error in map(a): iter(a) is expected to return pairs.");
-                }
-                m.insert(a.v[0].clone(),a.v[1].clone());
-            },
-            _ => return env.type_error("Type error in map(a): iter(a) is expected to return lists.")
+        if y.is_empty() {
+            break;
+        }else if let Object::List(a) = y {
+            let a = a.borrow_mut();
+            if a.v.len() != 2 {
+                return env.type_error("Type error in map(a): iter(a) is expected to return pairs.");
+            }
+            m.insert(a.v[0].clone(),a.v[1].clone());
+        }else{
+            return env.type_error("Type error in map(a): iter(a) is expected to return lists.");
         }
     }
     return Ok(Map::new_object(m));
 }
 
 fn type_to_string(_env: &mut Env, pself: &Object, _argv: &[Object]) -> FnResult {
-    if let Object::Table(ref pt) = *pself {
+    if let Some(pt) = downcast::<Table>(pself) {
         if let Some(t) = downcast::<Tuple>(&pt.prototype) {
-            if let Some(s) = t.v.get(2) {
+            if let Some(s) = t.v.get(0) {
                 return Ok(s.clone());
             }
         }
@@ -981,21 +970,17 @@ fn extend(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     if argv.len()<2 {
         return env.argc_error(argv.len(),2,VARIADIC,"extend");
     }
-    if let Object::Table(ref t) = argv[0] {
+    if let Some(t) = downcast::<Table>(&argv[0]) {
         let m = &mut t.map.borrow_mut();
         for p in &argv[1..] {
-            match *p {
-                Object::Table(ref pt) => {
-                    let pm = &pt.map.borrow();
-                    map_extend(m,pm);
-                },
-                Object::Map(ref pm) => {
-                    let pm = &pm.borrow();
-                    map_extend(m,pm);
-                },
-                _ => {
-                    return env.type_error("Type error in extend(x,y): y is not a table.");
-                }
+            if let Object::Map(ref pm) = *p {
+                let pm = &pm.borrow();
+                map_extend(m,pm);
+            }else if let Some(pt) = downcast::<Table>(p) {
+                let pm = &pt.map.borrow();
+                map_extend(m,pm);
+            }else{
+                return env.type_error("Type error in extend(x,y): y is not a table.");
             }
         }
         return Ok(Object::Null);
@@ -1031,14 +1016,13 @@ fn getattr(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         2 => {}, n => return env.argc_error(n,2,2,"getattr")
     }
-    Ok(match argv[0] {
-        Object::Table(ref t) => {
-            match table_get(&t,&argv[1]) {
-                Some(x) => x,
-                _ => Object::Null
-            }
-        },
-        _ => Object::Null
+    Ok(if let Some(t) = downcast::<Table>(&argv[0]) {
+        match table_get(&t,&argv[1]) {
+            Some(x) => x,
+            _ => Object::Null
+        }
+    }else{
+        Object::Null
     })
 }
 
@@ -1080,60 +1064,60 @@ pub fn init_rte(rte: &RTE){
     gtab.insert_fn_plain("panic",panic,0,1);
     gtab.insert_fn_plain("getattr",getattr,2,2);
     gtab.insert_fn_plain("class",class_new,1,1);
-    gtab.insert("empty", Object::Empty);
+    gtab.insert("empty", Object::empty());
 
     let type_bool = rte.type_bool.clone();
-    gtab.insert("Bool", Object::Table(type_bool));
+    gtab.insert("Bool", Object::Interface(type_bool));
     
     let type_int = rte.type_int.clone();
-    gtab.insert("Int", Object::Table(type_int));
+    gtab.insert("Int", Object::Interface(type_int));
     
     let type_float = rte.type_float.clone();
-    gtab.insert("Float", Object::Table(type_float));
+    gtab.insert("Float", Object::Interface(type_float));
     
     let type_complex = rte.type_complex.clone();
-    gtab.insert("Complex", Object::Table(type_complex));
+    gtab.insert("Complex", Object::Interface(type_complex));
 
     let type_string = rte.type_string.clone();
     ::string::init(&type_string);
-    gtab.insert("String", Object::Table(type_string));
+    gtab.insert("String", Object::Interface(type_string));
 
     let type_list = rte.type_list.clone();
     ::list::init(&type_list);
-    gtab.insert("List", Object::Table(type_list));
+    gtab.insert("List", Object::Interface(type_list));
 
     let type_map = rte.type_map.clone();
     ::map::init(&type_map);
-    gtab.insert("Map", Object::Table(type_map));
+    gtab.insert("Map", Object::Interface(type_map));
 
     let type_function = rte.type_function.clone();
     ::function::init(&type_function);
-    gtab.insert("Function", Object::Table(type_function));
+    gtab.insert("Function", Object::Interface(type_function));
 
     let type_iterable = rte.type_iterable.clone();
     ::iterable::init(&type_iterable);
-    gtab.insert("Iterable", Object::Table(type_iterable));
+    gtab.insert("Iterable", Object::Interface(type_iterable));
 
     let type_long = rte.type_long.clone();
-    gtab.insert("Long", Object::Table(type_long));
+    gtab.insert("Long", Object::Interface(type_long));
     
     let type_type_error = rte.type_type_error.clone();
-    gtab.insert("TypeError", Object::Table(type_type_error));
+    gtab.insert("TypeError", Object::Interface(type_type_error));
     
     let type_value_error = rte.type_value_error.clone();
-    gtab.insert("ValueError", Object::Table(type_value_error));
+    gtab.insert("ValueError", Object::Interface(type_value_error));
     
     let type_index_error = rte.type_index_error.clone();
-    gtab.insert("IndexError", Object::Table(type_index_error));
+    gtab.insert("IndexError", Object::Interface(type_index_error));
 
     let type_type = rte.type_type.clone();
     {
         let mut m = type_type.map.borrow_mut();
         m.insert_fn_plain("string",type_to_string,0,0);
     }
-    gtab.insert("Type", Object::Table(type_type));
+    gtab.insert("Type", Object::Interface(type_type));
 
-    let type_bytes = Table::new(Object::Table(rte.type_iterable.clone()));
+    let type_bytes = Table::new(Object::Interface(rte.type_iterable.clone()));
     {
         let mut m = type_bytes.map.borrow_mut();
         m.insert_fn_plain("list",::data::bytes_list,0,0);

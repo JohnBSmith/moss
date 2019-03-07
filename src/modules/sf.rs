@@ -630,7 +630,7 @@ pub fn load_sf_ei() -> Object {
         m.insert_fn_plain("RJ",sf_RJ,4,4);
         m.insert_fn_plain("RD",sf_RD,3,3);
     }
-    return Object::Table(Rc::new(ei));
+    return Object::Interface(Rc::new(ei));
 }
 
 pub fn load_sf() -> Object {
@@ -647,6 +647,6 @@ pub fn load_sf() -> Object {
         m.insert_fn_plain("B",sf_B,1,1);
         m.insert_fn_plain("Beta",sf_Beta,2,2);
     }
-    return Object::Table(Rc::new(sf));
+    return Object::Interface(Rc::new(sf));
 }
 

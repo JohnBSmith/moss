@@ -840,7 +840,7 @@ pub fn load_math() -> Object {
         m.insert_fn_plain("isnan",isnan,1,1);
         m.insert_fn_plain("isinf",isinf,1,1);
     }
-    return Object::Table(Rc::new(math));
+    return Object::Interface(Rc::new(math));
 }
 
 pub fn load_cmath() -> Object {
@@ -869,5 +869,5 @@ pub fn load_cmath() -> Object {
         m.insert_fn_plain("sqrt",csqrt,1,1);
         m.insert_fn_plain("arg",arg,1,1);
     }
-    return Object::Table(Rc::new(cmath));
+    return Object::Interface(Rc::new(cmath));
 }

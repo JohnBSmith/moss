@@ -47,6 +47,6 @@ pub fn load_time() -> Object {
         m.insert_fn_plain("sleep",time_sleep,1,1);
         m.insert_fn_plain("clock",time_clock,0,0);
     }
-    return Object::Table(Rc::new(time));
+    return Object::Interface(Rc::new(time));
 }
 

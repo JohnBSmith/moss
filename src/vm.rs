@@ -10,13 +10,14 @@ use std::io::Read;
 use std::fmt::Write;
 
 use object::{
-    Object, Map, List, Function, EnumFunction, StandardFn,
-    FnResult, OperatorResult, Exception, Table, CharString,
-    VARIADIC, Downcast, TypeName, downcast
+    Object, Table, Map, List, Function, EnumFunction, StandardFn,
+    FnResult, OperatorResult, Exception, CharString, Interface,
+    VARIADIC, Downcast, TypeName, downcast,
 };
 use complex::Complex64;
 use long::Long;
 use tuple::Tuple;
+use table::object_get;
 use range::Range;
 use format::u32string_format;
 use global::{type_name,list};
@@ -293,21 +294,15 @@ impl PartialEq for Object{
                     _ => false
                 };
             },
-            Object::Empty => {
+            Object::Info(x) => {
                 return match *b {
-                    Object::Empty => true,
+                    Object::Info(y) => x==y,
                     _ => false
                 };
             },
             _ => {}
         }
         return match *self {
-            Object::Table(ref x) => {
-                return match *b {
-                    Object::Table(ref y) => Rc::ptr_eq(x,y),
-                    _ => false
-                }
-            },
             Object::Interface(ref x) => {
                 return x.eq_plain(b);
             },
@@ -350,10 +345,6 @@ impl Hash for Object{
                 }
                 state.write_u64(hash);
             },
-            Object::Table(ref t) => {
-                let p: &Table = t;
-                (p as *const _ as usize).hash(state);
-            },
             Object::Interface(ref x) => {
                 state.write_u64(x.hash());
             },
@@ -374,7 +365,7 @@ fn list_to_string(env: &mut Env, a: &[Object])
     return Ok(s);
 }
 
-fn map_to_string(env: &mut Env, a: &HashMap<Object,Object>,
+pub fn map_to_string(env: &mut Env, a: &HashMap<Object,Object>,
     left: &str, right: &str
 ) -> Result<String,Box<Exception>>
 {
@@ -435,22 +426,6 @@ fn complex_to_string(z: Complex64) -> String {
     }
 }
 
-fn table_to_string(env: &mut Env, t: &Rc<Table>) -> Result<String,Box<Exception>> {
-    if let Some(f) = type_get(&t.prototype,&env.rte().key_string) {
-        let s = env.call(&f,&Object::Table(t.clone()),&[])?;
-        return s.string(env);
-    }
-    let left = if let Object::Null = t.prototype {
-        "table{"
-    }else{
-        "table(...){"
-    };
-    match t.map.try_borrow_mut() {
-        Ok(m) => map_to_string(env,&m.m,left,"}"),
-        Err(_) => Ok(format!("{}{}",left,"...}"))
-    }
-}
-
 fn list_to_string_plain(a: &[Object]) -> String {
     let mut s = "[".to_string();
     for i in 0..a.len() {
@@ -503,14 +478,7 @@ pub fn object_to_string_plain(x: &Object) -> String {
             }
         },
         Object::Function(_) => "function".to_string(),
-        // Object::Tuple(_) => "tuple".to_string(),
-        Object::Table(ref t) => {
-            match t.map.try_borrow_mut() {
-                Ok(m) => map_to_string_plain(&m.m,"table{","}"),
-                Err(_) => "table{...}".to_string()
-            }
-        },
-        Object::Empty => "empty".to_string(),
+        Object::Info(x) => x.to_string(),
         Object::Interface(_) => "interface object".to_string()
     }
 }
@@ -560,14 +528,11 @@ pub fn object_to_string(env: &mut Env, x: &Object)
                 _ => format!("function {}",object_to_string(env,&f.id)?)
             }
         },
-        Object::Table(ref t) => {
-            return table_to_string(env,&t);
-        },
-        Object::Empty => {
-            "empty".to_string()
+        Object::Info(x) => {
+            x.to_string()
         },
         Object::Interface(ref t) => {
-            return t.to_string(env);
+            return t.clone().to_string(env);
         }
     })
 }
@@ -697,23 +662,10 @@ fn operator_neg(env: &mut EnvPart, sp: usize, stack: &mut [Object])
         _ => {}
     }
     match stack[sp-1].take() {
-        Object::Table(t) => {
-            match t.get(&env.rte.key_neg) {
-                Some(ref f) => {
-                    match (Env{env,sp,stack}).call(f,&Object::Table(t),&[]) {
-                        Ok(y) => {stack[sp-1] = y; Ok(())},
-                        Err(e) => Err(e)
-                    }
-                },
-                None => {
-                    Err(env.type_error1_plain(sp,stack,"Type error in -x.","x",&Object::Table(t)))
-                }
-            }
-        },
         Object::Interface(x) => {
-            match x.neg(&mut Env{env: env, sp: sp, stack: stack}) {
+            match x.clone().neg(&mut Env{env: env, sp: sp, stack: stack}) {
                 Ok(y) => {
-                    if env.is_unimplemented(&y) {
+                    if y.is_unimplemented() {
                         Err(env.type_error1_plain(sp,stack,"Type error in -x.","x",&Object::Interface(x)))
                     }else{
                         stack[sp-1] = y; Ok(())
@@ -835,24 +787,11 @@ fn operator_add(env: &mut EnvPart, sp: usize, stack: &mut [Object])
                 _ => {break 'r;}
             }
         },
-        Object::Table(a) => {
-            match a.get(&env.rte.key_add) {
-                Some(ref f) => {
-                    let x = stack[sp-2].take();
-                    let y = stack[sp-1].take();
-                    match (Env{env,sp,stack}).call(f,&x,&[y]) {
-                        Ok(y) => {stack[sp-2] = y; Ok(())},
-                        Err(e) => Err(e)
-                    }
-                },
-                None => {break 'r;}
-            }
-        },
         Object::Interface(a) => {
             let b = stack[sp-1].clone();
             match a.add(&b,&mut Env{env: env, sp: sp, stack: stack}) {
                 Ok(y) => {
-                    if env.is_unimplemented(&y) {
+                    if y.is_unimplemented() {
                         break 'r;
                     }else{
                         stack[sp-1] = Object::Null;
@@ -869,9 +808,9 @@ fn operator_add(env: &mut EnvPart, sp: usize, stack: &mut [Object])
     match stack[sp-1].take() {
         Object::Interface(a) => {
             let b = stack[sp-2].take();
-            match a.radd(&b,&mut Env{env: env, sp: sp, stack: stack}) {
+            match a.clone().radd(&b,&mut Env{env: env, sp: sp, stack: stack}) {
                 Ok(y) => {
-                    if env.is_unimplemented(&y) {
+                    if y.is_unimplemented() {
                         Err(env.type_error2_plain(sp,stack,
                             "Type error in x+y.","x","y",&b,&Object::Interface(a)
                         ))            
@@ -881,23 +820,6 @@ fn operator_add(env: &mut EnvPart, sp: usize, stack: &mut [Object])
                 },
                 Err(e) => Err(e)
             }      
-        },
-        Object::Table(a) => {
-            match a.get(&env.rte.key_radd) {
-                Some(ref f) => {
-                    let x = stack[sp-2].take();
-                    match (Env{env,sp,stack}).call(f,&x,&[Object::Table(a)]) {
-                        Ok(y) => {stack[sp-2] = y; Ok(())},
-                        Err(e) => Err(e)
-                    }
-                },
-                None => {
-                    let x = stack[sp-2].clone();
-                    Err(env.type_error2_plain(sp,stack,
-                        "Type error in x+y.","x","y",&x,&Object::Table(a)
-                    ))   
-                }
-            }
         },
         a => {
             let x = stack[sp-2].clone();
@@ -1001,24 +923,11 @@ fn operator_sub(env: &mut EnvPart, sp: usize, stack: &mut [Object])
                 _ => {break 'r;}
             }
         },
-        Object::Table(a) => {
-            match a.get(&env.rte.key_sub) {
-                Some(ref f) => {
-                    let x = stack[sp-2].take();
-                    let y = stack[sp-1].take();
-                    match (Env{env,sp,stack}).call(f,&x,&[y]) {
-                        Ok(y) => {stack[sp-2] = y; Ok(())},
-                        Err(e) => Err(e)
-                    }
-                },
-                None => {break 'r;}
-            }
-        },
         Object::Interface(a) => {
             let b = stack[sp-1].clone();
             match a.sub(&b,&mut Env{env: env, sp: sp, stack: stack}) {
                 Ok(y) => {
-                    if env.is_unimplemented(&y) {
+                    if y.is_unimplemented() {
                         break 'r;
                     }else{
                         stack[sp-1] = Object::Null;
@@ -1035,9 +944,9 @@ fn operator_sub(env: &mut EnvPart, sp: usize, stack: &mut [Object])
     match stack[sp-1].take() {
         Object::Interface(a) => {
             let b = stack[sp-2].take();
-            match a.rsub(&b,&mut Env{env: env, sp: sp, stack: stack}) {
+            match a.clone().rsub(&b,&mut Env{env: env, sp: sp, stack: stack}) {
                 Ok(y) => {
-                    if env.is_unimplemented(&y) {
+                    if y.is_unimplemented() {
                         Err(env.type_error2_plain(sp,stack,
                             "Type error in x-y.","x","y",&b,&Object::Interface(a)
                         ))            
@@ -1047,23 +956,6 @@ fn operator_sub(env: &mut EnvPart, sp: usize, stack: &mut [Object])
                 },
                 Err(e) => Err(e)
             }      
-        },
-        Object::Table(a) => {
-            match a.get(&env.rte.key_rsub) {
-                Some(ref f) => {
-                    let x = stack[sp-2].take();
-                    match (Env{env,sp,stack}).call(f,&x,&[Object::Table(a)]) {
-                        Ok(y) => {stack[sp-2] = y; Ok(())},
-                        Err(e) => Err(e)
-                    }
-                },
-                None => {
-                    let x = stack[sp-2].clone();
-                    Err(env.type_error2_plain(sp,stack,
-                        "Type error in x-y.","x","y",&x,&Object::Table(a)
-                    ))   
-                }
-            }
         },
         a => {
             let x = stack[sp-2].clone();
@@ -1179,24 +1071,11 @@ fn operator_mul(env: &mut EnvPart, sp: usize, stack: &mut [Object])
                 _ => {break 'r;}
             }
         },
-        Object::Table(a) => {
-            match a.get(&env.rte.key_mul) {
-                Some(ref f) => {
-                    let x = stack[sp-2].take();
-                    let y = stack[sp-1].take();
-                    match (Env{env,sp,stack}).call(f,&x,&[y]) {
-                        Ok(y) => {stack[sp-2] = y; Ok(())},
-                        Err(e) => Err(e)
-                    }
-                },
-                None => {break 'r;}
-            }
-        },
         Object::Interface(a) => {
             let b = stack[sp-1].clone();
             match a.mul(&b,&mut Env{env: env, sp: sp, stack: stack}) {
                 Ok(y) => {
-                    if env.is_unimplemented(&y) {
+                    if y.is_unimplemented() {
                         break 'r;
                     }else{
                         stack[sp-1] = Object::Null;
@@ -1213,9 +1092,9 @@ fn operator_mul(env: &mut EnvPart, sp: usize, stack: &mut [Object])
     return match stack[sp-1].take() {
         Object::Interface(a) => {
             let b = stack[sp-2].take();
-            match a.rmul(&b,&mut Env{env: env, sp: sp, stack: stack}) {
+            match a.clone().rmul(&b,&mut Env{env,sp,stack}) {
                 Ok(y) => {
-                    if env.is_unimplemented(&y) {
+                    if y.is_unimplemented() {
                         Err(env.type_error2_plain(sp,stack,
                             "Type error in x*y.","x","y",&b,&Object::Interface(a)
                         ))            
@@ -1224,23 +1103,6 @@ fn operator_mul(env: &mut EnvPart, sp: usize, stack: &mut [Object])
                     }
                 },
                 Err(e) => Err(e)
-            }
-        },
-        Object::Table(a) => {
-            match a.get(&env.rte.key_rmul) {
-                Some(ref f) => {
-                    let x = stack[sp-2].take();
-                    match (Env{env,sp,stack}).call(f,&x,&[Object::Table(a)]) {
-                        Ok(y) => {stack[sp-2] = y; Ok(())},
-                        Err(e) => Err(e)
-                    }
-                },
-                None => {
-                    let x = stack[sp-2].clone();
-                    Err(env.type_error2_plain(sp,stack,
-                        "Type error in x*y.","x","y",&x,&Object::Table(a)
-                    ))   
-                }
             }
         },
         a => {
@@ -1347,24 +1209,11 @@ fn operator_div(env: &mut EnvPart, sp: usize, stack: &mut [Object])
         _ => {}
     }
     return match stack[sp-2].clone() {
-        Object::Table(a) => {
-            match a.get(&env.rte.key_div) {
-                Some(ref f) => {
-                    let x = stack[sp-2].take();
-                    let y = stack[sp-1].take();
-                    match (Env{env,sp,stack}).call(f,&x,&[y]) {
-                        Ok(y) => {stack[sp-2] = y; Ok(())},
-                        Err(e) => Err(e)
-                    }
-                },
-                None => {break 'r;}
-            }
-        },
         Object::Interface(a) => {
             let b = stack[sp-1].clone();
-            match a.div(&b,&mut Env{env: env, sp: sp, stack: stack}) {
+            match a.div(&b,&mut Env{env, sp, stack}) {
                 Ok(y) => {
-                    if env.is_unimplemented(&y) {
+                    if y.is_unimplemented() {
                         break 'r;
                     }else{
                         stack[sp-1] = Object::Null;
@@ -1381,34 +1230,17 @@ fn operator_div(env: &mut EnvPart, sp: usize, stack: &mut [Object])
     match stack[sp-1].take() {
         Object::Interface(a) => {
             let b = stack[sp-2].take();
-            match a.rdiv(&b,&mut Env{env: env, sp: sp, stack: stack}) {
+            match a.clone().rdiv(&b,&mut Env{env, sp, stack}) {
                 Ok(y) => {
-                    if env.is_unimplemented(&y) {
+                    if y.is_unimplemented() {
                         Err(env.type_error2_plain(sp,stack,
                             "Type error in x/y.","x","y",&b,&Object::Interface(a)
-                        ))            
+                        ))
                     }else{
                         stack[sp-2] = y; Ok(())
                     }
                 },
                 Err(e) => Err(e)
-            }
-        },
-        Object::Table(a) => {
-            match a.get(&env.rte.key_rdiv) {
-                Some(ref f) => {
-                    let x = stack[sp-2].take();
-                    match (Env{env,sp,stack}).call(f,&x,&[Object::Table(a)]) {
-                        Ok(y) => {stack[sp-2] = y; Ok(())},
-                        Err(e) => Err(e)
-                    }
-                },
-                None => {
-                    let x = stack[sp-2].clone();
-                    Err(env.type_error2_plain(sp,stack,
-                        "Type error in x/y.","x","y",&x,&Object::Table(a)
-                    ))   
-                }
             }
         },
         a => {
@@ -1537,9 +1369,9 @@ fn operator_idiv(env: &mut EnvPart, sp: usize, stack: &mut [Object])
     match stack[sp-1].take() {
         Object::Interface(a) => {
             let b = stack[sp-2].take();
-            match a.ridiv(&b,&mut Env{env: env, sp: sp, stack: stack}) {
+            match a.clone().ridiv(&b,&mut Env{env, sp, stack}) {
                 Ok(y) => {
-                    if env.is_unimplemented(&y) {
+                    if y.is_unimplemented() {
                         Err(env.type_error2_plain(sp,stack,
                             "Type error in x//y.","x","y",&b,&Object::Interface(a)
                         ))            
@@ -1548,23 +1380,6 @@ fn operator_idiv(env: &mut EnvPart, sp: usize, stack: &mut [Object])
                     }
                 },
                 Err(e) => Err(e)
-            }
-        },
-        Object::Table(a) => {
-            match a.get(&env.rte.key_ridiv) {
-                Some(ref f) => {
-                    let x = stack[sp-2].take();
-                    match (Env{env,sp,stack}).call(f,&x,&[Object::Table(a)]) {
-                        Ok(y) => {stack[sp-2] = y; Ok(())},
-                        Err(e) => Err(e)
-                    }
-                },
-                None => {
-                    let x = stack[sp-2].clone();
-                    Err(env.type_error2_plain(sp,stack,
-                        "Type error in x//y.","x","y",&x,&Object::Table(a)
-                    ))
-                }
             }
         },
         a => {
@@ -1617,19 +1432,6 @@ fn operator_mod(env: &mut EnvPart, sp: usize, stack: &mut [Object])
         _ => {}
     }
     return match stack[sp-2].clone() {
-        Object::Table(a) => {
-            match a.get(&env.rte.key_mod) {
-                Some(ref f) => {
-                    let x = stack[sp-2].take();
-                    let y = stack[sp-1].take();
-                    match (Env{env,sp,stack}).call(f,&x,&[y]) {
-                        Ok(y) => {stack[sp-2] = y; Ok(())},
-                        Err(e) => Err(e)
-                    }
-                },
-                None => {break 'r;}
-            }
-        },
         Object::Interface(a) => {
             let b = stack[sp-1].take();
             match a.imod(&b,&mut Env{env: env, sp: sp, stack: stack}) {
@@ -1650,9 +1452,9 @@ fn operator_mod(env: &mut EnvPart, sp: usize, stack: &mut [Object])
     match stack[sp-1].take() {
         Object::Interface(a) => {
             let b = stack[sp-2].take();
-            match a.rimod(&b,&mut Env{env: env, sp: sp, stack: stack}) {
+            match a.clone().rimod(&b,&mut Env{env,sp,stack}) {
                 Ok(y) => {
-                    if env.is_unimplemented(&y) {
+                    if y.is_unimplemented() {
                         Err(env.type_error2_plain(sp,stack,
                             "Type error in x%y.","x","y",&b,&Object::Interface(a)
                         ))            
@@ -1661,23 +1463,6 @@ fn operator_mod(env: &mut EnvPart, sp: usize, stack: &mut [Object])
                     }
                 },
                 Err(e) => Err(e)
-            }
-        },
-        Object::Table(a) => {
-            match a.get(&env.rte.key_rmod) {
-                Some(ref f) => {
-                    let x = stack[sp-2].take();
-                    match (Env{env,sp,stack}).call(f,&x,&[Object::Table(a)]) {
-                        Ok(y) => {stack[sp-2] = y; Ok(())},
-                        Err(e) => Err(e)
-                    }
-                },
-                None => {
-                    let x = stack[sp-2].clone();
-                    Err(env.type_error2_plain(sp,stack,
-                        "Type error in x%y.","x","y",&x,&Object::Table(a)
-                    ))
-                }
             }
         },
         a => {
@@ -1800,19 +1585,6 @@ fn operator_pow(env: &mut EnvPart, sp: usize, stack: &mut [Object])
                 Err(e) => Err(e)
             }
         },
-        Object::Table(a) => {
-            match a.get(&env.rte.key_pow) {
-                Some(ref f) => {
-                    let x = stack[sp-2].take();
-                    let y = stack[sp-1].take();
-                    match (Env{env,sp,stack}).call(f,&x,&[y]) {
-                        Ok(y) => {stack[sp-2] = y; Ok(())},
-                        Err(e) => Err(e)
-                    }
-                },
-                None => {break 'r;}
-            }
-        },
         Object::Interface(a) => {
             let b = stack[sp-1].take();
             match a.pow(&b,&mut Env{env: env, sp: sp, stack: stack}) {
@@ -1830,23 +1602,6 @@ fn operator_pow(env: &mut EnvPart, sp: usize, stack: &mut [Object])
                 Ok(y) => {stack[sp-2] = y; Ok(())},
                 Err(e) => Err(e)
             }      
-        },
-        Object::Table(a) => {
-            match a.get(&env.rte.key_rpow) {
-                Some(ref f) => {
-                    let x = stack[sp-2].take();
-                    match (Env{env,sp,stack}).call(f,&x,&[Object::Table(a)]) {
-                        Ok(y) => {stack[sp-2] = y; Ok(())},
-                        Err(e) => Err(e)
-                    }
-                },
-                None => {
-                    let x = stack[sp-2].clone();
-                    Err(env.type_error2_plain(sp,stack,
-                        "Type error in x^y.","x","y",&x,&Object::Table(a)
-                    ))   
-                }
-            }
         },
         a => {
             let x = stack[sp-2].clone();
@@ -2015,10 +1770,10 @@ fn operator_eq(env: &mut EnvPart, sp: usize, stack: &mut [Object])
                 _ => {break 'r;}
             };
         },
-        Object::Empty => {
+        Object::Info(x) => {
             return match stack[sp-1] {
-                Object::Empty => {
-                    stack[sp-2] = Object::Bool(true);
+                Object::Info(y) => {
+                    stack[sp-2] = Object::Bool(x==y);
                     Ok(())
                 },
                 _ => {break 'r;}
@@ -2071,7 +1826,7 @@ fn operator_eq(env: &mut EnvPart, sp: usize, stack: &mut [Object])
             let b = stack[sp-1].clone();
             match x.eq(&b,&mut Env{env,sp,stack}) {
                 Ok(y) => {
-                    if env.is_unimplemented(&y) {
+                    if y.is_unimplemented() {
                         break 'r;
                     }else{
                         stack[sp-1] = Object::Null;
@@ -2082,19 +1837,6 @@ fn operator_eq(env: &mut EnvPart, sp: usize, stack: &mut [Object])
                 Err(e) => Err(e)
             }
         },
-        Object::Table(a) => {
-            match a.get(&env.rte.key_eq) {
-                Some(ref f) => {
-                    let x = stack[sp-2].take();
-                    let y = stack[sp-1].take();
-                    match (Env{env,sp,stack}).call(f,&x,&[y]) {
-                        Ok(y) => {stack[sp-2] = y; Ok(())},
-                        Err(e) => Err(e)
-                    }
-                },
-                None => {break 'r;}
-            }
-        },
         _ => {break 'r;}
     };
     } // 'r
@@ -2103,7 +1845,7 @@ fn operator_eq(env: &mut EnvPart, sp: usize, stack: &mut [Object])
             let a = stack[sp-2].take();
             match x.req(&a,&mut Env{env, sp, stack}) {
                 Ok(y) => {
-                    if env.is_unimplemented(&y) {
+                    if y.is_unimplemented() {
                         stack[sp-2] = Object::Bool(false);
                     }else{
                         stack[sp-2] = y;
@@ -2175,51 +1917,39 @@ fn operator_lt(env: &mut EnvPart, sp: usize, stack: &mut [Object])
             }
         },
         Object::Interface(x) => {
-            let b = stack[sp-1].take();
-            match x.lt(&b,&mut Env{env,sp,stack}) {
-                Ok(value) => {stack[sp-2] = value; Ok(())},
-                Err(e) => Err(e)
-            }
-        },
-        Object::Table(a) => {
-            match a.get(&env.rte.key_lt) {
-                Some(ref f) => {
-                    let x = stack[sp-2].take();
-                    let y = stack[sp-1].take();
-                    match (Env{env,sp,stack}).call(f,&x,&[y]) {
-                        Ok(y) => {stack[sp-2] = y; Ok(())},
-                        Err(e) => Err(e)
+            let y = stack[sp-1].clone();
+            match x.lt(&y,&mut Env{env,sp,stack}) {
+                Ok(value) => {
+                    if value.is_unimplemented() {
+                        break 'r;
+                    }else{
+                        stack[sp-1] = Object::Null;
+                        stack[sp-2] = value;
+                        Ok(())
                     }
                 },
-                None => {break 'r;}
+                Err(e) => Err(e)
             }
         },
         _ => {break 'r;}
     };
     } // 'r
     return match stack[sp-1].take() {
-        Object::Interface(x) => {
-            let a = stack[sp-2].take();
-            match x.rlt(&a,&mut Env{env,sp,stack}) {
-                Ok(value) => {stack[sp-2] = value; Ok(())},
-                Err(e) => Err(e)
-            }
-        },
-        Object::Table(a) => {
-            match a.get(&env.rte.key_rlt) {
-                Some(ref f) => {
-                    let x = stack[sp-2].take();
-                    match (Env{env,sp,stack}).call(f,&x,&[Object::Table(a)]) {
-                        Ok(y) => {stack[sp-2] = y; Ok(())},
-                        Err(e) => Err(e)
+        Object::Interface(y) => {
+            let x = stack[sp-2].take();
+            match y.clone().rlt(&x,&mut Env{env,sp,stack}) {
+                Ok(value) => {
+                    if value.is_unimplemented() {
+                        Err(env.type_error2_plain(sp,stack,
+                            "Type error in x<y.","x","y",
+                            &x, &Object::Interface(y)
+                        ))
+                    }else{
+                        stack[sp-2] = value;
+                        Ok(())
                     }
                 },
-                None => {
-                    let x = stack[sp-2].clone();
-                    Err(env.type_error2_plain(sp,stack,
-                        "Type error in x<y.","x","y",&x,&Object::Table(a)
-                    ))   
-                }
+                Err(e) => Err(e)
             }
         },
         a => {
@@ -2286,9 +2016,17 @@ fn operator_gt(env: &mut EnvPart, sp: usize, stack: &mut [Object])
             }
         },
         Object::Interface(x) => {
-            let b = stack[sp-1].take();
-            match x.gt(&b,&mut Env{env,sp,stack}) {
-                Ok(value) => {stack[sp-2] = value; Ok(())},
+            let y = stack[sp-1].clone();
+            match x.rlt(&y,&mut Env{env,sp,stack}) {
+                Ok(value) => {
+                    if value.is_unimplemented() {
+                        break 'r;
+                    }else{
+                        stack[sp-1] = Object::Null;
+                        stack[sp-2] = value;
+                        Ok(())
+                    }
+                },
                 Err(e) => Err(e)
             }
         },
@@ -2296,10 +2034,20 @@ fn operator_gt(env: &mut EnvPart, sp: usize, stack: &mut [Object])
     };
     } // 'r
     return match stack[sp-1].take() {
-        Object::Interface(x) => {
-            let a = stack[sp-2].take();
-            match x.rgt(&a,&mut Env{env,sp,stack}) {
-                Ok(value) => {stack[sp-2] = value; Ok(())},
+        Object::Interface(y) => {
+            let x = stack[sp-2].take();
+            match y.clone().lt(&x,&mut Env{env,sp,stack}) {
+                Ok(value) => {
+                    if value.is_unimplemented() {
+                        Err(env.type_error2_plain(sp,stack,
+                            "Type error in x>y.","x","y",
+                            &x, &Object::Interface(y)
+                        ))
+                    }else{
+                        stack[sp-2] = value;
+                        Ok(())
+                    }
+                },
                 Err(e) => Err(e)
             }
         },
@@ -2367,9 +2115,17 @@ fn operator_le(env: &mut EnvPart, sp: usize, stack: &mut [Object])
             }
         },
         Object::Interface(x) => {
-            let b = stack[sp-1].take();
-            match x.le(&b,&mut Env{env,sp,stack}) {
-                Ok(value) => {stack[sp-2] = value; Ok(())},
+            let y = stack[sp-1].clone();
+            match x.le(&y,&mut Env{env,sp,stack}) {
+                Ok(value) => {
+                    if value.is_unimplemented() {
+                        break 'r;
+                    }else{
+                        stack[sp-1] = Object::Null;
+                        stack[sp-2] = value;
+                        Ok(())
+                    }
+                },
                 Err(e) => Err(e)
             }
         },
@@ -2377,10 +2133,20 @@ fn operator_le(env: &mut EnvPart, sp: usize, stack: &mut [Object])
     };
     } // 'r
     return match stack[sp-1].take() {
-        Object::Interface(x) => {
-            let a = stack[sp-2].take();
-            match x.rle(&a,&mut Env{env,sp,stack}) {
-                Ok(value) => {stack[sp-2] = value; Ok(())},
+        Object::Interface(y) => {
+            let x = stack[sp-2].take();
+            match y.clone().rle(&x,&mut Env{env,sp,stack}) {
+                Ok(value) => {
+                    if value.is_unimplemented() {
+                        Err(env.type_error2_plain(sp,stack,
+                            "Type error in x<=y.","x","y",
+                            &x, &Object::Interface(y)
+                        ))
+                    }else{
+                        stack[sp-2] = value;
+                        Ok(())
+                    }
+                },
                 Err(e) => Err(e)
             }
         },
@@ -2448,9 +2214,17 @@ fn operator_ge(env: &mut EnvPart, sp: usize, stack: &mut [Object])
             }
         },
         Object::Interface(x) => {
-            let b = stack[sp-1].take();
-            match x.le(&b,&mut Env{env,sp,stack}) {
-                Ok(value) => {stack[sp-2] = value; Ok(())},
+            let y = stack[sp-1].clone();
+            match x.rle(&y,&mut Env{env,sp,stack}) {
+                Ok(value) => {
+                    if value.is_unimplemented() {
+                        break 'r;
+                    }else{
+                        stack[sp-1] = Object::Null;
+                        stack[sp-2] = value;
+                        Ok(())
+                    }
+                },
                 Err(e) => Err(e)
             }
         },
@@ -2458,10 +2232,20 @@ fn operator_ge(env: &mut EnvPart, sp: usize, stack: &mut [Object])
     };
     } // 'r
     return match stack[sp-1].take() {
-        Object::Interface(x) => {
-            let a = stack[sp-2].take();
-            match x.rge(&a,&mut Env{env,sp,stack}) {
-                Ok(value) => {stack[sp-2] = value; Ok(())},
+        Object::Interface(y) => {
+            let x = stack[sp-2].take();
+            match y.clone().le(&x,&mut Env{env,sp,stack}) {
+                Ok(value) => {
+                    if value.is_unimplemented() {
+                        Err(env.type_error2_plain(sp,stack,
+                            "Type error in x>=y.","x","y",
+                            &x, &Object::Interface(y)
+                        ))
+                    }else{
+                        stack[sp-2] = value;
+                        Ok(())
+                    }
+                },
                 Err(e) => Err(e)
             }
         },
@@ -2524,10 +2308,10 @@ fn operator_is(sp: usize, stack: &mut [Object]) -> OperatorResult {
                 }
             };
         },
-        Object::Empty => {
+        Object::Info(x) => {
             return match stack[sp-1] {
-                Object::Empty => {
-                    stack[sp-2] = Object::Bool(true);
+                Object::Info(y) => {
+                    stack[sp-2] = Object::Bool(x==y);
                     Ok(())
                 },
                 _ => {
@@ -2539,18 +2323,6 @@ fn operator_is(sp: usize, stack: &mut [Object]) -> OperatorResult {
         _ => {}
     }
     match stack[sp-2].take() {
-        Object::Table(ref a) => {
-            match stack[sp-1].take() {
-                Object::Table(ref b) => {
-                    stack[sp-2] = Object::Bool(Rc::ptr_eq(a,b));
-                    Ok(())
-                },
-                _ => {
-                    stack[sp-2] = Object::Bool(false);
-                    Ok(())          
-                }
-            }
-        },
         Object::Interface(ref a) => {
             match stack[sp-1].take() {
                 Object::Interface(ref b) => {
@@ -2571,6 +2343,14 @@ fn operator_is(sp: usize, stack: &mut [Object]) -> OperatorResult {
     }
 }
 
+fn ptr_eq(t: &Rc<dyn Interface>, env_type: &Table) -> bool {
+    if let Some(t) = t.as_any().downcast_ref::<Table>() {
+        return t as *const Table == env_type as *const Table;
+    }else{
+        return false;
+    }
+}
+
 fn operator_of(env: &mut EnvPart, sp: usize, stack: &mut [Object])
 -> OperatorResult
 {
@@ -2587,28 +2367,28 @@ fn operator_of(env: &mut EnvPart, sp: usize, stack: &mut [Object])
         },
         Object::Bool(_) => {
             value = match type_obj {
-                Object::Table(ref t) => Rc::ptr_eq(t,&env.rte.type_bool),
+                Object::Interface(ref t) => ptr_eq(t,&env.rte.type_bool),
                 _ => false
             };
             break 'ret;
         },
         Object::Int(_) => {
             value = match type_obj {
-                Object::Table(ref t) => Rc::ptr_eq(t,&env.rte.type_int),
+                Object::Interface(ref t) => ptr_eq(t,&env.rte.type_int),
                 _ => false
             };
             break 'ret;
         },
         Object::Float(_) => {
             value = match type_obj {
-                Object::Table(ref t) => Rc::ptr_eq(t,&env.rte.type_float),
+                Object::Interface(ref t) => ptr_eq(t,&env.rte.type_float),
                 _ => false
             };
             break 'ret;
         },
         Object::Complex(_) => {
             value = match type_obj {
-                Object::Table(ref t) => Rc::ptr_eq(t,&env.rte.type_complex),
+                Object::Interface(ref t) => ptr_eq(t,&env.rte.type_complex),
                 _ => false
             };
             break 'ret;
@@ -2618,65 +2398,39 @@ fn operator_of(env: &mut EnvPart, sp: usize, stack: &mut [Object])
     match stack[sp-2].take() {
         Object::String(_) => {
             value = match type_obj {
-                Object::Table(ref t) => {
-                    Rc::ptr_eq(t,&env.rte.type_string) ||
-                    Rc::ptr_eq(t,&env.rte.type_iterable)
+                Object::Interface(ref t) => {
+                    ptr_eq(t,&env.rte.type_string) ||
+                    ptr_eq(t,&env.rte.type_iterable)
                 },
                 _ => false
             };
         },
         Object::List(_) => {
             value = match type_obj {
-                Object::Table(ref t) => {
-                    Rc::ptr_eq(t,&env.rte.type_list) ||
-                    Rc::ptr_eq(t,&env.rte.type_iterable)
+                Object::Interface(ref t) => {
+                    ptr_eq(t,&env.rte.type_list) ||
+                    ptr_eq(t,&env.rte.type_iterable)
                 },
                 _ => false
             };
         },
         Object::Map(_) => {
             value = match type_obj {
-                Object::Table(ref t) => {
-                    Rc::ptr_eq(t,&env.rte.type_map) ||
-                    Rc::ptr_eq(t,&env.rte.type_iterable)
+                Object::Interface(ref t) => {
+                    ptr_eq(t,&env.rte.type_map) ||
+                    ptr_eq(t,&env.rte.type_iterable)
                 },
                 _ => false
             };
         },
         Object::Function(_) => {
             value = match type_obj {
-                Object::Table(ref t) => {
-                    Rc::ptr_eq(t,&env.rte.type_function) ||
-                    Rc::ptr_eq(t,&env.rte.type_iterable)
+                Object::Interface(ref t) => {
+                    ptr_eq(t,&env.rte.type_function) ||
+                    ptr_eq(t,&env.rte.type_iterable)
                 },
                 _ => false
             };
-        },
-        Object::Table(x) => {
-            let t = match type_obj {
-                Object::Table(t)=>t,
-                _ => {
-                    value = false;
-                    break 'ret;
-                }
-            };
-            let mut p = &x.prototype;
-            loop{
-                match *p {
-                    Object::Table(ref pt) => {
-                        if Rc::ptr_eq(pt,&t) {
-                            value = true;
-                            break 'ret;
-                        }else{
-                            p = &pt.prototype;
-                        }
-                    },
-                    _ => {
-                        value = false;
-                        break 'ret;
-                    }
-                }
-            }
         },
         Object::Interface(x) => {
             value = x.is_instance_of(&type_obj,&env.rte);
@@ -3050,7 +2804,7 @@ fn slice_assignment(env: &mut Env, a: &mut List, r: &Range, b: &Object) -> FnRes
     };
     for x in &mut a.v[start..end+1] {
         let y = env.call(it,&Object::Null,&[])?;
-        if let Object::Empty = y {break;}
+        if y.is_empty() {break;}
         *x = y;
     }
     return Ok(Object::Null);
@@ -3156,61 +2910,6 @@ fn index_assignment(env: &mut EnvPart, argc: usize,
     }
 }
 
-fn type_get(prototype: &Object, key: &Object) -> Option<Object> {
-    match *prototype {
-        Object::Table(ref pt) => table_get(pt,key),
-        Object::Interface(ref x) => {
-            if let Some(x) = x.as_any().downcast_ref::<Tuple>() {
-                object_get(&x.v[0],key)
-            }else{
-                None
-            }
-        },
-        _ => None
-    }
-}
-
-fn object_get(x: &Object, key: &Object) -> Option<Object> {
-    match *x {
-        Object::Table(ref pt) => table_get(pt,key),
-        Object::List(ref a) => list_get(a,key),
-        _ => None
-    }
-}
-
-fn list_get(a: &Rc<RefCell<List>>, key: &Object) -> Option<Object> {
-    for x in &a.borrow().v {
-        if let Object::Table(ref pt) = *x {
-            if let Some(y) = table_get(pt,key) {
-                return Some(y.clone());
-            }
-        }
-    }
-    return None;
-}
-
-pub fn table_get(mut p: &Table, key: &Object) -> Option<Object> {
-    loop{
-        if let Some(y) = p.map.borrow().m.get(key) {
-            return Some(y.clone());
-        }else{
-            match p.prototype {
-                Object::Table(ref pt) => {p = pt;},
-                Object::List(ref a) => {
-                    return list_get(a,key);
-                },
-                Object::Interface(ref x) => {
-                    if let Some(x) = x.as_any().downcast_ref::<Tuple>() {
-                        return object_get(&x.v[1],key);
-                    }
-                    return None;
-                },
-                _ => return None
-            }
-        }
-    }
-}
-
 #[inline(never)]
 fn dispatch_leftover(
     env: &EnvPart, x: &Object, key: &Object
@@ -3240,13 +2939,6 @@ fn operator_dot(env: &mut EnvPart, sp: usize, stack: &mut [Object])
 -> OperatorResult
 {
     match stack[sp-2].clone() {
-        Object::Table(t) => {
-            let key = stack[sp-1].take();
-            if let Some(x) = table_get(&t,&key) {
-                stack[sp-2] = x;
-                return Ok(());
-            }
-        },
         Object::List(_) => {
             match env.rte.type_list.map.borrow().m.get(&stack[sp-1]) {
                 Some(x) => {
@@ -3353,19 +3045,6 @@ fn operator_dot_set(env: &mut EnvPart, sp: usize, stack: &mut [Object])
 -> OperatorResult
 {
     match stack[sp-2].clone() {
-        Object::Table(t) => {
-            let key = stack[sp-1].take();
-            let value = stack[sp-3].take();
-            let mut m = t.map.borrow_mut();
-            if m.frozen {
-                return Err(env.value_error_plain("Value error in a.x=value: a is frozen."));
-            }
-            match m.m.insert(key,value) {
-                Some(_) => {},
-                None => {}
-            }
-            Ok(())
-        },
         Object::Interface(t) => {
             let key = stack[sp-1].take();
             let value = stack[sp-3].take();
@@ -3495,26 +3174,27 @@ fn compound_assignment(key_op: u32, op: u32,
             }
         },
         bc::DOT => {
-            match stack[sp-3].take() {
-                Object::Table(t) => {
-                    let key = stack[sp-2].take();
-                    let mut m = t.map.borrow_mut();
-                    if m.frozen {
-                        return Err(env.value_error_plain("Value error in assignment to t.(key): t is frozen."));            
-                    }
-                    let p = match m.m.get_mut(&key) {
-                        Some(value)=>value,
-                        None => {
-                            return Err(env.index_error_plain("Index error in assignment to t.(key): key is not in t."));
-                        }
-                    };
-                    let x = stack[sp-1].take();
-                    return operate(op,env,sp,stack,p,x);
-                },
-                _ => {
-                    return Err(env.type_error_plain("Type error in assignment to t.(key): t is not a table."));
+            if let Some(t) = downcast::<Table>(&stack[sp-3].take()) {
+                let key = stack[sp-2].take();
+                let mut m = t.map.borrow_mut();
+                if m.frozen {
+                    return Err(env.value_error_plain(
+                        "Value error in assignment to t.(key): t is frozen."));            
                 }
-            }    
+                let p = match m.m.get_mut(&key) {
+                    Some(value)=>value,
+                    None => {
+                        return Err(env.index_error_plain(
+                            "Index error in assignment to t.(key): key is not in t."));
+                    }
+                };
+                let x = stack[sp-1].take();
+                return operate(op,env,sp,stack,p,x);
+
+            }else{
+                return Err(env.type_error_plain(
+                    "Type error in assignment to t.(key): t is not a table."));
+            }
         },
         _ => panic!()
     }
@@ -3620,7 +3300,7 @@ fn new_table(prototype: Object, map: Object) -> Object {
                         break 'interface;
                     }
                 }
-                return Object::Table(Rc::new(Table{prototype, map}));
+                return Object::Interface(Rc::new(Table{prototype, map}));
             }
             return Object::Interface(Rc::new(Instance{prototype, map}));
         },
@@ -3628,11 +3308,11 @@ fn new_table(prototype: Object, map: Object) -> Object {
     }
 }
 
-fn new_stamp(ptype: &Rc<Table>, prototype: &Object, s: &str) -> Object {
+fn new_stamp(s: &str, ptype: &Rc<Table>, prototype: &Object) -> Object {
     let v = vec![
-        Object::Table(ptype.clone()),
-        prototype.clone(),
-        CharString::new_object_str(s)
+        CharString::new_object_str(s),
+        Object::Interface(ptype.clone()),
+        prototype.clone()
     ];
     return Tuple::new_object(v);
 }
@@ -3727,7 +3407,8 @@ pub struct RTE{
     pub key_le: Object,
     pub key_rlt: Object,
     pub key_rle: Object,
-    pub key_eq: Object
+    pub key_eq: Object,
+    pub key_req: Object
 }
 
 impl RTE{
@@ -3735,16 +3416,16 @@ impl RTE{
         let type_type = Table::new(Object::Null);
         let null = &Object::Null;
         Rc::new(RTE{
-            type_bool: Table::new(new_stamp(&type_type,null,"Bool")),
-            type_int: Table::new(new_stamp(&type_type,null,"Int")),
-            type_float: Table::new(new_stamp(&type_type,null,"Float")),
-            type_complex: Table::new(new_stamp(&type_type,null,"Complex")),
-            type_string: Table::new(new_stamp(&type_type,null,"String")),
-            type_list: Table::new(new_stamp(&type_type,null,"List")),
-            type_map:  Table::new(new_stamp(&type_type,null,"Map")),
-            type_function: Table::new(new_stamp(&type_type,null,"Function")),
-            type_iterable: Table::new(new_stamp(&type_type,null,"Iterable")),
-            type_long: Table::new(new_stamp(&type_type,null,"Long")),
+            type_bool: Table::new(new_stamp("Bool",&type_type,null)),
+            type_int: Table::new(new_stamp("Int",&type_type,null)),
+            type_float: Table::new(new_stamp("Float",&type_type,null)),
+            type_complex: Table::new(new_stamp("Complex",&type_type,null)),
+            type_string: Table::new(new_stamp("String",&type_type,null)),
+            type_list: Table::new(new_stamp("List",&type_type,null)),
+            type_map: Table::new(new_stamp("Map",&type_type,null)),
+            type_function: Table::new(new_stamp("Function",&type_type,null)),
+            type_iterable: Table::new(new_stamp("Iterable",&type_type,null)),
+            type_long: Table::new(new_stamp("Long",&type_type,null)),
             type_std_exception: Table::new(Object::Null),
             type_type_error: Table::new(Object::Null),
             type_value_error: Table::new(Object::Null),
@@ -3793,7 +3474,8 @@ impl RTE{
             key_rlt:    CharString::new_object_str("rlt"),
             key_le:     CharString::new_object_str("le"),
             key_rle:    CharString::new_object_str("rle"),
-            key_eq:     CharString::new_object_str("eq")
+            key_eq:     CharString::new_object_str("eq"),
+            key_req:    CharString::new_object_str("req")
         })
     }
     pub fn clear_at_exit(&self, gtab: Rc<RefCell<Map>>){
@@ -4430,7 +4112,7 @@ fn vm_loop(
                   Ok(y)=>y, Err(e)=>{exception=Err(e); break;}
               }
           };
-          if y==Object::Empty {
+          if y.is_empty() {
               sp-=1;
               ip = (ip as i32+load_i32(&a,ip+BCSIZE)) as usize;
           }else{
@@ -4478,7 +4160,7 @@ fn vm_loop(
           }      
       },
       bc::EMPTY => {
-          stack[sp] = Object::Empty;
+          stack[sp] = Object::empty();
           sp+=1;
           ip+=BCSIZE;        
       },
@@ -4741,7 +4423,7 @@ fn bounded_repr(env: &mut Env, x: &Object) -> Result<String,Box<Exception>> {
 }
 
 fn exception_value_to_string(env: &mut Env, x: &Object) -> String {
-    let value = if let Object::Table(ref t) = *x {
+    let value = if let Some(t) = downcast::<Table>(x) {
         let m = &t.map.borrow().m;
         let key = CharString::new_object_str("value");
         if let Some(value) = m.get(&key) {value.clone()} else{x.clone()}
@@ -4804,32 +4486,24 @@ impl EnvPart{
         Self{frame_stack, catch_stack: Vec::new(), rte}
     }
 
-    pub fn is_unimplemented(&self, x: &Object) -> bool {
-        if let Object::Table(ref t) = *x {
-            return Rc::ptr_eq(t,&self.rte.unimplemented);
-        }else{
-            return false;
-        }
-    }
-
     pub fn std_exception_plain(&self, s: &str) -> Box<Exception> {
-        Exception::new(s,Object::Table(self.rte.type_std_exception.clone()))
+        Exception::new(s,Object::Interface(self.rte.type_std_exception.clone()))
     }
 
     pub fn type_error_plain(&self, s: &str) -> Box<Exception> {
-        Exception::new(s,Object::Table(self.rte.type_type_error.clone()))
+        Exception::new(s,Object::Interface(self.rte.type_type_error.clone()))
     }
 
     pub fn value_error_plain(&self, s: &str) -> Box<Exception> {
-        Exception::new(s,Object::Table(self.rte.type_value_error.clone()))
+        Exception::new(s,Object::Interface(self.rte.type_value_error.clone()))
     }
 
     pub fn index_error_plain(&self, s: &str) -> Box<Exception> {
-        Exception::new(s,Object::Table(self.rte.type_index_error.clone()))
+        Exception::new(s,Object::Interface(self.rte.type_index_error.clone()))
     }
 
     pub fn argc_error_plain(&self, argc: usize, min: u32, max: u32, id: &str) -> Box<Exception> {
-        let t = Object::Table(self.rte.type_std_exception.clone());
+        let t = Object::Interface(self.rte.type_std_exception.clone());
         if min==max {
             if min==0 {
                 Exception::new(&format!("Error in {}: expected no argument, but got {}.",id,argc),t)
@@ -4853,7 +4527,8 @@ impl EnvPart{
         {
             let env = &mut Env{env: self, sp, stack};
             let bs = match bounded_repr(env,x) {Ok(value)=>value, Err(e)=>return e};
-            write!(buffer,"  {0}: {1}, {0} = {2}.",sx,&type_name(x),&bs).unwrap();
+            let name = type_name(env,x);
+            write!(buffer,"  {0}: {1}, {0} = {2}.",sx,&name,&bs).unwrap();
         }
         return self.type_error_plain(&buffer);
     }
@@ -4869,8 +4544,10 @@ impl EnvPart{
             let env = &mut Env{env: self, sp, stack};
             let bsx = match bounded_repr(env,x) {Ok(value)=>value, Err(e)=>return e};
             let bsy = match bounded_repr(env,y) {Ok(value)=>value, Err(e)=>return e};
-            write!(buffer,"  {0}: {1}, {0} = {2},\n",sx,&type_name(x),&bsx).unwrap();
-            write!(buffer,"  {0}: {1}, {0} = {2}.",sy,&type_name(y),&bsy).unwrap();
+            let namex = type_name(env,x);
+            let namey = type_name(env,y);
+            write!(buffer,"  {0}: {1}, {0} = {2},\n",sx,&namex,&bsx).unwrap();
+            write!(buffer,"  {0}: {1}, {0} = {2}.",sy,&namey,&bsy).unwrap();
         }
         return self.type_error_plain(&buffer);
     }
@@ -5155,6 +4832,7 @@ pub fn exception_to_string(&mut self, e: &Exception) -> String {
     exception_to_string(self,e)
 }
 
+/* #todo
 pub fn print_type_and_value(&mut self, x: &Object) {
     let svalue = match x.string(self) {
         Ok(s) => s, Err(e) => {
@@ -5164,6 +4842,7 @@ pub fn print_type_and_value(&mut self, x: &Object) {
     let stype = type_name(x);
     println!("Type: {}, value: {}",stype,svalue);
 }
+*/
 
 pub fn downcast<T>(&mut self, x: &Object) -> T
 where T: Downcast<Output=T>+TypeName
@@ -5172,7 +4851,8 @@ where T: Downcast<Output=T>+TypeName
         Some(x) => x,
         None => {
             println!("Error in downcast to type {}.",T::type_name());
-            self.print_type_and_value(x);
+            // #todo
+            // self.print_type_and_value(x);
             panic!();
         }
     }

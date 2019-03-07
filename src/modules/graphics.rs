@@ -410,7 +410,7 @@ impl Drop for Canvas {
 
 impl Interface for Canvas {
     fn as_any(&self) -> &Any {self}
-    fn type_name(&self) -> String {
+    fn type_name(&self, _env: &mut Env) -> String {
         "Canvas".to_string()
     }
     fn get(&self, key: &Object, env: &mut Env) -> FnResult {
@@ -827,6 +827,6 @@ pub fn load_graphics() -> Object
     // https://bugs.launchpad.net/ubuntu/+source/libsdl2/+bug/1775067
     ::std::env::set_var("DBUS_FATAL_WARNINGS","0");
 
-    return Object::Table(Rc::new(graphics));
+    return Object::Interface(Rc::new(graphics));
 }
 

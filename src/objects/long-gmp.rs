@@ -363,17 +363,17 @@ impl Long {
 
 impl Interface for Long {
     fn as_any(&self) -> &Any {self}
-    fn type_name(&self) -> String {
+    fn type_name(&self, _env: &mut Env) -> String {
         "Long".to_string()
     }
     fn get_type(&self, env: &mut Env) -> FnResult {
-        Ok(Object::Table(env.rte().type_long.clone()))
+        Ok(Object::Interface(env.rte().type_long.clone()))
     }
-    fn to_string(&self, _env: &mut Env) -> Result<String,Box<Exception>> {
+    fn to_string(self: Rc<Self>, _env: &mut Env) -> Result<String,Box<Exception>> {
         Ok(self.value.to_string())
     }
 
-    fn add(&self, b: &Object, env: &mut Env) -> FnResult {
+    fn add(self: Rc<Self>, b: &Object, _env: &mut Env) -> FnResult {
         if let Object::Int(b) = *b {
             let mut y = Mpz::new();
             y.add_int(&self.value,b.into());
@@ -386,11 +386,11 @@ impl Interface for Long {
             let a = Mpz::as_f64(&self.value);
             return Ok(Object::Float(a+b));
         }else{
-            return Ok(Object::Table(env.rte().unimplemented.clone()));
+            return Ok(Object::unimplemented());
         }
     }
 
-    fn sub(&self, b: &Object, env: &mut Env) -> FnResult {
+    fn sub(self: Rc<Self>, b: &Object, _env: &mut Env) -> FnResult {
         if let Object::Int(b) = *b {
             let mut y = Mpz::new();
             y.sub_int(&self.value,b.into());
@@ -403,11 +403,11 @@ impl Interface for Long {
             let a = Mpz::as_f64(&self.value);
             return Ok(Object::Float(a-b));
         }else{
-            return Ok(Object::Table(env.rte().unimplemented.clone()));
+            return Ok(Object::unimplemented());
         }
     }
 
-    fn mul(&self, b: &Object, env: &mut Env) -> FnResult {
+    fn mul(self: Rc<Self>, b: &Object, _env: &mut Env) -> FnResult {
         if let Object::Int(b) = *b {
             let mut y = Mpz::new();
             y.mul_int(&self.value,b.into());
@@ -420,11 +420,11 @@ impl Interface for Long {
             let a = Mpz::as_f64(&self.value);
             return Ok(Object::Float(a*b));
         }else{
-            return Ok(Object::Table(env.rte().unimplemented.clone()));
+            return Ok(Object::unimplemented());
         }
     }
 
-    fn radd(&self, a: &Object, env: &mut Env) -> FnResult {
+    fn radd(self: Rc<Self>, a: &Object, env: &mut Env) -> FnResult {
         if let Object::Int(a) = *a {
             let mut y = Mpz::new();
             y.add_int(&self.value,a.into());
@@ -437,7 +437,7 @@ impl Interface for Long {
         }
     }
     
-    fn rsub(&self, a: &Object, env: &mut Env) -> FnResult {
+    fn rsub(self: Rc<Self>, a: &Object, env: &mut Env) -> FnResult {
         if let Object::Int(a) = *a {
             let mut y = Mpz::new();
             y.int_sub(a.into(),&self.value);
@@ -450,7 +450,7 @@ impl Interface for Long {
         }
     }
 
-    fn rmul(&self, a: &Object, env: &mut Env) -> FnResult {
+    fn rmul(self: Rc<Self>, a: &Object, env: &mut Env) -> FnResult {
         if let Object::Int(a) = *a {
             let mut y = Mpz::new();
             y.mul_int(&self.value,a.into());
@@ -463,7 +463,7 @@ impl Interface for Long {
         }
     }
 
-    fn div(&self, b: &Object, env: &mut Env) -> FnResult {
+    fn div(self: Rc<Self>, b: &Object, _env: &mut Env) -> FnResult {
         let a = Mpz::as_f64(&self.value);
         match *b {
             Object::Int(b) => return Ok(Object::Float(a/(b as f64))),
@@ -474,10 +474,10 @@ impl Interface for Long {
             let b = Mpz::as_f64(&b.value);
             return Ok(Object::Float(a/b));
         }
-        Ok(Object::Table(env.rte().unimplemented.clone()))
+        Ok(Object::unimplemented())
     }
     
-    fn rdiv(&self, a: &Object, env: &mut Env) -> FnResult {
+    fn rdiv(self: Rc<Self>, a: &Object, env: &mut Env) -> FnResult {
         let b = Mpz::as_f64(&self.value);
         return match *a {
             Object::Int(a) => Ok(Object::Float((a as f64)/b)),
@@ -486,7 +486,7 @@ impl Interface for Long {
         };
     }
 
-    fn idiv(&self, b: &Object, env: &mut Env) -> FnResult {
+    fn idiv(self: Rc<Self>, b: &Object, env: &mut Env) -> FnResult {
         if let Object::Int(b) = *b {
             if b==0 {
                 return env.value_error("Value error in a//b: b==0.");
@@ -506,7 +506,7 @@ impl Interface for Long {
         }
     }
 
-    fn ridiv(&self, a: &Object, env: &mut Env) -> FnResult {
+    fn ridiv(self: Rc<Self>, a: &Object, env: &mut Env) -> FnResult {
         if let Object::Int(a) = *a {
             if self.value.cmp_int(0)==0 {
                 return env.value_error("Value error in a//b: b==0.");
@@ -520,7 +520,7 @@ impl Interface for Long {
         }
     }
     
-    fn imod(&self, b: &Object, env: &mut Env) -> FnResult {
+    fn imod(self: Rc<Self>, b: &Object, env: &mut Env) -> FnResult {
         if let Object::Int(b) = *b {
             let mut y = Mpz::new();
             y.fdiv_int_rem(&self.value,b.into());
@@ -534,7 +534,7 @@ impl Interface for Long {
         }
     }
     
-    fn rimod(&self, a: &Object, env: &mut Env) -> FnResult {
+    fn rimod(self: Rc<Self>, a: &Object, env: &mut Env) -> FnResult {
         if let Object::Int(a) = *a {
             let a = Mpz::from_int(a.into());
             let mut y = Mpz::new();
@@ -544,8 +544,8 @@ impl Interface for Long {
             return env.type_error("Type error in a%b: a: Long and b.");
         }
     }
-    
-    fn pow(&self, b: &Object, env: &mut Env) -> FnResult {
+
+    fn pow(self: Rc<Self>, b: &Object, env: &mut Env) -> FnResult {
         if let Object::Int(b) = *b {
             if b<0 {
                 return env.value_error("Value error in a^b: b<0.");
@@ -578,15 +578,15 @@ impl Interface for Long {
         }  
     }
     
-    fn eq(&self, b: &Object, _env: &mut Env) -> FnResult {
+    fn eq(self: Rc<Self>, b: &Object, _env: &mut Env) -> FnResult {
         return Ok(Object::Bool(self.eq_plain(b)));
     }
 
-    fn req(&self, a: &Object, _env: &mut Env) -> FnResult {
+    fn req(self: Rc<Self>, a: &Object, _env: &mut Env) -> FnResult {
         return Ok(Object::Bool(self.req_plain(a)));
     }
 
-    fn lt(&self, b: &Object, env: &mut Env) -> FnResult {
+    fn lt(self: Rc<Self>, b: &Object, env: &mut Env) -> FnResult {
         if let Object::Int(b) = *b {
             return Ok(Object::Bool(self.value.cmp_int(b)<0));
         }else if let Some(b) = downcast::<Long>(b) {
@@ -596,17 +596,7 @@ impl Interface for Long {
         }
     }
 
-    fn gt(&self, b: &Object, env: &mut Env) -> FnResult {
-        if let Object::Int(b) = *b {
-            return Ok(Object::Bool(self.value.cmp_int(b)>0));
-        }else if let Some(b) = downcast::<Long>(b) {
-            return Ok(Object::Bool(self.value.cmp(&b.value)>0));
-        }else{
-            return env.type_error("Type error in a>b.");
-        }
-    }
-
-    fn le(&self, b: &Object, env: &mut Env) -> FnResult {
+    fn le(self: Rc<Self>, b: &Object, env: &mut Env) -> FnResult {
         if let Object::Int(b) = *b {
             return Ok(Object::Bool(self.value.cmp_int(b)<=0));
         }else if let Some(b) = downcast::<Long>(b) {
@@ -616,17 +606,7 @@ impl Interface for Long {
         }
     }
 
-    fn ge(&self, b: &Object, env: &mut Env) -> FnResult {
-        if let Object::Int(b) = *b {
-            return Ok(Object::Bool(self.value.cmp_int(b)>=0));
-        }else if let Some(b) = downcast::<Long>(b) {
-            return Ok(Object::Bool(self.value.cmp(&b.value)>=0));
-        }else{
-            return env.type_error("Type error in a>=b.");
-        }
-    }
-
-    fn rlt(&self, a: &Object, env: &mut Env) -> FnResult {
+    fn rlt(self: Rc<Self>, a: &Object, env: &mut Env) -> FnResult {
         if let Object::Int(a) = *a {
             return Ok(Object::Bool(self.value.cmp_int(a)>0));
         }else if let Some(a) = downcast::<Long>(a) {
@@ -636,17 +616,7 @@ impl Interface for Long {
         }
     }
 
-    fn rgt(&self, a: &Object, env: &mut Env) -> FnResult {
-        if let Object::Int(a) = *a {
-            return Ok(Object::Bool(self.value.cmp_int(a)<0));
-        }else if let Some(a) = downcast::<Long>(a) {
-            return Ok(Object::Bool(self.value.cmp(&a.value)<0));
-        }else{
-            return env.type_error("Type error in a<b.");
-        }
-    }
-    
-    fn rle(&self, a: &Object, env: &mut Env) -> FnResult {
+    fn rle(self: Rc<Self>, a: &Object, env: &mut Env) -> FnResult {
         if let Object::Int(a) = *a {
             return Ok(Object::Bool(self.value.cmp_int(a)>=0));
         }else if let Some(a) = downcast::<Long>(a) {
@@ -656,36 +626,27 @@ impl Interface for Long {
         }
     }
 
-    fn rge(&self, a: &Object, env: &mut Env) -> FnResult {
-        if let Object::Int(a) = *a {
-            return Ok(Object::Bool(self.value.cmp_int(a)<=0));
-        }else if let Some(a) = downcast::<Long>(a) {
-            return Ok(Object::Bool(self.value.cmp(&a.value)<=0));
-        }else{
-            return env.type_error("Type error in a<b.");
-        }
-    }
-
-    fn abs(&self, _env: &mut Env) -> FnResult {
+    fn abs(self: Rc<Self>, _env: &mut Env) -> FnResult {
         let mut y = Mpz::new();
         y.abs(&self.value);
         return Ok(Object::Interface(Rc::new(Long{value: y})));
     }
 
-    fn sgn(&self, _env: &mut Env) -> FnResult {
+    fn sgn(self: Rc<Self>, _env: &mut Env) -> FnResult {
         let s = self.value.cmp_int(0);
         return Ok(Object::Int(if s>0 {1} else if s<0 {-1} else {0}));
     }
 
-    fn neg(&self, _env: &mut Env) -> FnResult {
+    fn neg(self: Rc<Self>, _env: &mut Env) -> FnResult {
         let mut y = Mpz::new();
         y.neg(&self.value);
         return Ok(Object::Interface(Rc::new(Long{value: y})));
     }
 
     fn is_instance_of(&self, type_obj: &Object, rte: &RTE) -> bool {
-        if let Object::Table(ref t) = *type_obj {
-            return Rc::ptr_eq(t,&rte.type_long);
+        if let Object::Interface(ref t) = *type_obj {
+            let pt: Rc<Interface> = rte.type_long.clone();
+            return Rc::ptr_eq(t,&pt);
         }else{
             return false;
         }

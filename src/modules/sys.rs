@@ -75,5 +75,5 @@ pub fn load_sys(rte: &Rc<RTE>) -> Object {
         m.insert_fn_plain("call",::vm::sys_call,2,VARIADIC);
         m.insert_fn_plain("cmd",cmd,2,2);
     }
-    return Object::Table(Rc::new(sys));
+    return Object::Interface(Rc::new(sys));
 }

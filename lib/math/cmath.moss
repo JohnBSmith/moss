@@ -11,7 +11,7 @@ function complex(x,y)
    return table Complex{re=x, im=y}
 end
 
-Complex = table{
+Complex = table("Complex",Type){
    function string
       im = str(self.im)
       s = "" if size(im)>0 and im[0]=='-' else "+"

@@ -26,7 +26,7 @@ pub fn int_range_iterator(mut a: i32, b: i32, d: i32) -> MutableFn {
             a+=d;
             Ok(Object::Int(a-d))
         }else{
-            Ok(Object::Empty)
+            Ok(Object::empty())
         }
     })
 }
@@ -49,7 +49,7 @@ pub fn iter(env: &mut Env, x: &Object) -> FnResult {
             let f = Box::new(move |_env: &mut Env, _pself: &Object, _argv: &[Object]| -> FnResult{
                 let a = a.borrow();
                 if index == a.v.len() {
-                    return Ok(Object::Empty);
+                    return Ok(Object::empty());
                 }else{
                     index+=1;
                     return Ok(a.v[index-1].clone());
@@ -62,7 +62,7 @@ pub fn iter(env: &mut Env, x: &Object) -> FnResult {
             let v: Vec<Object> = m.borrow().m.keys().cloned().collect();
             let f = Box::new(move |_env: &mut Env, _pself: &Object, _argv: &[Object]| -> FnResult {
                 if index == v.len() {
-                    return Ok(Object::Empty);
+                    return Ok(Object::empty());
                 }else{
                     index+=1;
                     return Ok(v[index-1].clone());
@@ -75,7 +75,7 @@ pub fn iter(env: &mut Env, x: &Object) -> FnResult {
             let s = s.clone();
             let f = Box::new(move |_env: &mut Env, _pself: &Object, _argv: &[Object]| -> FnResult{
                 if index == s.data.len() {
-                    return Ok(Object::Empty);
+                    return Ok(Object::empty());
                 }else{
                     index+=1;
                     return Ok(Object::String(Rc::new(CharString{
@@ -85,16 +85,8 @@ pub fn iter(env: &mut Env, x: &Object) -> FnResult {
             });
             Ok(new_iterator(f))
         },
-        Object::Table(ref x) => {
-            match x.get(&env.rte().key_iter) {
-                Some(ref iter) => {
-                    env.call(iter,&Object::Table(x.clone()),&[])
-                },
-                None => not_iterable(env)
-            }
-        },
         Object::Interface(ref x) => {
-            x.iter(env)
+            x.clone().iter(env)
         },
         _ => not_iterable(env)
     }
@@ -159,7 +151,7 @@ pub fn to_list(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
             let mut v: Vec<Object> = Vec::new();
             loop{
                 let y = env.call(i,&Object::Null,&[])?;
-                if let Object::Empty = y {
+                if y.is_empty() {
                     break;
                 }else{
                     v.push(y);
@@ -173,7 +165,7 @@ pub fn to_list(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
                     let mut v: Vec<Object> = Vec::new();
                     for _ in 0..n {
                         let y = env.call(i,&Object::Null,&[])?;
-                        if let Object::Empty = y {
+                        if y.is_empty() {
                             break;
                         }else{
                             v.push(y);
@@ -198,7 +190,7 @@ fn map(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     let f = argv[0].clone();
     let g = Box::new(move |env: &mut Env, _pself: &Object, _argv: &[Object]| -> FnResult {
         let x = env.call(&i,&Object::Null,&[])?;
-        return if let Object::Empty = x {
+        return if x.is_empty() {
             Ok(x)
         }else{
             let y = trace_err!(env.call(&f,&Object::Null,&[x]),
@@ -219,7 +211,7 @@ fn filter(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     let g = Box::new(move |env: &mut Env, _pself: &Object, _argv: &[Object]| -> FnResult {
         loop{
             let x = env.call(&i,&Object::Null,&[])?;
-            if let Object::Empty = x {
+            if x.is_empty() {
                 return Ok(x);
             }else{
                 let y = trace_err!(env.call(&f,&Object::Null,&[x.clone()]),
@@ -243,7 +235,7 @@ fn each(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     if argv.len() == 1 {
         loop{
             let y = env.call(i,&Object::Null,&[])?;
-            if let Object::Empty = y {
+            if y.is_empty() {
                 break;
             }else{
                 env.call(&argv[0],&Object::Null,&[y])?;
@@ -263,7 +255,7 @@ fn any(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     let p = &argv[0];
     loop{
         let x = env.call(i,&Object::Null,&[])?;
-        if let Object::Empty = x {
+        if x.is_empty() {
             break;
         }else{
             let y = env.call(p,&Object::Null,&[x])?;
@@ -286,7 +278,7 @@ fn all(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     let p = &argv[0];
     loop{
         let x = env.call(i,&Object::Null,&[])?;
-        if let Object::Empty = x {
+        if x.is_empty() {
             break;
         }else{
             let y = env.call(p,&Object::Null,&[x])?;
@@ -306,9 +298,10 @@ fn count_all(env: &mut Env, a: &Object) -> FnResult {
     let mut k: i32 = 0;
     loop{
         let x = env.call(&i,&Object::Null,&[])?;
-        match x {
-            Object::Empty => return Ok(Object::Int(k)),
-            _ => {k+=1;},
+        if x.is_empty() {
+            return Ok(Object::Int(k));
+        }else{
+            k+=1;
         }
     }
 }
@@ -324,7 +317,7 @@ fn count(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     let mut k: i32 = 0;
     loop{
         let x = env.call(i,&Object::Null,&[])?;
-        if let Object::Empty = x {
+        if x.is_empty() {
             break;
         }else{
             let y = env.call(p,&Object::Null,&[x])?;
@@ -355,15 +348,15 @@ fn chunks(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
     let i = iter(env,pself)?;
     let mut empty = false;
     let g = Box::new(move |env: &mut Env, _pself: &Object, _argv: &[Object]| -> FnResult {
-        if empty {return Ok(Object::Empty);}
+        if empty {return Ok(Object::empty());}
         let mut v: Vec<Object> = Vec::with_capacity(n);
         for _ in 0..n {
             let y = env.call(&i,&Object::Null,&[])?;
-            if let Object::Empty = y {empty=true; break;}
+            if y.is_empty() {empty = true; break;}
             v.push(y);
         }
         if v.len()==0 {
-            Ok(Object::Empty)
+            Ok(Object::empty())
         }else{
             Ok(List::new_object(v))
         }
@@ -379,7 +372,7 @@ fn reduce(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
             let f = &argv[0];
             loop{
                 let x = env.call(&i,&Object::Null,&[])?;
-                if let Object::Empty = x {break;}
+                if x.is_empty() {break;}
                 y = env.call(f,&Object::Null,&[y,x])?;
             }
             return Ok(y);
@@ -389,7 +382,7 @@ fn reduce(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
             let f = &argv[1];
             loop{
                 let x = env.call(&i,&Object::Null,&[])?;
-                if let Object::Empty = x {break;}
+                if x.is_empty() {break;}
                 y = env.call(f,&Object::Null,&[y,x])?;
             }
             return Ok(y);
@@ -403,26 +396,26 @@ fn sum(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         0 => {
             let mut y = env.call(&i,&Object::Null,&[])?;
-            if let Object::Empty = y {
+            if y.is_empty() {
                 return Ok(Object::Int(0));
             }
             loop{
                 let x = env.call(&i,&Object::Null,&[])?;
-                if let Object::Empty = x {break;}
+                if x.is_empty() {break;}
                 y = op_add(env,&y,&x)?;
             }
             return Ok(y);
         },
         1 => {
             let x = env.call(&i,&Object::Null,&[])?;
-            if let Object::Empty = x {
+            if x.is_empty() {
                 return Ok(Object::Int(0));
             }
             let f = &argv[0];
             let mut y = env.call(f,&Object::Null,&[x])?;
             loop{
                 let x = env.call(&i,&Object::Null,&[])?;
-                if let Object::Empty = x {break;}
+                if x.is_empty() {break;}
                 let u = env.call(f,&Object::Null,&[x])?;
                 y = op_add(env,&y,&u)?;
             }
@@ -437,26 +430,26 @@ fn prod(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         0 => {
             let mut y = env.call(&i,&Object::Null,&[])?;
-            if let Object::Empty = y {
+            if y.is_empty() {
                 return Ok(Object::Int(1));
             }
             loop{
                 let x = env.call(&i,&Object::Null,&[])?;
-                if let Object::Empty = x {break;}
+                if x.is_empty() {break;}
                 y = op_mul(env,&y,&x)?;
             }
             return Ok(y);
         },
         1 => {
             let x = env.call(&i,&Object::Null,&[])?;
-            if let Object::Empty = x {
+            if x.is_empty() {
                 return Ok(Object::Int(1));
             }
             let f = &argv[0];
             let mut y = env.call(f,&Object::Null,&[x])?;
             loop{
                 let x = env.call(&i,&Object::Null,&[])?;
-                if let Object::Empty = x {break;}
+                if x.is_empty() {break;}
                 let u = env.call(f,&Object::Null,&[x])?;
                 y = op_mul(env,&y,&u)?;
             }
@@ -653,7 +646,7 @@ fn skip(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
         Object::Int(n) => {
             for _ in 0..n {
                 let x = env.call(&i,&Object::Null,&[])?;
-                if let Object::Empty = x {return Ok(i);}
+                if x.is_empty() {return Ok(i);}
             }
             Ok(i)
         },
@@ -669,18 +662,15 @@ fn until(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     let f = argv[0].clone();
     let g = Box::new(move |env: &mut Env, _pself: &Object, _argv: &[Object]| -> FnResult {
         let x = env.call(&i,&Object::Null,&[])?;
-        return match x {
-            Object::Empty => Ok(x),
-            x => {
-                let y = env.call(&f,&Object::Null,&[x.clone()])?;
-                match y {
-                    Object::Bool(y) => {
-                        if y {return Ok(Object::Empty);}
-                        else {return Ok(x);}
-                    },
-                    ref y => return env.type_error1(
-                        "Type error in i.until(p): p(x) is not a boolean.","p(x)",y)
-                }
+        return if x.is_empty() {Ok(x)} else {
+            let y = env.call(&f,&Object::Null,&[x.clone()])?;
+            match y {
+                Object::Bool(y) => {
+                    if y {return Ok(Object::empty());}
+                    else {return Ok(x);}
+                },
+                ref y => return env.type_error1(
+                    "Type error in i.until(p): p(x) is not a boolean.","p(x)",y)
             }
         };
     });
@@ -701,12 +691,11 @@ fn enumerate(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     let i = iter(env,pself)?;
     let g = Box::new(move |env: &mut Env, _pself: &Object, _argv: &[Object]| -> FnResult {
         let x = env.call(&i,&Object::Null,&[])?;
-        return match x {
-            Object::Empty => Ok(x),
-            x => {
-                k+=1;
-                Ok(List::new_object(vec![Object::Int(k-1),x]))
-            }
+        return if x.is_empty() {
+            Ok(x)
+        }else{
+            k+=1;
+            Ok(List::new_object(vec![Object::Int(k-1),x]))
         };
     });
     Ok(new_iterator(g))
@@ -727,9 +716,8 @@ fn take(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     let i = iter(env,pself)?;
     let g = Box::new(move |env: &mut Env, _pself: &Object, _argv: &[Object]| -> FnResult {
         let x = env.call(&i,&Object::Null,&[])?;
-        return Ok(match x {
-            Object::Empty => x,
-            x => if k<n {k+=1; x} else {Object::Empty}
+        return Ok(if x.is_empty() {x} else {
+            if k<n {k+=1; x} else {Object::empty()}
         });
     });
     Ok(new_iterator(g))
@@ -788,18 +776,17 @@ fn min_plain(env: &mut Env, a: &Object) -> FnResult {
     let mut minimum = env.call(i,&Object::Null,&[])?;
     loop{
         let x = env.call(i,&Object::Null,&[])?;
-        match x {
-            Object::Empty => break,
-            x => {
-                match op_lt(env,&x,&minimum)? {
-                    Object::Bool(condition) => {
-                        if condition {
-                            minimum = x;
-                        }
-                    },
-                    _ => return env.type_error(
-                        "Type error in a.min(): expected x<y of type Bool.")
-                }
+        if x.is_empty() {
+            break;
+        }else{
+            match op_lt(env,&x,&minimum)? {
+                Object::Bool(condition) => {
+                    if condition {
+                        minimum = x;
+                    }
+                },
+                _ => return env.type_error(
+                    "Type error in a.min(): expected x<y of type Bool.")
             }
         }    
     }
@@ -818,19 +805,18 @@ fn iterable_min(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     let mut ymin = env.call(p,&Object::Null,&[minimum.clone()])?;
     loop{
         let x = env.call(i,&Object::Null,&[])?;
-        match x {
-            Object::Empty => break,
-            x => {
-                let y = env.call(p,&Object::Null,&[x.clone()])?;
-                match op_lt(env,&y,&ymin)? {
-                    Object::Bool(condition) => {
-                        if condition {
-                            minimum = x;
-                            ymin = y;
-                        }
-                    },
-                    _ => return env.type_error("Type error in a.min(p): expected p(x)<p(y) of type Bool.")
-                }
+        if x.is_empty() {
+            break;
+        }else{
+            let y = env.call(p,&Object::Null,&[x.clone()])?;
+            match op_lt(env,&y,&ymin)? {
+                Object::Bool(condition) => {
+                    if condition {
+                        minimum = x;
+                        ymin = y;
+                    }
+                },
+                _ => return env.type_error("Type error in a.min(p): expected p(x)<p(y) of type Bool.")
             }
         }
     }
@@ -842,17 +828,16 @@ fn max_plain(env: &mut Env, a: &Object) -> FnResult {
     let mut maximum = env.call(i,&Object::Null,&[])?;
     loop{
         let x = env.call(i,&Object::Null,&[])?;
-        match x {
-            Object::Empty => break,
-            x => {
-                match op_le(env,&x,&maximum)? {
-                    Object::Bool(condition) => {
-                        if !condition {
-                            maximum = x;
-                        }
-                    },
-                    _ => return env.type_error("Type error in a.max(): expected x<y of type Bool.")
-                }
+        if x.is_empty() {
+            break;
+        }else{
+            match op_le(env,&x,&maximum)? {
+                Object::Bool(condition) => {
+                    if !condition {
+                        maximum = x;
+                    }
+                },
+                _ => return env.type_error("Type error in a.max(): expected x<y of type Bool.")
             }
         }    
     }
@@ -871,19 +856,18 @@ fn iterable_max(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     let mut ymax = env.call(p,&Object::Null,&[maximum.clone()])?;
     loop{
         let x = env.call(i,&Object::Null,&[])?;
-        match x {
-            Object::Empty => break,
-            x => {
-                let y = env.call(p,&Object::Null,&[x.clone()])?;
-                match op_le(env,&y,&ymax)? {
-                    Object::Bool(condition) => {
-                        if !condition {
-                            maximum = x;
-                            ymax = y;
-                        }
-                    },
-                    _ => return env.type_error("Type error in a.max(p): expected p(x)<p(y) of type Bool.")
-                }
+        if x.is_empty() {
+            break;
+        }else{
+            let y = env.call(p,&Object::Null,&[x.clone()])?;
+            match op_le(env,&y,&ymax)? {
+                Object::Bool(condition) => {
+                    if !condition {
+                        maximum = x;
+                        ymax = y;
+                    }
+                },
+                _ => return env.type_error("Type error in a.max(p): expected p(x)<p(y) of type Bool.")
             }
         }
     }

@@ -20,10 +20,10 @@ struct File {
 
 impl Interface for File {
     fn as_any(&self) -> &Any {self}
-    fn type_name(&self) -> String {
+    fn type_name(&self, _env: &mut Env) -> String {
         "File".to_string()
     }
-    fn to_string(&self, _env: &mut Env) -> Result<String,Box<Exception>> {
+    fn to_string(self: Rc<Self>, _env: &mut Env) -> Result<String,Box<Exception>> {
         return Ok("file object".to_string());
     }
     fn get(&self, key: &Object, env: &mut Env) -> FnResult {
@@ -250,6 +250,6 @@ pub fn load_fs(env: &mut Env) -> Object
         m.insert_fn_plain("wd",working_dir,0,0);
     }
 
-    return Object::Table(Rc::new(fs));
+    return Object::Interface(Rc::new(fs));
 }
 

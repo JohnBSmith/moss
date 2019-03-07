@@ -9,21 +9,21 @@ use std::mem::replace;
 use complex::Complex64;
 use vm::{Module,RTE};
 pub use vm::Env;
+pub use table::Table;
 
-pub enum Object{
+pub enum Object {
     Null,
     Bool(bool),
     Int(i32),
     Float(f64),
     Complex(Complex64),
+    Info(Info),
 
     List(Rc<RefCell<List>>),
     String(Rc<CharString>),
     Map(Rc<RefCell<Map>>),
     Function(Rc<Function>),
-    Table(Rc<Table>),
-    Interface(Rc<dyn Interface>),
-    Empty
+    Interface(Rc<dyn Interface>)
 }
 
 impl Object{
@@ -43,6 +43,32 @@ impl Object{
     pub fn take(&mut self) -> Object {
         replace(self,Object::Null)
     }
+    
+    pub fn table(t: Rc<Table>) -> Object {
+        Object::Interface(t)
+    }
+    
+    pub fn empty() -> Object {
+        Object::Info(Info::Empty)
+    }
+    
+    pub fn unimplemented() -> Object {
+        Object::Info(Info::Unimplemented)
+    }
+    
+    pub fn is_empty(&self) -> bool {
+        match self {
+            Object::Info(Info::Empty) => true,
+            _ => false
+        }
+    }
+
+    pub fn is_unimplemented(&self) -> bool {
+        match self {
+            Object::Info(Info::Unimplemented) => true,
+            _ => false
+        }
+    }
 }
 
 impl fmt::Display for Object {
@@ -51,31 +77,43 @@ impl fmt::Display for Object {
     }
 }
 
-impl Clone for Object{
-    fn clone(&self) -> Object{
+impl Clone for Object {
+    fn clone(&self) -> Object {
         match *self {
             Object::Null => {Object::Null},
             Object::Bool(x) => {Object::Bool(x)},
             Object::Int(x) => {Object::Int(x)},
             Object::Float(x) => {Object::Float(x)},
             Object::Complex(x) => {Object::Complex(x)},
+            Object::Info(x) => {Object::Info(x)},
             Object::String(ref x) => {Object::String(x.clone())},
             Object::List(ref x) => {Object::List(x.clone())},
             Object::Map(ref x) => {Object::Map(x.clone())},
             Object::Function(ref x) => {Object::Function(x.clone())},
-            // Object::Range(ref x) => {Object::Range(x.clone())},
-            Object::Table(ref x) => {Object::Table(x.clone())},
-            Object::Empty => {Object::Empty},
             Object::Interface(ref x) => {Object::Interface(x.clone())}
         }
     }
 }
 
-pub struct CharString{
+#[derive(PartialEq,Eq,Clone,Copy)]
+pub enum Info {
+    Empty, Unimplemented
+}
+
+impl Info {
+    pub fn to_string(&self) -> String {
+        String::from(match self {
+            Info::Empty => "empty",
+            Info::Unimplemented => "unimplemented"
+        })
+    }
+}
+
+pub struct CharString {
     pub data: Vec<char>
 }
 
-impl CharString{
+impl CharString {
     pub fn new_object(v: Vec<char>) -> Object{
         return Object::String(Rc::new(CharString{data: v}));
     }
@@ -93,12 +131,12 @@ impl CharString{
     }
 }
 
-pub struct List{
+pub struct List {
     pub v: Vec<Object>,
     pub frozen: bool
 }
 
-impl List{
+impl List {
     pub fn new_object(v: Vec<Object>) -> Object{
         return Object::List(Rc::new(RefCell::new(List{v: v, frozen: false})));
     }
@@ -108,12 +146,12 @@ impl List{
     }
 }
 
-pub struct Map{
+pub struct Map {
     pub m: HashMap<Object,Object>,
     pub frozen: bool
 }
 
-impl Map{
+impl Map {
     pub fn new_object(m: HashMap<Object,Object>) -> Object{
         return Object::Map(Rc::new(RefCell::new(Map{m: m, frozen: false})));
     }
@@ -142,24 +180,24 @@ impl Map{
     }
 }
 
-pub struct Spot{
+pub struct Spot {
     pub line: usize,
     pub col: usize,
     pub module: String
 }
 
-pub struct Exception{
+pub struct Exception {
     pub value: Object,
     pub traceback: Option<List>,
     pub spot: Option<Spot>
 }
 
-impl Exception{
+impl Exception {
     pub fn new(s: &str, prototype: Object) -> Box<Exception> {
         let t = Table{prototype, map: Map::new()};
         t.map.borrow_mut().insert("value", CharString::new_object_str(s));
         Box::new(Exception{
-            value: Object::Table(Rc::new(t)),
+            value: Object::Interface(Rc::new(t)),
             traceback: None, spot: None
         })
     }
@@ -222,7 +260,7 @@ pub type FnResult = Result<Object,Box<Exception>>;
 pub type PlainFn = fn(&mut Env, pself: &Object, argv: &[Object]) -> FnResult;
 pub type MutableFn = Box<FnMut(&mut Env, &Object, &[Object])->FnResult>;
 
-pub struct StandardFn{
+pub struct StandardFn {
     pub address: Cell<usize>,
     pub module: Rc<Module>,
     pub gtab: Rc<RefCell<Map>>,
@@ -230,13 +268,13 @@ pub struct StandardFn{
     pub context: Rc<RefCell<List>>
 }
 
-pub enum EnumFunction{
+pub enum EnumFunction {
     Std(StandardFn),
     Plain(PlainFn),
     Mut(RefCell<MutableFn>)
 }
 
-pub struct Function{
+pub struct Function {
     pub f: EnumFunction,
     pub argc: u32,
     pub argc_min: u32,
@@ -246,7 +284,7 @@ pub struct Function{
 
 pub const VARIADIC: u32 = 0xffffffff;
 
-impl Function{
+impl Function {
     pub fn plain(fp: PlainFn, argc_min: u32, argc_max: u32)
     -> Object
     {
@@ -281,81 +319,55 @@ impl Function{
     }
 }
 
-pub struct Table{
-    pub prototype: Object,
-    pub map: Rc<RefCell<Map>>
-}
-
-impl Table{
-    pub fn new(prototype: Object) -> Rc<Table> {
-        Rc::new(Table{prototype: prototype, map: Map::new()})
-    }
-
-    pub fn get(&self, key: &Object) -> Option<Object> {
-        let mut p = self;
-        loop{
-            match p.map.borrow_mut().m.get(key) {
-                Some(value) => {return Some(value.clone());},
-                None => {
-                    p = match p.prototype {
-                        Object::Table(ref t) => t,
-                        _ => {return None;}
-                    }
-                }
-            }
-        }
-    }
-}
-
-pub fn new_module(_id: &str) -> Table{
+pub fn new_module(_id: &str) -> Table {
     Table{prototype: Object::Null, map: Map::new()}
 }
 
-pub trait Interface{
+pub trait Interface {
     fn as_any(&self) -> &Any;
-    fn to_string(&self, _env: &mut Env) -> Result<String,Box<Exception>> {
+    fn to_string(self: Rc<Self>, _env: &mut Env) -> Result<String,Box<Exception>> {
         Ok("interface object".to_string())
     }
-    fn add(&self, _b: &Object, env: &mut Env) -> FnResult {
-        Ok(Object::Table(env.rte().unimplemented.clone()))
+    fn add(self: Rc<Self>, _b: &Object, _env: &mut Env) -> FnResult {
+        Ok(Object::unimplemented())
     }
-    fn radd(&self, _a: &Object, env: &mut Env) -> FnResult {
-        Ok(Object::Table(env.rte().unimplemented.clone()))
+    fn radd(self: Rc<Self>, _a: &Object, _env: &mut Env) -> FnResult {
+        Ok(Object::unimplemented())
     }
-    fn sub(&self, _b: &Object, env: &mut Env) -> FnResult {
-        Ok(Object::Table(env.rte().unimplemented.clone()))
+    fn sub(self: Rc<Self>, _b: &Object, _env: &mut Env) -> FnResult {
+        Ok(Object::unimplemented())
     }
-    fn rsub(&self, _a: &Object, env: &mut Env) -> FnResult {
-        Ok(Object::Table(env.rte().unimplemented.clone()))
+    fn rsub(self: Rc<Self>, _a: &Object, _env: &mut Env) -> FnResult {
+        Ok(Object::unimplemented())
     }
-    fn mul(&self, _b: &Object, env: &mut Env) -> FnResult {
-        Ok(Object::Table(env.rte().unimplemented.clone()))
+    fn mul(self: Rc<Self>, _b: &Object, _env: &mut Env) -> FnResult {
+        Ok(Object::unimplemented())
     }
-    fn rmul(&self, _a: &Object, env: &mut Env) -> FnResult {
-        Ok(Object::Table(env.rte().unimplemented.clone()))
+    fn rmul(self: Rc<Self>, _a: &Object, _env: &mut Env) -> FnResult {
+        Ok(Object::unimplemented())
     }
-    fn div(&self, _b: &Object, env: &mut Env) -> FnResult {
-        Ok(Object::Table(env.rte().unimplemented.clone()))
+    fn div(self: Rc<Self>, _b: &Object, _env: &mut Env) -> FnResult {
+        Ok(Object::unimplemented())
     }
-    fn rdiv(&self, _a: &Object, env: &mut Env) -> FnResult {
-        Ok(Object::Table(env.rte().unimplemented.clone()))
+    fn rdiv(self: Rc<Self>, _a: &Object, _env: &mut Env) -> FnResult {
+        Ok(Object::unimplemented())
     }
-    fn idiv(&self, _b: &Object, env: &mut Env) -> FnResult {
+    fn idiv(self: Rc<Self>, _b: &Object, env: &mut Env) -> FnResult {
         env.std_exception("Error: a//b is not implemented for objects of this type.")
     }
-    fn ridiv(&self, _a: &Object, env: &mut Env) -> FnResult {
+    fn ridiv(self: Rc<Self>, _a: &Object, env: &mut Env) -> FnResult {
         env.std_exception("Error: a//b is not implemented for objects of this type.")
     }
-    fn imod(&self, _b: &Object, env: &mut Env) -> FnResult {
-        Ok(Object::Table(env.rte().unimplemented.clone()))
+    fn imod(self: Rc<Self>, _b: &Object, _env: &mut Env) -> FnResult {
+        Ok(Object::unimplemented())
     }
-    fn rimod(&self, _b: &Object, env: &mut Env) -> FnResult {
-        Ok(Object::Table(env.rte().unimplemented.clone()))
+    fn rimod(self: Rc<Self>, _b: &Object, _env: &mut Env) -> FnResult {
+        Ok(Object::unimplemented())
     }
-    fn pow(&self, _b: &Object, env: &mut Env) -> FnResult {
+    fn pow(self: Rc<Self>, _b: &Object, env: &mut Env) -> FnResult {
         env.std_exception("Error: a^b is not implemented for objects of this type.")
     }
-    fn rpow(&self, _b: &Object, env: &mut Env) -> FnResult {
+    fn rpow(self: Rc<Self>, _b: &Object, env: &mut Env) -> FnResult {
         env.std_exception("Error: a^b is not implemented for objects of this type.")
     }
 
@@ -366,50 +378,37 @@ pub trait Interface{
         false
     }
 
-    fn eq(&self, _b: &Object, env: &mut Env) -> FnResult {
-        Ok(Object::Table(env.rte().unimplemented.clone()))
+    fn eq(self: Rc<Self>, _b: &Object, _env: &mut Env) -> FnResult {
+        Ok(Object::unimplemented())
     }
-    fn req(&self, _a: &Object, env: &mut Env) -> FnResult {
-        Ok(Object::Table(env.rte().unimplemented.clone()))
+    fn req(self: Rc<Self>, _a: &Object, _env: &mut Env) -> FnResult {
+        Ok(Object::unimplemented())
     }
-    fn rin(&self, _x: &Object, env: &mut Env) -> FnResult {
-        Ok(Object::Table(env.rte().unimplemented.clone()))
-    }
-
-    fn lt(&self, _b: &Object, env: &mut Env) -> FnResult {
-        env.std_exception("Error: a<b is not implemented for objects of this type.")
-    }
-    fn gt(&self, _b: &Object, env: &mut Env) -> FnResult {
-        env.std_exception("Error: a>b is not implemented for objects of this type.")
-    }
-    fn le(&self, _b: &Object, env: &mut Env) -> FnResult {
-        env.std_exception("Error: a<=b is not implemented for objects of this type.")
-    }
-    fn ge(&self, _b: &Object, env: &mut Env) -> FnResult {
-        env.std_exception("Error: a>=b is not implemented for objects of this type.")
+    fn rin(&self, _x: &Object, _env: &mut Env) -> FnResult {
+        Ok(Object::unimplemented())
     }
 
-    fn rlt(&self, _b: &Object, env: &mut Env) -> FnResult {
-        env.std_exception("Error: a<b is not implemented for objects of this type.")
+    fn lt(self: Rc<Self>, _y: &Object, _env: &mut Env) -> FnResult {
+        Ok(Object::unimplemented())
     }
-    fn rgt(&self, _b: &Object, env: &mut Env) -> FnResult {
-        env.std_exception("Error: a>b is not implemented for objects of this type.")
+    fn le(self: Rc<Self>, _y: &Object, _env: &mut Env) -> FnResult {
+        Ok(Object::unimplemented())
     }
-    fn rle(&self, _b: &Object, env: &mut Env) -> FnResult {
-        env.std_exception("Error: a<=b is not implemented for objects of this type.")
+    fn rlt(self: Rc<Self>, _x: &Object, _env: &mut Env) -> FnResult {
+        Ok(Object::unimplemented())
     }
-    fn rge(&self, _b: &Object, env: &mut Env) -> FnResult {
-        env.std_exception("Error: a>=b is not implemented for objects of this type.")
+    fn rle(self: Rc<Self>, _x: &Object, _env: &mut Env) -> FnResult {
+        Ok(Object::unimplemented())
     }
     
-    fn neg(&self, env: &mut Env) -> FnResult {
-        Ok(Object::Table(env.rte().unimplemented.clone()))
+    fn neg(self: Rc<Self>, _env: &mut Env) -> FnResult {
+        Ok(Object::unimplemented())
     }
 
-    fn abs(&self, env: &mut Env) -> FnResult {
+    fn abs(self: Rc<Self>, env: &mut Env) -> FnResult {
         env.std_exception("Error: abs(x) is not implemented for objects of this type.")
     }
-    fn sgn(&self, env: &mut Env) -> FnResult {
+    fn sgn(self: Rc<Self>, env: &mut Env) -> FnResult {
         env.std_exception("Error: sgn(x) is not implemented for objects of this type.")
     }
     fn get(&self, key: &Object, env: &mut Env) -> FnResult {
@@ -426,7 +425,7 @@ pub trait Interface{
     fn set_index(&self, _indices: &[Object], _value: &Object, env: &mut Env) -> FnResult {
         env.std_exception("Type error in a[i]=value: indexing is not implemented for objects of this type.")
     }
-    fn type_name(&self) -> String {
+    fn type_name(&self, _env: &mut Env) -> String {
         "Interface object".to_string()
     }
     fn get_type(&self, env: &mut Env) -> FnResult {
@@ -438,7 +437,7 @@ pub trait Interface{
     fn hash(&self) -> u64 {
         self as *const _ as *const u8 as usize as u64
     }
-    fn iter(&self, env: &mut Env) -> FnResult {
+    fn iter(self: Rc<Self>, env: &mut Env) -> FnResult {
         env.type_error("Type error in iter(x): x is not iterable.")
     }
 }

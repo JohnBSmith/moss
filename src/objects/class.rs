@@ -9,16 +9,17 @@ use vm::{Env,RTE,secondary_env,object_to_string};
 
 type PGet = Box<dyn Fn(&mut Env,&Instance,&Object)->FnResult>;
 type PSet = Box<dyn Fn(&mut Env,&Instance,Object,Object)->FnResult>;
-type PToString = Box<dyn Fn(&mut Env,&Instance)->Result<String,Box<Exception>>>;
+type PToString = Box<dyn Fn(&mut Env,Rc<Instance>)->Result<String,Box<Exception>>>;
 
-pub struct Class{
+pub struct Class {
     pub rte: Rc<RTE>,
     pub call_drop: bool,
     pub destructor: Object,
     pub pget: PGet,
     pub pset: PSet,
     pub to_string: PToString,
-    pub name: String
+    pub name: String,
+    pub map: Rc<RefCell<Map>>
 }
 
 impl Class {
@@ -40,11 +41,18 @@ impl Class {
 
 impl Interface for Class {
     fn as_any(&self) -> &Any {self}
-    fn type_name(&self) -> String {
+    fn type_name(&self, _env: &mut Env) -> String {
         "Class".to_string()
     }
-    fn to_string(&self, _env: &mut Env) -> Result<String,Box<Exception>> {
+    fn to_string(self: Rc<Self>, _env: &mut Env) -> Result<String,Box<Exception>> {
         Ok(self.name.clone())
+    }
+    fn get(&self, key: &Object, _env: &mut Env) -> FnResult {
+        if let Some(value) = self.map.borrow().m.get(key) {
+            return Ok(value.clone());
+        }else{
+            return Ok(Object::Null);
+        }
     }
 }
 
@@ -77,10 +85,10 @@ fn custom_setter(f: Object) -> PSet {
     })
 }
 
-fn standard_to_string(env: &mut Env, t: &Instance)
+fn standard_to_string(env: &mut Env, t: Rc<Instance>)
 -> Result<String,Box<Exception>>
 {
-    match object_to_string(env,&Object::Map(t.map.clone())) {
+    match object_to_string(env,&Object::Interface(t)) {
         Ok(value) => {
             let mut s = String::from("table");
             s.push_str(&value);
@@ -91,10 +99,10 @@ fn standard_to_string(env: &mut Env, t: &Instance)
 }
 
 fn custom_to_string(f: Object) -> PToString {
-    Box::new(move |env: &mut Env, t: &Instance|
+    Box::new(move |env: &mut Env, t: Rc<Instance>|
     -> Result<String,Box<Exception>>
     {
-        match env.call(&f,&Object::Map(t.map.clone()),&[]) {
+        match env.call(&f,&Object::Interface(t),&[]) {
             Ok(value) => match value {
                 Object::String(s) => Ok(s.to_string()),
                 _ => {
@@ -114,8 +122,8 @@ pub fn class_new(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     let mut destructor = Object::Null;
     let mut call_drop = false;
     match argv[0] {
-        Object::Map(ref m) => {
-            let m = &m.borrow().m;
+        Object::Map(ref map) => {
+            let m = &map.borrow().m;
             if let Some(x) = m.get(&Object::from("drop")) {
                 destructor = x.clone();
                 call_drop = true;
@@ -139,14 +147,14 @@ pub fn class_new(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
             return Ok(Object::Interface(Rc::new(Class{
                 rte: env.rte().clone(),
                 destructor, call_drop, pget, pset,
-                name, to_string
+                name, to_string, map: map.clone()
             })));
         },
         _ => panic!()
     }
 }
 
-pub struct Instance{
+pub struct Instance {
     pub prototype: Object,
     pub map: Rc<RefCell<Map>>
 }
@@ -156,11 +164,10 @@ impl Interface for Instance {
     fn get_type(&self, _env: &mut Env) -> FnResult {
         return Ok(self.prototype.clone());
     }
-    
-    // needing self: &Rc<Self>
-    fn to_string(&self, env: &mut Env) -> Result<String,Box<Exception>> {
+
+    fn to_string(self: Rc<Self>, env: &mut Env) -> Result<String,Box<Exception>> {
         if let Some(class) = downcast::<Class>(&self.prototype) {
-            (class.to_string)(env,self)
+            (class.to_string)(env,self.clone())
         }else{
             Ok(String::from("interface object"))
         }

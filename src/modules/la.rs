@@ -76,22 +76,22 @@ impl<T: Number> Array<T> {
 
 impl Interface for Array<f64> {
     fn as_any(&self) -> &Any {self}
-    fn type_name(&self) -> String {
+    fn type_name(&self, _env: &mut Env) -> String {
         "ArrayOfFloat".to_string()
     }
-    fn to_string(&self, env: &mut Env) -> Result<String,Box<Exception>> {
-        to_string(self,env)
+    fn to_string(self: Rc<Self>, env: &mut Env) -> Result<String,Box<Exception>> {
+        to_string(&self,env)
     }
-    fn add(&self, b: &Object, env: &mut Env) -> FnResult {
-        add(self,b,env)
+    fn add(self: Rc<Self>, b: &Object, env: &mut Env) -> FnResult {
+        add(&self,b,env)
     }
-    fn sub(&self, b: &Object, env: &mut Env) -> FnResult {
-        sub(self,b,env)
+    fn sub(self: Rc<Self>, b: &Object, env: &mut Env) -> FnResult {
+        sub(&self,b,env)
     }
-    fn mul(&self, b: &Object, env: &mut Env) -> FnResult {
-        mul(self,b,env)
+    fn mul(self: Rc<Self>, b: &Object, env: &mut Env) -> FnResult {
+        mul(&self,b,env)
     }
-    fn rmul(&self, a: &Object, env: &mut Env) -> FnResult {
+    fn rmul(self: Rc<Self>, a: &Object, env: &mut Env) -> FnResult {
         let r = match *a {
             Object::Int(x) => x as f64,
             Object::Float(x) => x,
@@ -99,7 +99,7 @@ impl Interface for Array<f64> {
                 "Type error in r*v: r has to be of type Int or Float.")
         };
         let data = self.data.borrow();
-        map_unary(self,&data,&|x| r*x)
+        map_unary(&self,&data,&|x| r*x)
     }
     fn index(&self, indices: &[Object], env: &mut Env) -> FnResult {
         index(self,indices,env)
@@ -107,29 +107,29 @@ impl Interface for Array<f64> {
     fn get(&self, key: &Object, env: &mut Env) -> FnResult {
         get(self,key,env)
     }
-    fn abs(&self, _env: &mut Env) -> FnResult {
-        return abs_f64(self);
+    fn abs(self: Rc<Self>, _env: &mut Env) -> FnResult {
+        return abs_f64(&self);
     }
 }
 
 impl Interface for Array<c64> {
     fn as_any(&self) -> &Any {self}
-    fn type_name(&self) -> String {
+    fn type_name(&self, _env: &mut Env) -> String {
         "ArrayOfComplex".to_string()
     }
-    fn to_string(&self, env: &mut Env) -> Result<String,Box<Exception>> {
-        to_string(self,env)
+    fn to_string(self: Rc<Self>, env: &mut Env) -> Result<String,Box<Exception>> {
+        to_string(&self,env)
     }
-    fn add(&self, b: &Object, env: &mut Env) -> FnResult {
-        add(self,b,env)
+    fn add(self: Rc<Self>, b: &Object, env: &mut Env) -> FnResult {
+        add(&self,b,env)
     }
-    fn sub(&self, b: &Object, env: &mut Env) -> FnResult {
-        sub(self,b,env)
+    fn sub(self: Rc<Self>, b: &Object, env: &mut Env) -> FnResult {
+        sub(&self,b,env)
     }
-    fn mul(&self, b: &Object, env: &mut Env) -> FnResult {
-        mul(self,b,env)
+    fn mul(self: Rc<Self>, b: &Object, env: &mut Env) -> FnResult {
+        mul(&self,b,env)
     }
-    fn rmul(&self, a: &Object, env: &mut Env) -> FnResult {
+    fn rmul(self: Rc<Self>, a: &Object, env: &mut Env) -> FnResult {
         let r = match *a {
             Object::Int(x) => c64{re: x as f64, im: 0.0},
             Object::Float(x) => c64{re: x, im: 0.0},
@@ -138,7 +138,7 @@ impl Interface for Array<c64> {
                 "Type error in r*v: r has to be of type Int or Float.")
         };
         let data = self.data.borrow();
-        map_unary(self,&data,&|x| r*x)
+        map_unary(&self,&data,&|x| r*x)
     }
     fn index(&self, indices: &[Object], env: &mut Env) -> FnResult {
         index(self,indices,env)
@@ -146,8 +146,8 @@ impl Interface for Array<c64> {
     fn get(&self, key: &Object, env: &mut Env) -> FnResult {
         get(self,key,env)
     }
-    fn abs(&self, _env: &mut Env) -> FnResult {
-        return abs_c64(self);
+    fn abs(self: Rc<Self>, _env: &mut Env) -> FnResult {
+        return abs_c64(&self);
     }
 }
 
@@ -629,5 +629,5 @@ pub fn load_la(env: &mut Env) -> Object
         m.insert_fn_plain("matrix",matrix,1,VARIADIC);
     }
 
-    return Object::Table(Rc::new(la));
+    return Object::Interface(Rc::new(la));
 }

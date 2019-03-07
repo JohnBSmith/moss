@@ -1,4 +1,5 @@
 
+use std::rc::Rc;
 use std::any::Any;
 use std::char;
 use object::{
@@ -16,9 +17,9 @@ pub struct Range {
 
 impl Interface for Range {
     fn as_any(&self) -> &Any {self}
-    fn type_name(&self) -> String {String::from("Range")}
+    fn type_name(&self, _env: &mut Env) -> String {String::from("Range")}
 
-    fn to_string(&self, env: &mut Env) -> Result<String,Box<Exception>> {
+    fn to_string(self: Rc<Self>, env: &mut Env) -> Result<String,Box<Exception>> {
         let a = object_to_string(env,&self.a)?;
         let b = object_to_string(env,&self.b)?;
         Ok(match self.step {
@@ -37,11 +38,11 @@ impl Interface for Range {
         }
     }
 
-    fn eq(&self, b: &Object, env: &mut Env) -> FnResult {
+    fn eq(self: Rc<Self>, b: &Object, _env: &mut Env) -> FnResult {
         Ok(if let Some(y) = downcast::<Range>(b) {
             Object::Bool(self.a==y.a && self.b==y.b && self.step==y.step)
         }else{
-            Object::Table(env.rte().unimplemented.clone())
+            Object::unimplemented()
         })
     }
     
@@ -75,16 +76,16 @@ impl Interface for Range {
         return Ok(Object::Bool(i<=k && k<=j));
     }
 
-    fn iter(&self, env: &mut Env) -> FnResult {
+    fn iter(self: Rc<Self>, env: &mut Env) -> FnResult {
         let mut a = match self.a {
             Object::Int(a)=>a,
-            Object::Float(_) => return float_range_iterator(env,self),
-            Object::String(_) => return char_range_iterator(env,self),
+            Object::Float(_) => return float_range_iterator(env,&self),
+            Object::String(_) => return char_range_iterator(env,&self),
             _ => {return env.type_error("Type error in iter(a..b): a is not an integer.");}
         };
         let d = match self.step {
             Object::Null => 1,
-            Object::Float(_) => return float_range_iterator(env,self),
+            Object::Float(_) => return float_range_iterator(env,&self),
             Object::Int(x)=>x,
             _ => return env.type_error1(
                 "Type error in iter(a..b: d): d is not an integer.",
@@ -101,7 +102,7 @@ impl Interface for Range {
                             a+=d;
                             Ok(Object::Int(a-d))
                         }else{
-                            Ok(Object::Empty)
+                            Ok(Object::empty())
                         }
                     })
                 }else{
@@ -154,7 +155,7 @@ fn float_range_iterator(env: &mut Env, r: &Range) -> FnResult {
             k+=1;
             Object::Float(y)
         }else{
-            Object::Empty
+            Object::empty()
         });
     });
     return Ok(new_iterator(f));
@@ -187,7 +188,7 @@ fn char_range_iterator(env: &mut Env, r: &Range) -> FnResult {
             a+=1;
             value
         }else{
-            Object::Empty
+            Object::empty()
         });
     });
     return Ok(new_iterator(f));

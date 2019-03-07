@@ -46,10 +46,10 @@ impl Array {
 
 impl Interface for Array {
     fn as_any(&self) -> &Any {self}
-    fn type_name(&self) -> String {
+    fn type_name(&self, _env: &mut Env) -> String {
         "Array".to_string()
     }
-    fn to_string(&self, env: &mut Env) -> Result<String,Box<Exception>> {
+    fn to_string(self: Rc<Self>, env: &mut Env) -> Result<String,Box<Exception>> {
         if self.n==1 {
             let mut s = "vector(".to_string();
             let mut first = true;
@@ -290,19 +290,19 @@ impl Interface for Array {
             return env.index_error("Index error in a[...]: shape does not fit.");
         }
     }
-    fn neg(&self, env: &mut Env) -> FnResult {
-        map_unary_operator(self,&op_neg,'-',env)
+    fn neg(self: Rc<Self>, env: &mut Env) -> FnResult {
+        map_unary_operator(&self,&op_neg,'-',env)
     }
-    fn add(&self, b: &Object, env: &mut Env) -> FnResult {
-        map_binary_operator(self,b,op_add,'+',env)
+    fn add(self: Rc<Self>, b: &Object, env: &mut Env) -> FnResult {
+        map_binary_operator(&self,b,op_add,'+',env)
     }
-    fn sub(&self, b: &Object, env: &mut Env) -> FnResult {
-        map_binary_operator(self,b,op_sub,'-',env)
+    fn sub(self: Rc<Self>, b: &Object, env: &mut Env) -> FnResult {
+        map_binary_operator(&self,b,op_sub,'-',env)
     }
-    fn rmul(&self, a: &Object, env: &mut Env) -> FnResult {
-        scalar_multiplication(env,a,self)
+    fn rmul(self: Rc<Self>, a: &Object, env: &mut Env) -> FnResult {
+        scalar_multiplication(env,a,&self)
     }
-    fn mul(&self, b: &Object, env: &mut Env) -> FnResult {
+    fn mul(self: Rc<Self>, b: &Object, env: &mut Env) -> FnResult {
         if self.n==1 {
             if let Some(b) = downcast::<Array>(b) {
                 if b.n==1 {
@@ -315,19 +315,19 @@ impl Interface for Array {
                     );
                 }
             }
-            return scalar_multiplication(env,b,self);
+            return scalar_multiplication(env,b,&self);
         }else if self.n==2 {
             if let Some(b) = downcast::<Array>(b) {
                 if b.n==1 {
                     let m = self.s[1].shape.min(b.s[0].shape);
-                    return mul_matrix_vector(env,m,self,b);
+                    return mul_matrix_vector(env,m,&self,b);
                 }else if b.n==2 {
                     if self.s[1].shape != b.s[0].shape {
                         return env.value_error(
                             "Value error in matrix multiplication A*B:\n  A.shape[0] != B.shape[1]."
                         );
                     }
-                    let y = mul_matrix_matrix(env,self.s[1].shape,self,b)?;
+                    let y = mul_matrix_matrix(env,self.s[1].shape,&self,b)?;
                     {
                         let data = y.data.borrow();
                         if data.len()==1 {
@@ -337,15 +337,15 @@ impl Interface for Array {
                     return Ok(Object::Interface(y));
                 }
             }
-            return scalar_multiplication(env,b,self);
+            return scalar_multiplication(env,b,&self);
         }else{
-            return scalar_multiplication(env,b,self);
+            return scalar_multiplication(env,b,&self);
         }
     }
-    fn div(&self, b: &Object, env: &mut Env) -> FnResult {
-        return scalar_division(env,self,b);
+    fn div(self: Rc<Self>, b: &Object, env: &mut Env) -> FnResult {
+        return scalar_division(env,&self,b);
     }
-    fn pow(&self, n: &Object, env: &mut Env) -> FnResult {
+    fn pow(self: Rc<Self>, n: &Object, env: &mut Env) -> FnResult {
         if self.n==2 {
             if let Object::Int(n) = *n {
                 let n = if n>=0 {n as u32} else {
@@ -354,7 +354,7 @@ impl Interface for Array {
                 if self.s[0].shape != self.s[1].shape {
                     panic!();
                 }
-                let y = matrix_power(env,self,n,self.s[0].shape)?;
+                let y = matrix_power(env,&self,n,self.s[0].shape)?;
                 return Ok(Object::Interface(y));
             }else{
                 env.type_error1("Type error in A^n: n is not an integer.","n",&n)
@@ -363,15 +363,15 @@ impl Interface for Array {
             env.type_error("Type error in A^n: A is not a matrix.")
         }
     }
-    fn eq(&self, b: &Object, env: &mut Env) -> FnResult {
+    fn eq(self: Rc<Self>, b: &Object, env: &mut Env) -> FnResult {
         if let Some(b) = downcast::<Array>(b) {
-            return compare(env,self,b,"==",op_eq);
+            return compare(env,&self,b,"==",op_eq);
         }else{
             return Ok(Object::Bool(false));
         }
     }
-    fn abs(&self, env: &mut Env) -> FnResult {
-        return abs(env,self);
+    fn abs(self: Rc<Self>, env: &mut Env) -> FnResult {
+        return abs(env,&self);
     }
 }
 
@@ -1067,5 +1067,5 @@ pub fn load_math_la(env: &mut Env) -> Object
         m.insert_fn_plain("id",la_copy,1,1);
     }
 
-    return Object::Table(Rc::new(la));
+    return Object::Interface(Rc::new(la));
 }

@@ -1,6 +1,6 @@
 
-use std::any::Any;
 use std::rc::Rc;
+use std::any::Any;
 
 use object::{Object, Exception, Interface, FnResult, downcast};
 use vm::{Env, op_eq};
@@ -17,10 +17,10 @@ impl Tuple {
 
 impl Interface for Tuple {
     fn as_any(&self) -> &Any {self}
-    fn type_name(&self) -> String {
+    fn type_name(&self, _env: &mut Env) -> String {
         "Tuple".to_string()
     }
-    fn to_string(&self, env: &mut Env) -> Result<String,Box<Exception>> {
+    fn to_string(self: Rc<Self>, env: &mut Env) -> Result<String,Box<Exception>> {
         let mut s = String::from("(");
         let mut first = true;
         for x in &self.v {
@@ -61,7 +61,7 @@ impl Interface for Tuple {
             return false;
         }
     }
-    fn eq(&self, b: &Object, env: &mut Env) -> FnResult {
+    fn eq(self: Rc<Self>, b: &Object, env: &mut Env) -> FnResult {
         if let Some(b) = downcast::<Tuple>(b) {
             let len = self.v.len();
             if len == b.v.len() {

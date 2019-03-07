@@ -25,10 +25,10 @@ impl Bytes {
 
 impl Interface for Bytes {
     fn as_any(&self) -> &Any {self}
-    fn type_name(&self) -> String {
+    fn type_name(&self, _env: &mut Env) -> String {
         "Bytes".to_string()
     }
-    fn to_string(&self, _env: &mut Env) -> Result<String,Box<Exception>> {
+    fn to_string(self: Rc<Self>, _env: &mut Env) -> Result<String,Box<Exception>> {
         let mut s = "bytes([".to_string();
         let mut first = true;
         for x in self.data.borrow().iter() {
@@ -67,13 +67,13 @@ impl Interface for Bytes {
         };
         return Ok(Object::Int(a[index] as i32));
     }
-    fn iter(&self, _env: &mut Env) -> FnResult {
+    fn iter(self: Rc<Self>, _env: &mut Env) -> FnResult {
         let mut index: usize = 0;
         let a = self.data.clone();
         let f = Box::new(move |_env: &mut Env, _pself: &Object, _argv: &[Object]| -> FnResult {
             let a = a.borrow();
             if index == a.len() {
-                return Ok(Object::Empty);
+                return Ok(Object::empty());
             }else{
                 index+=1;
                 return Ok(Object::Int(a[index-1] as i32));
@@ -155,5 +155,5 @@ pub fn load_data(_env: &mut Env) -> Object
         let mut m = data.map.borrow_mut();
         m.insert_fn_plain("bytes",bytes,1,1);
     }
-    return Object::Table(Rc::new(data));
+    return Object::Interface(Rc::new(data));
 }

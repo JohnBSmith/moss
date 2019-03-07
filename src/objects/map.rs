@@ -73,7 +73,7 @@ fn values(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
         let v: Vec<Object> = m.borrow().m.values().cloned().collect();
         let f = Box::new(move |_env: &mut Env, _pself: &Object, _argv: &[Object]| -> FnResult {
             if index == v.len() {
-                return Ok(Object::Empty);
+                return Ok(Object::empty());
             }else{
                 index+=1;
                 return Ok(v[index-1].clone());
@@ -100,7 +100,7 @@ fn items(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
         }
         let f = Box::new(move |_env: &mut Env, _pself: &Object, _argv: &[Object]| -> FnResult {
             if index == keys.len() {
-                return Ok(Object::Empty);
+                return Ok(Object::empty());
             }else{
                 index+=1;
                 let t = vec![keys[index-1].clone(),values[index-1].clone()];
