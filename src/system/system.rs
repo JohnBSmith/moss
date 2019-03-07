@@ -3,7 +3,7 @@ use std::fs::File;
 use std::io::Read;
 use std::path::PathBuf;
 
-use object::Object;
+use crate::object::Object;
 
 #[cfg(not(windows))]
 #[path = "system-unix.rs"]

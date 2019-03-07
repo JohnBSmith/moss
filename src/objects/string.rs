@@ -1,9 +1,9 @@
 
-use object::{
+use crate::object::{
     Object, Table, FnResult, CharString
 };
-use vm::Env;
-use data::Bytes;
+use crate::vm::Env;
+use crate::data::Bytes;
 
 fn isdigit(c: char) -> bool {
     ('0' as u32)<=(c as u32) && (c as u32)<=('9' as u32)

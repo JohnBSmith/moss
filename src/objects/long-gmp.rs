@@ -2,14 +2,14 @@
 use std::os::raw::{c_int, c_ulong, c_long, c_void, c_char, c_double};
 use std::mem::uninitialized;
 use std::ptr::null;
-
 use std::rc::Rc;
 use std::any::Any;
-use object::{
-    Object, FnResult, Interface, Exception,
+
+use crate::object::{
+    Object, Table, FnResult, Interface, Exception,
     downcast
 };
-use vm::{Env, RTE};
+use crate::vm::{Env, RTE};
 
 #[allow(non_camel_case_types)]
 type size_t = usize;
@@ -362,7 +362,7 @@ impl Long {
 }
 
 impl Interface for Long {
-    fn as_any(&self) -> &Any {self}
+    fn as_any(&self) -> &dyn Any {self}
     fn type_name(&self, _env: &mut Env) -> String {
         "Long".to_string()
     }
@@ -644,9 +644,8 @@ impl Interface for Long {
     }
 
     fn is_instance_of(&self, type_obj: &Object, rte: &RTE) -> bool {
-        if let Object::Interface(ref t) = *type_obj {
-            let pt: Rc<Interface> = rte.type_long.clone();
-            return Rc::ptr_eq(t,&pt);
+        if let Some(t) = downcast::<Table>(type_obj) {
+            return t as *const Table == &*rte.type_long as *const Table;
         }else{
             return false;
         }

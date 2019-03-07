@@ -2,12 +2,13 @@
 use std::rc::Rc;
 use std::cell::RefCell;
 use std::any::Any;
-use object::{
+
+use crate::object::{
     Object, List, Map, Interface, downcast,
     Exception, FnResult
 };
-use vm::{Env, RTE, map_to_string};
-use tuple::Tuple;
+use crate::vm::{Env, RTE, map_to_string};
+use crate::tuple::Tuple;
 
 pub struct Table {
     pub prototype: Object,
@@ -37,7 +38,7 @@ impl Table {
 }
 
 impl Interface for Table {
-    fn as_any(&self) -> &Any {self}
+    fn as_any(&self) -> &dyn Any {self}
     
     fn type_name(&self, env: &mut Env) -> String {
         let type_object = match self.get_type(env) {

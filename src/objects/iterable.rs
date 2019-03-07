@@ -3,14 +3,14 @@ use std::rc::Rc;
 use std::cell::RefCell;
 use std::cmp::Ordering;
 
-use object::{
+use crate::object::{
     Object, Table, List, CharString,
     FnResult, Function, EnumFunction,
     MutableFn, Exception, downcast
 };
-use vm::{Env, op_add, op_mul, op_lt, op_le};
-use global::list;
-use range::Range;
+use crate::vm::{Env, op_add, op_mul, op_lt, op_le};
+use crate::global::list;
+use crate::range::Range;
 
 pub fn new_iterator(f: MutableFn) -> Object {
     Object::Function(Rc::new(Function{

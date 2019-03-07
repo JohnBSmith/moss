@@ -13,10 +13,11 @@
 use std::f64::NAN;
 use std::f64::consts::{PI};
 use std::rc::Rc;
-use object::{Object, FnResult, new_module};
-use vm::Env;
-use math::{gamma, lgamma, sgngamma, cgamma};
-use complex::c64;
+
+use crate::object::{Object, FnResult, new_module};
+use crate::vm::Env;
+use crate::math::{gamma, lgamma, sgngamma, cgamma};
+use crate::complex::c64;
 
 const SQRT_PI: f64 = 1.7724538509055159;
 

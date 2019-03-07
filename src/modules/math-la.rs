@@ -4,15 +4,16 @@
 use std::rc::Rc;
 use std::cell::RefCell;
 use std::any::Any;
-use object::{
+
+use crate::object::{
     Object, FnResult, List, Table, Interface,
     Exception, new_module, downcast, VARIADIC
 };
-use vm::{
+use crate::vm::{
     Env, op_neg, op_add, op_sub, op_mul, op_div, op_eq,
     interface_types_set, interface_index
 };
-use complex::Complex64;
+use crate::complex::Complex64;
 
 struct ShapeStride{
     shape: usize,
@@ -45,7 +46,7 @@ impl Array {
 }
 
 impl Interface for Array {
-    fn as_any(&self) -> &Any {self}
+    fn as_any(&self) -> &dyn Any {self}
     fn type_name(&self, _env: &mut Env) -> String {
         "Array".to_string()
     }
@@ -481,7 +482,7 @@ fn matrix_power(env: &mut Env, a: &Array, mut n: u32, size: usize)
 }
 
 fn map_unary_operator(a: &Array,
-    operator: &Fn(&mut Env,&Object) -> FnResult,
+    operator: &dyn Fn(&mut Env,&Object) -> FnResult,
     _operator_symbol: char, env: &mut Env
 ) -> FnResult
 {
@@ -940,7 +941,7 @@ fn array(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
         _ => return env.type_error("Type error in array(n,a): n is not an integer.")
     };
     if n==1 {
-        let y = ::global::list(env,&argv[1])?;
+        let y = crate::global::list(env,&argv[1])?;
         if let Object::List(a) = y {
             return Ok(Object::Interface(Array::vector(a.borrow().v.clone())));
         }else{

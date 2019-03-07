@@ -7,26 +7,26 @@ use std::str::FromStr;
 use std::f64::NAN;
 use std::io::Read;
 
-use vm::{
+use crate::vm::{
     RTE, Env, op_lt, interface_index, interface_types_set
 };
-use object::{
+use crate::object::{
     Object, Table, Map, List, CharString,
     FnResult, Function, EnumFunction, Info,
     VARIADIC, new_module, downcast
 };
-use rand::Rand;
-use iterable::{iter,cycle};
-use system::{History,open_module_file};
-use module::eval_module;
-use compiler::Value;
-use long::{Long, pow_mod};
-use tuple::Tuple;
-use table::table_get;
-use iterable::new_iterator;
-use map::map_extend;
-use class::class_new;
-use range::Range;
+use crate::rand::Rand;
+use crate::iterable::{iter,cycle};
+use crate::system::{History,open_module_file};
+use crate::module::eval_module;
+use crate::compiler::Value;
+use crate::long::{Long, pow_mod};
+use crate::tuple::Tuple;
+use crate::table::table_get;
+use crate::iterable::new_iterator;
+use crate::map::map_extend;
+use crate::class::class_new;
+use crate::range::Range;
 
 pub fn type_name(env: &mut Env, x: &Object) -> String {
     return match *x {
@@ -279,31 +279,31 @@ fn load(env: &mut Env, id: Rc<CharString>, hot_plug: bool) -> FnResult{
     }
     let s = id.to_string();
     let y = match &s[..] {
-        "fs" => ::fs::load_fs(env),
+        "fs" => crate::fs::load_fs(env),
 
         #[cfg(feature = "la")]
-        "la" => ::la::load_la(env),
+        "la" => crate::la::load_la(env),
 
-        "math"  => ::math::load_math(),
+        "math"  => crate::math::load_math(),
 
         #[cfg(feature = "math-la")]
-        "math/la" => ::math_la::load_math_la(env),
+        "math/la" => crate::math_la::load_math_la(env),
 
         #[cfg(feature = "math-sf")]
-        "math/sf"    => ::sf::load_sf(),
+        "math/sf"    => crate::sf::load_sf(),
 
         #[cfg(feature = "math-sf")]
-        "math/sf/ei" => ::sf::load_sf_ei(),
+        "math/sf/ei" => crate::sf::load_sf_ei(),
 
-        "cmath" => ::math::load_cmath(),
-        "regex" => ::regex::load_regex(env),
-        "sys"   => ::sys::load_sys(env.rte()),
-        "time"  => ::time::load_time(),
-        "data" => ::data::load_data(env),
+        "cmath" => crate::math::load_cmath(),
+        "regex" => crate::regex::load_regex(env),
+        "sys"   => crate::sys::load_sys(env.rte()),
+        "time"  => crate::time::load_time(),
+        "data" => crate::data::load_data(env),
         
         
         #[cfg(feature = "graphics")]
-        "graphics" => ::graphics::load_graphics(),
+        "graphics" => crate::graphics::load_graphics(),
 
         _ => {
             load_file(env,&s)?
@@ -458,7 +458,7 @@ pub fn list(env: &mut Env, obj: &Object) -> FnResult {
             return Ok(List::new_object(v));
         },
         Object::Function(_) => {
-            return ::iterable::to_list(env,obj,&[]);
+            return crate::iterable::to_list(env,obj,&[]);
         },
         _ => {}
     }
@@ -470,7 +470,7 @@ pub fn list(env: &mut Env, obj: &Object) -> FnResult {
                 return float_range_to_list(env,r);
             },
             _ => {
-                return ::iterable::to_list(env,obj,&[])
+                return crate::iterable::to_list(env,obj,&[])
             }
         };
         let b = match r.b {
@@ -730,7 +730,7 @@ fn float(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
 fn input(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         0 => {
-            let s = match ::system::getline("") {
+            let s = match crate::system::getline("") {
                 Ok(s)=>s, Err(_) => return env.std_exception("Error in input(): could not obtain input.")
             };
             Ok(CharString::new_object_str(&s))
@@ -748,7 +748,7 @@ fn input(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
                     for x in &a.borrow().v {
                         h.append(&x.string(env)?);
                     }
-                    match ::system::getline_history(&prompt,&h) {
+                    match crate::system::getline_history(&prompt,&h) {
                         Ok(s)=>s, Err(_) => return env.std_exception("Error in input(): could not obtain input.")
                     }
                 }else{
@@ -757,7 +757,7 @@ fn input(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
                         "history",&argv[1])
                 }
             }else{
-                match ::system::getline(&prompt) {
+                match crate::system::getline(&prompt) {
                     Ok(s)=>s, Err(_) => return env.std_exception("Error in input(): could not obtain input.")
                 }
             };
@@ -806,7 +806,7 @@ fn read(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
                 ));
             }
             
-            return match ::system::read_file(&id) {
+            return match crate::system::read_file(&id) {
                 Ok(s) => Ok(CharString::new_object_str(&s)),
                 Err(e) => env.std_exception(&e)
             }
@@ -1079,23 +1079,23 @@ pub fn init_rte(rte: &RTE){
     gtab.insert("Complex", Object::Interface(type_complex));
 
     let type_string = rte.type_string.clone();
-    ::string::init(&type_string);
+    crate::string::init(&type_string);
     gtab.insert("String", Object::Interface(type_string));
 
     let type_list = rte.type_list.clone();
-    ::list::init(&type_list);
+    crate::list::init(&type_list);
     gtab.insert("List", Object::Interface(type_list));
 
     let type_map = rte.type_map.clone();
-    ::map::init(&type_map);
+    crate::map::init(&type_map);
     gtab.insert("Map", Object::Interface(type_map));
 
     let type_function = rte.type_function.clone();
-    ::function::init(&type_function);
+    crate::function::init(&type_function);
     gtab.insert("Function", Object::Interface(type_function));
 
     let type_iterable = rte.type_iterable.clone();
-    ::iterable::init(&type_iterable);
+    crate::iterable::init(&type_iterable);
     gtab.insert("Iterable", Object::Interface(type_iterable));
 
     let type_long = rte.type_long.clone();
@@ -1120,8 +1120,8 @@ pub fn init_rte(rte: &RTE){
     let type_bytes = Table::new(Object::Interface(rte.type_iterable.clone()));
     {
         let mut m = type_bytes.map.borrow_mut();
-        m.insert_fn_plain("list",::data::bytes_list,0,0);
-        m.insert_fn_plain("decode",::data::bytes_decode,0,1);
+        m.insert_fn_plain("list",crate::data::bytes_list,0,0);
+        m.insert_fn_plain("decode",crate::data::bytes_decode,0,1);
     }
     interface_types_set(rte,interface_index::BYTES,type_bytes);
 }

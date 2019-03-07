@@ -22,7 +22,7 @@ const LEFT: i32 = 68;
 const RIGHT: i32 = 67;
 const BACKSPACE: i32 = 127;
 
-use object::{Object,List};
+use crate::object::{Object,List};
 
 fn get_win_size() -> (usize, usize) {
     use std::mem::zeroed;

@@ -2,8 +2,8 @@
 use std::time::{Duration,Instant};
 use std::thread::sleep;
 use std::rc::Rc;
-use math::type_error_int_float;
-use object::{Env,Object,Function,FnResult,new_module};
+use crate::math::type_error_int_float;
+use crate::object::{Env,Object,Function,FnResult,new_module};
 
 fn time_clock(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {

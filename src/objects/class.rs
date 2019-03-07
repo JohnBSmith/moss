@@ -4,8 +4,11 @@ use std::rc::Rc;
 use std::cell::RefCell;
 use std::mem::replace;
 
-use object::{Object,Map,Interface,FnResult,Exception,downcast};
-use vm::{Env,RTE,secondary_env,object_to_string};
+use crate::object::{
+    Object, Map, Interface, downcast,
+    FnResult, Exception
+};
+use crate::vm::{Env,RTE,secondary_env,object_to_string};
 
 type PGet = Box<dyn Fn(&mut Env,&Instance,&Object)->FnResult>;
 type PSet = Box<dyn Fn(&mut Env,&Instance,Object,Object)->FnResult>;
@@ -40,7 +43,7 @@ impl Class {
 }
 
 impl Interface for Class {
-    fn as_any(&self) -> &Any {self}
+    fn as_any(&self) -> &dyn Any {self}
     fn type_name(&self, _env: &mut Env) -> String {
         "Class".to_string()
     }
@@ -160,7 +163,7 @@ pub struct Instance {
 }
 
 impl Interface for Instance {
-    fn as_any(&self) -> &Any {self}
+    fn as_any(&self) -> &dyn Any {self}
     fn get_type(&self, _env: &mut Env) -> FnResult {
         return Ok(self.prototype.clone());
     }
@@ -211,7 +214,7 @@ impl Drop for Instance {
                 class.destructor(t,env);
                 loop{
                     let x = class.rte.drop_buffer.borrow_mut().pop();
-                    if let Some(mut t) = x {
+                    if let Some(t) = x {
                         class.destructor(t,env);
                     }else{
                         break;

@@ -9,28 +9,28 @@ use std::fs::File;
 use std::io::Read;
 use std::fmt::Write;
 
-use object::{
+use crate::object::{
     Object, Table, Map, List, Function, EnumFunction, StandardFn,
     FnResult, OperatorResult, Exception, CharString, Interface,
     VARIADIC, Downcast, TypeName, downcast,
 };
-use complex::Complex64;
-use long::Long;
-use tuple::Tuple;
-use table::object_get;
-use range::Range;
-use format::u32string_format;
-use global::{type_name,list};
-use rand::Rand;
-use list::cartesian_power;
-use iterable::iter;
-use map::{subseteq,subset};
-use class::{Class,Instance};
+use crate::{string,list,function,global,module};
+use crate::complex::Complex64;
+use crate::long::Long;
+use crate::tuple::Tuple;
+use crate::table::object_get;
+use crate::range::Range;
+use crate::format::u32string_format;
+use crate::global::{type_name,list};
+use crate::rand::Rand;
+use crate::list::cartesian_power;
+use crate::iterable::iter;
+use crate::map::{subseteq,subset};
+use crate::class::{Class,Instance};
 
-// use ::Interpreter;
-use system::{History,getline_history,init_search_paths};
-use compiler;
-use compiler::{CompilerExtra};
+use crate::system::{History,getline_history,init_search_paths};
+use crate::compiler;
+use crate::compiler::{CompilerExtra};
 
 #[allow(dead_code)]
 pub mod interface_index{
@@ -587,14 +587,14 @@ fn function_id_to_string(f: &Function) -> String {
 #[allow(dead_code)]
 pub fn op_neg(env: &mut Env, x: &Object) -> FnResult {
     env.stack[env.sp] = x.clone();
-    ::vm::operator_neg(env.env,env.sp+1,env.stack)?;
+    operator_neg(env.env,env.sp+1,env.stack)?;
     return Ok(env.stack[env.sp].take());
 }
 
 pub fn op_add(env: &mut Env, x: &Object, y: &Object) -> FnResult {
     env.stack[env.sp] = x.clone();
     env.stack[env.sp+1] = y.clone();
-    ::vm::operator_add(env.env,env.sp+2,env.stack)?;
+    operator_add(env.env,env.sp+2,env.stack)?;
     return Ok(env.stack[env.sp].take());
 }
 
@@ -602,14 +602,14 @@ pub fn op_add(env: &mut Env, x: &Object, y: &Object) -> FnResult {
 pub fn op_sub(env: &mut Env, x: &Object, y: &Object) -> FnResult {
     env.stack[env.sp] = x.clone();
     env.stack[env.sp+1] = y.clone();
-    ::vm::operator_sub(env.env,env.sp+2,env.stack)?;
+    operator_sub(env.env,env.sp+2,env.stack)?;
     return Ok(env.stack[env.sp].take());
 }
 
 pub fn op_mul(env: &mut Env, x: &Object, y: &Object) -> FnResult {
     env.stack[env.sp] = x.clone();
     env.stack[env.sp+1] = y.clone();
-    ::vm::operator_mul(env.env,env.sp+2,env.stack)?;
+    operator_mul(env.env,env.sp+2,env.stack)?;
     return Ok(env.stack[env.sp].take());
 }
 
@@ -617,28 +617,28 @@ pub fn op_mul(env: &mut Env, x: &Object, y: &Object) -> FnResult {
 pub fn op_div(env: &mut Env, x: &Object, y: &Object) -> FnResult {
     env.stack[env.sp] = x.clone();
     env.stack[env.sp+1] = y.clone();
-    ::vm::operator_div(env.env,env.sp+2,env.stack)?;
+    operator_div(env.env,env.sp+2,env.stack)?;
     return Ok(env.stack[env.sp].take());
 }
 
 pub fn op_lt(env: &mut Env, x: &Object, y: &Object) -> FnResult {
     env.stack[env.sp] = x.clone();
     env.stack[env.sp+1] = y.clone();
-    ::vm::operator_lt(env.env,env.sp+2,env.stack)?;
+    operator_lt(env.env,env.sp+2,env.stack)?;
     return Ok(env.stack[env.sp].take());
 }
 
 pub fn op_le(env: &mut Env, x: &Object, y: &Object) -> FnResult {
     env.stack[env.sp] = x.clone();
     env.stack[env.sp+1] = y.clone();
-    ::vm::operator_le(env.env,env.sp+2,env.stack)?;
+    operator_le(env.env,env.sp+2,env.stack)?;
     return Ok(env.stack[env.sp].take());
 }
 
 pub fn op_eq(env: &mut Env, x: &Object, y: &Object) -> FnResult {
     env.stack[env.sp] = x.clone();
     env.stack[env.sp+1] = y.clone();
-    ::vm::operator_eq(env.env,env.sp+2,env.stack)?;
+    operator_eq(env.env,env.sp+2,env.stack)?;
     return Ok(env.stack[env.sp].take());
     // return Ok(Object::Bool(x==y));
 }
@@ -1053,19 +1053,19 @@ fn operator_mul(env: &mut EnvPart, sp: usize, stack: &mut [Object])
                 Object::Int(i) => i,
                 _ => {break 'r;}
             };
-            stack[sp-2] = ::string::duplicate(&s.data,n);
+            stack[sp-2] = string::duplicate(&s.data,n);
             Ok(())
         },
         Object::List(a) => {
             match stack[sp-1].clone() {
                 Object::Int(x) => {
                     let n = if x<0 {0 as usize} else {x as usize};
-                    stack[sp-2] = ::list::duplicate(&a,n);
+                    stack[sp-2] = list::duplicate(&a,n);
                     Ok(())
                 },
                 Object::List(b) => {
                     stack[sp-1] = Object::Null;
-                    stack[sp-2] = ::list::cartesian_product(&a.borrow(),&b.borrow());
+                    stack[sp-2] = list::cartesian_product(&a.borrow(),&b.borrow());
                     Ok(())
                 },
                 _ => {break 'r;}
@@ -1134,7 +1134,7 @@ fn operator_mul(env: &mut EnvPart, sp: usize, stack: &mut [Object])
         Object::String(s) => s,
         _ => unreachable!()
     };
-    stack[sp-2] = ::string::duplicate(&s.data,n);
+    stack[sp-2] = string::duplicate(&s.data,n);
     return Ok(());
 
     } // 'list
@@ -1146,7 +1146,7 @@ fn operator_mul(env: &mut EnvPart, sp: usize, stack: &mut [Object])
         Object::List(a) => a,
         _ => unreachable!()
     };
-    stack[sp-2] = ::list::duplicate(&a,n);
+    stack[sp-2] = list::duplicate(&a,n);
     return Ok(());
 }
 
@@ -1580,7 +1580,7 @@ fn operator_pow(env: &mut EnvPart, sp: usize, stack: &mut [Object])
         },
         Object::Function(f) => {
             let n = stack[sp-1].take();
-            match ::function::iterate(&mut Env{env,sp,stack},&Object::Function(f),&n) {
+            match function::iterate(&mut Env{env,sp,stack},&Object::Function(f),&n) {
                 Ok(y) => {stack[sp-2] = y; Ok(())},
                 Err(e) => Err(e)
             }
@@ -2573,7 +2573,7 @@ fn operator_index(env: &mut EnvPart, argc: usize,
             Object::Function(f) => {
                 let (s1,s2) = stack.split_at_mut(sp);
                 let mut env = Env{sp: 0, stack: s2, env: env};
-                match ::list::map_fn(&mut env,&Object::Function(f),&s1[sp-argc..sp]) {
+                match list::map_fn(&mut env,&Object::Function(f),&s1[sp-argc..sp]) {
                     Ok(value) => {
                         s1[sp-1-argc] = value;
                         for x in &mut s1[sp-argc..sp] {
@@ -2769,7 +2769,7 @@ fn operator_index(env: &mut EnvPart, argc: usize,
         },
         Object::Function(f) => {
             let a = stack[sp-1].take();
-            match ::list::map_fn(&mut Env{env,sp,stack},&Object::Function(f),&[a]) {
+            match list::map_fn(&mut Env{env,sp,stack},&Object::Function(f),&[a]) {
                 Ok(value) => {
                     stack[sp-2] = value;
                     Ok(())
@@ -3335,7 +3335,7 @@ pub fn secondary_env<'a>(rte: &Rc<RTE>, pstate: &'a mut Option<State>) -> Env<'a
         return get_env(state);
     }else{
         let env = EnvPart::new(10,rte.clone());
-        let mut state = State{sp: 0, env, stack: vec![Object::Null;1000]};
+        let state = State{sp: 0, env, stack: vec![Object::Null;1000]};
         *pstate = Some(state);
         if let Some(state) = pstate {
             return get_env(state);
@@ -4324,7 +4324,7 @@ pub fn eval(env: &mut Env,
 ) -> Result<Object,Box<Exception>>
 {
     let fnself = Rc::new(Function{
-        f: EnumFunction::Plain(::global::fpanic),
+        f: EnumFunction::Plain(global::fpanic),
         argc: 0, argc_min: 0, argc_max: 0,
         id: Object::Null
     });
@@ -4740,11 +4740,11 @@ pub fn eval_env(&mut self, s: &str, gtab: Rc<RefCell<Map>>) -> Object {
 }
 
 pub fn eval_file(&mut self, id: &str, gtab: Rc<RefCell<Map>>){
-    let mut f = match ::module::open_file(id) {
+    let mut f = match module::open_file(id) {
         Some(f) => f, None => return
     };
     if is_binary(&mut f) {
-        match ::module::eval_module(self,gtab,&mut f,id) {
+        match module::eval_module(self,gtab,&mut f,id) {
             Ok(_) => {},
             Err(e) => {
                 println!("{}",exception_to_string(self,&e));
@@ -4832,17 +4832,14 @@ pub fn exception_to_string(&mut self, e: &Exception) -> String {
     exception_to_string(self,e)
 }
 
-/* #todo
 pub fn print_type_and_value(&mut self, x: &Object) {
-    let svalue = match x.string(self) {
+    let value = match x.string(self) {
         Ok(s) => s, Err(e) => {
             panic!(self.exception_to_string(&e));
         }
     };
-    let stype = type_name(x);
-    println!("Type: {}, value: {}",stype,svalue);
+    println!("Value: {}",value);
 }
-*/
 
 pub fn downcast<T>(&mut self, x: &Object) -> T
 where T: Downcast<Output=T>+TypeName
@@ -4851,8 +4848,7 @@ where T: Downcast<Output=T>+TypeName
         Some(x) => x,
         None => {
             println!("Error in downcast to type {}.",T::type_name());
-            // #todo
-            // self.print_type_and_value(x);
+            self.print_type_and_value(x);
             panic!();
         }
     }

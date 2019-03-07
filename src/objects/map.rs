@@ -1,10 +1,10 @@
 
-use object::{
+use crate::object::{
     Object, FnResult, Table, List, Map,
     VARIADIC
 };
-use vm::Env;
-use iterable::new_iterator;
+use crate::vm::Env;
+use crate::iterable::new_iterator;
 
 pub fn map_update(m: &mut Map, m2: &Map){
     for (key,value) in &m2.m {

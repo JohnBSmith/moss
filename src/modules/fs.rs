@@ -6,12 +6,12 @@ use std::fs;
 use std::io::{Read,Write};
 use std::path::Path;
 
-use object::{
+use crate::object::{
     Object, List, Table, Interface, Exception, FnResult,
     new_module, downcast, interface_object_get
 };
-use vm::{Env,interface_types_set,interface_index};
-use data::{Bytes};
+use crate::vm::{Env,interface_types_set,interface_index};
+use crate::data::{Bytes};
 
 struct File {
     file: RefCell<fs::File>,
@@ -19,7 +19,7 @@ struct File {
 }
 
 impl Interface for File {
-    fn as_any(&self) -> &Any {self}
+    fn as_any(&self) -> &dyn Any {self}
     fn type_name(&self, _env: &mut Env) -> String {
         "File".to_string()
     }

@@ -3,7 +3,7 @@
 use std::ffi::{CString};
 use std::os::raw::{c_int};
 use std::mem;
-use sdl::{
+use crate::sdl::{
     SDL_WINDOWPOS_CENTERED, SDL_WINDOW_SHOWN, SDL_RENDERER_ACCELERATED,
     SDL_KEYDOWN, 
     Uint32, SDL_Scancode, SDL_Window, SDL_Renderer, SDL_Rect,
@@ -18,11 +18,12 @@ use std::f64::consts::PI;
 use std::any::Any;
 use std::rc::Rc;
 use std::cell::RefCell;
-use object::{
+
+use crate::object::{
     Object, Interface, Function, FnResult, Table, CharString,
     new_module, downcast
 };
-use vm::Env;
+use crate::vm::Env;
 
 fn sleep(t: u32) {
     unsafe{SDL_Delay(t as Uint32);}
@@ -409,7 +410,7 @@ impl Drop for Canvas {
 }
 
 impl Interface for Canvas {
-    fn as_any(&self) -> &Any {self}
+    fn as_any(&self) -> &dyn Any {self}
     fn type_name(&self, _env: &mut Env) -> String {
         "Canvas".to_string()
     }

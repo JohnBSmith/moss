@@ -2,8 +2,8 @@
 use std::rc::Rc;
 use std::any::Any;
 
-use object::{Object, Exception, Interface, FnResult, downcast};
-use vm::{Env, op_eq};
+use crate::object::{Object, Exception, Interface, FnResult, downcast};
+use crate::vm::{Env, op_eq};
 
 pub struct Tuple{
     pub v: Vec<Object>
@@ -16,7 +16,7 @@ impl Tuple {
 }
 
 impl Interface for Tuple {
-    fn as_any(&self) -> &Any {self}
+    fn as_any(&self) -> &dyn Any {self}
     fn type_name(&self, _env: &mut Env) -> String {
         "Tuple".to_string()
     }

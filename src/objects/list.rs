@@ -2,13 +2,13 @@
 use std::rc::Rc;
 use std::cell::RefCell;
 
-use object::{
+use crate::object::{
     Object, FnResult, Function, Table, List,
     VARIADIC, MutableFn,
 };
-use vm::Env;
-use rand::Rand;
-use global::list;
+use crate::vm::Env;
+use crate::rand::Rand;
+use crate::global::list;
 
 fn push(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
     match *pself {

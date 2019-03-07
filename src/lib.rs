@@ -108,6 +108,7 @@ use object::{Object, List, CharString, TypeName, Downcast};
 use vm::{RTE,State,EnvPart,Env};
 pub use vm::{get_env};
 pub use compiler::{Value, CompilerExtra};
+use global::init_rte;
 
 pub struct InterpreterLock<'a> {
     state: std::cell::RefMut<'a,State>
@@ -145,7 +146,7 @@ impl Interpreter{
 
     pub fn new_config(stack_size: usize) -> Self {
         let rte = RTE::new();
-        ::global::init_rte(&rte);
+        init_rte(&rte);
 
         let mut stack: Vec<Object> = Vec::with_capacity(stack_size);
         for _ in 0..stack_size {

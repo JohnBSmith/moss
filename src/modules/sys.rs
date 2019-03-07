@@ -1,8 +1,9 @@
 
 use std::rc::Rc;
 use std::process;
-use object::{Object, FnResult, VARIADIC, new_module};
-use vm::{RTE,Env};
+
+use crate::object::{Object, FnResult, VARIADIC, new_module};
+use crate::vm::{RTE,Env};
 
 fn exit(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
@@ -72,7 +73,7 @@ pub fn load_sys(rte: &Rc<RTE>) -> Object {
         }
         m.insert("path",Object::List(rte.path.clone()));
         m.insert_fn_plain("exit",exit,0,1);
-        m.insert_fn_plain("call",::vm::sys_call,2,VARIADIC);
+        m.insert_fn_plain("call",crate::vm::sys_call,2,VARIADIC);
         m.insert_fn_plain("cmd",cmd,2,2);
     }
     return Object::Interface(Rc::new(sys));

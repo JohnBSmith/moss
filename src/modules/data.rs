@@ -6,12 +6,12 @@ use std::cell::RefCell;
 use std::any::Any;
 use std::fmt::Write;
 
-use object::{
+use crate::object::{
     Object, Exception, FnResult, Interface, List,
     new_module, downcast, interface_object_get
 };
-use vm::{Env,interface_index};
-use iterable::new_iterator;
+use crate::vm::{Env,interface_index};
+use crate::iterable::new_iterator;
 
 pub struct Bytes {
     pub data: RefCell<Vec<u8>>
@@ -24,7 +24,7 @@ impl Bytes {
 }
 
 impl Interface for Bytes {
-    fn as_any(&self) -> &Any {self}
+    fn as_any(&self) -> &dyn Any {self}
     fn type_name(&self, _env: &mut Env) -> String {
         "Bytes".to_string()
     }

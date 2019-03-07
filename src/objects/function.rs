@@ -2,13 +2,12 @@
 use std::rc::Rc;
 use std::i32;
 
-use object::{
+use crate::object::{
     Object, FnResult, Function, Table, VARIADIC
 };
-use vm::Env;
-use iterable::new_iterator;
-use range::Range;
-
+use crate::vm::Env;
+use crate::iterable::new_iterator;
+use crate::range::Range;
 
 fn orbit(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     if argv.len()!=1 {

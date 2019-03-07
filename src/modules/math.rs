@@ -1,9 +1,10 @@
 
 use std::f64::consts::{PI,E,LOG10_E};
 use std::rc::Rc;
-use complex::c64;
-use object::{Object, FnResult, new_module};
-use vm::Env;
+
+use crate::complex::c64;
+use crate::object::{Object, FnResult, new_module};
+use crate::vm::Env;
 
 const SQRT_2PI: f64 = 2.5066282746310002;
 const LN_PI: f64 = 1.1447298858494002;

@@ -4,9 +4,9 @@ use std::collections::HashMap;
 use std::mem::replace;
 use std::str::Chars;
 use std::char;
-use system;
-use vm::{bc, BCSIZE, BCASIZE, BCAASIZE, Module, RTE};
-use object::{Object, CharString, VARIADIC};
+use crate::system;
+use crate::vm::{bc, BCSIZE, BCASIZE, BCAASIZE, Module, RTE};
+use crate::object::{Object, CharString, VARIADIC};
 
 #[derive(Copy,Clone,PartialEq)]
 pub enum Value{

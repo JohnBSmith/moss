@@ -10,12 +10,12 @@ use std::any::Any;
 use std::fmt::{Write,Display};
 use std::ops::{Add,Sub,Mul,AddAssign};
 
-use complex::c64;
-use object::{
+use crate::complex::c64;
+use crate::object::{
   Object, List, Exception, Table, FnResult, Interface,
   VARIADIC, new_module, downcast
 };
-use vm::{Env,interface_types_set,interface_index};
+use crate::vm::{Env,interface_types_set,interface_index};
 
 trait Zero {fn zero() -> Self;}
 impl Zero for i32 {fn zero() -> i32 {0}}
@@ -75,7 +75,7 @@ impl<T: Number> Array<T> {
 }
 
 impl Interface for Array<f64> {
-    fn as_any(&self) -> &Any {self}
+    fn as_any(&self) -> &dyn Any {self}
     fn type_name(&self, _env: &mut Env) -> String {
         "ArrayOfFloat".to_string()
     }
@@ -113,7 +113,7 @@ impl Interface for Array<f64> {
 }
 
 impl Interface for Array<c64> {
-    fn as_any(&self) -> &Any {self}
+    fn as_any(&self) -> &dyn Any {self}
     fn type_name(&self, _env: &mut Env) -> String {
         "ArrayOfComplex".to_string()
     }
@@ -349,7 +349,7 @@ where Array<T>: Interface, Object: From<T>
 }
 
 fn map_binary<T: Number>(a: &Array<T>, adata: &[T], b: &Array<T>,
-    f: &Fn(T,T)->T
+    f: &dyn Fn(T,T)->T
 ) -> FnResult
 where Array<T>: Interface
 {
@@ -380,7 +380,7 @@ where Array<T>: Interface
     }
 }
 
-fn map_unary<T: Number>(a: &Array<T>, data: &[T], f: &Fn(T)->T)
+fn map_unary<T: Number>(a: &Array<T>, data: &[T], f: &dyn Fn(T)->T)
 -> FnResult
 where Array<T>: Interface
 {

@@ -4,10 +4,10 @@ use std::cell::RefCell;
 use std::fs::File;
 use std::io::{Read,Write};
 
-use system::History;
-use object::{Object,FnResult,Map};
-use vm::{Module,RTE,Env,eval};
-use compiler::{compile,Value};
+use crate::system::History;
+use crate::object::{Object,FnResult,Map};
+use crate::vm::{Module,RTE,Env,eval};
+use crate::compiler::{compile,Value};
 
 fn push_u32(bv: &mut Vec<u8>, x: u32) {
     bv.push(x as u8);
@@ -107,7 +107,7 @@ fn save_module(m: &Rc<Module>) {
 }
 
 pub fn compile_file(rte: &Rc<RTE>, id: &str) {
-    let mut f = match ::module::open_file(id) {
+    let mut f = match open_file(id) {
         Some(f) => f, None => return
     };
     let mut s = String::new();
@@ -116,7 +116,7 @@ pub fn compile_file(rte: &Rc<RTE>, id: &str) {
     let history = &mut History::new();
     match compile(&s,id,false,Value::Optional,history,rte) {
         Ok(module) => save_module(&module),
-        Err(e) => ::compiler::print_error(&e)
+        Err(e) => crate::compiler::print_error(&e)
     }
 }
 

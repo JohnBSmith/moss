@@ -6,10 +6,11 @@ use std::fmt;
 use std::any::Any;
 use std::mem::replace;
 
-use complex::Complex64;
-use vm::{Module,RTE};
-pub use vm::Env;
-pub use table::Table;
+use crate::complex::Complex64;
+use crate::vm;
+use crate::vm::{Module,RTE};
+pub use crate::vm::Env;
+pub use crate::table::Table;
 
 pub enum Object {
     Null,
@@ -28,22 +29,22 @@ pub enum Object {
 
 impl Object{
     pub fn string(&self, env: &mut Env) -> Result<String,Box<Exception>> {
-        ::vm::object_to_string(env,self)
+        vm::object_to_string(env,self)
     }
 
     pub fn repr(&self, env: &mut Env) -> Result<String,Box<Exception>> {
-        ::vm::object_to_repr(env,self)
+        vm::object_to_repr(env,self)
     }
 
     pub fn to_repr(&self) -> String {
-        ::vm::object_to_repr_plain(self)
+        vm::object_to_repr_plain(self)
     }
 
     #[inline(always)]
     pub fn take(&mut self) -> Object {
         replace(self,Object::Null)
     }
-    
+
     pub fn table(t: Rc<Table>) -> Object {
         Object::Interface(t)
     }
@@ -73,7 +74,7 @@ impl Object{
 
 impl fmt::Display for Object {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", ::vm::object_to_string_plain(self))
+        write!(f, "{}", vm::object_to_string_plain(self))
     }
 }
 
@@ -239,7 +240,7 @@ impl Exception {
 
 impl fmt::Debug for Exception {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", ::vm::object_to_string_plain(&self.value))
+        write!(f, "{}", vm::object_to_string_plain(&self.value))
     }
 }
 
@@ -258,7 +259,7 @@ pub type OperatorResult = Result<(),Box<Exception>>;
 pub type FnResult = Result<Object,Box<Exception>>;
 
 pub type PlainFn = fn(&mut Env, pself: &Object, argv: &[Object]) -> FnResult;
-pub type MutableFn = Box<FnMut(&mut Env, &Object, &[Object])->FnResult>;
+pub type MutableFn = Box<dyn FnMut(&mut Env, &Object, &[Object])->FnResult>;
 
 pub struct StandardFn {
     pub address: Cell<usize>,
@@ -324,7 +325,7 @@ pub fn new_module(_id: &str) -> Table {
 }
 
 pub trait Interface {
-    fn as_any(&self) -> &Any;
+    fn as_any(&self) -> &dyn Any;
     fn to_string(self: Rc<Self>, _env: &mut Env) -> Result<String,Box<Exception>> {
         Ok("interface object".to_string())
     }

@@ -1,6 +1,6 @@
 
-use object::{Object, FnResult, CharString, Exception};
-use vm::Env;
+use crate::object::{Object, FnResult, CharString, Exception};
+use crate::vm::Env;
 
 fn get(env: &Env, a: &Object, i: usize) -> FnResult {
     match *a {

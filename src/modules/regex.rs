@@ -2,11 +2,11 @@
 use std::rc::Rc;
 use std::any::Any;
 
-use object::{
+use crate::object::{
     Object, List, CharString, Table, Function, FnResult, Interface,
     Exception, new_module, downcast
 };
-use vm::{Env,interface_index,interface_types_set};
+use crate::vm::{Env,interface_index,interface_types_set};
 
 #[derive(Debug,Clone,Copy)]
 enum Class{
@@ -600,7 +600,7 @@ struct Regex{
 }
 
 impl Interface for Regex{
-    fn as_any(&self) -> &Any {self}
+    fn as_any(&self) -> &dyn Any {self}
     fn type_name(&self, _env: &mut Env) -> String {
         "Regex".to_string()
     }

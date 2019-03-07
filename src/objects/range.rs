@@ -2,12 +2,13 @@
 use std::rc::Rc;
 use std::any::Any;
 use std::char;
-use object::{
+
+use crate::object::{
     Object, Env, Interface, FnResult, Exception,
     CharString, downcast
 };
-use vm::object_to_string;
-use iterable::{new_iterator, int_range_iterator};
+use crate::vm::object_to_string;
+use crate::iterable::{new_iterator, int_range_iterator};
 
 pub struct Range {
     pub a: Object,
@@ -16,7 +17,7 @@ pub struct Range {
 }
 
 impl Interface for Range {
-    fn as_any(&self) -> &Any {self}
+    fn as_any(&self) -> &dyn Any {self}
     fn type_name(&self, _env: &mut Env) -> String {String::from("Range")}
 
     fn to_string(self: Rc<Self>, env: &mut Env) -> Result<String,Box<Exception>> {
@@ -94,7 +95,7 @@ impl Interface for Range {
         if d==0 {
             return env.value_error("Value error in iter(a..b: d): d==0.");
         }
-        let f: Box<FnMut(&mut Env,&Object,&[Object])->FnResult> = match self.b {
+        let f: Box<dyn FnMut(&mut Env,&Object,&[Object])->FnResult> = match self.b {
             Object::Int(b) => {
                 if d<0 {
                     Box::new(move |_env: &mut Env, _pself: &Object, _argv: &[Object]| -> FnResult{
