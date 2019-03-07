@@ -97,7 +97,7 @@ Calculate fib(36) naively.
 <td><code>03.4s</code>
 <td>Moss
 <td><code>moss, gcc 5.4</code>
-<td><code>gcc -O3</code>
+<td>2015, <code>gcc -O3</code>
 
 <tr>
 <td><code>03.6s</code>
@@ -106,16 +106,16 @@ Calculate fib(36) naively.
 <td>
 
 <tr>
+<td><code>07.6s</code>
+<td>Moss
+<td><code>moss, rustc 1.33, LLVM 8.0</code>
+<td>2019, type safe<sup>1</sup>
+
+<tr>
 <td><code>08.4s</code>
 <td>Python
 <td><code>python 2.7</code>
 <td>
-
-<tr>
-<td><code>09.5s</code>
-<td>Moss
-<td><code>rustc 1.17, LLVM 4.0</code>
-<td>type safe<sup>1</sup>
 
 <tr>
 <td><code>10.3s</code>
@@ -177,7 +177,7 @@ int main(){
 
 <h4>Rust</h4>
 <pre>
-fn fib(n: i32) -&gt; i32{
+fn fib(n: i32) -&gt; i32 {
     if n&lt;3 {1} else {fib(n-1)+fib(n-2)}
 }
 
