@@ -11,8 +11,8 @@ use std::fmt::Write;
 
 use crate::object::{
     Object, Table, Map, List, Function, EnumFunction, StandardFn,
-    FnResult, OperatorResult, Exception, CharString, Interface,
-    VARIADIC, Downcast, TypeName, downcast,
+    FnResult, OperatorResult, Exception, CharString,
+    VARIADIC, Downcast, TypeName, downcast, ptr_eq_plain
 };
 use crate::{string,list,function,global,module};
 use crate::complex::Complex64;
@@ -2258,11 +2258,6 @@ fn operator_ge(env: &mut EnvPart, sp: usize, stack: &mut [Object])
     };
 }
 
-
-fn ptr_eq_plain<T: ?Sized>(p: &Rc<T>, q: &Rc<T>) -> bool {
-    std::ptr::eq(&**p as *const T as *const (),&**q as *const T as *const ())
-}
-
 fn operator_is(sp: usize, stack: &mut [Object]) -> OperatorResult {
     match stack[sp-2] {
         Object::Null => {
@@ -2348,14 +2343,6 @@ fn operator_is(sp: usize, stack: &mut [Object]) -> OperatorResult {
     }
 }
 
-fn ptr_eq(t: &Rc<dyn Interface>, env_type: &Table) -> bool {
-    if let Some(t) = t.as_any().downcast_ref::<Table>() {
-        return t as *const Table == env_type as *const Table;
-    }else{
-        return false;
-    }
-}
-
 fn operator_of(env: &mut EnvPart, sp: usize, stack: &mut [Object])
 -> OperatorResult
 {
@@ -2372,28 +2359,28 @@ fn operator_of(env: &mut EnvPart, sp: usize, stack: &mut [Object])
         },
         Object::Bool(_) => {
             value = match type_obj {
-                Object::Interface(ref t) => ptr_eq(t,&env.rte.type_bool),
+                Object::Interface(ref t) => ptr_eq_plain(t,&env.rte.type_bool),
                 _ => false
             };
             break 'ret;
         },
         Object::Int(_) => {
             value = match type_obj {
-                Object::Interface(ref t) => ptr_eq(t,&env.rte.type_int),
+                Object::Interface(ref t) => ptr_eq_plain(t,&env.rte.type_int),
                 _ => false
             };
             break 'ret;
         },
         Object::Float(_) => {
             value = match type_obj {
-                Object::Interface(ref t) => ptr_eq(t,&env.rte.type_float),
+                Object::Interface(ref t) => ptr_eq_plain(t,&env.rte.type_float),
                 _ => false
             };
             break 'ret;
         },
         Object::Complex(_) => {
             value = match type_obj {
-                Object::Interface(ref t) => ptr_eq(t,&env.rte.type_complex),
+                Object::Interface(ref t) => ptr_eq_plain(t,&env.rte.type_complex),
                 _ => false
             };
             break 'ret;
@@ -2404,8 +2391,8 @@ fn operator_of(env: &mut EnvPart, sp: usize, stack: &mut [Object])
         Object::String(_) => {
             value = match type_obj {
                 Object::Interface(ref t) => {
-                    ptr_eq(t,&env.rte.type_string) ||
-                    ptr_eq(t,&env.rte.type_iterable)
+                    ptr_eq_plain(t,&env.rte.type_string) ||
+                    ptr_eq_plain(t,&env.rte.type_iterable)
                 },
                 _ => false
             };
@@ -2413,8 +2400,8 @@ fn operator_of(env: &mut EnvPart, sp: usize, stack: &mut [Object])
         Object::List(_) => {
             value = match type_obj {
                 Object::Interface(ref t) => {
-                    ptr_eq(t,&env.rte.type_list) ||
-                    ptr_eq(t,&env.rte.type_iterable)
+                    ptr_eq_plain(t,&env.rte.type_list) ||
+                    ptr_eq_plain(t,&env.rte.type_iterable)
                 },
                 _ => false
             };
@@ -2422,8 +2409,8 @@ fn operator_of(env: &mut EnvPart, sp: usize, stack: &mut [Object])
         Object::Map(_) => {
             value = match type_obj {
                 Object::Interface(ref t) => {
-                    ptr_eq(t,&env.rte.type_map) ||
-                    ptr_eq(t,&env.rte.type_iterable)
+                    ptr_eq_plain(t,&env.rte.type_map) ||
+                    ptr_eq_plain(t,&env.rte.type_iterable)
                 },
                 _ => false
             };
@@ -2431,8 +2418,8 @@ fn operator_of(env: &mut EnvPart, sp: usize, stack: &mut [Object])
         Object::Function(_) => {
             value = match type_obj {
                 Object::Interface(ref t) => {
-                    ptr_eq(t,&env.rte.type_function) ||
-                    ptr_eq(t,&env.rte.type_iterable)
+                    ptr_eq_plain(t,&env.rte.type_function) ||
+                    ptr_eq_plain(t,&env.rte.type_iterable)
                 },
                 _ => false
             };

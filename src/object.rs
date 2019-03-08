@@ -324,6 +324,11 @@ pub fn new_module(_id: &str) -> Table {
     Table{prototype: Object::Null, map: Map::new()}
 }
 
+#[inline]
+pub fn ptr_eq_plain<T: ?Sized, U: ?Sized>(p: &Rc<T>, q: &Rc<U>) -> bool {
+    std::ptr::eq(&**p as *const T as *const (),&**q as *const U as *const ())
+}
+
 pub trait Interface {
     fn as_any(&self) -> &dyn Any;
     fn to_string(self: Rc<Self>, _env: &mut Env) -> Result<String,Box<Exception>> {
