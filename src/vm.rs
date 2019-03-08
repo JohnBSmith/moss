@@ -3738,17 +3738,6 @@ fn vm_loop(
           ip+=BCSIZE;
       },
       bc::IS => {
-          /*
-          if let Object::Interface(ref x) = stack[sp-2] {
-              let type_long: Rc<dyn Interface> = env.rte.type_long.clone();
-              println!("## {}",Rc::ptr_eq(&x,&type_long));
-              if let Some(t1) = x.as_any().downcast_ref::<Table>() {
-                  if let Some(t2) = type_long.as_any().downcast_ref::<Table>() {
-                      println!("~~ {}",t1 as *const Table == t2 as *const Table);
-                  }
-              } 
-          }
-          */
           match operator_is(sp, &mut stack) {
               Ok(())=>{}, Err(e)=>{exception=Err(e); break;}
           }
