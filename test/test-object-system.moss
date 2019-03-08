@@ -32,6 +32,46 @@ elif not table ItemC{}: ItemC
    error("#1.10")
 end
 
+if not type(true) is Bool
+   error("#1.11")
+elif not type(0) is Int
+   error("#1.12")
+elif not type(0.0) is Float
+   error("#1.13")
+elif not type(2^100) is Long
+   error("#1.14")
+elif not type([]) is List
+   error("#1.15")
+elif not type({}) is Map
+   error("#1.16")
+elif not type("") is String
+   error("#1.17")
+elif not type(|x| x) is Function
+   error("#1.18")
+elif not type(table ItemA{}) is ItemA
+   error("#1.19")
+elif not type(table ItemC{}) is ItemC
+   error("#1.20")
+end
+
+if not type(Bool) is Type
+   error("#2.1")
+elif not type(Int) is Type
+   error("#2.2")
+elif not type(Float) is Type
+   error("#2.3")
+elif not type(Long) is Type
+   error("#2.4")
+elif not type(List) is Type
+   error("#2.5")
+elif not type(Map) is Type
+   error("#2.6")
+elif not type(String) is Type
+   error("#2.7")
+elif not type(Function) is Type
+   error("#2.8")
+end
+
 tab = [
    [true,Bool],
    [0,Int],
@@ -57,22 +97,52 @@ end
 
 X,Y = list(zip(*tab))
 if not is_diagonal(X.map(|x| Y.map(|T| x: T)))
-   error("#2.1")
+   error("#3.1")
+end
+
+if not is_diagonal(X.map(|x| Y.map(|T| type(x) is T)))
+   error("#3.2")
 end
 
 t = table{x=1,y=2}
 if t.x!=1 or t.y!=2
-   error("#3.1")
+   error("#4.1")
 end
 
 if not "x" in record(t)
-   error("#3.2")
+   error("#4.2")
 end
 
 A = table{x=1,y=2}
 t = table A{z=3}
 if t.x!=1 or t.y!=2 or t.z!=3
-   error("#3.3")
+   error("#4.3")
 end
 
+A = table{}
+B = table A{}
+x = table B{}
+
+if not(B: A and x: A and x: B)
+   error("#5.1")
+end
+
+if not type(x) is B
+   error("#5.2")
+end
+
+A = table{x=1,y=2}
+B = table{x=2,z=3}
+extend(A,B)
+
+if record(A)!={x=1,y=2,z=3}
+   error("#6.1")
+end
+
+A = table{x=1,y=2}
+record(A).update({x=2,z=3})
+
+if record(A)!={x=2,y=2,z=3}
+   error("#6.2")
+end
 

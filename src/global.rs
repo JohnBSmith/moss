@@ -231,6 +231,10 @@ fn len(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
         Object::String(ref s) => {
             Ok(Object::Int(s.data.len() as i32))
         },
+        Object::Interface(ref x) => {
+            let f = x.get(&Object::from("len"),env)?;
+            return env.call(&f,&argv[0],&[]);
+        },
         _ => env.type_error1(
             "Type error in len(a): cannot determine the length of a.",
             "a", &argv[0]
@@ -390,6 +394,7 @@ fn ftype(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
         Object::String(_) => Object::Interface(env.rte().type_string.clone()),
         Object::List(_) => Object::Interface(env.rte().type_list.clone()),
         Object::Map(_) => Object::Interface(env.rte().type_map.clone()),
+        Object::Function(_) => Object::Interface(env.rte().type_function.clone()),
         Object::Interface(ref x) => return x.get_type(env),
         _ => Object::Null
     });
@@ -1100,7 +1105,7 @@ pub fn init_rte(rte: &RTE){
 
     let type_long = rte.type_long.clone();
     gtab.insert("Long", Object::Interface(type_long));
-    
+
     let type_type_error = rte.type_type_error.clone();
     gtab.insert("TypeError", Object::Interface(type_type_error));
     
