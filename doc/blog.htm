@@ -1155,8 +1155,9 @@ assert_empty(argm)
 <p>The unpacking may drain a copy, leaving the original
 argument map untouched:
 <pre class="moss indent">
-{x,y} = drain(copy(argm))
-assert_empty(argm)
+m = copy(argm)
+{x,y} = drain(m)
+assert_empty(m)
 </pre>
 
 </body>
