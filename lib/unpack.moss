@@ -1,0 +1,24 @@
+
+Drain = table("Drain",Type){
+   function call(key)
+      if key in self.m
+         return self.m.remove(key)
+      else
+         return null
+      end
+   end,
+   function index(key)
+      return self.m.remove(key)
+   end
+}
+
+function drain(m)
+   return table Drain{m=m}
+end
+
+function assert_empty(m)
+   if len(m)!=0
+      raise "Error: Unexpected named arguments: {}."%[m]
+   end
+end
+

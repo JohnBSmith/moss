@@ -358,6 +358,15 @@ impl Interface for Table {
         }
         Ok(Object::Null)
     }
+    
+    fn index(self: Rc<Self>, indices: &[Object], env: &mut Env) -> FnResult {
+        if let Some(f) = self.get(&env.rte().key_index) {
+            return env.call(&f,&Object::Interface(self),indices);
+        }else{
+            return env.type_error1(
+                "Type error in x[i]: x is not indexable.","x",&Object::Interface(self));
+        }
+    }
 
     fn abs(self: Rc<Self>, env: &mut Env) -> FnResult {
         if let Some(f) = self.get(&env.rte().key_abs) {

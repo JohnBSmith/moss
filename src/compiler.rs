@@ -635,7 +635,7 @@ fn print_token(x: &Token){
 }
 
 #[allow(dead_code)]
-pub fn print_vtoken(v: &Vec<Token>){
+pub fn print_vtoken(v: &[Token]){
     for x in v {print_token(x);}
     println!();
 }
@@ -678,13 +678,10 @@ fn print_ast(t: &AST, indent: usize){
         },
         _ => {compiler_error();}
     }
-    match t.a {
-        Some(ref a) => {
-            for i in 0..a.len() {
-                print_ast(&a[i],indent+2);
-            }
-        },
-        None => {}
+    if let Some(ref a) =  t.a {
+        for x in a.iter() {
+            print_ast(x,indent+2);
+        }
     };
 }
 
@@ -1345,7 +1342,7 @@ fn application(&mut self, i: &mut TokenIterator, f: Rc<AST>, terminal: Symbol)
             }
         }
     }
-    if v_named.len()>0 {
+    if !v_named.is_empty() {
         let m = Rc::new(AST{line: t.line, col: t.col,
             symbol_type: SymbolType::Operator, value: Symbol::Map,
             info: Info::None, s: None, a: Some(v_named.into_boxed_slice())
@@ -2510,18 +2507,13 @@ fn statements(&mut self, i: &mut TokenIterator, last_value: Value)
         let p = i.next_any_token(self)?;
         let t = &p[i.index];
         let value = t.value;
-        if value == Symbol::Semicolon {
-            i.index+=1;
-        }else if value == Symbol::End || value == Symbol::Elif ||
-            value == Symbol::Else || value == Symbol::Catch
+        if value == Symbol::End || value == Symbol::Elif ||
+           value == Symbol::Else || value == Symbol::Catch ||
+           value == Symbol::PRight || value == Symbol::Terminal
         {
             break;
-        }else if value == Symbol::Newline {
+        }else if value == Symbol::Semicolon || value == Symbol::Newline {
             i.index+=1;
-        }else if value == Symbol::Terminal {
-            break;
-        }else if value == Symbol::PRight {
-            break;
         }else{
             return Err(self.unexpected_token(&t));
         }
@@ -2566,8 +2558,8 @@ fn compile_operator(&mut self, bv: &mut Vec<u32>,
 ) -> Result<(),Error>
 {
     let a = ast_argv(t);
-    for i in 0..a.len() {
-        self.compile_ast(bv,&a[i])?;
+    for x in a.iter() {
+        self.compile_ast(bv,x)?;
     }
     push_bc(bv,byte_code,t.line,t.col);
     return Ok(());
@@ -2848,8 +2840,8 @@ fn compile_app(&mut self, v: &mut Vec<u32>, t: &Rc<AST>)
     }
 
     // arguments
-    for i in 1..a.len() {
-        self.compile_ast(v,&a[i])?;
+    for x in &a[1..] {
+        self.compile_ast(v,x)?;
     }
 
     push_bc(v, bc::CALL, t.line, t.col);
@@ -3076,9 +3068,9 @@ fn arguments(&mut self, bv: &mut Vec<u32>, t: &AST, selfarg: bool)
         self.vtab.count_arg+=1;
     }
 
-    for i in 0..a.len() {
-        if a[i].symbol_type == SymbolType::Identifier {
-            if let Some(ref s) = a[i].s {
+    for (i,x) in a.iter().enumerate() {
+        if x.symbol_type == SymbolType::Identifier {
+            if let Some(ref s) = x.s {
                 self.vtab.v.push(VarInfo{
                     s: s.clone(),
                     index: self.vtab.count_arg,
@@ -3088,9 +3080,9 @@ fn arguments(&mut self, bv: &mut Vec<u32>, t: &AST, selfarg: bool)
             }else{
                 unreachable!();
             }
-        }else if a[i].value == Symbol::List || a[i].value == Symbol::Map {
+        }else if x.value == Symbol::List || x.value == Symbol::Map {
             let ids = format!("_t{}_",i);
-            let helper = identifier(&ids,a[i].line,a[i].col);
+            let helper = identifier(&ids,x.line,x.col);
             self.vtab.v.push(VarInfo{
                 s: ids,
                 index: self.vtab.count_arg,
@@ -3098,9 +3090,9 @@ fn arguments(&mut self, bv: &mut Vec<u32>, t: &AST, selfarg: bool)
             });
             self.vtab.count_arg+=1;
             self.compile_ast(bv,&helper)?;
-            self.compile_left_hand_side(bv,&a[i])?;
-        }else if a[i].value == Symbol::Assignment {
-            let u = ast_argv(&a[i]);
+            self.compile_left_hand_side(bv,x)?;
+        }else if x.value == Symbol::Assignment {
+            let u = ast_argv(x);
             if u[0].symbol_type == SymbolType::Identifier {
                 if let Some(ref s) = u[0].s {
                     self.vtab.v.push(VarInfo{
@@ -3110,17 +3102,17 @@ fn arguments(&mut self, bv: &mut Vec<u32>, t: &AST, selfarg: bool)
                     });
                     self.vtab.count_arg+=1;
                     self.vtab.count_optional_arg+=1;
-                    self.compile_default_argument(bv,&a[i])?;
+                    self.compile_default_argument(bv,x)?;
                 }else{
                     unreachable!();
                 }
             }else{
-                return Err(self.syntax_error(a[i].line,a[i].col,
+                return Err(self.syntax_error(x.line,x.col,
                     "expected identifier before '='."
                 ));
             }
         }else{
-            return Err(self.syntax_error(a[i].line,a[i].col,
+            return Err(self.syntax_error(x.line,x.col,
                 "expected identifier or [...] or {...} or assignment."
             ));
         }
@@ -3286,13 +3278,13 @@ fn compile_compound_assignment(
 fn closure(&mut self, bv: &mut Vec<u32>, t: &AST){
     let n = self.vtab.v.len();
     let a = &self.vtab.v[..];
-    let ref mut context = match self.vtab.context {
+    let context = match self.vtab.context {
         Some(ref mut context) => context,
         None => unreachable!()
     };
-    for i in 0..n {
-        if a[i].var_type == VarType::Context {
-            if let Some((index,var_type)) = context.index_type(&a[i].s) {
+    for x in &a[0..n] {
+        if x.var_type == VarType::Context {
+            if let Some((index,var_type)) = context.index_type(&x.s) {
                 match var_type {
                     VarType::Local => {
                         push_bc(bv,bc::LOAD_LOCAL,t.line,t.col);
@@ -3312,7 +3304,7 @@ fn closure(&mut self, bv: &mut Vec<u32>, t: &AST){
                     VarType::Global => {
                         // rare case:
                         // fn|| global k; fn*|| k=0 end end
-                        let index = self.pool.get_index(&a[i].s);
+                        let index = self.pool.get_index(&x.s);
                         push_bc(bv,bc::LOAD,t.line,t.col);
                         push_u32(bv,index as u32);
                     }
@@ -3321,7 +3313,7 @@ fn closure(&mut self, bv: &mut Vec<u32>, t: &AST){
                 if self.coroutine {
                     push_bc(bv,bc::NULL,t.line,t.col);
                 }else{
-                    println!("Error in closure: id '{}' not in context.",&a[i].s);
+                    println!("Error in closure: id '{}' not in context.",&x.s);
                     unreachable!();
                 }
             }
@@ -3354,10 +3346,10 @@ fn compile_unpack(&mut self, bv: &mut Vec<u32>, t: &AST)
     -> Result<(),Error>
 {
     let a = ast_argv(t);
-    for i in 0..a.len() {
-        push_bc(bv, bc::GET, a[i].line, a[i].col);
+    for (i,x) in a.iter().enumerate() {
+        push_bc(bv, bc::GET, x.line, x.col);
         push_u32(bv,i as u32);
-        self.compile_left_hand_side(bv,&a[i])?;
+        self.compile_left_hand_side(bv,x)?;
     }
     push_bc(bv, bc::POP, t.line, t.col);
     return Ok(());
@@ -3370,8 +3362,8 @@ fn compile_left_hand_side(&mut self, bv: &mut Vec<u32>, t: &AST)
         self.compile_assignment(bv,&t,t.line,t.col)?;
     }else if t.value == Symbol::Index {
         let b = ast_argv(&t);
-        for i in 0..b.len() {
-            self.compile_ast(bv,&b[i])?;
+        for x in b.iter() {
+            self.compile_ast(bv,x)?;
         }
         push_bc(bv,bc::SET_INDEX,t.line,t.col);
         push_u32(bv,(b.len()-1) as u32);
@@ -3613,8 +3605,8 @@ fn compile_ast(&mut self, bv: &mut Vec<u32>, t: &Rc<AST>)
             self.for_nesting-=1;
         }else if value == Symbol::Block {
             let a = ast_argv(t);
-            for i in 0..a.len() {
-                self.compile_ast(bv,&a[i])?;
+            for x in a.iter() {
+                self.compile_ast(bv,x)?;
             }
         }else if value == Symbol::Fn {
             self.compile_fn(bv,t)?;
@@ -3666,9 +3658,9 @@ fn compile_ast(&mut self, bv: &mut Vec<u32>, t: &Rc<AST>)
             push_bc(bv,bc::EMPTY,t.line,t.col);
         }else if value == Symbol::Yield {
             if !self.coroutine {
-                return Err(self.syntax_error(t.line,t.col,&format!(
-                    "yield is only valid in fn*."
-                )));
+                return Err(self.syntax_error(t.line,t.col,
+                    &String::from("yield is only valid in fn*.")
+                ));
             }
             let a = ast_argv(t);
             if a.len()==0 {

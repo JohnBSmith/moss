@@ -1,0 +1,11 @@
+
+#![warn(clippy::all)]
+#![allow(clippy::redundant_field_names)]
+#![allow(clippy::needless_return)]
+#![allow(clippy::many_single_char_names)]
+#![allow(clippy::unreadable_literal)]
+#![allow(clippy::write_with_newline)]
+#![allow(clippy::collapsible_if)]
+#![allow(clippy::enum_variant_names)]
+#![allow(clippy::zero_prefixed_literal)]
+

@@ -45,7 +45,7 @@ impl Interface for Bytes {
     fn get(&self, key: &Object, env: &mut Env) -> FnResult {
         interface_object_get("Bytes",key,env,interface_index::BYTES)
     }
-    fn index(&self, indices: &[Object], env: &mut Env) -> FnResult {
+    fn index(self: Rc<Self>, indices: &[Object], env: &mut Env) -> FnResult {
         let a = self.data.borrow();
         let index = if indices.len()==1 {
             match indices[0] {

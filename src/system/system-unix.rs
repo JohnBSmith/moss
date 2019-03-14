@@ -69,7 +69,7 @@ impl History{
     }
     pub fn append(&mut self, s: &str){
         if let Some(ref first) = self.first {
-            if &first.s==s {return;}
+            if first.s==s {return;}
         }
         self.first = Some(Box::new(HistoryNode{
             s: String::from(s), next: self.first.take()
@@ -90,12 +90,12 @@ fn print_flush(s: &str) {
     io::stdout().flush().ok();
 }
 
-fn clear(cols: usize, prompt: &str, a: &Vec<char>){
+fn clear(cols: usize, prompt: &str, a: &[char]){
     let lines = number_of_lines(cols,prompt,&a);
     clear_input(lines);
 }
 
-fn print_prompt_flush(prompt: &str, a: &Vec<char>) {
+fn print_prompt_flush(prompt: &str, a: &[char]) {
     print!("{}",prompt);
     for x in a {print!("{}",x);}
     flush();
@@ -110,7 +110,7 @@ fn number_of_bytes(c: u8) -> usize {
     return 7-i as usize;
 }
 
-fn number_of_lines(cols: usize, prompt: &str, a: &Vec<char>) -> usize{
+fn number_of_lines(cols: usize, prompt: &str, a: &[char]) -> usize{
     let n = prompt.len()+a.len();
     return if n==0 {1} else {(n-1)/cols+1};
 }
@@ -160,7 +160,7 @@ fn complete_u32_char(c: i32) -> char {
 pub fn getline_history(prompt: &str, history: &History) -> io::Result<String> {
     let fd: RawFd = STDIN_FILENO;
     let tio_backup = Termios::from_fd(fd)?;
-    let mut tio = tio_backup.clone();
+    let mut tio = tio_backup;
 
     tio.c_lflag &= !(ICANON|ECHO);
     tcsetattr(fd, TCSANOW, &tio)?;

@@ -145,7 +145,7 @@ impl Interface for Array {
             env.type_error("Type error in Array.x: x is not a string.")
         }
     }
-    fn index(&self, indices: &[Object], env: &mut Env) -> FnResult {
+    fn index(self: Rc<Self>, indices: &[Object], env: &mut Env) -> FnResult {
         if self.n==1 && indices.len()==1 {
             match indices[0] {
                 Object::Int(i) => {

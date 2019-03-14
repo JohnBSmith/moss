@@ -30,7 +30,7 @@ impl Interface for Tuple {
         s.push_str(")");
         return Ok(s);
     }
-    fn index(&self, indices: &[Object], env: &mut Env) -> FnResult {
+    fn index(self: Rc<Self>, indices: &[Object], env: &mut Env) -> FnResult {
         match indices.len() {
             1 => {}, n => return env.argc_error(n,1,1,"tuple indexing")
         }

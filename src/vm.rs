@@ -357,9 +357,9 @@ fn list_to_string(env: &mut Env, a: &[Object])
 -> Result<String,Box<Exception>>
 {
     let mut s = String::from("[");
-    for i in 0..a.len() {
-        if i!=0 {s.push_str(", ");}
-        s.push_str(&object_to_repr(env,&a[i])?);
+    for (i,x) in a.iter().enumerate() {
+        if i != 0 {s.push_str(", ");}
+        s.push_str(&object_to_repr(env,x)?);
     }
     s.push_str("]");
     return Ok(s);
@@ -375,7 +375,7 @@ pub fn map_to_string(env: &mut Env, a: &HashMap<Object,Object>,
         if first {first=false;} else{s.push_str(", ");}
         s.push_str(&object_to_repr(env,&key)?);
         match value {
-            &Object::Null => {},
+            Object::Null => {},
             _ => {
                 s.push_str(": ");
                 s.push_str(&object_to_repr(env,&value)?);
@@ -389,9 +389,7 @@ pub fn map_to_string(env: &mut Env, a: &HashMap<Object,Object>,
 fn float_to_string(x: f64) -> String {
     if x==0.0 {
         "0".to_string()
-    }else if x.abs()>1E14 {
-        format!("{:e}",x)
-    }else if x.abs()<0.0001 {
+    }else if x.abs()>1E14 || x.abs()<0.0001 {
         format!("{:e}",x)
     }else{
         format!("{}",x)
@@ -428,9 +426,9 @@ fn complex_to_string(z: Complex64) -> String {
 
 fn list_to_string_plain(a: &[Object]) -> String {
     let mut s = "[".to_string();
-    for i in 0..a.len() {
+    for (i,x) in a.iter().enumerate() {
         if i != 0 {s.push_str(", ");}
-        s.push_str(&object_to_repr_plain(&a[i]));
+        s.push_str(&object_to_repr_plain(x));
     }
     s.push_str("]");
     return s;
@@ -446,7 +444,7 @@ fn map_to_string_plain(a: &HashMap<Object,Object>,
         if first {first=false;} else{s.push_str(", ");}
         s.push_str(&object_to_repr_plain(&key));
         match value {
-            &Object::Null => {},
+            Object::Null => {},
             _ => {
                 s.push_str(": ");
                 s.push_str(&object_to_repr_plain(&value));
@@ -515,7 +513,7 @@ pub fn object_to_string(env: &mut Env, x: &Object)
         },
         Object::Function(ref f) => {
             match f.id {
-                Object::Null => format!("function"),
+                Object::Null => String::from("function"),
                 Object::Int(x) => {
                     let line = (x as u32) & 0xffff;
                     let col = (x as u32)>>16;
@@ -3069,7 +3067,7 @@ fn operator_get(env: &mut EnvPart,
         stack[sp] = match stack[sp-1].clone() {
             Object::Interface(ref a) => {
                 let env = &mut Env{env,sp,stack};
-                match a.index(&[Object::Int(index as i32)],env) {
+                match a.clone().index(&[Object::Int(index as i32)],env) {
                     Ok(x) => x,
                     Err(e) => return Err(e)
                 }
@@ -3400,7 +3398,8 @@ pub struct RTE{
     pub key_rlt: Object,
     pub key_rle: Object,
     pub key_eq: Object,
-    pub key_req: Object
+    pub key_req: Object,
+    pub key_index: Object
 }
 
 impl RTE{
@@ -3467,7 +3466,8 @@ impl RTE{
             key_le:     CharString::new_object_str("le"),
             key_rle:    CharString::new_object_str("rle"),
             key_eq:     CharString::new_object_str("eq"),
-            key_req:    CharString::new_object_str("req")
+            key_req:    CharString::new_object_str("req"),
+            key_index:  CharString::new_object_str("index")
         })
     }
     pub fn clear_at_exit(&self, gtab: Rc<RefCell<Map>>){

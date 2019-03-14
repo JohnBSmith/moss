@@ -1125,6 +1125,40 @@ let qsort[T: Ord, n](a: List[T,n]): List[T,n] =
       qsort(a[1..].filter(|x| x&gt;=a[0]));
 </pre>
 
+<h3 data-date="20190314" id="leftover-named-arguments"
+>Preventing leftover named arguments</h3>
+
+<p>Checking for leftover named arguments was very unergonomic so far.
+The most flexible design I have figured out employs a wrapper type
+<code>Drain</code>, which depletes the argument map by operator
+overloading. This approach is also compatible with default arguments.
+
+<pre class="moss indent">
+use unpack: drain, assert_empty
+
+argm = {x=1,y=2,z=3}
+{x,y} = drain(argm)
+
+assert_empty(argm)
+# Error: Unexpected named arguments: {"z": 3}.
+</pre>
+
+<p>The unpacking may be splitted into parts:
+<pre class="moss indent">
+argm = {x=1,y=2}
+dargm = drain(argm)
+{x} = dargm
+{y} = dargm
+assert_empty(argm)
+</pre>
+
+<p>The unpacking may drain a copy, leaving the original
+argument map untouched:
+<pre class="moss indent">
+{x,y} = drain(copy(argm))
+assert_empty(argm)
+</pre>
+
 </body>
 </html>
 

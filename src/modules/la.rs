@@ -101,8 +101,8 @@ impl Interface for Array<f64> {
         let data = self.data.borrow();
         map_unary(&self,&data,&|x| r*x)
     }
-    fn index(&self, indices: &[Object], env: &mut Env) -> FnResult {
-        index(self,indices,env)
+    fn index(self: Rc<Self>, indices: &[Object], env: &mut Env) -> FnResult {
+        index(&self,indices,env)
     }
     fn get(&self, key: &Object, env: &mut Env) -> FnResult {
         get(self,key,env)
@@ -140,8 +140,8 @@ impl Interface for Array<c64> {
         let data = self.data.borrow();
         map_unary(&self,&data,&|x| r*x)
     }
-    fn index(&self, indices: &[Object], env: &mut Env) -> FnResult {
-        index(self,indices,env)
+    fn index(self: Rc<Self>, indices: &[Object], env: &mut Env) -> FnResult {
+        index(&self,indices,env)
     }
     fn get(&self, key: &Object, env: &mut Env) -> FnResult {
         get(self,key,env)

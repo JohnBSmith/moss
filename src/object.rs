@@ -139,7 +139,7 @@ pub struct List {
 
 impl List {
     pub fn new_object(v: Vec<Object>) -> Object{
-        return Object::List(Rc::new(RefCell::new(List{v: v, frozen: false})));
+        return Object::List(Rc::new(RefCell::new(List{v, frozen: false})));
     }
 
     pub fn new() -> Self {
@@ -154,7 +154,7 @@ pub struct Map {
 
 impl Map {
     pub fn new_object(m: HashMap<Object,Object>) -> Object{
-        return Object::Map(Rc::new(RefCell::new(Map{m: m, frozen: false})));
+        return Object::Map(Rc::new(RefCell::new(Map{m, frozen: false})));
     }
 
     pub fn new() -> Rc<RefCell<Map>>{
@@ -173,7 +173,7 @@ impl Map {
         let f = Object::Function(Rc::new(Function{
             f: EnumFunction::Plain(fp),
             argc: if argc_min==argc_max {argc_min} else {VARIADIC},
-            argc_min: argc_min, argc_max: argc_max,
+            argc_min, argc_max,
             id: key.clone()
         }));
         
@@ -292,7 +292,7 @@ impl Function {
         Object::Function(Rc::new(Function{
             f: EnumFunction::Plain(fp),
             argc: if argc_min==argc_max {argc_min} else {VARIADIC},
-            argc_min: argc_min, argc_max: argc_max,
+            argc_min, argc_max,
             id: Object::Null
         }))
     }
@@ -303,8 +303,7 @@ impl Function {
         Object::Function(Rc::new(Function{
             f: EnumFunction::Std(f),
             argc: if argc_min==argc_max {argc_min} else {VARIADIC},
-            argc_min: argc_min, argc_max: argc_max,
-            id: id
+            argc_min, argc_max, id
         }))
     }
 
@@ -314,8 +313,7 @@ impl Function {
         Object::Function(Rc::new(Function{
             f: EnumFunction::Mut(RefCell::new(fp)),
             argc: if argc_min==argc_max {argc_min} else {VARIADIC},
-            argc_min: argc_min, argc_max: argc_max,
-            id: Object::Null
+            argc_min, argc_max, id: Object::Null
         }))
     }
 }
@@ -425,7 +423,7 @@ pub trait Interface {
         env.std_exception(&format!(
             "Type error in t.{} = value: getter is not implemented for objects of this type.",key))
     }
-    fn index(&self, _indices: &[Object], env: &mut Env) -> FnResult {
+    fn index(self: Rc<Self>, _indices: &[Object], env: &mut Env) -> FnResult {
         env.std_exception("Type error in a[i]: indexing is not implemented for objects of this type.")
     }
     fn set_index(&self, _indices: &[Object], _value: &Object, env: &mut Env) -> FnResult {
