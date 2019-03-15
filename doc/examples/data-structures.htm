@@ -37,7 +37,7 @@ function link(a)
    return y
 end
 
-LinkedList = table(Type,Iterable,"LinkedList"){
+LinkedList = table(Type,"LinkedList",Iterable){
    function string
       self.map(str).join(", ","link([","])")
    end,

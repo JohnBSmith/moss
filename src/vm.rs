@@ -3299,12 +3299,11 @@ fn new_table(prototype: Object, map: Object) -> Object {
 }
 
 fn new_stamp(s: &str, ptype: &Rc<Table>, prototype: &Object) -> Object {
-    let v = vec![
-        CharString::new_object_str(s),
+    return Tuple::new_object(vec![
         Object::Interface(ptype.clone()),
+        CharString::new_object_str(s),
         prototype.clone()
-    ];
-    return Tuple::new_object(v);
+    ]);
 }
 
 pub fn interface_types_set(rte: &RTE, index: usize, x: Rc<Table>) {
@@ -3418,9 +3417,9 @@ impl RTE{
             type_iterable: Table::new(new_stamp("Iterable",&type_type,null)),
             type_long: Table::new(new_stamp("Long",&type_type,null)),
             type_std_exception: Table::new(Object::Null),
-            type_type_error: Table::new(Object::Null),
-            type_value_error: Table::new(Object::Null),
-            type_index_error: Table::new(Object::Null),
+            type_type_error: Table::new(new_stamp("TypeError",&type_type,null)),
+            type_value_error: Table::new(new_stamp("ValueError",&type_type,null)),
+            type_index_error: Table::new(new_stamp("IndexError",&type_type,null)),
             type_type: type_type.clone(),
             unimplemented: Table::new(Object::Null),
             argv: RefCell::new(None),
@@ -4414,10 +4413,10 @@ fn bounded_repr(env: &mut Env, x: &Object) -> Result<String,Box<Exception>> {
     }
 }
 
-fn exception_value_to_string(env: &mut Env, x: &Object) -> String {
+fn exception_text_to_string(env: &mut Env, x: &Object) -> String {
     let value = if let Some(t) = downcast::<Table>(x) {
         let m = &t.map.borrow().m;
-        let key = CharString::new_object_str("value");
+        let key = CharString::new_object_str("text");
         if let Some(value) = m.get(&key) {value.clone()} else{x.clone()}
     }else{x.clone()};
     return match value.string(env) {
@@ -4444,7 +4443,7 @@ fn exception_to_string(env: &mut Env, e: &Exception) -> String {
     if let Some(ref spot) = e.spot {
         writeln!(&mut s,"Line {}, col {} ({}):",spot.line,spot.col,&spot.module).unwrap();
     }
-    write!(&mut s,"{}",exception_value_to_string(env,&e.value)).unwrap();
+    write!(&mut s,"{}",exception_text_to_string(env,&e.value)).unwrap();
     return s;
 }
 

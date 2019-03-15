@@ -1,11 +1,7 @@
 
 = TODO LIST =
-== Language ==
-* a comfortable way to state the domain of allowed
-  named arguments
-
 == Interpreter kernel ==
-* tracebacks
+* minor issues with tracebacks of callback functions
 * in a coroutine let all exit paths
   perform a loop as "yield; return empty"
   (resume after a last yield and return empty immediately)
@@ -58,6 +54,10 @@
 
 
 = DONE =
+== Language ==
+* a comfortable way to state the domain of allowed
+  named arguments
+
 == Interpreter kernel ==
 * format strings
 * try-catch

@@ -666,19 +666,21 @@ patch the coincidence breakage into it. A table object is constructed
 as follows:
 
 <pre class="moss indent">
-t = table prototype{x=value, y=value}
- ≡≡ table prototype({x=value, y=value})
+signature = prototype
+
+t = table signature{x=value, y=value}
+ ≡≡ table signature({x=value, y=value})
 </pre>
 
 <p>We can have multiple inheritance:
 <pre class="moss indent">
-prototype = [prototype1, prototype2, ..., prototypeN]
+signature = [prototype1, prototype2, ..., prototypeN]
 </pre>
 
 <p>Now, a tuple is used to differentiate between a type and
 a prototype:
 <pre class="moss indent">
-prototype = (type, prototype)
+signature = (type, object_name, prototype)
 </pre>
 <p>This leads to the following model:
 <div class="img">
@@ -698,32 +700,28 @@ and it should be easy to create a named class. For convenience
 the tuple is extended by optional elements. The complete signature
 is:
 <pre class="moss indent">
-prototype = (type, prototype, object_name, hidden_properties)
+signature = (type, object_name, prototype, hidden_properties)
 </pre>
 
 <p>A simple example:
 <pre class="moss indent">
-function class(name,prototype,properties)
-  table(Type,prototype,name)(properties)
-end
+Bird = table(Type,"Bird"){
+   function string
+      "{} is a bird." % [self.name]
+   end,
+   function fly
+      "{} can fly!" % [self.name]
+   end
+}
 
-Bird = class("Bird",null,{
-  function string
-    "{} is a bird." % [self.name]
-  end,
-  function fly
-    "{} can fly!" % [self.name]
-  end
-})
-
-Duck = class("Duck",Bird,{
-  function string
-    "{} is a duck." % [self.name]
-  end,
-  function dive
-    "{} can dive!" % [self.name]
-  end
-})
+Duck = table(Type,"Duck",Bird){
+   function string
+      "{} is a duck." % [self.name]
+   end,
+   function dive
+      "{} can dive!" % [self.name]
+   end
+}
 
 d = table Duck{name = "Donald"}
 
@@ -1140,7 +1138,7 @@ argm = {x=1,y=2,z=3}
 {x,y} = drain(argm)
 
 assert_empty(argm)
-# Error: Unexpected named arguments: {"z": 3}.
+# Value error: unexpected named arguments: {"z": 3}.
 </pre>
 
 <p>The unpacking may be splitted into parts:

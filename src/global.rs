@@ -21,8 +21,7 @@ use crate::system::{History,open_module_file};
 use crate::module::eval_module;
 use crate::compiler::Value;
 use crate::long::{Long, pow_mod};
-use crate::tuple::Tuple;
-use crate::table::table_get;
+use crate::table::{table_get,type_to_string};
 use crate::iterable::new_iterator;
 use crate::map::map_extend;
 use crate::class::class_new;
@@ -960,17 +959,6 @@ fn map(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     return Ok(Map::new_object(m));
 }
 
-fn type_to_string(_env: &mut Env, pself: &Object, _argv: &[Object]) -> FnResult {
-    if let Some(pt) = downcast::<Table>(pself) {
-        if let Some(t) = downcast::<Tuple>(&pt.prototype) {
-            if let Some(s) = t.v.get(0) {
-                return Ok(s.clone());
-            }
-        }
-    }
-    return Ok(Object::Null);
-}
-
 fn extend(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     if argv.len()<2 {
         return env.argc_error(argv.len(),2,VARIADIC,"extend");
@@ -1108,10 +1096,10 @@ pub fn init_rte(rte: &RTE){
 
     let type_type_error = rte.type_type_error.clone();
     gtab.insert("TypeError", Object::Interface(type_type_error));
-    
+
     let type_value_error = rte.type_value_error.clone();
     gtab.insert("ValueError", Object::Interface(type_value_error));
-    
+
     let type_index_error = rte.type_index_error.clone();
     gtab.insert("IndexError", Object::Interface(type_index_error));
 

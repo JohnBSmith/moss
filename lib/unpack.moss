@@ -1,5 +1,5 @@
 
-Drain = table("Drain",Type){
+Drain = table(Type,"Drain"){
    function call(key)
       if key in self.m
          return self.m.remove(key)
@@ -18,7 +18,8 @@ end
 
 function assert_empty(m)
    if len(m)!=0
-      raise "Error: Unexpected named arguments: {}."%[m]
+      raise table ValueError{
+         text = "Value error: unexpected named arguments:\n\s\s{}."%[m]}
    end
 end
 

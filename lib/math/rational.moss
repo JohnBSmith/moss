@@ -16,7 +16,7 @@ function rat(n,d=1)
    return table Rat{n=n//t, d=d//t}
 end
 
-Rat = table("Rat",Type){
+Rat = table(Type,"Rat"){
    function string
       s = "-" if sgn(self.n)*sgn(self.d)<0 else ""
       if abs(self.d)==1

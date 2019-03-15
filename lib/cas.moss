@@ -8,7 +8,7 @@ use math
 
 _eval_ = eval
 
-SymbolicExpression = table(Type,null,"SymbolicExpression") {
+SymbolicExpression = table(Type,"SymbolicExpression") {
    function string
       syntax.ast_to_string(self.value)
    end

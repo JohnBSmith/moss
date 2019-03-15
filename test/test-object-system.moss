@@ -8,7 +8,7 @@ end
 
 ItemA = table{}
 ItemB = table{}
-ItemC = table("ItemC",Type){}
+ItemC = table(Type,"ItemC"){}
 
 if not true: Bool
    error("#1.1")

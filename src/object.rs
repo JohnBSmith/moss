@@ -196,7 +196,7 @@ pub struct Exception {
 impl Exception {
     pub fn new(s: &str, prototype: Object) -> Box<Exception> {
         let t = Table{prototype, map: Map::new()};
-        t.map.borrow_mut().insert("value", CharString::new_object_str(s));
+        t.map.borrow_mut().insert("text", CharString::new_object_str(s));
         Box::new(Exception{
             value: Object::Interface(Rc::new(t)),
             traceback: None, spot: None

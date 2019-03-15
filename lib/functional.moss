@@ -7,7 +7,7 @@ function fix(m,F)
    end
 end
 
-Lazy = table(Type,null,"Lazy"){
+Lazy = table(Type,"Lazy"){
    function string
       "lazy expression"
    end,

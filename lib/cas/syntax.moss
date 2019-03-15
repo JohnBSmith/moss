@@ -6,8 +6,8 @@ function syntax_error(s)
    return table SyntaxError{value=["Syntax error: ",s,"."].join()}
 end
 
-Symbol = table(Type,null,"Symbol"){}
-Id = table(Type,null,"Id"){}
+Symbol = table(Type,"Symbol"){}
+Id = table(Type,"Id"){}
 
 function scan(s)
    a = []

@@ -332,29 +332,44 @@ end
 &gt; p(1,2)
 "(1, 2)"
 </pre>
-
-<p>In many situations it is desirable to check for invalid arguments, but this
-must be done explicitely.
+<p>In many situations it is desirable to check for invalid named
+arguments, but this must be done explicitely. One does so by
+depleting the argument map and checking whether some arguments are
+leftover:
 
 <pre class="moss indent">
-ArgumentError = table{}
+use unpack: drain, assert_empty
 
-function valid_argm(argm,valid)
-   for key in argm
-      if not key in valid
-         raise table ArgumentError{
-            value = "Unexpected named argument: {}." % [key]}
-      end
-   end
-   return argm
-end
-
-p_valid = {"x","y","sep"}
-function p(argm)
-   return "({x}{sep}{y})" % valid_argm(argm,p_valid)
+function p(m)
+   {x,y,sep} = drain(m)
+   assert_empty(m)
+   return "({}{}{})" % [x,sep,y]
 end
 </pre>
 
+<pre class="cmd-box">
+<span class="moss">&gt; p(x=1,y=2,sep="|",left="(",right=")")</span>
+Traceback:
+  in p
+  in assert_empty
+Value error: unexpected named arguments:
+  {"left": "(", "right": ")"}.
+</pre>
+
+<p>Note that a function that takes named arguments needs to have
+a fixed number of positional arguments. If the function shall
+be variadic or take optional positional arguments, those arguments
+must be put into a list:
+<pre class="moss indent">
+function p(a,m)
+   {sep} = m
+   return a.join(sep,"(",")")
+end
+</pre>
+<pre class="moss cmd-box">
+&gt; p([1,2,3,4],sep="|")
+"(1|2|3|4)"
+</pre>
 
 <h2 id="unpacking">Argument list unpacking</h2>
 

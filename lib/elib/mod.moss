@@ -40,7 +40,6 @@ index = [
    "fs/tree",
    "functional",
    "itertools",
-   "json",
    "math",
    "math/cf",
    "math/cmath",
@@ -57,6 +56,7 @@ index = [
    "math/sf/ei",
    "plotlib",
    "plotlib/implicit",
+   "ser/json",
    "svg/plotlib",
    "sys/stackless"
 ]

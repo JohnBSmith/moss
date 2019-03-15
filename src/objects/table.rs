@@ -3,6 +3,10 @@ use std::rc::Rc;
 use std::cell::RefCell;
 use std::any::Any;
 
+const TYPE: usize = 0;
+const NAME: usize = 1;
+const PROTOTYPE: usize = 2;
+
 use crate::object::{
     Object, List, Map, Interface, downcast,
     Exception, FnResult
@@ -379,7 +383,7 @@ impl Interface for Table {
 
     fn get_type(&self, _env: &mut Env) -> FnResult {
         Ok(if let Some(pt) = downcast::<Tuple>(&self.prototype) {
-            pt.v[1].clone()
+            pt.v[TYPE].clone()
         }else{
             self.prototype.clone()
         })
@@ -411,7 +415,7 @@ pub fn table_get(mut p: &Table, key: &Object) -> Option<Object> {
                     },
                     Object::Interface(ref x) => {
                         if let Some(x) = x.as_any().downcast_ref::<Tuple>() {
-                            if let Some(prototype) = x.v.get(2) {
+                            if let Some(prototype) = x.v.get(PROTOTYPE) {
                                 return object_get(prototype,key);
                             }else{
                                 return None;
@@ -443,7 +447,7 @@ pub fn type_get(prototype: &Object, key: &Object) -> Option<Object> {
         if let Some(pt) = p.downcast_ref::<Table>() {
             table_get(pt,key)
         }else if let Some(t) = p.downcast_ref::<Tuple>() {
-            object_get(&t.v[1],key)
+            object_get(&t.v[TYPE],key)
         }else{
             None
         }
@@ -461,3 +465,17 @@ pub fn object_get(x: &Object, key: &Object) -> Option<Object> {
         None
     }
 }
+
+pub fn type_to_string(_env: &mut Env, pself: &Object, _argv: &[Object])
+-> FnResult
+{
+    if let Some(pt) = downcast::<Table>(pself) {
+        if let Some(t) = downcast::<Tuple>(&pt.prototype) {
+            if let Some(s) = t.v.get(NAME) {
+                return Ok(s.clone());
+            }
+        }
+    }
+    return Ok(Object::Null);
+}
+

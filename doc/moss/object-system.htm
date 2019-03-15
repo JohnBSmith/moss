@@ -249,7 +249,7 @@ true
 be broken. A table constructor may take a tuple of three parts
 instead of a simple prototype. In general we have:
 <pre class="moss indent">
-x = table(name, type, prototype) {}
+x = table(type, name, prototype) {}
 </pre>
 
 <p>Properties are searched in <code>x</code> first and then
@@ -274,7 +274,7 @@ Iterable
 
 <p>Now, basic class construction is stated as follows:
 <pre class="moss indent">
-Bird = table("Bird",Type){
+Bird = table(Type,"Bird"){
    function string
       "{} is a bird." % [self.name]
    end,
@@ -283,7 +283,7 @@ Bird = table("Bird",Type){
    end
 })
 
-Duck = class("Duck",Type,Bird){
+Duck = class(Type,"Duck",Bird){
    function string
       "{} is a duck." % [self.name]
    end,
@@ -462,7 +462,7 @@ function complex(x,y)
    return table Complex{re=x, im=y}
 end
 
-Complex = table("Complex",Type){
+Complex = table(Type,"Complex"){
    function string
       return "({}|{})" % [self.re, self.im]
    end,
