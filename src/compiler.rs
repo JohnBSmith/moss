@@ -1020,7 +1020,7 @@ fn map_literal(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error> {
             let t = &p[i.index];
             let key = if t.value == Symbol::Function {
                 i.index+=1;
-                let literal = self.function_literal(i,t,Symbol::Function)?;
+                let literal = self.function_statement(i,t)?;
                 let a = ast_argv(&literal);
 
                 let key = Rc::new(AST{
@@ -1205,61 +1205,17 @@ fn concise_function_literal(&mut self, i: &mut TokenIterator, t0: &Token)
     }));
 }
 
-fn function_literal(&mut self, i: &mut TokenIterator,
-    t0: &Token, symbol: Symbol
-) -> Result<Rc<AST>,Error>
+fn function_body(&mut self, i: &mut TokenIterator, coroutine: bool)
+-> Result<Rc<AST>,Error>
 {
-    let p = i.next_token(self)?;
-    let t = &p[i.index];
-    let (info,coroutine) = if t.value == Symbol::Ast {
-        i.index+=1;
-        (Info::Coroutine,true)
-    }else{
-        (Info::None,false)
-    };
-    let p = i.next_token(self)?;
-    let t = &p[i.index];
-    let id = if t.token_type == SymbolType::Identifier {
-        i.index+=1;
-        Some(t.item.assert_string().clone())
-    }else{
-        None
-    };
-    let p = i.next_token_optional(self)?;
-    let t = &p[i.index];
-    let terminator = if symbol == Symbol::Function {
-        if t.value == Symbol::PLeft {
-            i.index+=1;
-            Symbol::PRight
-        }else if t.value == Symbol::Newline {
-            i.index+=1;
-            Symbol::Newline
-        }else if t.value == Symbol::Terminal {
-            Symbol::Newline
-        }else{
-            return Err(self.syntax_error(t.line, t.col, "expected '(' or new line."));
-        }
-    }else{
-        if t.value == Symbol::Vline {
-            i.index+=1;
-            Symbol::Vline
-        }else{
-            return Err(self.syntax_error(t.line, t.col, "expected '|'."));
-        }
-    };
-    let args = if terminator == Symbol::Newline {
-        operator(Symbol::List,Box::new([]),t0.line,t0.col)
-    }else{
-        self.arguments_list(i,t0,terminator)?
-    };
-
     let statement = self.statement;
     self.statement = true;
     self.function_nesting+=1;
     self.syntax_nesting+=1;
     let parens = self.parens;
     self.parens = 0;
-    let x = self.statements(i,if coroutine {Value::Empty} else {Value::Null})?;
+    let value = if coroutine {Value::Empty} else {Value::Null};
+    let body = self.statements(i,value)?;
     self.function_nesting-=1;
     self.statement = statement;
 
@@ -1272,16 +1228,87 @@ fn function_literal(&mut self, i: &mut TokenIterator,
     self.syntax_nesting-=1;
     i.index+=1;
     self.end_of(i,Symbol::Fn)?;
+    return Ok(body);
+}
+
+fn coroutine_info(&mut self, i: &mut TokenIterator)
+-> Result<(Info,bool),Error>
+{
+    let p = i.next_token(self)?;
+    let t = &p[i.index];
+    return Ok(if t.value == Symbol::Ast {
+        i.index+=1;
+        (Info::Coroutine,true)
+    }else{
+        (Info::None,false)
+    });
+}
+
+fn function_literal(&mut self, i: &mut TokenIterator, t0: &Token)
+-> Result<Rc<AST>,Error>
+{
+    let (info,coroutine) = self.coroutine_info(i)?;
+    let p = i.next_token(self)?;
+    let t = &p[i.index];
+    let id = if t.token_type == SymbolType::Identifier {
+        i.index+=1;
+        Some(t.item.assert_string().clone())
+    }else{
+        None
+    };
+    let p = i.next_token_optional(self)?;
+    let t = &p[i.index];
+    if t.value == Symbol::Vline {
+        i.index+=1;
+    }else{
+        return Err(self.syntax_error(t.line, t.col, "expected '|'."));
+    };
+    let args = self.arguments_list(i,t0,Symbol::Vline)?;
+
+    let body = self.function_body(i,coroutine)?;
     let y = Rc::new(AST{line: t0.line, col: t0.col,
         symbol_type: SymbolType::Keyword, value: Symbol::Fn,
-        info: info, s: id, a: Some(Box::new([args,x]))
+        info: info, s: id, a: Some(Box::new([args,body]))
     });
-    if symbol == Symbol::Function {
-        let id = identifier(match y.s {Some(ref s) => s, None => unreachable!()},t.line,t.col);
-        return Ok(binary_operator(t.line,t.col,Symbol::Assignment,id,y));
+    return Ok(y);
+}
+
+fn function_statement(&mut self, i: &mut TokenIterator, t0: &Token)
+-> Result<Rc<AST>,Error>
+{
+    let (info,coroutine) = self.coroutine_info(i)?;
+    let p = i.next_token(self)?;
+    let t = &p[i.index];
+    let id = if t.token_type == SymbolType::Identifier {
+        i.index+=1;
+        t.item.assert_string().clone()
     }else{
-        return Ok(y); 
-    }
+        return Err(self.syntax_error(t.line, t.col, "expected identifier."));
+    };
+    let p = i.next_token_optional(self)?;
+    let t = &p[i.index];
+    let terminator = match t.value {
+        Symbol::PLeft => {i.index+=1; Symbol::PRight},
+        Symbol::Newline => {i.index+=1; Symbol::Newline},
+        Symbol::Terminal => Symbol::Newline,
+        _ => return Err(self.syntax_error(t.line, t.col,
+            "expected '(' or new line."))
+    };
+
+    let args = if terminator == Symbol::Newline {
+        operator(Symbol::List,Box::new([]),t0.line,t0.col)
+    }else{
+        self.arguments_list(i,t0,terminator)?
+    };
+
+    let body = self.function_body(i,coroutine)?;
+
+    let lhs = identifier(&id,t.line,t.col);
+    let y = Rc::new(AST{line: t0.line, col: t0.col,
+        symbol_type: SymbolType::Keyword, value: Symbol::Fn,
+        info: info, s: Some(id), a: Some(Box::new([args,body]))
+    });
+    return Ok(binary_operator(t.line,t.col,Symbol::Assignment,lhs,y));
 }
 
 
@@ -1458,7 +1485,7 @@ fn atom(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error> {
         y = self.concise_function_literal(i,t)?;
     }else if t.value==Symbol::Fn {
         i.index+=1;
-        y = self.function_literal(i,t,Symbol::Fn)?;
+        y = self.function_literal(i,t)?;
     }else if t.value==Symbol::Begin {
         i.index+=1;
         y = self.block(i,t)?;
@@ -2457,7 +2484,7 @@ fn statements(&mut self, i: &mut TokenIterator, last_value: Value)
                 v.push(x);
             }else if value == Symbol::Function {
                 i.index+=1;
-                let x = self.function_literal(i,t,Symbol::Function)?;
+                let x = self.function_statement(i,t)?;
                 v.push(x);
             }else if value == Symbol::Break {
                 i.index+=1;

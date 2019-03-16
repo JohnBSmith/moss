@@ -8,10 +8,13 @@ use std::fmt::Write;
 
 use crate::object::{
     Object, Exception, FnResult, Interface, List,
-    new_module, downcast, interface_object_get
+    new_module, downcast, interface_object_get,
+    ptr_eq_plain
 };
-use crate::vm::{Env,interface_index};
+use crate::vm::{Env,RTE,interface_index};
 use crate::iterable::new_iterator;
+
+mod crypto;
 
 pub struct Bytes {
     pub data: RefCell<Vec<u8>>
@@ -41,6 +44,18 @@ impl Interface for Bytes {
         }
         write!(s,"])").unwrap();
         return Ok(s);
+    }
+    fn is_instance_of(&self, type_obj: &Object, rte: &RTE) -> bool {
+        if let Object::Interface(p) = type_obj {
+            ptr_eq_plain(p,&rte.interface_types.borrow()[interface_index::BYTES]) ||
+            ptr_eq_plain(p,&rte.type_iterable)
+        }else{
+            false
+        }
+    }
+    fn get_type(&self, env: &mut Env) -> FnResult {
+        Ok(Object::Interface(env.rte().interface_types
+           .borrow()[interface_index::BYTES].clone()))
     }
     fn get(&self, key: &Object, env: &mut Env) -> FnResult {
         interface_object_get("Bytes",key,env,interface_index::BYTES)
@@ -148,12 +163,60 @@ pub fn bytes_decode(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult 
     }
 }
 
-pub fn load_data(_env: &mut Env) -> Object
+fn sha_sum(data: &[u8]) -> FnResult {
+    let mut hash = crypto::sha3::Keccak::new_sha3_256();
+    hash.update(&data);
+    let mut value: Vec<u8> = vec![0; 32];
+    hash.finalize(&mut value);
+    return Ok(Bytes::object_from_vec(value));
+}
+
+fn data_hash(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
+    match argv.len() {
+        1 => {}, n => return env.argc_error(n,1,1,"sha_sum")
+    }
+    if let Some(data) = downcast::<Bytes>(&argv[0]) {
+        sha_sum(&data.data.borrow())
+    }else{
+        env.type_error1(
+           "Type error in sha_sum(a): a is not a of type Bytes.",
+           "a",&argv[0])    
+    }
+}
+
+fn base16(data: &[u8]) -> Object {
+    let mut buffer: String = String::new();
+    for byte in data {
+        write!(&mut buffer,"{:02x}",byte).unwrap();
+    }
+    return Object::from(&buffer[..]);
+}
+
+fn data_base16(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
+    match argv.len() {
+        1 => {}, n => return env.argc_error(n,1,1,"hex")
+    }
+    if let Some(data) = downcast::<Bytes>(&argv[0]) {
+        Ok(base16(&data.data.borrow()))
+    }else{
+        env.type_error1(
+           "Type error in hex(a): a is not a of type Bytes.",
+           "a",&argv[0])    
+    }
+}
+
+pub fn load_data(env: &mut Env) -> Object
 {
     let data = new_module("data");
     {
         let mut m = data.map.borrow_mut();
         m.insert_fn_plain("bytes",bytes,1,1);
+        m.insert_fn_plain("hash",data_hash,1,1);
+        m.insert_fn_plain("hex",data_base16,1,1);
+
+        let type_bytes = env.rte().interface_types
+            .borrow()[interface_index::BYTES].clone();
+        m.insert("Bytes",Object::Interface(type_bytes));
     }
     return Object::Interface(Rc::new(data));
 }

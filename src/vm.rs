@@ -3398,7 +3398,8 @@ pub struct RTE{
     pub key_rle: Object,
     pub key_eq: Object,
     pub key_req: Object,
-    pub key_index: Object
+    pub key_index: Object,
+    pub key_list: Object
 }
 
 impl RTE{
@@ -3466,7 +3467,8 @@ impl RTE{
             key_rle:    CharString::new_object_str("rle"),
             key_eq:     CharString::new_object_str("eq"),
             key_req:    CharString::new_object_str("req"),
-            key_index:  CharString::new_object_str("index")
+            key_index:  CharString::new_object_str("index"),
+            key_list:   CharString::new_object_str("list")
         })
     }
     pub fn clear_at_exit(&self, gtab: Rc<RefCell<Map>>){

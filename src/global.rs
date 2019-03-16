@@ -22,6 +22,7 @@ use crate::module::eval_module;
 use crate::compiler::Value;
 use crate::long::{Long, pow_mod};
 use crate::table::{table_get,type_to_string};
+use crate::tuple::Tuple;
 use crate::iterable::new_iterator;
 use crate::map::map_extend;
 use crate::class::class_new;
@@ -508,6 +509,12 @@ pub fn list(env: &mut Env, obj: &Object) -> FnResult {
             k+=d;
         }
         return Ok(List::new_object(v));
+    }
+    
+    if let Object::Interface(x) = obj {
+        let key = env.rte().key_list.clone();
+        let f = x.get(&key,env)?;
+        return env.call(&f,obj,&[]);
     }
 
     return env.type_error1(
@@ -1110,7 +1117,11 @@ pub fn init_rte(rte: &RTE){
     }
     gtab.insert("Type", Object::Interface(type_type));
 
-    let type_bytes = Table::new(Object::Interface(rte.type_iterable.clone()));
+    let type_bytes = Table::new(Tuple::new_object(vec![
+        Object::Interface(rte.type_type.clone()),
+        CharString::new_object_str("Bytes"),
+        Object::Interface(rte.type_iterable.clone())
+    ]));
     {
         let mut m = type_bytes.map.borrow_mut();
         m.insert_fn_plain("list",crate::data::bytes_list,0,0);

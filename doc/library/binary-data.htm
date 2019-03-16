@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Binary data</title>
+  <link href="../css/main.css" rel="stylesheet">
+  <script src="../js/moss-syntax.js"></script>
+</head>
+<body>
+
+<table class="navigation">
+<tr><td><b>&uarr;</b> <a href="toc.htm">Up</a>
+</table>
+<h1>Binary data</h1>
+
+<h2 id="regex">Module data</h2>
+
+<dl class="code">
+<dt>Bytes
+<dd>The byte list data type.
+
+<dt>bytes(a)
+<dd>Create a byte list from a list of integers less than 256.
+
+<dt>hex(a)
+<dd>Hexadecimal representation of the byte list <code>a</code>.
+
+<dt>hash(a)
+<dd>Cryptographic hash value (SHA3-256) of the byte list <code>a</code>.
+
+<pre class="moss">
+use data: hash, hex
+
+h = hash("".encode("UTF-8"))
+print(hex(h).chunks(4).map(|t| t.join()).join("\s"))
+
+# a7ff c6f8 bf1e d766 51c1 4756 a061 d662
+# f580 ff4d e43b 49fa 82d8 0a4b 80f8 434a
+</pre>
+</dl>
+
+<b>Type Bytes, <code>a: Bytes</code></b>
+<dl class="code">
+<dt>a.decode(encoding)
+<dd>Decode an specific encoding. Available encodings: <code>"UTF-8"</code>.
+
+<dt>a.list()
+<dd>Transform <code>a</code> into a list of integers less than 256.
+</dl>
+
+</body>
+</html>
+

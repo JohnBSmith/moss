@@ -1,6 +1,12 @@
 
 = TODO LIST =
 == Interpreter kernel ==
+* number literals hexadecimal, octal
+* integer to hexadecimal, octal
+* format hexadecimal, octal
+* hexadecimal, octal representation to integer
+* hexadecimal representation of binary data
+* left shift, right shift
 * minor issues with tracebacks of callback functions
 * in a coroutine let all exit paths
   perform a loop as "yield; return empty"
@@ -13,6 +19,8 @@
 * a security model by functions that can be called only once
 * interning literals of type Long
 * in range to iterator/list: start/end of type Long
+* mutable upvalues?
+* a slice data type?
 
 == Library ==
 * reverse iterator
