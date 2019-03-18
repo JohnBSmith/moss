@@ -6,8 +6,10 @@ license = "CC0-1.0"
 edition = "2018"
 
 description = "Experimental Moss interpreter"
+keywords = ["scripting", "language"]
 homepage = "https://johnbsmith.github.io/moss/home.htm"
 repository = "https://github.com/JohnBSmith/moss"
+readme = "README.md"
 
 [features]
 # default = ["long-none"]

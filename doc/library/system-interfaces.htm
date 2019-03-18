@@ -58,20 +58,24 @@ print(template % time.time())
 
 <dl class="code">
 <dt>argv
-<dd>List of command-line arguments.</dd>
+<dd>The list of command-line arguments.</dd>
 
 <dt>exit(n)
 <dd>Exit the program with integer return value <code>n</code>.
 Zero means success, other values indicate an error.
 
 <dt>path
-<dd>List of search paths for module loading, analogous to
+<dd>The list of search paths for module loading, analogous to
 the environment variable <code>PATH</code>.
 This list may be changed freely and may contain relative paths.
 But note that relative paths are problematic: they becomde invalid
 if the current working directory changes. That <code>path[0]</code>
 should be the absolute path of the directory where <code>argv[0]</code>
 is found.
+<br><br>
+Note: the list itself must be changed. Replacing <code>sys.path</code>
+with another list will not work.
+
 
 <dt>call(n,main,*argv)
 <dd>Call <code>main</code> with a new call stack of
