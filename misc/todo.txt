@@ -6,6 +6,7 @@
 * format hexadecimal, octal
 * hexadecimal, octal representation to integer
 * hexadecimal representation of binary data
+* bin, oct, hex convenience functions
 * left shift, right shift
 * minor issues with tracebacks of callback functions
 * in a coroutine let all exit paths
@@ -21,6 +22,8 @@
 * in range to iterator/list: start/end of type Long
 * mutable upvalues?
 * a slice data type?
+* -i option search path
+* dynamic loading Rust modules (plugin interface)
 
 == Library ==
 * reverse iterator

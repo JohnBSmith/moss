@@ -429,13 +429,13 @@ arbitrary Unicode characters inside of a string literal.
 <tr><td><code>\b</code><td>backslash
 <tr><td><code>\d</code><td>double quote
 <tr><td><code>\q</code><td>single quote
-<tr><td><code>\u{61}</code><td>Unicode character <code>0x61</code>
+<tr><td><code>\x{61}</code><td>Unicode character <code>0x61</code>
 </table>
 
 <p>An example:
 
 <pre class="moss indent">
-print("\b\b\b\b\na\s\sb\n\d\q\q\d\n\u{61}\u{62}\u{63}")
+print("\b\b\b\b\na\s\sb\n\d\q\q\d\n\x{61}\x{62}\x{63}")
 # Output:
 # \\\\
 # a  b

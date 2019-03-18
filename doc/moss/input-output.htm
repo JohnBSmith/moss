@@ -99,12 +99,12 @@ That <code>r4</code> means "right align by four spaces padding".
 <pre class="moss indent">
 # Leading zeros
 for x in 1..8
-   print("{} | {:r(0)3}" % [x,2^x])
+   print("{} | {:r3(0)}" % [x,2^x])
 end
 
 # Fill the space with dots
 for x in 1..8
-   print("{}{:r(.)5}" % [x,2^x])
+   print("{}{:r5(.)}" % [x,2^x])
 end
 </pre>
 
@@ -159,6 +159,29 @@ print("{0} | {1} | {0} | {0}" % [360,240])
 <pre class="moss indent">
 print("{x:r4} | {y:r4}" % {x=360,y=240})
 print("{0:r4} | {1:r4}" % [360,240])
+</pre>
+
+<h3 id="integers">Formatting integers</h3>
+<p>To convert an integer into a hexadecimal representation:
+<pre class="moss indent">
+hex = |n| "0x{:x}"%[n]
+</pre>
+
+<p>To convert an integer in range <code>0..255</code>
+into a hexadecimal representation:
+<pre class="moss indent">
+hex2 = |n| "0x{:r2(0)x}"%[n]
+</pre>
+
+<p>To convert an integer into a binary representation:
+<pre class="moss indent">
+bin = |n| "0b{:b}"%[n]
+</pre>
+
+<p>To convert an integer in range <code>0..255</code>
+into a binary representation:
+<pre class="moss indent">
+bin8 = |n| "0b{:r8(0)b}"%[n]
 </pre>
 
 

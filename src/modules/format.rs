@@ -48,8 +48,23 @@ struct Float {
     precision: Option<usize>
 }
 
+enum FmtType {
+    None, Int(char), Float(Float)
+}
+
 struct Fmt {
-    space: Space, float: Option<Float>, sign: bool
+    space: Space, fmt_type: FmtType, sign: bool, fill: char
+}
+
+impl Fmt {
+    fn new() -> Self {
+        Fmt{
+            space: Space::None,
+            fmt_type: FmtType::None,
+            sign: false,
+            fill: ' '
+        }
+    }
 }
 
 fn number(v: &[char], mut i: usize, value: &mut usize) -> usize {
@@ -95,6 +110,10 @@ fn obtain_fmt(fmt: &mut Fmt, v: &[char], mut i: usize)
         fmt.sign = true;
         i+=1;
     }
+    if i+2<n && v[i]=='(' && v[i+2]==')' {
+        fmt.fill = v[i+1];
+        i+=3;
+    }
     if i<n && (v[i]=='f' || v[i]=='e') {
         let c = v[i];
         i+=1;
@@ -104,7 +123,10 @@ fn obtain_fmt(fmt: &mut Fmt, v: &[char], mut i: usize)
         }else{
             None
         };
-        fmt.float = Some(Float{fmt: c, precision});
+        fmt.fmt_type = FmtType::Float(Float{fmt: c, precision});
+    }else if i<n && (v[i]=='x' || v[i]=='o' || v[i]=='b') {
+        fmt.fmt_type = FmtType::Int(v[i]);
+        i+=1;
     }
     if i<n {
         if v[i]=='}' {
@@ -125,9 +147,19 @@ fn apply_fmt(env: &mut Env, buffer: &mut String,
     fmt: &Fmt, x: &Object
 ) -> Result<(),Box<Exception>>
 {
-    let s = match fmt.float {
-        None => x.string(env)?,
-        Some(ref float) => {
+    let s = match fmt.fmt_type {
+        FmtType::None => x.string(env)?,
+        FmtType::Int(mode) => {
+            if let Object::Int(n) = *x {
+                if mode == 'x' {format!("{:x}",n)}
+                else if mode == 'b' {format!("{:b}",n)}
+                else if mode == 'o' {format!("{:o}",n)}
+                else {unreachable!()}
+            }else{
+                panic!();
+            }
+        },
+        FmtType::Float(ref float) => {
             let x = match *x {
                 Object::Int(n) => n as f64,
                 Object::Float(x) => x,
@@ -175,12 +207,12 @@ fn apply_fmt(env: &mut Env, buffer: &mut String,
         Space::Left(value) => {
             buffer.push_str(&s);
             for _ in s.len()..value {
-                buffer.push(' ');
+                buffer.push(fmt.fill);
             }
         },
         Space::Right(value) => {
             for _ in s.len()..value {
-                buffer.push(' ');
+                buffer.push(fmt.fill);
             }    
             buffer.push_str(&s);
         },
@@ -206,7 +238,7 @@ pub fn u32string_format(env: &mut Env, s: &CharString, a: &Object)
                 buffer.push('{');
                 i+=2;
             }else {
-                let mut fmt = Fmt{space: Space::None, float: None, sign: false};
+                let mut fmt = Fmt::new();
                 i+=1;
                 while i<n && v[i]==' ' {i+=1;}
                 let x: Object;

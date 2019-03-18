@@ -184,25 +184,12 @@ fn data_hash(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     }
 }
 
-fn base16(data: &[u8]) -> Object {
+pub fn base16(data: &[u8]) -> Object {
     let mut buffer: String = String::new();
     for byte in data {
         write!(&mut buffer,"{:02x}",byte).unwrap();
     }
     return Object::from(&buffer[..]);
-}
-
-fn data_base16(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
-    match argv.len() {
-        1 => {}, n => return env.argc_error(n,1,1,"hex")
-    }
-    if let Some(data) = downcast::<Bytes>(&argv[0]) {
-        Ok(base16(&data.data.borrow()))
-    }else{
-        env.type_error1(
-           "Type error in hex(a): a is not a of type Bytes.",
-           "a",&argv[0])    
-    }
 }
 
 pub fn load_data(env: &mut Env) -> Object
@@ -212,7 +199,6 @@ pub fn load_data(env: &mut Env) -> Object
         let mut m = data.map.borrow_mut();
         m.insert_fn_plain("bytes",bytes,1,1);
         m.insert_fn_plain("hash",data_hash,1,1);
-        m.insert_fn_plain("hex",data_base16,1,1);
 
         let type_bytes = env.rte().interface_types
             .borrow()[interface_index::BYTES].clone();

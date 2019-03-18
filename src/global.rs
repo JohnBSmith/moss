@@ -27,6 +27,7 @@ use crate::iterable::new_iterator;
 use crate::map::map_extend;
 use crate::class::class_new;
 use crate::range::Range;
+use crate::data::{Bytes,base16};
 
 pub fn type_name(env: &mut Env, x: &Object) -> String {
     return match *x {
@@ -1026,6 +1027,50 @@ fn getattr(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     })
 }
 
+fn hex(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
+    match argv.len() {
+        1 => {}, n => return env.argc_error(n,1,1,"hex")
+    }
+    if let Object::Int(n) = argv[0] {
+        let s: &str = &format!("0x{:x}",n);
+        Ok(Object::from(s))
+    }else if let Some(data) = downcast::<Bytes>(&argv[0]) {
+        Ok(base16(&data.data.borrow()))
+    }else{
+        env.type_error1(
+           "Type error in hex(x): cannot convert x into hexadecimal representation.",
+           "x",&argv[0])
+    }
+}
+
+fn bin(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
+    match argv.len() {
+        1 => {}, n => return env.argc_error(n,1,1,"bin")
+    }
+    if let Object::Int(n) = argv[0] {
+        let s: &str = &format!("0b{:b}",n);
+        Ok(Object::from(s))
+    }else{
+        env.type_error1(
+           "Type error in bin(x): cannot convert x into binary representation.",
+           "x",&argv[0])
+    }
+}
+
+fn oct(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
+    match argv.len() {
+        1 => {}, n => return env.argc_error(n,1,1,"oct")
+    }
+    if let Object::Int(n) = argv[0] {
+        let s: &str = &format!("0o{:o}",n);
+        Ok(Object::from(s))
+    }else{
+        env.type_error1(
+           "Type error in oct(x): cannot convert x into octal representation.",
+           "x",&argv[0])
+    }
+}
+
 pub fn init_rte(rte: &RTE){
     let mut gtab = rte.gtab.borrow_mut();
     gtab.insert_fn_plain("print",print,0,VARIADIC);
@@ -1034,6 +1079,9 @@ pub fn init_rte(rte: &RTE){
     gtab.insert_fn_plain("int",fint,1,1);
     gtab.insert_fn_plain("float",float,1,1);
     gtab.insert_fn_plain("repr",repr,1,1);
+    gtab.insert_fn_plain("hex",hex,1,1);
+    gtab.insert_fn_plain("bin",bin,1,1);
+    gtab.insert_fn_plain("oct",oct,1,1);
     gtab.insert_fn_plain("input",input,0,2);
     gtab.insert_fn_plain("sgn",sgn,1,1);
     gtab.insert_fn_plain("abs",abs,1,1);

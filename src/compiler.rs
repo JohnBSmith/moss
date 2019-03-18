@@ -2,8 +2,9 @@
 use std::rc::Rc;
 use std::collections::HashMap;
 use std::mem::replace;
-use std::str::Chars;
+use std::str::{Chars,FromStr};
 use std::char;
+
 use crate::system;
 use crate::vm::{bc, BCSIZE, BCASIZE, BCAASIZE, Module, RTE};
 use crate::object::{Object, CharString, VARIADIC};
@@ -162,6 +163,26 @@ fn is_keyword(id: &String) -> Option<&'static KeywordsElement> {
     return None;
 }
 
+fn int_from_str(chars: &[char], s: &str) -> Result<i32,()> {
+    let value = if chars.len()>2 && chars[0]=='0' {
+        if chars[1]=='x' {
+            i32::from_str_radix(&s[2..],16)
+        }else if chars[1]=='o' {
+            i32::from_str_radix(&s[2..],8)
+        }else if chars[1]=='b' {
+            i32::from_str_radix(&s[2..],2)
+        }else{
+            i32::from_str(s)
+        }
+    }else{
+        i32::from_str(s)
+    };
+    return match value {
+        Ok(value) => Ok(value),
+        Err(_) => Err(())
+    };
+}
+
 pub fn scan(s: &str, line_start: usize, file: &str, new_line_start: bool)
     -> Result<Vec<Token>,Error>
 {
@@ -200,13 +221,22 @@ pub fn scan(s: &str, line_start: usize, file: &str, new_line_start: bool)
                     if i<n && (a[i]=='+' || a[i]=='-') {
                         i+=1; col+=1;
                     }
+                }else if a[i]=='b' || a[i]=='o' {
+                    i+=1; col+=1;
+                }else if a[i]=='x' {
+                    i+=1; col+=1;
+                    while i<n && a[i].is_digit(16) {
+                        i+=1; col+=1;
+                    }
+                    break;
                 }else{
                     break;
                 }
             }
-            let number: &String = &a[j..i].iter().cloned().collect();
+            let chars = &a[j..i];
+            let number: &String = &chars.iter().cloned().collect();
             if token_type == SymbolType::Int {
-                match number.parse::<i32>() {
+                match int_from_str(chars,number) {
                     Ok(x) => {
                         v.push(Token{token_type: token_type, value: Symbol::None,
                             line: line, col: hcol, item: Item::Int(x)});
