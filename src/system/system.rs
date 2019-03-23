@@ -54,3 +54,11 @@ pub fn read_file(id: &str) -> Result<String,String> {
     return Ok(s);
 }
 
+pub fn library_path() -> String {
+    let mut path = match std::env::var("HOME") {
+        Ok(s) => PathBuf::from(s),
+        Err(_) => panic!()
+    };
+    path.push(".moss/");
+    return String::from(path.to_str().unwrap());
+}

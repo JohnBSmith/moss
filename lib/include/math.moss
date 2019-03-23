@@ -1,0 +1,7 @@
+
+use math:*
+use math.la{vector, matrix, diag}
+use math.la.inversion: det, inv
+
+vec = vector
+

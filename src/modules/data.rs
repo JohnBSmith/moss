@@ -141,7 +141,7 @@ pub fn bytes_list(env: &mut Env, pself: &Object, _argv: &[Object]) -> FnResult {
 
 pub fn bytes_decode(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     let spec: String = match argv.len() {
-        0 => String::from("UTF-8"),
+        0 => String::from("utf-8"),
         1 => match argv[0] {
             Object::String(ref s) => s.to_string(),
             _ => return env.type_error1(
@@ -152,7 +152,7 @@ pub fn bytes_decode(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult 
     };
     if let Some(bytes) = downcast::<Bytes>(pself) {
         let a = bytes.data.borrow();
-        if spec=="UTF-8" {
+        if spec=="utf-8" {
             Ok(Object::from(&*String::from_utf8_lossy(&a)))
         }else{
             env.value_error(&format!(

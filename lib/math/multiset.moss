@@ -3,6 +3,14 @@ function supp(A)
    set(A.filter(|x| A(x)>0))
 end
 
+function mset(a)
+   m = {}
+   for x in a
+      m[x] = (m(x) else 0)+1
+   end
+   return m
+end
+
 extend(Map,{
    function subeq(A;B)
       A.filter(|x| A(x)>0).all(|x| A(x)<=(B(x) else 0))

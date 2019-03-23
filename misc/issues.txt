@@ -1,0 +1,5 @@
+
+* Attributes of data.Byte are not searched in Iterable.
+
+
+

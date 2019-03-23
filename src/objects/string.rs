@@ -394,7 +394,7 @@ fn string_trim(env: &mut Env, pself: &Object, argv: &[Object])
 
 fn string_encode(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     let spec: String = match argv.len() {
-        0 => String::from("UTF-8"),
+        0 => String::from("utf-8"),
         1 => match argv[0] {
             Object::String(ref spec) => spec.to_string(),
             ref spec => return env.type_error1(
@@ -405,7 +405,7 @@ fn string_encode(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     };
     match *pself {
         Object::String(ref s) => {
-            if spec=="UTF-8" {
+            if spec=="utf-8" {
                 let data = s.to_string().into_bytes();
                 Ok(Bytes::object_from_vec(data))
             }else{

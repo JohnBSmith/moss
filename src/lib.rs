@@ -228,3 +228,21 @@ impl Drop for Interpreter {
     }
 }
 
+fn is_file(id: &str) -> bool {
+    let metadata = match std::fs::metadata(id) {
+        Ok(value) => value,
+        Err(_) => return false
+    };
+    return metadata.file_type().is_file();
+}
+
+pub fn residual_path(id: &str) -> Option<String> {
+    if is_file(id) {
+        return None;
+    }else{
+        let mut path = system::library_path();
+        path.push_str("include/");
+        path.push_str(id);
+        return Some(path);
+    }
+}

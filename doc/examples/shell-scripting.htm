@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Shell scripting</title>
+  <link href="../css/main.css" rel="stylesheet">
+  <script src = "../js/moss-syntax.js">
+  </script>
+</head>
+<body>
+
+<table class="navigation">
+<tr><td><b>&uarr;</b> <a href="toc.htm">Up</a>
+</table>
+<h1>Shell scripting</h1>
+
+<div class="toc">
+<h2 id="toc">Table of contents</h2>
+<ol>
+<li><a href="#walk">Walking through directory trees</a>
+
+</ol>
+</div>
+
+<h2>Walking through directory trees</h2>
+
+<pre class="moss">
+# List all files that have a specific filename extension.
+
+use fs.tree: walk_files
+
+function has_extension(file,s)
+   return s==file[-len(s)..]
+end
+
+for file in walk_files("/")
+   if has_extension(file,".txt")
+      print(file)
+   end
+end
+
+
+# The functional approach.
+
+use fs.tree: walk_files
+
+has_extension = |s| |file| s==file[-len(s)..]
+
+(walk_files("/")
+   .filter(has_extension(".txt"))
+   .each(print))
+</pre>
+
+
+</body>
+</html>
+

@@ -116,7 +116,7 @@ impl Info{
 }
 
 fn main(){
-    let info = Info::new();
+    let mut info = Info::new();
     let i = moss::Interpreter::new();
     i.set_config(CompilerExtra{
         debug_mode: info.debug_mode
@@ -138,10 +138,13 @@ fn main(){
     if info.math {
         env.eval_env(MATH,gtab.clone());
     }
-    for file in &info.ifile {
+    for file in &mut info.ifile {
         if file.e {
             env.eval_env(&file.s,gtab.clone());
         }else{
+            if let Some(path) = moss::residual_path(&file.s) {
+                file.s = path;
+            }
             env.eval_file(&file.s,gtab.clone());
         }
     }

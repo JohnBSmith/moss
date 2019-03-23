@@ -6,6 +6,7 @@ public system, system3d, System
 use math: pi, tau, hypot, tanh, atan2, sin, cos
 use cmath: re, im, arg
 use graphics: sleep
+use unpack: drain, assert_empty
 
 palette = [
    [0,0,0.6],
@@ -99,7 +100,8 @@ System = table{
       canvas = self.c
       wx = self.wx; px = self.px; ax = self.ax
       wy = self.wy; py = self.py; ay = self.ay
-      {n = self.n, point = canvas.point} = argm
+      {n = self.n, point = canvas.point} = drain(argm)
+      assert_empty(argm)
       step = wx/n
       px = px-ax*wx
       py = py-ay*wy
@@ -126,7 +128,8 @@ System = table{
       wy = self.wy; py = self.py; ay = self.ay
       { n=self.n, t0=0, t1=2*pi,
          point = canvas.point
-      } = argm
+      } = drain(argm)
+      assert_empty(argm)
       step = 1/n
       a = [f] if f: Function else f
       for f in a
@@ -495,8 +498,8 @@ aligny_tab = {
 }
 
 function system(argm = {})
-   {w=960,h=640,scale = null} = argm
-   canvas = graphics.canvas(w,h)
+   m = drain(argm)
+   {w=960,h=640,scale = null} = m
    if scale is null
       fscale = 1
    else
@@ -504,8 +507,9 @@ function system(argm = {})
    end
    {wx=10/fscale,wy=10/fscale,px=0,py=0,n=1000,dark=false,
     alignx="center", aligny="center"
-   } = argm
-   show_grid = argm("grid") else true
+   } = m
+   show_grid = m("grid") else true
+   assert_empty(argm)
    ax = alignx_tab[alignx]
    ay = aligny_tab[aligny]*h/w
    if dark
@@ -519,6 +523,7 @@ function system(argm = {})
       cgrid = [0.9,0.9,0.9]
       palette = palette
    end
+   canvas = graphics.canvas(w,h)
    canvas.clear(*bg)
    if show_grid
       grid(canvas,w,h,ax,ay,csys,cgrid,fscale)

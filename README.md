@@ -1,7 +1,7 @@
 
 [Home](https://johnbsmith.github.io/moss/home.htm)
 | [Language](https://johnbsmith.github.io/moss/doc/moss/toc.htm)
-| [Library](https://johnbsmith.github.io/moss/doc/library/toc.htm)
+| [Library](https://johnbsmith.github.io/moss/doc/lib/toc.htm)
 | [Examples](https://johnbsmith.github.io/moss/doc/examples/toc.htm)
 | [Rust-Moss examples](doc/md/rust-moss-examples.md)
 
@@ -15,7 +15,7 @@ Example of calling Moss code from Rust:
 ```rust
 use moss::object::Object;
 
-fn main(){
+fn main() {
     let i = moss::Interpreter::new();
     i.rte.set("a",Object::from(vec![1,2,3,4]));
 

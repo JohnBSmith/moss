@@ -28,7 +28,7 @@
 <pre class="moss">
 use data: hash
 
-h = hash("".encode("UTF-8"))
+h = hash("".encode("utf-8"))
 print(hex(h).chunks(4).map(|t| t.join()).join("\s"))
 
 # a7ff c6f8 bf1e d766 51c1 4756 a061 d662
@@ -39,7 +39,7 @@ print(hex(h).chunks(4).map(|t| t.join()).join("\s"))
 <b>Type Bytes, <code>a: Bytes</code></b>
 <dl class="code">
 <dt>a.decode(encoding)
-<dd>Decode an specific encoding. Available encodings: <code>"UTF-8"</code>.
+<dd>Decode an specific encoding. Available encodings: <code>"utf-8"</code>.
 
 <dt>a.list()
 <dd>Transform <code>a</code> into a list of integers less than 256.
