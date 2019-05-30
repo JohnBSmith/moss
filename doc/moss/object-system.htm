@@ -285,7 +285,7 @@ Bird = table(Type,"Bird"){
    end
 })
 
-Duck = class(Type,"Duck",Bird){
+Duck = table(Type,"Duck",Bird){
    function string
       "{} is a duck." % [self.name]
    end,
@@ -652,9 +652,14 @@ function get(key)
    end
 end
 
+function set(key,value)
+   record(self)[key] = value
+end
+
 # A custom class constructor.
 function pclass(m)
    m["get"] = get
+   m["set"] = set
    return class(m)
 end
 

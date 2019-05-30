@@ -351,7 +351,7 @@ impl Interface for Table {
         }
     }
 
-    fn set(&self, env: &mut Env, key: Object, value: Object) -> FnResult {
+    fn set(self: Rc<Self>, env: &mut Env, key: Object, value: Object) -> FnResult {
         let mut m = self.map.borrow_mut();
         if m.frozen {
             return Err(env.value_error_plain("Value error in 'a.x = value': a is frozen."));

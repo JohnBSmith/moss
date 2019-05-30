@@ -11,7 +11,7 @@ use crate::object::{
 use crate::vm::{Env,RTE,secondary_env,object_to_string};
 
 type PGet = Box<dyn Fn(&mut Env,Rc<Instance>,&Object)->FnResult>;
-type PSet = Box<dyn Fn(&mut Env,&Instance,Object,Object)->FnResult>;
+type PSet = Box<dyn Fn(&mut Env,Rc<Instance>,Object,Object)->FnResult>;
 type PToString = Box<dyn Fn(&mut Env,Rc<Instance>)->Result<String,Box<Exception>>>;
 
 pub struct Class {
@@ -75,7 +75,7 @@ fn custom_getter(f: Object) -> PGet {
     })
 }
 
-fn standard_setter(_env: &mut Env, t: &Instance, key: Object, value: Object)
+fn standard_setter(_env: &mut Env, t: Rc<Instance>, key: Object, value: Object)
 -> FnResult
 {
     t.map.borrow_mut().m.insert(key,value);
@@ -83,8 +83,8 @@ fn standard_setter(_env: &mut Env, t: &Instance, key: Object, value: Object)
 }
 
 fn custom_setter(f: Object) -> PSet {
-    Box::new(move |env: &mut Env, t: &Instance, key: Object, value: Object| -> FnResult {
-        env.call(&f,&Object::Map(t.map.clone()),&[key,value])
+    Box::new(move |env: &mut Env, t: Rc<Instance>, key: Object, value: Object| -> FnResult {
+        env.call(&f,&Object::Interface(t.clone()),&[key,value])
     })
 }
 
@@ -190,9 +190,9 @@ impl Interface for Instance {
             unreachable!();
         }
     }
-    fn set(&self, env: &mut Env, key: Object, value: Object) -> FnResult {
+    fn set(self: Rc<Self>, env: &mut Env, key: Object, value: Object) -> FnResult {
         if let Some(class) = downcast::<Class>(&self.prototype) {
-            (class.pset)(env,self,key,value)
+            (class.pset)(env,self.clone(),key,value)
         }else{
             unreachable!();
         }        

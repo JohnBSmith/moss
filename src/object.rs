@@ -419,7 +419,7 @@ pub trait Interface {
         env.std_exception(&format!(
             "Type error in t.{}: getter is not implemented for objects of this type.",key))
     }
-    fn set(&self, env: &mut Env, key: Object, _value: Object) -> FnResult {
+    fn set(self: Rc<Self>, env: &mut Env, key: Object, _value: Object) -> FnResult {
         env.std_exception(&format!(
             "Type error in t.{} = value: getter is not implemented for objects of this type.",key))
     }
