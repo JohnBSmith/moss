@@ -24,7 +24,7 @@ impl Table {
         Rc::new(Table{prototype: prototype, map: Map::new()})
     }
 
-    pub fn get(&self, key: &Object) -> Option<Object> {
+    pub fn slot(&self, key: &Object) -> Option<Object> {
         let mut p = self;
         loop{
             match p.map.borrow_mut().m.get(key) {
@@ -84,7 +84,7 @@ impl Interface for Table {
     }
 
     fn neg(self: Rc<Self>, env: &mut Env) -> FnResult {
-        match self.get(&env.rte().key_neg) {
+        match self.slot(&env.rte().key_neg) {
             Some(ref f) => env.call(f,&Object::Interface(self),&[]),
             None => env.type_error1("Type error in -x.", "x",
                 &Object::Interface(self))
@@ -92,7 +92,7 @@ impl Interface for Table {
     }
 
     fn add(self: Rc<Self>, y: &Object, env: &mut Env) -> FnResult {
-        match self.get(&env.rte().key_add) {
+        match self.slot(&env.rte().key_add) {
             Some(ref f) => {
                 let x = Object::Interface(self);
                 env.call(f,&x,&[y.clone()])
@@ -104,7 +104,7 @@ impl Interface for Table {
     }
     
     fn radd(self: Rc<Self>, x: &Object, env: &mut Env) -> FnResult {
-        match self.get(&env.rte().key_radd) {
+        match self.slot(&env.rte().key_radd) {
             Some(ref f) => {
                 env.call(f,&x,&[Object::Interface(self)])
             },
@@ -115,7 +115,7 @@ impl Interface for Table {
     }
 
     fn sub(self: Rc<Self>, y: &Object, env: &mut Env) -> FnResult {
-        match self.get(&env.rte().key_sub) {
+        match self.slot(&env.rte().key_sub) {
             Some(ref f) => {
                 let x = Object::Interface(self);
                 env.call(f,&x,&[y.clone()])
@@ -127,7 +127,7 @@ impl Interface for Table {
     }
 
     fn rsub(self: Rc<Self>, x: &Object, env: &mut Env) -> FnResult {
-        match self.get(&env.rte().key_rsub) {
+        match self.slot(&env.rte().key_rsub) {
             Some(ref f) => {
                 env.call(f,&x,&[Object::Interface(self)])
             },
@@ -138,7 +138,7 @@ impl Interface for Table {
     }
 
     fn mul(self: Rc<Self>, y: &Object, env: &mut Env) -> FnResult {
-        match self.get(&env.rte().key_mul) {
+        match self.slot(&env.rte().key_mul) {
             Some(ref f) => {
                 let x = Object::Interface(self);
                 env.call(f,&x,&[y.clone()])
@@ -150,7 +150,7 @@ impl Interface for Table {
     }
 
     fn rmul(self: Rc<Self>, x: &Object, env: &mut Env) -> FnResult {
-        match self.get(&env.rte().key_rmul) {
+        match self.slot(&env.rte().key_rmul) {
             Some(ref f) => {
                 env.call(f,&x,&[Object::Interface(self)])
             },
@@ -161,7 +161,7 @@ impl Interface for Table {
     }
 
     fn div(self: Rc<Self>, y: &Object, env: &mut Env) -> FnResult {
-        match self.get(&env.rte().key_div) {
+        match self.slot(&env.rte().key_div) {
             Some(ref f) => {
                 let x = Object::Interface(self);
                 env.call(f,&x,&[y.clone()])
@@ -173,7 +173,7 @@ impl Interface for Table {
     }
 
     fn rdiv(self: Rc<Self>, x: &Object, env: &mut Env) -> FnResult {
-        match self.get(&env.rte().key_rdiv) {
+        match self.slot(&env.rte().key_rdiv) {
             Some(ref f) => {
                 env.call(f,&x,&[Object::Interface(self)])
             },
@@ -184,7 +184,7 @@ impl Interface for Table {
     }
 
     fn idiv(self: Rc<Self>, y: &Object, env: &mut Env) -> FnResult {
-        match self.get(&env.rte().key_idiv) {
+        match self.slot(&env.rte().key_idiv) {
             Some(ref f) => {
                 let x = Object::Interface(self);
                 env.call(f,&x,&[y.clone()])
@@ -196,7 +196,7 @@ impl Interface for Table {
     }
 
     fn ridiv(self: Rc<Self>, x: &Object, env: &mut Env) -> FnResult {
-        match self.get(&env.rte().key_ridiv) {
+        match self.slot(&env.rte().key_ridiv) {
             Some(ref f) => {
                 env.call(f,&x,&[Object::Interface(self)])
             },
@@ -207,7 +207,7 @@ impl Interface for Table {
     }
 
     fn imod(self: Rc<Self>, y: &Object, env: &mut Env) -> FnResult {
-        match self.get(&env.rte().key_mod) {
+        match self.slot(&env.rte().key_mod) {
             Some(ref f) => {
                 let x = Object::Interface(self);
                 env.call(f,&x,&[y.clone()])
@@ -219,7 +219,7 @@ impl Interface for Table {
     }
 
     fn rimod(self: Rc<Self>, x: &Object, env: &mut Env) -> FnResult {
-        match self.get(&env.rte().key_rmod) {
+        match self.slot(&env.rte().key_rmod) {
             Some(ref f) => {
                 env.call(f,&x,&[Object::Interface(self)])
             },
@@ -230,7 +230,7 @@ impl Interface for Table {
     }
 
     fn pow(self: Rc<Self>, y: &Object, env: &mut Env) -> FnResult {
-        match self.get(&env.rte().key_pow) {
+        match self.slot(&env.rte().key_pow) {
             Some(ref f) => {
                 let x = Object::Interface(self);
                 env.call(f,&x,&[y.clone()])
@@ -242,7 +242,7 @@ impl Interface for Table {
     }
 
     fn rpow(self: Rc<Self>, x: &Object, env: &mut Env) -> FnResult {
-        match self.get(&env.rte().key_rpow) {
+        match self.slot(&env.rte().key_rpow) {
             Some(ref f) => {
                 env.call(f,&x,&[Object::Interface(self)])
             },
@@ -253,7 +253,7 @@ impl Interface for Table {
     }
 
     fn lt(self: Rc<Self>, y: &Object, env: &mut Env) -> FnResult {
-        match self.get(&env.rte().key_lt) {
+        match self.slot(&env.rte().key_lt) {
             Some(ref f) => {
                 let x = Object::Interface(self);
                 env.call(f,&x,&[y.clone()])
@@ -265,7 +265,7 @@ impl Interface for Table {
     }
     
     fn rlt(self: Rc<Self>, x: &Object, env: &mut Env) -> FnResult {
-        match self.get(&env.rte().key_rlt) {
+        match self.slot(&env.rte().key_rlt) {
             Some(ref f) => {
                 env.call(f,&x,&[Object::Interface(self)])
             },
@@ -276,7 +276,7 @@ impl Interface for Table {
     }
 
     fn le(self: Rc<Self>, y: &Object, env: &mut Env) -> FnResult {
-        match self.get(&env.rte().key_le) {
+        match self.slot(&env.rte().key_le) {
             Some(ref f) => {
                 let x = Object::Interface(self);
                 env.call(f,&x,&[y.clone()])
@@ -288,7 +288,7 @@ impl Interface for Table {
     }
     
     fn rle(self: Rc<Self>, x: &Object, env: &mut Env) -> FnResult {
-        match self.get(&env.rte().key_rle) {
+        match self.slot(&env.rte().key_rle) {
             Some(ref f) => {
                 env.call(f,&x,&[Object::Interface(self)])
             },
@@ -299,7 +299,7 @@ impl Interface for Table {
     }
 
     fn eq(self: Rc<Self>, y: &Object, env: &mut Env) -> FnResult {
-        match self.get(&env.rte().key_eq) {
+        match self.slot(&env.rte().key_eq) {
             Some(ref f) => {
                 let x = Object::Interface(self);
                 env.call(f,&x,&[y.clone()])
@@ -311,7 +311,7 @@ impl Interface for Table {
     }
 
     fn req(self: Rc<Self>, x: &Object, env: &mut Env) -> FnResult {
-        match self.get(&env.rte().key_req) {
+        match self.slot(&env.rte().key_req) {
             Some(ref f) => {
                 env.call(f,&x,&[Object::Interface(self)])
             },
@@ -340,8 +340,8 @@ impl Interface for Table {
         }
     }
 
-    fn get(&self, key: &Object, env: &mut Env) -> FnResult {
-        if let Some(value) = table_get(self,key) {
+    fn get(self: Rc<Self>, key: &Object, env: &mut Env) -> FnResult {
+        if let Some(value) = table_get(&self,key) {
             return Ok(value);
         }else{
             let key = key.clone().string(env)?;
@@ -364,7 +364,7 @@ impl Interface for Table {
     }
     
     fn index(self: Rc<Self>, indices: &[Object], env: &mut Env) -> FnResult {
-        if let Some(f) = self.get(&env.rte().key_index) {
+        if let Some(f) = self.slot(&env.rte().key_index) {
             return env.call(&f,&Object::Interface(self),indices);
         }else{
             return env.type_error1(
@@ -373,7 +373,7 @@ impl Interface for Table {
     }
 
     fn abs(self: Rc<Self>, env: &mut Env) -> FnResult {
-        if let Some(f) = self.get(&env.rte().key_abs) {
+        if let Some(f) = self.slot(&env.rte().key_abs) {
             return env.call(&f,&Object::Interface(self),&[]);
         }else{
             return env.std_exception(
@@ -390,7 +390,7 @@ impl Interface for Table {
     }
 
     fn iter(self: Rc<Self>, env: &mut Env) -> FnResult {
-        match self.get(&env.rte().key_iter) {
+        match self.slot(&env.rte().key_iter) {
             Some(ref iter) => {
                 env.call(iter,&Object::Interface(self),&[])
             },

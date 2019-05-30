@@ -104,8 +104,8 @@ impl Interface for Array<f64> {
     fn index(self: Rc<Self>, indices: &[Object], env: &mut Env) -> FnResult {
         index(&self,indices,env)
     }
-    fn get(&self, key: &Object, env: &mut Env) -> FnResult {
-        get(self,key,env)
+    fn get(self: Rc<Self>, key: &Object, env: &mut Env) -> FnResult {
+        get(&self,key,env)
     }
     fn abs(self: Rc<Self>, _env: &mut Env) -> FnResult {
         return abs_f64(&self);
@@ -143,8 +143,8 @@ impl Interface for Array<c64> {
     fn index(self: Rc<Self>, indices: &[Object], env: &mut Env) -> FnResult {
         index(&self,indices,env)
     }
-    fn get(&self, key: &Object, env: &mut Env) -> FnResult {
-        get(self,key,env)
+    fn get(self: Rc<Self>, key: &Object, env: &mut Env) -> FnResult {
+        get(&self,key,env)
     }
     fn abs(self: Rc<Self>, _env: &mut Env) -> FnResult {
         return abs_c64(&self);
@@ -214,7 +214,7 @@ where T: Number, Object: From<T>
             _ => {}
         }
         let t = &env.rte().interface_types.borrow()[interface_index::ARRAY];
-        match t.get(key) {
+        match t.slot(key) {
             Some(value) => return Ok(value),
             None => {
                 env.index_error(&format!(

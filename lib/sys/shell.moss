@@ -1,11 +1,13 @@
 
 begin
-public cmd, sh
+public cmd, sh, ShException
 
 use sys
 use regex: re
 
 space = re("{_}")
+
+ShException = table(Type,"ShException"){}
 
 function cmd(command,argv=null)
    if argv is null
@@ -18,11 +20,18 @@ end
 
 function sh(command,m=null)
    if m is null or not m["capture"]
-      return sys.cmd("sh",["-c",command])
-   else
       value = sys.cmd("sh",["-c",command+" > /tmp/f04e3a427dd35c24"])
       text = read("/tmp/f04e3a427dd35c24")
-      return table{value=value, text=text}
+      if value is null
+         return text
+      else
+         raise table ShException{value=value, text=text}
+      end
+   else
+      value = sys.cmd("sh",["-c",command])
+      if not value is null
+         raise table ShException{value=value, text="Shell exception"}
+      end
    end
 end
 

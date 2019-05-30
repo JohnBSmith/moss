@@ -415,7 +415,7 @@ pub trait Interface {
     fn sgn(self: Rc<Self>, env: &mut Env) -> FnResult {
         env.std_exception("Error: sgn(x) is not implemented for objects of this type.")
     }
-    fn get(&self, key: &Object, env: &mut Env) -> FnResult {
+    fn get(self: Rc<Self>, key: &Object, env: &mut Env) -> FnResult {
         env.std_exception(&format!(
             "Type error in t.{}: getter is not implemented for objects of this type.",key))
     }
@@ -451,7 +451,7 @@ pub fn interface_object_get(
 ) -> FnResult
 {
     let t = &env.rte().interface_types.borrow()[index];
-    match t.get(key) {
+    match t.slot(key) {
         Some(value) => return Ok(value),
         None => {
             env.index_error(&format!(

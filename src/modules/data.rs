@@ -57,7 +57,7 @@ impl Interface for Bytes {
         Ok(Object::Interface(env.rte().interface_types
            .borrow()[interface_index::BYTES].clone()))
     }
-    fn get(&self, key: &Object, env: &mut Env) -> FnResult {
+    fn get(self: Rc<Self>, key: &Object, env: &mut Env) -> FnResult {
         interface_object_get("Bytes",key,env,interface_index::BYTES)
     }
     fn index(self: Rc<Self>, indices: &[Object], env: &mut Env) -> FnResult {

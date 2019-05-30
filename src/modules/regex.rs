@@ -607,9 +607,9 @@ impl Interface for Regex{
     fn to_string(self: Rc<Self>, _env: &mut Env) -> Result<String,Box<Exception>> {
         Ok("regex object".to_string())
     }
-    fn get(&self, key: &Object, env: &mut Env) -> FnResult {
+    fn get(self: Rc<Self>, key: &Object, env: &mut Env) -> FnResult {
         let t = &env.rte().interface_types.borrow()[self.index];
-        match t.get(key) {
+        match t.slot(key) {
             Some(value) => return Ok(value),
             None => env.index_error(&format!(
                 "Index error in t.{0}: {0} not found.", key

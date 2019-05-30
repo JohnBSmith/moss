@@ -95,45 +95,45 @@ impl Interface for Array {
             panic!();
         }
     }
-    fn get(&self, key: &Object, env: &mut Env) -> FnResult {
+    fn get(self: Rc<Self>, key: &Object, env: &mut Env) -> FnResult {
         if let Object::String(ref s) = *key {
             let v = &s.data;
             match v.len() {
                 1 => {
                     if v[0] == 'T' {
-                        return Ok(Object::Interface(transpose(self)));
+                        return Ok(Object::Interface(transpose(&self)));
                     }else if v[0] == 'H' {
-                        return Ok(Object::Interface(transpose(&conj(self))));
+                        return Ok(Object::Interface(transpose(&conj(&self))));
                     }
                 },
                 2 => if v[0..2] == ['t','r'] {
-                    return trace(env,self);
+                    return trace(env,&self);
                 },
                 3 => {
                     if v[0..3] == ['a','b','s'] {
-                        return abs(env,self);
+                        return abs(env,&self);
                     }
                 },
                 4 => {
                     if v[0..4] == ['c','o','n','j'] {
-                        return Ok(Object::Interface(conj(self)));
+                        return Ok(Object::Interface(conj(&self)));
                     }else if v[0..4] == ['c','o','p','y'] {
-                        return Ok(Object::Interface(copy(self)));
+                        return Ok(Object::Interface(copy(&self)));
                     }else if v[0..4] == ['d','i','a','g'] {
-                        return diag_slice(env,self);
+                        return diag_slice(env,&self);
                     }else if v[0..4] == ['l','i','s','t'] {
-                        return Ok(List::new_object(list(self)));
+                        return Ok(List::new_object(list(&self)));
                     }
                 },
                 5 => {
                     if v[0..5] == ['s','h','a','p','e'] {
-                        return shape(self);
+                        return shape(&self);
                     }
                 },
                 _ => {}
             }
             let t = &env.rte().interface_types.borrow()[interface_index::POLY_ARRAY];
-            match t.get(key) {
+            match t.slot(key) {
                 Some(value) => return Ok(value),
                 None => {
                     env.index_error(&format!(

@@ -414,8 +414,8 @@ impl Interface for Canvas {
     fn type_name(&self, _env: &mut Env) -> String {
         "Canvas".to_string()
     }
-    fn get(&self, key: &Object, env: &mut Env) -> FnResult {
-        match self.type_canvas.get(key) {
+    fn get(self: Rc<Self>, key: &Object, env: &mut Env) -> FnResult {
+        match self.type_canvas.slot(key) {
             Some(value) => return Ok(value),
             None => {
                 env.index_error(&format!(

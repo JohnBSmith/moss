@@ -28,6 +28,8 @@
 <li><a href="#overloading">Operator overloading</a>
 <li><a href="#read-only">Read-only properties</a>
 <li><a href="#private">Private properties</a>
+<li><a href="#advanced">Advanced classes</a>
+<li><a href="#custom">Custom class constructors</a>
 </ol>
 </div>
 
@@ -610,6 +612,60 @@ Bristol = ship()
 print(Bristol.info())
 Bristol.change_color()
 print(Bristol.info())
+</pre>
+
+<h2 id="advanced">Advanced classes</h2>
+
+<p>Advanced classes allow for features like getters, setters
+and destructors. Such classes are created by the function
+<code>class</code>:
+<pre class="moss indent">
+Object = class{
+   name = "Object",
+   get = |key| "~{}~"%[record(self)[key]],
+   drop = || print("dropped")
+}
+
+t = table Object{x=1,y=2}
+print(t.x)
+</pre>
+<p>This program prints:
+<pre class="indent">
+~1~
+dropped
+</pre>
+
+<h2 id="custom">Custom class constructors</h2>
+
+<pre class="moss">
+# An implementation of prototyping inheritance.
+function get(key)
+   data = record(self)
+   while true
+      if key in data
+         return data[key]
+      elif "prototype" in data
+         data = record(data["prototype"])
+      else
+         raise "key '{}' not found" % [key]
+      end
+   end
+end
+
+# A custom class constructor.
+function pclass(m)
+   m["get"] = get
+   return class(m)
+end
+
+Object = pclass{name = "Object"}
+
+a = table Object{x=1,y=2}
+b = table Object{z=3,prototype=a}
+print([b.x,b.y,b.z])
+
+# Output:
+# [1, 2, 3]
 </pre>
 
 

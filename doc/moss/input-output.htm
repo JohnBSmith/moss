@@ -27,7 +27,12 @@
   <li><a href="#first-examples">First examples</a>
   <li><a href="#named-arguments">Named arguments</a>
   </ol>
-<li><a href="#conf">Configuration files</a>
+<li><a href="#files">Files</a>
+  <ol>
+  <li><a href="#text">Text files</a>
+  <li><a href="#bin">Binary files</a>
+  <li><a href="#conf">Configuration files</a>
+  </ol>
 </ol>
 </div>
 
@@ -185,7 +190,34 @@ bin8 = |n| "0b{:r8(0)b}"%[n]
 </pre>
 
 
-<h2 id="conf">Configuration files</h2>
+<h2 id="files">Files</h2>
+<h3 id="text">Text files</h3>
+
+<p>Reading a text file is very convenient:
+<pre class="moss indent">
+s = read("file.txt")
+</pre>
+
+<p>The more general file system interface provides more control:
+<pre class="moss indent">
+use fs: open
+
+s = open("file.txt").read().decode("utf-8")
+</pre>
+
+
+<h3 id="bin">Binary files</h3>
+
+<p>The following program obtains 10 bytes of random data:
+<pre class="moss indent">
+use fs: open
+
+f = open("/dev/urandom")
+a = f.read(10).list()
+</pre>
+
+
+<h3 id="conf">Configuration files</h3>
 
 <p>A possible way to express configurations is to simply state
 them as Moss code. In doing so, the expressions are loaded as

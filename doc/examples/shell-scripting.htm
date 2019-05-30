@@ -18,11 +18,12 @@
 <h2 id="toc">Table of contents</h2>
 <ol>
 <li><a href="#walk">Walking through directory trees</a>
-
+<li><a href="#sh">Shell commands</a>
 </ol>
 </div>
 
-<h2>Walking through directory trees</h2>
+<br>
+<h2 id="walk">Walking through directory trees</h2>
 
 <pre class="moss">
 # List all files that have a specific filename extension.
@@ -51,6 +52,36 @@ has_extension = |s| |file| s==file[-len(s)..]
    .each(print))
 </pre>
 
+<br>
+<h2 id="sh">Shell commands</h2>
+
+<pre class="moss">
+# Execute a shell command, capture stdout
+# and return it.
+
+use sys.shell: sh
+
+s = sh("GET en.wikipedia.org")
+print(s)
+
+
+# Don't capture stdout
+
+sh("GET en.wikipedia.org",capture=false)
+
+
+# With error handling
+
+use sys.shell: sh, ShException
+
+try
+   s = sh("GET en.wikipedia.org")
+   print(s)
+catch e if e: ShException
+   print("value: ",e.value)
+   print("text: ",e.text)
+end
+</pre>
 
 </body>
 </html>

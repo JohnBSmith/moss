@@ -47,7 +47,7 @@ impl Interface for Range {
         })
     }
     
-    fn get(&self, key: &Object, env: &mut Env) -> FnResult {
+    fn get(self: Rc<Self>, key: &Object, env: &mut Env) -> FnResult {
         match env.rte().type_iterable.map.borrow().m.get(key) {
             Some(x) => Ok(x.clone()),
             None => env.index_error(&format!(

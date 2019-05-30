@@ -10,7 +10,7 @@ use crate::object::{
 };
 use crate::vm::{Env,RTE,secondary_env,object_to_string};
 
-type PGet = Box<dyn Fn(&mut Env,&Instance,&Object)->FnResult>;
+type PGet = Box<dyn Fn(&mut Env,Rc<Instance>,&Object)->FnResult>;
 type PSet = Box<dyn Fn(&mut Env,&Instance,Object,Object)->FnResult>;
 type PToString = Box<dyn Fn(&mut Env,Rc<Instance>)->Result<String,Box<Exception>>>;
 
@@ -50,7 +50,7 @@ impl Interface for Class {
     fn to_string(self: Rc<Self>, _env: &mut Env) -> Result<String,Box<Exception>> {
         Ok(self.name.clone())
     }
-    fn get(&self, key: &Object, _env: &mut Env) -> FnResult {
+    fn get(self: Rc<Self>, key: &Object, _env: &mut Env) -> FnResult {
         if let Some(value) = self.map.borrow().m.get(key) {
             return Ok(value.clone());
         }else{
@@ -59,7 +59,7 @@ impl Interface for Class {
     }
 }
 
-fn standard_getter(env: &mut Env, t: &Instance, key: &Object)
+fn standard_getter(env: &mut Env, t: Rc<Instance>, key: &Object)
 -> FnResult
 {
     if let Some(y) = t.map.borrow().m.get(key) {
@@ -70,8 +70,8 @@ fn standard_getter(env: &mut Env, t: &Instance, key: &Object)
 }
 
 fn custom_getter(f: Object) -> PGet {
-    Box::new(move |env: &mut Env, t: &Instance, key: &Object| -> FnResult {
-        env.call(&f,&Object::Map(t.map.clone()),&[key.clone()])
+    Box::new(move |env: &mut Env, t: Rc<Instance>, key: &Object| -> FnResult {
+        env.call(&f,&Object::Interface(t.clone()),&[key.clone()])
     })
 }
 
@@ -183,9 +183,9 @@ impl Interface for Instance {
         }
         return false;
     }
-    fn get(&self, key: &Object, env: &mut Env) -> FnResult {
+    fn get(self: Rc<Self>, key: &Object, env: &mut Env) -> FnResult {
         if let Some(class) = downcast::<Class>(&self.prototype) {
-            (class.pget)(env,self,key)
+            (class.pget)(env,self.clone(),key)
         }else{
             unreachable!();
         }

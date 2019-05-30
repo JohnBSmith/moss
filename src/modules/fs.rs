@@ -26,7 +26,7 @@ impl Interface for File {
     fn to_string(self: Rc<Self>, _env: &mut Env) -> Result<String,Box<Exception>> {
         return Ok("file object".to_string());
     }
-    fn get(&self, key: &Object, env: &mut Env) -> FnResult {
+    fn get(self: Rc<Self>, key: &Object, env: &mut Env) -> FnResult {
         interface_object_get("File",key,env,interface_index::FILE)
     }
 }

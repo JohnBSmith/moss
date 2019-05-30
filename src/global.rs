@@ -25,7 +25,7 @@ use crate::table::{table_get,type_to_string};
 use crate::tuple::Tuple;
 use crate::iterable::new_iterator;
 use crate::map::map_extend;
-use crate::class::class_new;
+use crate::class::{class_new,Instance};
 use crate::range::Range;
 use crate::data::{Bytes,base16};
 
@@ -233,7 +233,7 @@ fn len(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
             Ok(Object::Int(s.data.len() as i32))
         },
         Object::Interface(ref x) => {
-            let f = x.get(&Object::from("len"),env)?;
+            let f = x.clone().get(&Object::from("len"),env)?;
             return env.call(&f,&argv[0],&[]);
         },
         _ => env.type_error1(
@@ -347,6 +347,8 @@ fn record(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
         1 => {}, n => return env.argc_error(n,1,1,"record")
     }
     if let Some(t) = downcast::<Table>(&argv[0]) {
+        Ok(Object::Map(t.map.clone()))
+    }else if let Some(t) = downcast::<Instance>(&argv[0]) {
         Ok(Object::Map(t.map.clone()))
     }else{
         env.type_error1(
@@ -514,7 +516,7 @@ pub fn list(env: &mut Env, obj: &Object) -> FnResult {
     
     if let Object::Interface(x) = obj {
         let key = env.rte().key_list.clone();
-        let f = x.get(&key,env)?;
+        let f = x.clone().get(&key,env)?;
         return env.call(&f,obj,&[]);
     }
 
