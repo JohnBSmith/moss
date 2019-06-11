@@ -38,7 +38,7 @@ fn compile(s: &str, file: &str) -> Result<(),()> {
         }
     }
     let code = generate(&t,checker.symbol_table);
-    println!("{}",code);
+    // println!("{}",code);
     save(&code,file);
     return Ok(());
 }

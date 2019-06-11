@@ -60,12 +60,27 @@ pub struct SymbolTable {
 impl SymbolTable {
     pub fn new(env: &Env) -> Self {
         let mut variables: HashMap<String,VariableInfo> = HashMap::new();
-        let print_type = Type::Fn(Rc::new(FnType{
+        let type_of_print = Type::Fn(Rc::new(FnType{
             argc_min: 0, argc_max: VARIADIC,
             arg: vec![Type::Atomic(env.type_object.clone())],
             ret: Type::Atomic(env.type_unit.clone())
         }));
-        variables.insert("print".into(),VariableInfo::global(print_type));
+        variables.insert("print".into(),VariableInfo::global(type_of_print));
+        
+        let type_of_list = Type::Fn(Rc::new(FnType{
+            argc_min: 1, argc_max: 1,
+            arg: vec![Type::App(Rc::new(vec![Type::Atomic(env.type_range.clone()),
+                Type::Atomic(env.type_int.clone()),
+                Type::Atomic(env.type_int.clone()),
+                Type::Atomic(env.type_unit.clone())
+            ]))],
+            ret: Type::App(Rc::new(vec![
+                Type::Atomic(env.type_list.clone()),
+                Type::Atomic(env.type_int.clone())
+            ]))
+        }));
+        variables.insert("list".into(),VariableInfo::global(type_of_list));
+
         let node = SymbolTableNode{context: None, variables};
         let table = SymbolTable{
             index: 0, list: vec![node]
@@ -329,6 +344,11 @@ fn is_subtype_eq_object(env: &Env, ty: &Type) -> bool {
         return true;
     }else if let Some(a) = ty.is_app(&env.type_list) {
         return is_subtype_eq_object(env,&a[0]);
+    }else if let Some(a) = ty.is_app(&env.type_range) {
+        for x in a {
+            if !is_subtype_eq_object(env,x) {return false;}
+        }
+        return true;
     }else{
         return false;
     }
@@ -371,6 +391,7 @@ fn type_from_signature(env: &Env, t: &AST) -> Type {
         return Type::None;
     }else if let Info::Id(id) = &t.info {
         return match &id[..] {
+            "Unit" => Type::Atomic(env.type_unit.clone()),
             "Bool" => Type::Atomic(env.type_bool.clone()),
             "Int" => Type::Atomic(env.type_int.clone()),
             "String" => Type::Atomic(env.type_string.clone()),
@@ -410,6 +431,8 @@ fn type_from_signature(env: &Env, t: &AST) -> Type {
             argc_min: n-1, argc_max: n-1,
             arg, ret
         }));
+    }else if t.value == Symbol::Unit {
+        return Type::Atomic(env.type_unit.clone());
     }else{
         unimplemented!("{}",t.value);
     }

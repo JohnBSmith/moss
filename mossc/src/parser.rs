@@ -628,6 +628,11 @@ fn atom(&mut self, i: &TokenIterator)
     }else if value == Symbol::Vert {
         i.advance();
         return self.lambda_expression(t,i);
+    }else if value == Symbol::Null {
+        i.advance();
+        return Ok(AST::node(t.line, t.col, Symbol::Null,
+            Info::None, None
+        ));
     }else{
         return Err(syntax_error(t.line,t.col,
             format!("unexpected symbol: '{:?}'",t.value)
@@ -1089,11 +1094,11 @@ fn type_expression(&mut self, i: &TokenIterator)
 
 pub fn parse(s: &str) -> Result<Rc<AST>,Error> {
     let v = scan(s)?;
-    println!("{:?}\n",v);
+    // println!("{:?}\n",v);
     let i = TokenIterator::new(&v);
     let mut parser = Parser{};
     let x = parser.statements(&i)?;
-    println!("{}",x);
+    // println!("{}",x);
     return Ok(x);
 }
 
