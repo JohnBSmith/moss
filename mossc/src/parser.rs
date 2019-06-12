@@ -30,7 +30,7 @@ pub enum Symbol {
     List, Application, Block, Unit,
     Assert, And, Begin, Break, Catch, Continue, Do, Elif, Else,
     End, False, For, Fn, Function, Global, Goto, Label, Let,
-    If, In, Is, Not, Null, Of, Or, Public, Raise, Return,
+    If, In, Is, Mut, Not, Null, Of, Or, Public, Raise, Return,
     Table, Then, True, Try, Use, While, Yield
 }
 
@@ -90,6 +90,7 @@ static KEYWORDS: &'static [KeywordsElement] = &[
       KeywordsElement{s: "if",      v: &Symbol::If},
       KeywordsElement{s: "in",      v: &Symbol::In},
       KeywordsElement{s: "is",      v: &Symbol::Is},
+      KeywordsElement{s: "mut",     v: &Symbol::Mut},
       KeywordsElement{s: "not",     v: &Symbol::Not},
       KeywordsElement{s: "null",    v: &Symbol::Null},
       KeywordsElement{s: "of",      v: &Symbol::Of},
@@ -170,6 +171,7 @@ impl std::fmt::Display for Symbol {
             Symbol::If    => write!(f,"if"),
             Symbol::In    => write!(f,"in"),
             Symbol::Is    => write!(f,"is"),
+            Symbol::Mut   => write!(f,"mut"),
             Symbol::Not   => write!(f,"not"),
             Symbol::Null  => write!(f,"null"),
             Symbol::Of    => write!(f,"of"),
@@ -423,7 +425,8 @@ pub struct FnHeader {
 }
 
 pub enum Info {
-    None, Int(i32), Id(String), String(String), FnHeader(Box<FnHeader>)
+    None, Mut, Int(i32), Id(String),
+    String(String), FnHeader(Box<FnHeader>),
 }
 
 pub struct AST {
@@ -863,6 +866,34 @@ fn expression(&mut self, i: &TokenIterator)
     return self.conditional_expression(i);
 }
 
+fn assignment(&mut self, i: &TokenIterator)
+-> Result<Rc<AST>,Error>
+{
+    let left_hand_side = self.expression(i)?;
+    let t = i.get();
+    if t.value == Symbol::Assignment {
+        match left_hand_side.info {
+            Info::Id(_) => {},
+            _ => {
+                return Err(syntax_error(t.line,t.col,
+                    "expected an identifier on the left hand side".into()
+                ));
+            }
+        }
+        i.advance();
+        let right_hand_side = self.expression(i)?;
+        return Ok(AST::operator(t.line,t.col,Symbol::Assignment,
+            Box::new([left_hand_side,right_hand_side])
+        ));
+    }else if t.value == Symbol::Semicolon {
+        return Ok(left_hand_side);
+    }else{
+        return Err(syntax_error(t.line,t.col,
+            format!("expected '=' or ';', got '{:?}'",t.value)
+        ));
+    }
+}
+
 fn formal_argument_list(&mut self, i: &TokenIterator)
 -> Result<Vec<Argument>,Error>
 {
@@ -944,7 +975,13 @@ fn statements(&mut self, i: &TokenIterator)
         let col = t.col;
         let value = t.value;
         if value == Symbol::Let {
+            let mut mut_cond = Info::None;
             i.advance();
+            let t = i.get();
+            if t.value == Symbol::Mut {
+                mut_cond = Info::Mut;
+                i.advance();
+            }
             let id = self.atom(i)?;
 
             let t = i.get();
@@ -959,14 +996,14 @@ fn statements(&mut self, i: &TokenIterator)
             if t.value == Symbol::Assignment {
                 i.advance();
                 let x = self.expression(i)?;
-                let let_exp = AST::node(line,col,Symbol::Let,Info::None,
+                let let_exp = AST::node(line,col,Symbol::Let,mut_cond,
                     Some(Box::new([id,texp,x]))
                 );
                 a.push(let_exp);
                 self.expect(i,Symbol::Semicolon)?;
             }else if t.value == Symbol::Semicolon {
                 i.advance();
-                let let_exp = AST::node(line,col,Symbol::Let,Info::None,
+                let let_exp = AST::node(line,col,Symbol::Let,mut_cond,
                     Some(Box::new([id,texp]))
                 );
                 a.push(let_exp);
@@ -985,7 +1022,7 @@ fn statements(&mut self, i: &TokenIterator)
             self.expect(i,Symbol::Semicolon)?;
             a.push(x);
         }else{
-            let x = self.expression(i)?;
+            let x = self.assignment(i)?;
             a.push(x);
             self.expect(i,Symbol::Semicolon)?;
         }

@@ -186,7 +186,7 @@ impl std::fmt::Display for Type {
 
 #[derive(PartialEq,Eq)]
 enum ErrorKind {
-    TypeError, UndefinedSymbol
+    Error, TypeError, UndefinedSymbol
 }
 
 pub struct SemanticError {
@@ -200,6 +200,9 @@ impl SemanticError {
     pub fn print(&self) {
         println!("Line {}, col {}:",self.line+1,self.col+1);
         match self.kind {
+            ErrorKind::Error => {
+                println!("Error: {}",self.text);
+            },
             ErrorKind::TypeError => {
                 println!("Type error: {}",self.text);
             },
@@ -208,6 +211,10 @@ impl SemanticError {
             }
         }
     }
+}
+
+fn error(line: usize, col: usize, text: String) -> SemanticError {
+    SemanticError{line,col,text,kind: ErrorKind::Error}
 }
 
 fn type_error(line: usize, col: usize, text: String) -> SemanticError {
@@ -381,6 +388,10 @@ fn is_subtype_eq(env: &Env, t1: &Type, t2: &Type) -> bool {
             if a.len()==b.len() {
                 return is_subtype_eq_elementwise(env,a,b);
             }
+        }
+    }else if let Some(a) = t1.is_app(&env.type_list) {
+        if let Some(b) = t2.is_app(&env.type_list){
+            return is_subtype_eq(env,&a[0],&b[0]);
         }
     }
     return false;
@@ -616,6 +627,7 @@ fn type_check_block(&mut self, env: &Env, t: &AST)
 fn type_check_let(&mut self, env: &Env, t: &AST)
 -> Result<Type,SemanticError>
 {
+    let mutable = match t.info {Info::Mut => true, _ => false};
     let a = t.argv();
     let id = match &a[0].info {Info::Id(id) => id.clone(), _ => unreachable!()};
     let ty = type_from_signature(env,&a[1]);
@@ -648,10 +660,38 @@ fn type_check_let(&mut self, env: &Env, t: &AST)
             panic!();
         }
         node.variables.insert(id,VariableInfo{
-            mutable: false, ty: ty_of_id, kind: VariableKind::Global
+            mutable, ty: ty_of_id, kind: VariableKind::Global
         });
     }
     return Ok(Type::Atomic(env.type_unit.clone()));
+}
+
+fn type_check_assignment(&mut self, env: &Env, t: &AST)
+-> Result<(),SemanticError>
+{
+    let a = t.argv();
+    let id = match &a[0].info {Info::Id(id) => id.clone(), _ => unreachable!()};
+    let ty_expr = self.type_check_node(env,&a[1])?;
+
+    let index = self.symbol_table.index;
+    let node = &mut self.symbol_table.list[index];
+    if let Some(variable_info) = node.variables.get(&id) {
+        if !variable_info.mutable {
+            return Err(error(t.line,t.col,
+                format!("variable '{}' is immutable.",id)
+            ));
+        }
+        let ty = &variable_info.ty;
+        if !is_subtype_eq(env,&ty_expr,&ty) {
+            return Err(type_error(t.line,t.col,
+                format!("\n    expected {}: {},\n     found type {}.",
+                    id,ty,ty_expr)
+            ));
+        }
+    }else{
+        return Err(undefined_symbol(t.line,t.col,id));
+    }
+    return Ok(());
 }
 
 fn type_check_variable(&mut self, t: &AST, id: &String)
@@ -824,6 +864,10 @@ fn type_check_node(&mut self, env: &Env, t: &AST)
         },
         Symbol::Let => {
             return self.type_check_let(env,t);
+        },
+        Symbol::Assignment => {
+            self.type_check_assignment(env,t)?;
+            return Ok(Type::Atomic(env.type_unit.clone()));
         },
         Symbol::List => {
             return self.type_check_tuple(env,t);

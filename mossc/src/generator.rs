@@ -242,6 +242,17 @@ fn compile_let_statement(&mut self, bv: &mut Vec<u32>, t: &AST) {
     push_u32(bv,index as u32);
 }
 
+fn compile_assignment(&mut self, bv: &mut Vec<u32>, t: &AST) {
+    let a = t.argv();
+    let key = match a[0].info {Info::Id(ref value)=>value, _ => panic!()};
+
+    self.compile_node(bv,&a[1]);
+
+    let index = self.pool.get_index(key);
+    push_bc(bv,bc::STORE,t.line,t.col);
+    push_u32(bv,index as u32);
+}
+
 fn compile_list_literal(&mut self, bv: &mut Vec<u32>, t: &AST) {
     let a = t.argv();
     for x in a {
@@ -453,6 +464,9 @@ fn compile_node(&mut self, bv: &mut Vec<u32>, t: &AST) {
         },
         Symbol::Let => {
             self.compile_let_statement(bv,t);
+        },
+        Symbol::Assignment => {
+            self.compile_assignment(bv,t);
         },
         Symbol::Application => {
             self.compile_application(bv,t);
