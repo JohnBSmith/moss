@@ -5,7 +5,7 @@ use std::cell::RefCell;
 use std::mem::replace;
 
 use crate::object::{
-    Object, Map, Interface, downcast,
+    Object, Map, Interface, downcast, ptr_eq_plain,
     FnResult, Exception
 };
 use crate::vm::{Env,RTE,secondary_env,object_to_string};
@@ -178,7 +178,7 @@ impl Interface for Instance {
     fn is_instance_of(&self, type_obj: &Object, _rte: &RTE) -> bool {
         if let Object::Interface(t) = type_obj {
             if let Object::Interface(p) = &self.prototype {
-                return Rc::ptr_eq(p,t);
+                return ptr_eq_plain(p,t); 
             }
         }
         return false;

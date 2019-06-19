@@ -160,14 +160,17 @@ fn compile_identifier(&mut self, bv: &mut Vec<u32>, t: &AST, id: &str) {
                 push_bc(bv,bc::LOAD,t.line,t.col);
                 push_u32(bv,index as u32);
             },
+            VariableKind::Local(index) => {
+                push_bc(bv,bc::LOAD_LOCAL,t.line,t.col);
+                push_u32(bv,index as u32);
+            },
             VariableKind::Argument(index) => {
                 push_bc(bv,bc::LOAD_ARG,t.line,t.col);
                 push_u32(bv,index as u32);
             },
             VariableKind::FnSelf => {
                 push_bc(bv,bc::FNSELF,t.line,t.col);
-            },
-            _ => panic!()
+            }
         }
     }else{
         unreachable!();
@@ -231,15 +234,38 @@ fn compile_operator(&mut self, bv: &mut Vec<u32>, t: &AST, code: u8) {
     push_bc(bv,code,t.line,t.col);
 }
 
+fn store(&mut self, bv: &mut Vec<u32>, t: &AST, key: &str) {
+    if let Some(info) = self.symbol_table.get(key) {
+        // println!("STORE {}, kind: {:?}",key,info.kind);
+        match info.kind {
+            VariableKind::Global => {
+                let index = self.pool.get_index(key);
+                push_bc(bv,bc::STORE,t.line,t.col);
+                push_u32(bv,index as u32);
+            },
+            VariableKind::Local(index) => {
+                push_bc(bv,bc::STORE_LOCAL,t.line,t.col);
+                push_u32(bv,index as u32);
+            },
+            VariableKind::Argument(index) => {
+                push_bc(bv,bc::STORE_ARG,t.line,t.col);
+                push_u32(bv,index as u32);
+            },
+            VariableKind::FnSelf => {
+                panic!();
+            }
+        }
+    }else{
+        unreachable!();
+    }
+}
+
 fn compile_let_statement(&mut self, bv: &mut Vec<u32>, t: &AST) {
     let a = t.argv();
     let key = match a[0].info {Info::Id(ref value)=>value, _ => panic!()};
 
     self.compile_node(bv,&a[2]);
-
-    let index = self.pool.get_index(key);
-    push_bc(bv,bc::STORE,t.line,t.col);
-    push_u32(bv,index as u32);
+    self.store(bv,t,key);
 }
 
 fn compile_assignment(&mut self, bv: &mut Vec<u32>, t: &AST) {
@@ -247,10 +273,7 @@ fn compile_assignment(&mut self, bv: &mut Vec<u32>, t: &AST) {
     let key = match a[0].info {Info::Id(ref value)=>value, _ => panic!()};
 
     self.compile_node(bv,&a[1]);
-
-    let index = self.pool.get_index(key);
-    push_bc(bv,bc::STORE,t.line,t.col);
-    push_u32(bv,index as u32);
+    self.store(bv,t,key);
 }
 
 fn compile_list_literal(&mut self, bv: &mut Vec<u32>, t: &AST) {
@@ -291,7 +314,7 @@ fn compile_fn(&mut self, bv: &mut Vec<u32>, t: &AST) {
     // Compile the function body.
     self.compile_node(&mut bv2,body);
 
-    let var_count = self.symbol_table.count();
+    let var_count = self.symbol_table.local_count_max();
 
     // Shift the start adresses of nested functions
     // by the now known offset and turn them into
@@ -374,7 +397,42 @@ fn compile_return(&mut self, bv: &mut Vec<u32>, t: &AST) {
     push_bc(bv,bc::RET,t.line,t.col);
 }
 
-fn compile_conditional_expression(&mut self, bv: &mut Vec<u32>, t: &AST) {
+fn compile_while(&mut self, bv: &mut Vec<u32>, t: &AST) {
+    let index1 = bv.len();
+    let mut index2 = 0;
+    // self.jmp_stack.push(JmpInfo{start: index1, breaks: Vec::new()});
+    let a = t.argv();
+    let condition = a[0].value != Symbol::True;
+    
+    if condition {
+        self.compile_node(bv,&a[0]);
+        push_bc(bv,bc::JZ,t.line,t.col);
+        index2 = bv.len();
+        push_u32(bv,0xcafe);
+    }
+
+    self.compile_node(bv,&a[1]);
+    push_bc(bv,bc::JMP,t.line,t.col);
+    let len = bv.len();
+    push_i32(bv,(BCSIZE+index1) as i32-len as i32);
+
+    if condition {
+        let len = bv.len();
+        write_i32(&mut bv[index2..index2+1],(BCSIZE+len) as i32-index2 as i32);
+    }
+
+    /*
+    let info = match self.jmp_stack.pop() {
+        Some(info) => info, None => unreachable!()
+    };
+    let len = bv.len();
+    for index in info.breaks {
+        write_i32(&mut bv[index..index+1],(BCSIZE+len) as i32-index as i32);
+    }
+    */
+}
+
+fn compile_conditional(&mut self, bv: &mut Vec<u32>, t: &AST, is_op: bool) {
     let a = t.argv();
     let mut jumps: Vec<usize> = Vec::new();
     let m = a.len()/2;
@@ -390,7 +448,11 @@ fn compile_conditional_expression(&mut self, bv: &mut Vec<u32>, t: &AST) {
         let len = bv.len();
         write_i32(&mut bv[index..index+1],(BCSIZE+len) as i32-index as i32);
     }
-    self.compile_node(bv,&a[a.len()-1]);
+    if a.len()%2==1 {
+        self.compile_node(bv,&a[a.len()-1]);
+    }else if is_op {
+        push_bc(bv, bc::NULL, t.line, t.col);
+    }
     let len = bv.len();
     for i in 0..m {
         let index = jumps[i];
@@ -456,6 +518,11 @@ fn compile_node(&mut self, bv: &mut Vec<u32>, t: &AST) {
                 self.compile_node(bv,x);
             }
         },
+        Symbol::Statement => {
+            let a = t.argv();
+            self.compile_node(bv,&a[0]);
+            push_bc(bv,bc::POP,t.line,t.col);
+        },
         Symbol::Function => {
             self.compile_fn(bv,t);
         },
@@ -511,7 +578,13 @@ fn compile_node(&mut self, bv: &mut Vec<u32>, t: &AST) {
             self.compile_operator_or(bv,t);
         },
         Symbol::Cond => {
-            self.compile_conditional_expression(bv,t);
+            self.compile_conditional(bv,t,true);
+        },
+        Symbol::If => {
+            self.compile_conditional(bv,t,false);
+        },
+        Symbol::While => {
+            self.compile_while(bv,t);
         },
         Symbol::Range => {
             self.compile_operator(bv,t,bc::RANGE);

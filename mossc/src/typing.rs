@@ -31,8 +31,9 @@ impl Env {
     }
 }
 
+#[derive(Debug)]
 pub enum VariableKind {
-    Global, Local, Argument(usize), FnSelf
+    Global, Local(usize), Argument(usize), FnSelf
 }
 
 pub struct VariableInfo {
@@ -49,7 +50,9 @@ impl VariableInfo {
 
 pub struct SymbolTableNode {
     pub context: Option<usize>,
-    pub variables: HashMap<String,VariableInfo>
+    pub variables: HashMap<String,VariableInfo>,
+    pub local_count_max: usize,
+    pub local_count: usize
 }
 
 pub struct SymbolTable {
@@ -66,10 +69,21 @@ impl SymbolTable {
             ret: Type::Atomic(env.type_unit.clone())
         }));
         variables.insert("print".into(),VariableInfo::global(type_of_print));
+
+        let type_of_len = Type::Fn(Rc::new(FnType{
+            argc_min: 0, argc_max: VARIADIC,
+            arg: vec![Type::App(Rc::new(vec![
+                Type::Atomic(env.type_list.clone()),
+                Type::Atomic(env.type_int.clone())
+            ]))],
+            ret: Type::Atomic(env.type_int.clone())
+        }));
+        variables.insert("len".into(),VariableInfo::global(type_of_len));
         
         let type_of_list = Type::Fn(Rc::new(FnType{
             argc_min: 1, argc_max: 1,
-            arg: vec![Type::App(Rc::new(vec![Type::Atomic(env.type_range.clone()),
+            arg: vec![Type::App(Rc::new(vec![
+                Type::Atomic(env.type_range.clone()),
                 Type::Atomic(env.type_int.clone()),
                 Type::Atomic(env.type_int.clone()),
                 Type::Atomic(env.type_unit.clone())
@@ -81,7 +95,10 @@ impl SymbolTable {
         }));
         variables.insert("list".into(),VariableInfo::global(type_of_list));
 
-        let node = SymbolTableNode{context: None, variables};
+        let node = SymbolTableNode{
+            context: None, variables,
+            local_count: 0, local_count_max: 0
+        };
         let table = SymbolTable{
             index: 0, list: vec![node]
         };
@@ -99,15 +116,20 @@ impl SymbolTable {
             }
         }
     }
-    pub fn count(&self) -> usize {
-        let mut counter = 0;
+    pub fn local_count_max(&self) -> usize {
         let index = self.index;
-        for x in self.list[index].variables.values() {
-            if let VariableKind::Local = x.kind {
-                counter+=1;
+        return self.list[index].local_count_max;
+    }
+    fn print(&self){
+        println!("index: {}",self.index);
+        for (i,x) in self.list.iter().enumerate() {
+            print!("[{}] ",i);
+            for id in x.variables.keys() {
+                print!("{}, ",id);
             }
+            println!();
         }
-        return counter;
+        println!();
     }
 }
 
@@ -451,7 +473,8 @@ fn type_from_signature(env: &Env, t: &AST) -> Type {
 
 pub struct TypeChecker {
     pub symbol_table: SymbolTable,
-    pub ret_stack: Vec<Type>
+    pub ret_stack: Vec<Type>,
+    pub global_context: bool
 }
 
 impl TypeChecker {
@@ -460,7 +483,8 @@ pub fn new(env: &Env) -> Self {
     let symbol_table = SymbolTable::new(&env);
     return TypeChecker{
         symbol_table,
-        ret_stack: Vec::with_capacity(8)
+        ret_stack: Vec::with_capacity(8),
+        global_context: true
     };
 }
 
@@ -659,8 +683,17 @@ fn type_check_let(&mut self, env: &Env, t: &AST)
         if node.variables.contains_key(&id) {
             panic!();
         }
+        let kind = if self.global_context {
+            VariableKind::Global
+        }else{
+            node.local_count+=1;
+            if node.local_count > node.local_count_max {
+                node.local_count_max = node.local_count;
+            }
+            VariableKind::Local(node.local_count-1)
+        };
         node.variables.insert(id,VariableInfo{
-            mutable, ty: ty_of_id, kind: VariableKind::Global
+            mutable, ty: ty_of_id, kind
         });
     }
     return Ok(Type::Atomic(env.type_unit.clone()));
@@ -697,7 +730,9 @@ fn type_check_assignment(&mut self, env: &Env, t: &AST)
 fn type_check_variable(&mut self, t: &AST, id: &String)
 -> Result<Type,SemanticError>
 {
+    // self.symbol_table.print();
     if let Some(t) = self.symbol_table.get(id) {
+        // println!("{}, kind: {:?}",id,t.kind);
         return Ok(t.ty.clone());
     }else{
         return Err(undefined_symbol(t.line,t.col,format!("{}",id)));
@@ -787,12 +822,16 @@ fn type_check_function(&mut self, env: &Env, t: &AST)
     self.symbol_table.index = self.symbol_table.list.len();
     self.symbol_table.list.push(SymbolTableNode{
         variables,
-        context: Some(context)
+        context: Some(context),
+        local_count: 0, local_count_max: 0
     });
 
     let body = &t.argv()[0];
     self.ret_stack.push(ret);
+    let global_context = self.global_context;
+    self.global_context = false;
     let value = self.type_check_node(env,body);
+    self.global_context = global_context;
     self.ret_stack.pop();
     value?;
 
@@ -818,6 +857,44 @@ fn type_check_return(&mut self, env: &Env, t: &AST)
     }else{
         panic!();
     }
+}
+
+fn type_check_if_statement(&mut self, env: &Env, t: &AST)
+-> Result<Type,SemanticError>
+{
+    let a = t.argv();
+    let n = a.len();
+    let mut i = 0;
+    while i+1<n {
+        let ty_cond = self.type_check_node(env,&a[i])?;
+        if !is_atomic_type(&ty_cond,&env.type_bool) {
+            return Err(type_error(t.line,t.col,format!(
+                "expected condition of type bool,\n  found type: {}.",
+                ty_cond
+            )));
+        }
+        self.type_check_node(env,&a[i+1])?;
+        i+=2;
+    }
+    if n%2 != 0 {
+        self.type_check_node(env,&a[n-1])?;
+    }
+    return Ok(Type::Atomic(env.type_unit.clone()));
+}
+
+fn type_check_while_statement(&mut self, env: &Env, t: &AST)
+-> Result<Type,SemanticError>
+{
+    let a = t.argv();
+    let ty_cond = self.type_check_node(env,&a[0])?;
+    if !is_atomic_type(&ty_cond,&env.type_bool) {
+        return Err(type_error(t.line,t.col,format!(
+            "expected condition of type bool,\n  found type: {}.",
+            ty_cond
+        )));
+    }
+    self.type_check_node(env,&a[1])?;
+    return Ok(Type::Atomic(env.type_unit.clone()));
 }
 
 fn type_check_node(&mut self, env: &Env, t: &AST)
@@ -880,6 +957,16 @@ fn type_check_node(&mut self, env: &Env, t: &AST)
         },
         Symbol::Return => {
             return self.type_check_return(env,t);
+        },
+        Symbol::If => {
+            return self.type_check_if_statement(env,t);
+        },
+        Symbol::While => {
+            return self.type_check_while_statement(env,t);
+        },
+        Symbol::Statement => {
+            self.type_check_node(env,&t.argv()[0])?;
+            return Ok(Type::Atomic(env.type_unit.clone()));
         },
         Symbol::Null => {
             return Ok(Type::Atomic(env.type_unit.clone()));

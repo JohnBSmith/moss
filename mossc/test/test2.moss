@@ -1,0 +1,17 @@
+
+function map(f: Int=>Int, a: List[Int]): List[Int];
+   let mut b: List[Int] = [];
+   let n = len(a);
+   let mut i = 0;
+   while i<n do
+      b = b+[f(a[i])];
+      i = i+1;
+   end
+   return b;
+end
+
+function fac(n: Int): Int;
+   return 1 if n==0 else n*fac(n-1);
+end
+
+print(map(fac,list(1..10)));

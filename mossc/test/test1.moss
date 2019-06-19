@@ -1,0 +1,11 @@
+
+function map(f: Int=>Int, a: List[Int]): List[Int];
+   return [] if a==[] else [f(a[0])]+map(f,a[1..]);
+end
+
+function fac(n: Int): Int;
+   return 1 if n==0 else n*fac(n-1);
+end
+
+print(map(fac,list(1..10)));
+

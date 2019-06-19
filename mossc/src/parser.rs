@@ -27,7 +27,7 @@ pub enum Symbol {
     Plus, Minus, Ast, Div, Pow, Mod, Idiv, Tilde, Amp, Vert, Svert,
     Lt, Le, Gt, Ge, Eq, Ne, Cond, Index, Range,
     PLeft, PRight, BLeft, BRight, CLeft, CRight, Assignment, To,
-    List, Application, Block, Unit,
+    List, Application, Block, Statement, Unit,
     Assert, And, Begin, Break, Catch, Continue, Do, Elif, Else,
     End, False, For, Fn, Function, Global, Goto, Label, Let,
     If, In, Is, Mut, Not, Null, Of, Or, Public, Raise, Return,
@@ -149,6 +149,7 @@ impl std::fmt::Display for Symbol {
             Symbol::List  => write!(f,"List"),
             Symbol::Application => write!(f,"Application"),
             Symbol::Block => write!(f,"Block"),
+            Symbol::Statement => write!(f,"Statement"),
             Symbol::Unit  => write!(f,"Unit"),
             Symbol::Assert=> write!(f,"assert"),
             Symbol::And   => write!(f,"and"),
@@ -886,7 +887,9 @@ fn assignment(&mut self, i: &TokenIterator)
             Box::new([left_hand_side,right_hand_side])
         ));
     }else if t.value == Symbol::Semicolon {
-        return Ok(left_hand_side);
+        return Ok(AST::operator(t.line,t.col,Symbol::Statement,
+            Box::new([left_hand_side])
+        ));
     }else{
         return Err(syntax_error(t.line,t.col,
             format!("expected '=' or ';', got '{:?}'",t.value)
@@ -964,6 +967,88 @@ fn return_statement(&mut self, t0: &Token, i: &TokenIterator)
     ));
 }
 
+fn if_statement(&mut self, t0: &Token, i: &TokenIterator)
+-> Result<Rc<AST>,Error>
+{
+    i.advance();
+    let mut v: Vec<Rc<AST>> = Vec::new();
+    let condition = self.expression(i)?;
+    v.push(condition);
+    let t = i.get();
+    if t.value != Symbol::Then {
+        return Err(syntax_error(t.line,t.col,
+            "expected 'then'.".into()
+        ));
+    }
+    i.advance();
+    let x = self.statements(i)?;
+    v.push(x);
+    loop{
+        let t = i.get();
+        if t.value == Symbol::End {
+            i.advance();
+            break;
+        }else if t.value == Symbol::Else {
+            i.advance();
+            let x = self.statements(i)?;
+            v.push(x);
+            let t = i.get();
+            if t.value != Symbol::End {
+                return Err(syntax_error(t.line,t.col,
+                    "expected 'end'.".into()
+                ));
+            }
+            i.advance();
+            break;
+        }else if t.value == Symbol::Elif {
+            i.advance();
+            let condition = self.expression(i)?;
+            v.push(condition);
+            let t = i.get();
+            if t.value != Symbol::Then {
+                return Err(syntax_error(t.line,t.col,
+                    "expected 'then'.".into()
+                ));
+            }
+            i.advance();
+            let x = self.statements(i)?;
+            v.push(x);
+        }else{
+            return Err(syntax_error(t.line,t.col,
+                "expected 'end' or 'else'.".into()
+            ));
+        }
+    }
+    return Ok(AST::node(t0.line, t0.col, Symbol::If, Info::None,
+        Some(v.into_boxed_slice())
+    ));
+}
+
+fn while_statement(&mut self, t0: &Token, i: &TokenIterator)
+-> Result<Rc<AST>,Error>
+{
+    i.advance();
+    let condition = self.expression(i)?;
+    let t = i.get();
+    if t.value != Symbol::Do {
+        return Err(syntax_error(t.line,t.col,
+            "expected 'do'.".into()
+        ));
+    }
+    i.advance();
+    let body = self.statements(i)?;
+    let t = i.get();
+    if t.value != Symbol::End {
+        return Err(syntax_error(t.line,t.col,
+            "expected 'end'.".into()
+        ));
+    }
+    i.advance();
+    return Ok(AST::node(t0.line, t0.col, Symbol::While, Info::None,
+        Some(Box::new([condition,body]))
+    ));
+}
+
 fn statements(&mut self, i: &TokenIterator)
 -> Result<Rc<AST>,Error>
 {
@@ -1012,10 +1097,18 @@ fn statements(&mut self, i: &TokenIterator)
                     String::from("expected '='")
                 ));
             }
+        }else if value == Symbol::If {
+            let x = self.if_statement(t,i)?;
+            a.push(x);
+        }else if value == Symbol::While {
+            let x = self.while_statement(t,i)?;
+            a.push(x);
         }else if value == Symbol::Function {
             let x = self.function_statement(t,i)?;
             a.push(x);
-        }else if value == Symbol::Terminal || value == Symbol::End {
+        }else if value == Symbol::Terminal || value == Symbol::End ||
+            value == Symbol::Else || value == Symbol::Elif
+        {
             break;
         }else if value == Symbol::Return {
             let x = self.return_statement(t,i)?;
