@@ -1,0 +1,22 @@
+
+function perm_from_table(a)
+   p = [null]*len(a)
+   for t in a
+      p[t[0]] = t[1]
+   end
+   return p
+end
+
+function span(p)
+   t0 = list(len(p))
+   G = [t0]
+   p = |x| p[x]
+   t = t0
+   while true
+      t = t.map(p)
+      if t==t0 then break end
+      G.push(t)
+   end
+   return G
+end
+

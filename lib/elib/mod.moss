@@ -11,25 +11,29 @@ function inspect(m)
    buffer = []
 
    if len(values)!=0
-      vcol = max(9,values.map(len).max())
-      buffer.push("Value\s\s\s\s| Type\n")
+      vcol = max(8,values.map(len).max())
+      x = "Value".ljust(vcol)
+      y = "Type"
+      buffer.push("{} | {}\n" % [x,y])
       for v in values
          x = v.ljust(vcol)
          y = type(m[v])
-         buffer.push("{}| {}\n" % [x,y])
+         buffer.push("{} | {}\n" % [x,y])
       end
    end
 
    if len(fns)!=0
-      fcol = max(9,fns.map(len).max())
+      fcol = max(8,fns.map(len).max())
       if len(buffer)!=0
          buffer.push("\n")
       end
-      buffer.push("Function | Argc\n")
+      x = "Function".ljust(fcol)
+      y = "Argc"
+      buffer.push("{} | {}\n" % [x,y])
       for f in fns
          x = f.ljust(fcol)
          y = m[f].argc()
-         buffer.push("{}| {:r3}\n" % [x,y])
+         buffer.push("{} | {}\n" % [x,y])
       end
    end
 
@@ -70,4 +74,5 @@ elib_index = [
    "elib/pc",
    "elib/rand"
 ]
+
 

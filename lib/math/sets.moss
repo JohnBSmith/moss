@@ -1,0 +1,51 @@
+
+
+List.div = fn div|a;f|
+   if f.argc()==1
+      m = {}
+      for x in a
+         y = f(x)
+         if y in m
+             m[y].push(x)
+         else
+             m[y] = [x]
+         end
+      end
+      return list(value for key, value in m.items())
+   else
+      b = []
+      for x in a
+         found = false
+         for t in b
+            if f(t[0],x) then t.push(x); found = true end
+         end
+         if not found then b.push([x]) end
+      end
+      return b
+   end
+end
+
+function eq_from_partition(s)
+   m = {}
+   index = 0
+   for c in s
+       for x in c
+           m[x] = index
+       end
+       index+=1
+   end
+   return |x,y| m[x]==m[y]
+end
+
+function power_set(f,g=null)
+   P = |a| fn*||
+      p = [[]]
+      for x in a
+         b = p.map(|s| s+[x])
+         for t in b do yield f(t) end
+         p.push(*b)
+      end
+   end
+   return P if g is null else |a| g(P(a))
+end
+

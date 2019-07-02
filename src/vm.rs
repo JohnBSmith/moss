@@ -2321,6 +2321,18 @@ fn operator_is(sp: usize, stack: &mut [Object]) -> OperatorResult {
         _ => {}
     }
     match stack[sp-2].take() {
+        Object::Function(ref f) => {
+            match stack[sp-1].take() {
+                Object::Function(ref g) => {
+                    stack[sp-2] = Object::Bool(Rc::ptr_eq(f,g));
+                    Ok(())
+                },
+                _ => {
+                    stack[sp-2] = Object::Bool(false);
+                    Ok(())
+                }
+            }
+        },
         Object::Interface(ref a) => {
             match stack[sp-1].take() {
                 Object::Interface(ref b) => {
@@ -4321,13 +4333,22 @@ pub fn eval(env: &mut Env,
         argc: 0, argc_min: 0, argc_max: 0,
         id: Object::Null
     });
+    let pgtab_save: Rc<RefCell<Map>>;
     {
         let mut pgtab = env.rte().pgtab.borrow_mut();
+        pgtab_save = (*pgtab).clone();
         *pgtab = gtab.clone();
     }
 
     let bp = env.sp;
-    match vm_loop(env, 0, bp, bp, module, gtab.clone(), fnself) {
+    let result = vm_loop(env, 0, bp, bp, module, gtab.clone(), fnself);
+
+    {
+        let mut pgtab = env.rte().pgtab.borrow_mut();
+        *pgtab = pgtab_save;
+    }
+    
+    match result {
         Ok(())=>{},
         Err(e)=>{
             for i in bp..env.sp {

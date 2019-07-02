@@ -1,0 +1,11 @@
+
+begin
+public view
+
+use elib.mod: inspect
+
+function view(m)
+   print(inspect(m))
+end
+
+end

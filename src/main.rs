@@ -11,26 +11,23 @@ Options:
 -i file     Include and execute a file before normal execution.
             Multiple files are possible: '-i file1 -i file2'.
 
--m          Math mode: use moss as a calculator.
-
--e "1+2"    Evaluate some Moss code inline.
+-file       Shorthand for '-i file'. Have a look at 'lib/include'.
+    -m      Prelude mathematical functions.
+    -la     Prelude mathematical functions and linear algebra.
+    -sh     Prelude shell commands.
+    -t      Prelude development tools.
 
 -d          Debug mode: compile assert statements.
+
+-e "1+2"    Evaluate some Moss code inline.
 
 -unsafe     Unsafe mode: run the interpreter in privileged mode,
             which allows write access to files, network access
             and execution of shell commands. Running an untrusted
             module in unsafe mode is a security hazard.
-"#;
 
-const MATH: &'static str = r#"
-use math{
-  e, pi, nan, inf,
-  floor, ceil, exp, sqrt, ln, lg,
-  sin, cos, tan, sinh, cosh, tanh,
-  asin, acos, atan, asinh, acosh, atanh,
-  hypot, atan2, gamma, erf
-}
+-c          Compile a module to reduce load time.
+            Only needed for very large modules.
 "#;
 
 fn is_option(s: &str) -> bool {
@@ -48,7 +45,6 @@ struct Info{
     argv: Vec<String>,
     cmd: Option<String>,
     exit: bool,
-    math: bool,
     compile: bool,
     debug_mode: bool,
     unsafe_mode: bool
@@ -62,7 +58,6 @@ impl Info{
             argv: Vec::new(),
             cmd: None,
             exit: false,
-            math: false,
             debug_mode: false,
             compile: false,
             unsafe_mode: false
@@ -85,8 +80,6 @@ impl Info{
                 }else if s=="-ei" {
                     ifile = true;
                     cmd = true;
-                }else if s=="-m" {
-                    info.math = true;
                 }else if s=="-h" || s=="-help" || s=="--help" {
                     println!("{}",HELP);
                     info.exit = true;
@@ -98,7 +91,7 @@ impl Info{
                 }else if s=="-unsafe" {
                     info.unsafe_mode = true;
                 }else{
-                    println!("Error: unknown option: {}.",&s);
+                    info.ifile.push(IFile{s: s[1..].to_string(), e: false});
                 }
             }else if ifile {
                 info.ifile.push(IFile{s: s, e: cmd});
@@ -135,9 +128,6 @@ fn main(){
     let mut ilock = i.lock();
     let mut env = ilock.env();
 
-    if info.math {
-        env.eval_env(MATH,gtab.clone());
-    }
     for file in &mut info.ifile {
         if file.e {
             env.eval_env(&file.s,gtab.clone());
