@@ -100,7 +100,7 @@ end
 Ship = table{
    color = "gray blue",
    engine = "diesel",
-   function move
+   function move()
       print(self.id, " moves at ", self.vmax//2 " kn.")
    end
 }
@@ -277,19 +277,19 @@ Iterable
 <p>Now, basic class construction is stated as follows:
 <pre class="moss indent">
 Bird = table(Type,"Bird"){
-   function string
+   function string()
       "{} is a bird." % [self.name]
    end,
-   function fly
+   function fly()
       "{} can fly!" % [self.name]
    end
 })
 
 Duck = table(Type,"Duck",Bird){
-   function string
+   function string()
       "{} is a duck." % [self.name]
    end,
-   function dive
+   function dive()
       "{} can dive!" % [self.name]
    end
 })
@@ -314,7 +314,7 @@ print("type: ", type(d))
 
 <pre class="moss indent">
 Plane = table{
-   function take_off
+   function take_off()
       print(self.id, " is in the sky.")
    end
 }
@@ -465,11 +465,11 @@ function complex(x,y)
 end
 
 Complex = table(Type,"Complex"){
-   function string
+   function string()
       return "({}|{})" % [self.re, self.im]
    end,
 
-   function neg
+   function neg()
       return table Complex{re = -self.re, im = -self.im}
    end,
 
@@ -572,7 +572,7 @@ function ship
       function get(property)
          return private_tab[property]
       end,
-      function change_color
+      function change_color()
          private_tab["color"] = "green"
       end
    }
@@ -599,10 +599,10 @@ Ship = table{}
 function ship
    private_tab = {color = "blue"}
    return table Ship{
-      function info
+      function info()
          return "A {} ship." % private_tab["color"]
       end,
-      function change_color
+      function change_color()
         private_tab["color"] = "green"
       end
    }

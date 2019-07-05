@@ -17,7 +17,7 @@ function rat(n,d=1)
 end
 
 Rat = table(Type,"Rat"){
-   function string
+   function string()
       s = "-" if sgn(self.n)*sgn(self.d)<0 else ""
       if abs(self.d)==1
          return "{}{}" % [s,abs(self.n)]

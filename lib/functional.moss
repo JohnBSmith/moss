@@ -8,10 +8,10 @@ function fix(m,F)
 end
 
 Lazy = table(Type,"Lazy"){
-   function string
+   function string()
       "lazy expression"
    end,
-   function value
+   function value()
       if self.x is null
          x = self.f()
          self.x = x

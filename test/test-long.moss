@@ -67,7 +67,7 @@ function itos_test(r)
    end
 end
 
-function fast
+function fast()
    xy_test(0..200,0..200)
    xy_test(-100..100,-100..100)
    xy_test(0..100,0..1000)
@@ -86,7 +86,7 @@ function fast
    shuffle_test((1..200).map(|x| 2^x),1000)
 end
 
-function slow
+function slow()
    #/*
    xy_test(0..1000,0..1000)
    xy_test(-200..200,-200..200)

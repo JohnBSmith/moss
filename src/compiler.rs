@@ -1317,19 +1317,13 @@ fn function_statement(&mut self, i: &mut TokenIterator, t0: &Token)
     };
     let p = i.next_token_optional(self)?;
     let t = &p[i.index];
-    let terminator = match t.value {
-        Symbol::PLeft => {i.index+=1; Symbol::PRight},
-        Symbol::Newline => {i.index+=1; Symbol::Newline},
-        Symbol::Terminal => Symbol::Newline,
-        _ => return Err(self.syntax_error(t.line, t.col,
-            "expected '(' or new line."))
+    if t.value == Symbol::PLeft {
+        i.index+=1;
+    }else{
+        return Err(self.syntax_error(t.line, t.col, "expected '('."));
     };
 
-    let args = if terminator == Symbol::Newline {
-        operator(Symbol::List,Box::new([]),t0.line,t0.col)
-    }else{
-        self.arguments_list(i,t0,terminator)?
-    };
+    let args = self.arguments_list(i,t0,Symbol::PRight)?;
 
     let body = self.function_body(i,coroutine)?;
 

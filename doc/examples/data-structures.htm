@@ -38,15 +38,15 @@ function link(a)
 end
 
 LinkedList = table(Type,"LinkedList",Iterable){
-   function string
+   function string()
       self.map(str).join(", ","link([","])")
    end,
 
-   function empty
+   function empty()
       return self.pfirst is null
    end,
 
-   function iter
+   function iter()
       t = self.pfirst
       return fn*||
          while not t is null
@@ -75,7 +75,7 @@ LinkedList = table(Type,"LinkedList",Iterable){
       end
    end,
 
-   function shift
+   function shift()
       if self.pfirst is null
          raise empty_error("shift()")
       else
@@ -85,7 +85,7 @@ LinkedList = table(Type,"LinkedList",Iterable){
       end
    end,
   
-   function first
+   function first()
       if self.pfirst is null
          raise empty_error("first()")
       else
@@ -93,7 +93,7 @@ LinkedList = table(Type,"LinkedList",Iterable){
       end
    end,
 
-   function rest
+   function rest()
       if self.pfirst is null
          raise empty_error("rest()")
       else

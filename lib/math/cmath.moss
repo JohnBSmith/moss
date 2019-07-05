@@ -12,7 +12,7 @@ function complex(x,y)
 end
 
 Complex = table(Type,"Complex"){
-   function string
+   function string()
       im = str(self.im)
       s = "" if len(im)>0 and im[0]=='-' else "+"
       return "{}{}{}*i" % [self.re, s, im]

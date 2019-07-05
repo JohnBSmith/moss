@@ -29,7 +29,7 @@ if [2,4] != [1,2].map(fn|x| u=2*x; u end)
    error("#2.3")
 end
 
-function f1
+function f1()
    if [2,4] != [1,2].map(|x| 2*x)
       error("#2.4")
    end
@@ -44,7 +44,7 @@ function f1
 end
 f1()
 
-function f2
+function f2()
    a = []
    for t in [1,2].map(|x| [x])
       a.push(t)
@@ -209,21 +209,21 @@ if [1,2,"a","b"]!=f(1,2)
    error("#10.3")
 end
 
-fn||
+begin
    [x,y] = [10,11]
    if x!=10 or y!=11
       error("#11.1")
    end
-end()
+end
 
-fn||
+begin
    [[x,y],[w,z]] = [[12,13],[14,15]]
    if x!=12 or y!=13 or w!=14 or z!=15
       error("#11.2")
    end
-end()
+end
 
-fn||
+begin
    [x,y] = [16,17]
    if x!=16 or y!=17
       error("#11.3")
@@ -232,16 +232,16 @@ fn||
    if x!=18 or y!=19 or w!=20 or z!=21
       error("#11.4")
    end
-end()
+end
 
-fn||
+begin
    [x,y] = [22,[1,2]]
    if x!=22 or y!=[1,2]
       error("#11.5")
    end
-end()
+end
 
-fn||
+begin
    t = table{}
    [t.x,t.y] = list(1..2)
    if t.x!=1 or t.y!=2
@@ -252,7 +252,7 @@ fn||
    if a!=[240,360]
       error("#11.7")
    end
-end()
+end
 
 f = || []
 if [] != f(*[])
@@ -287,7 +287,7 @@ if [2,4] != List.map([1,2];*[|x| 2*x])
    error("#12.6")
 end
 
-fn||
+begin
    f = || []
    if [] != f(*[])
       error("#12.7")
@@ -320,7 +320,7 @@ fn||
    if [2,4] != List.map([1,2];*[|x| 2*x])
       error("#12.13")
    end
-end()
+end
 
 a = (|[x,y]| [x+y,x]).orbit([1,1]).map(|x| x[1]).list(10)
 if a!=list(1..10).map(fib)
@@ -385,7 +385,7 @@ end
 # but this time an overflow of the machine stack.
 # The source is a recursively called destructor that
 # cleans up the linked list of closures, produced in curry.
-function main
+function main()
    n = 20
    u = list(1..n)
    if u != uncurry(curry(n,|*a| a))(*u)

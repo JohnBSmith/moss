@@ -162,7 +162,7 @@ function grid(s)
 end
 
 Graphics = table{
-   function string
+   function string()
       "system"
    end,
 
@@ -213,7 +213,7 @@ Graphics = table{
       end
    end,
 
-   function flush
+   function flush()
       self.a.join("",head % [self.w,self.h,self.w//10,self.h//10,self.defs],foot)
    end
 }

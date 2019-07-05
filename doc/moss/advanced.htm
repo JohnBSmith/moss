@@ -235,7 +235,7 @@ use sys: call
 
 f = |n| 0 if n==0 else 1+f(n-1)
 
-function main
+function main()
    a = eval(str(list(1..10000)))
    print(f(10000))
 end

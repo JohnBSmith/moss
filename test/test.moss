@@ -20,7 +20,7 @@ function test_self()
 end
 
 function tests(scale,path)
-   print("Starting tests: ",path)
+   print("\nStarting tests: ",path)
    if path=="self"
       test = test_self()
    else

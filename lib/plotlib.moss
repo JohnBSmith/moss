@@ -225,7 +225,7 @@ System = table{
       end
    end,
 
-   function idle
+   function idle()
       canvas = self.c
       canvas.vcflush()
       canvas.flush()
@@ -236,7 +236,7 @@ System = table{
       end
    end,
 
-   function system
+   function system()
       if self.grid
          grid(self.c,self.w,self.h,
             self.csys,self.cgrid,self.fscale)
@@ -255,7 +255,7 @@ System = table{
       self.color_index = index
    end,
 
-   function next_color
+   function next_color()
       a = self.palette
       index = (self.color_index+1)%len(a)
       self.color_index = index
@@ -450,9 +450,7 @@ System3d = table{
    end,
 
    function vplot(f,argm={})
-      {color = null,
-       t0=0, t1=10, n=100
-      } = argm
+      {color = null, t0=0, t1=10, n=100} = argm
       canvas = self.c
       wx = self.wx; wy = self.wy; wz = self.wz
       px = self.px; py = self.py; pz = self.pz
