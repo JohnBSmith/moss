@@ -120,6 +120,22 @@ impl Interface for Range {
         return Ok(new_iterator(f));
 
     }
+
+    fn index(self: Rc<Self>, indices: &[Object], env: &mut Env) -> FnResult {
+        match indices.len() {
+            1 => {}, n => return env.argc_error(n,1,1,"range index r[...]")
+        }
+        match indices[0] {
+            Object::Int(0) => Ok(self.a.clone()),
+            Object::Int(1) => Ok(self.b.clone()),
+            Object::Int(2) => Ok(self.step.clone()),
+            _ => env.index_error("Index error in range index r[i]: out of bounds 0..2.")
+        }
+    }
+
+    fn get_type(&self, env: &mut Env) -> FnResult {
+        Ok(Object::Interface(env.rte().type_range.clone()))
+    }
 }
 
 fn float_range_iterator(env: &mut Env, r: &Range) -> FnResult {

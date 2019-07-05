@@ -5,5 +5,9 @@
 # cargo rustc --release --bin moss -- -C prefer-dynamic
 
 cargo rustc --release --bin moss --\
-  -C opt-level=3 -C lto -C relocation-model=static
+  -C opt-level=3 -C lto -C relocation-model=static\
+  -C codegen-units=1
+
+
+
 

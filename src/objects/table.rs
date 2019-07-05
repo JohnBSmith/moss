@@ -8,7 +8,7 @@ const NAME: usize = 1;
 const PROTOTYPE: usize = 2;
 
 use crate::object::{
-    Object, List, Map, Interface, downcast,
+    Object, List, Map, Interface, downcast, ptr_eq_plain,
     Exception, FnResult
 };
 use crate::vm::{Env, RTE, map_to_string};
@@ -316,7 +316,10 @@ impl Interface for Table {
                 env.call(f,&x,&[Object::Interface(self)])
             },
             None => {
-                Ok(Object::unimplemented())
+                Ok(Object::Bool(match x {
+                    Object::Interface(px) => ptr_eq_plain(&self,px),
+                    _ => false
+                }))
             }
         }
     }
@@ -447,7 +450,12 @@ pub fn type_get(prototype: &Object, key: &Object) -> Option<Object> {
         if let Some(pt) = p.downcast_ref::<Table>() {
             table_get(pt,key)
         }else if let Some(t) = p.downcast_ref::<Tuple>() {
-            object_get(&t.v[TYPE],key)
+            let ty = &t.v[TYPE];
+            if let Object::Null = ty {
+                object_get(&t.v[PROTOTYPE],key)
+            }else{
+                object_get(ty,key)
+            }
         }else{
             None
         }

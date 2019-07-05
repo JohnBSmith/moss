@@ -2683,7 +2683,14 @@ fn operator_index(env: &mut EnvPart, argc: usize,
                     i as usize
                 };
                 stack[sp-2] = match s.data.get(index) {
-                    Some(c) => CharString::new_object_char(*c),
+                    Some(c) => {
+                        let x = *c as usize;
+                        if x<128 {
+                            env.rte.char_table[x].clone()
+                        }else{
+                            CharString::new_object_char(*c)
+                        }
+                    },
                     None => {
                         return Err(env.index_error_plain(&format!(
                             "Error in s[i]: i=={} is out of upper bound, size(s)=={}.",
@@ -3363,12 +3370,14 @@ pub struct RTE{
     pub type_list: Rc<Table>,
     pub type_map: Rc<Table>,
     pub type_function: Rc<Table>,
+    pub type_range: Rc<Table>,
     pub type_iterable: Rc<Table>,
     pub type_std_exception: Rc<Table>,
     pub type_type_error: Rc<Table>,
     pub type_value_error: Rc<Table>,
     pub type_index_error: Rc<Table>,
     pub type_type: Rc<Table>,
+    pub type_type_base: Rc<Table>,
     pub unimplemented: Rc<Table>,
     pub argv: RefCell<Option<Rc<RefCell<List>>>>,
     pub path: Rc<RefCell<List>>,
@@ -3384,6 +3393,7 @@ pub struct RTE{
     pub drop_buffer: RefCell<Vec<Instance>>,
     pub empty_map: Rc<RefCell<Map>>,
     pub capabilities: RefCell<Capabilities>,
+    pub char_table: Vec<Object>,
 
     pub key_string: Object,
     pub key_iter: Object,
@@ -3416,8 +3426,18 @@ pub struct RTE{
 
 impl RTE{
     pub fn new() -> Rc<RTE>{
-        let type_type = Table::new(Object::Null);
         let null = &Object::Null;
+        let type_type_base = Table::new(Object::Null);
+
+        let type_type = Table::new(Tuple::new_object(vec![
+            Object::Null,
+            Object::from("Type"),
+            Object::Interface(type_type_base.clone())
+        ]));
+
+        let char_table: Vec<Object> = (0..128)
+            .map(|i| Object::from(i as u8 as char))
+            .collect();
         Rc::new(RTE{
             type_bool: Table::new(new_stamp("Bool",&type_type,null)),
             type_int: Table::new(new_stamp("Int",&type_type,null)),
@@ -3427,6 +3447,7 @@ impl RTE{
             type_list: Table::new(new_stamp("List",&type_type,null)),
             type_map: Table::new(new_stamp("Map",&type_type,null)),
             type_function: Table::new(new_stamp("Function",&type_type,null)),
+            type_range: Table::new(new_stamp("Range",&type_type,null)),
             type_iterable: Table::new(new_stamp("Iterable",&type_type,null)),
             type_long: Table::new(new_stamp("Long",&type_type,null)),
             type_std_exception: Table::new(Object::Null),
@@ -3434,6 +3455,7 @@ impl RTE{
             type_value_error: Table::new(new_stamp("ValueError",&type_type,null)),
             type_index_error: Table::new(new_stamp("IndexError",&type_type,null)),
             type_type: type_type.clone(),
+            type_type_base: type_type_base,
             unimplemented: Table::new(Object::Null),
             argv: RefCell::new(None),
             path: Rc::new(RefCell::new(init_search_paths())),
@@ -3453,6 +3475,7 @@ impl RTE{
                 write: false,
                 command: false
             }),
+            char_table: char_table,
 
             key_string: CharString::new_object_str("string"),
             key_iter:   CharString::new_object_str("iter"),

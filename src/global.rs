@@ -1143,6 +1143,9 @@ pub fn init_rte(rte: &RTE){
     let type_function = rte.type_function.clone();
     crate::function::init(&type_function);
     gtab.insert("Function", Object::Interface(type_function));
+    
+    let type_range = rte.type_range.clone();
+    gtab.insert("Range", Object::Interface(type_range));
 
     let type_iterable = rte.type_iterable.clone();
     crate::iterable::init(&type_iterable);
@@ -1159,12 +1162,13 @@ pub fn init_rte(rte: &RTE){
 
     let type_index_error = rte.type_index_error.clone();
     gtab.insert("IndexError", Object::Interface(type_index_error));
-
-    let type_type = rte.type_type.clone();
+    
     {
-        let mut m = type_type.map.borrow_mut();
+        let mut m = rte.type_type_base.map.borrow_mut();
         m.insert_fn_plain("string",type_to_string,0,0);
     }
+
+    let type_type = rte.type_type.clone();
     gtab.insert("Type", Object::Interface(type_type));
 
     let type_bytes = Table::new(Tuple::new_object(vec![
