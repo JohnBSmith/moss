@@ -1,0 +1,85 @@
+
+begin
+public async, scheduler, sleep
+public Future, future, pending
+
+use time: clock
+
+async_list = [null,null,null]
+restart = false
+current_node = [null]
+
+function async(f)
+   return fn|*a|
+      fp = f(*a)
+      async_list[0] = [async_list[0],fp,false]
+   end
+end
+
+pending = table(Type,"pending"){}
+
+Future = table(Type,"Future"){
+   function await()
+      async_list[0] = [async_list[0],self.f,false]
+      node = current_node[0]
+      node[2] = true
+      y = scheduler(self.f)
+      node[2] = false
+      return y
+   end
+}
+
+function future(f)
+   return table Future{f=f}
+end
+
+function sleep(t)
+   future(fn*||
+      c = clock()
+      while c()<t
+         yield pending
+      end
+   end)
+end
+
+function scheduler(futfp=null)
+   node = null
+   while true
+      if node is null
+         last = async_list
+         node = async_list[0]
+         if node is null
+            break
+         end
+      end
+      next, fp, blocked = node
+      if blocked
+         last = node
+         node = next
+         continue
+      end
+      current_node[0] = node
+      y = fp()
+      if fp is futfp
+         if not y is pending
+            last[0] = next
+            restart = true
+            return y
+         end
+      end
+      if restart
+         restart = false
+         node = null
+      else
+         if y is empty
+            last[0] = next
+         else
+            last = node
+         end
+         node = next
+      end
+   end
+end
+
+end
+

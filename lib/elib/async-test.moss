@@ -1,0 +1,25 @@
+
+use asynchrony: async, sleep, scheduler
+
+tick = async(|t| fn*||
+   while true
+      print("tick")
+      sleep(t).await()
+      yield
+   end
+end)
+
+idle = async(|text| fn*||
+   use time
+   while true
+      print(text)
+      time.sleep(0.1)
+      # sleep(0.1).await()
+      yield
+   end
+end)
+
+tick(1)
+idle("~")
+
+scheduler()
