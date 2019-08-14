@@ -710,7 +710,7 @@ fn operator_add(env: &mut EnvPart, sp: usize, stack: &mut [Object])
                         Some(value) => Object::Int(value),
                         None => {
                             #[cfg(feature="long-none")]
-                            {return ::long::overflow_from_add(env,x,y);}
+                            {return crate::long::overflow_from_add(env,x,y);}
                             #[cfg(not(feature="long-none"))]
                             {Long::add_int_int(x,y)}
                         }
@@ -847,7 +847,7 @@ fn operator_sub(env: &mut EnvPart, sp: usize, stack: &mut [Object])
                         Some(z) => Object::Int(z),
                         None => {
                             #[cfg(feature="long-none")]
-                            {return ::long::overflow_from_sub(env,x,y);}
+                            {return crate::long::overflow_from_sub(env,x,y);}
                             #[cfg(not(feature="long-none"))]
                             {Long::sub_int_int(x,y)}
                         }
@@ -985,7 +985,7 @@ fn operator_mul(env: &mut EnvPart, sp: usize, stack: &mut [Object])
                         Some(z) => Object::Int(z),
                         None => {
                             #[cfg(feature="long-none")]
-                            {return ::long::overflow_from_mul(env,x,y);}
+                            {return crate::long::overflow_from_mul(env,x,y);}
                             #[cfg(not(feature="long-none"))]
                             {Long::mul_int_int(x,y)}
                         }
@@ -1337,7 +1337,7 @@ fn operator_idiv(env: &mut EnvPart, sp: usize, stack: &mut [Object])
                         stack[sp-2] = Object::Int(value);
                     }else{
                         #[cfg(feature="long-none")] {
-                            return ::long::overflow_from_idiv(env,x,y);
+                            return crate::long::overflow_from_idiv(env,x,y);
                         }
                         #[cfg(not(feature="long-none"))] {
                             stack[sp-2] = Long::add_int_int(i32::max_value(),1);
@@ -1501,7 +1501,7 @@ fn operator_pow(env: &mut EnvPart, sp: usize, stack: &mut [Object])
                             Some(z) => Object::Int(z),
                             None => {
                                 #[cfg(feature="long-none")]
-                                {return ::long::overflow_from_pow(env,x,y);}
+                                {return crate::long::overflow_from_pow(env,x,y);}
                                 #[cfg(not(feature="long-none"))]
                                 {Long::pow_int_uint(x,y as u32)}
                             }

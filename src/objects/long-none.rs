@@ -1,6 +1,6 @@
 
-use object::{Object, FnResult, OperatorResult};
-use vm::{Env,EnvPart};
+use crate::object::{Object, FnResult, OperatorResult};
+use crate::vm::{Env,EnvPart};
 use std::f64::NAN;
 
 pub struct Long{}

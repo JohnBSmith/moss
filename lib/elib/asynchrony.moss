@@ -1,4 +1,10 @@
 
+# This is a bogus implementation of asynchrony.
+# It enables some basic asynchrony, but is limited
+# due to blocking during recursion from await.
+# The functionality will be superseeded by inherent
+# support for await.
+
 begin
 public async, scheduler, sleep
 public Future, future, pending
