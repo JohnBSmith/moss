@@ -36,6 +36,10 @@ mod range;
 #[path = "objects/table.rs"]
 mod table;
 
+#[cfg(feature = "long-num")]
+#[path = "objects/long-num.rs"]
+mod long;
+
 #[cfg(feature = "long-gmp")]
 #[path = "objects/long-gmp.rs"]
 mod long;
