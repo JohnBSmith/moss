@@ -19,7 +19,7 @@ function pivoting(A,B,n,j,ord)
 end
 
 function gauss_jordan(A,B,n)
-   ord = getattr(A[0,0],"ord") else abs
+   ord = getattr(A[0,0],"ord") or else abs
    for j in 0..n-1
       pivoting(A,B,n,j,ord)
       B[j] = B[j]/A[j,j]
@@ -63,7 +63,7 @@ function det(A)
    n = A.shape[0]
    A = A.copy
    y = 1
-   ord = getattr(A[0,0],"ord") else abs
+   ord = getattr(A[0,0],"ord") or else abs
    for j in 0..n-1
       if pivoting_det(A,n,j,ord)
          y = -y

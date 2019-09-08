@@ -218,6 +218,18 @@ fn eval(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult{
     }
 }
 
+fn range_length(a: i32, b: i32, step: i32) -> Option<i32> {
+    if step>0 && b>=a {
+        return Some((b-a)/step+1);
+    }else if step<0 && b<=a {
+        return Some((a-b)/(-step)+1);
+    }else if step != 0 {
+        return Some(0);
+    }else{
+        return None;
+    }
+}
+
 fn len(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         1 => {}, n => return env.argc_error(n,1,1,"len")
@@ -233,6 +245,20 @@ fn len(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
             Ok(Object::Int(s.data.len() as i32))
         },
         Object::Interface(ref x) => {
+            if let Some(r) = (*x).as_any().downcast_ref::<Range>() {
+                if let Object::Int(a) = r.a {
+                if let Object::Int(b) = r.b {
+                if let Object::Null = r.step {
+                    return Ok(Object::Int(b-a+1));
+                }else if let Object::Int(step) = r.step {
+                    if let Some(value) = range_length(a,b,step) {
+                        return Ok(Object::Int(value));
+                    }else{
+                        return env.value_error(
+                            "Value error in len(a..b: step): step==0.")
+                    }
+                }}}
+            }
             let f = x.clone().get(&Object::from("len"),env)?;
             return env.call(&f,&argv[0],&[]);
         },

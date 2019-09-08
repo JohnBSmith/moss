@@ -3284,19 +3284,16 @@ fn get_line_col(a: &[u32], ip: usize) -> (usize,usize) {
 
 #[inline(always)]
 fn load_i32(a: &[u32], ip: usize) -> i32{
-    // unsafe{*a.get_unchecked(ip) as i32}
     a[ip] as i32
 }
 
 #[inline(always)]
 fn load_u32(a: &[u32], ip: usize) -> u32{
-    // unsafe{*a.get_unchecked(ip)}
     a[ip]
 }
 
 #[inline(always)]
 fn load_u64(a: &[u32], ip: usize) -> u64{
-    // unsafe{*((a.as_ptr().offset(ip as isize)) as *const u64)}
     (a[ip+1] as u64)<<32 | (a[ip] as u64)
 }
 
@@ -3566,7 +3563,6 @@ fn vm_loop(
 ) -> OperatorResult
 {
   let mut stack: &mut [Object] = state.stack;
-  // let mut a: &[u8] = unsafe{&*(&module.program as &[u8] as *const [u8])};
   let env = &mut state.env;
   let mut a = module.program.clone();
   let mut sp=state.sp;
@@ -3581,7 +3577,6 @@ fn vm_loop(
   loop{ // try
     // print_stack(&stack[0..10]);
     // print_op(&a,ip);
-    // match unsafe{*a.get_unchecked(ip) as u8} {
     match a[ip] as u8 {
       bc::NULL => {
           stack[sp] = Object::Null;
@@ -3912,7 +3907,6 @@ fn vm_loop(
                     var_count: sf.var_count as usize,
                     ret: ret, catch: catch
                 });
-                // a = unsafe{&*(&module.program as &[u8] as *const [u8])};
                 a = module.program.clone();
                 ip = sf.address.get();
                 argv_ptr = sp-argc-1;
@@ -3990,7 +3984,6 @@ fn vm_loop(
           ip = frame.ip;
           argv_ptr = frame.argv_ptr;
           bp = frame.base_pointer;
-          // a = unsafe{&*(&module.program as &[u8] as *const [u8])};
           a = module.program.clone();
           gtab = frame.gtab;
           fnself = frame.f;

@@ -6,14 +6,14 @@ end
 function mset(a)
    m = {}
    for x in a
-      m[x] = (m(x) else 0)+1
+      m[x] = (m(x) or else 0)+1
    end
    return m
 end
 
 extend(Map,{
    function subeq(A;B)
-      A.filter(|x| A(x)>0).all(|x| A(x)<=(B(x) else 0))
+      A.filter(|x| A(x)>0).all(|x| A(x)<=(B(x) or else 0))
    end,
 
    function card(A;)
@@ -23,7 +23,7 @@ extend(Map,{
    function cap(A;B)
       M = {}
       for x in A|B
-         m = min(A(x) else 0, B(x) else 0)
+         m = min(A(x) or else 0, B(x) or else 0)
          if m>0
             M[x] = m
          end
@@ -34,7 +34,7 @@ extend(Map,{
    function cup(A;B)
       M = {}
       for x in A|B
-         m = max(A(x) else 0, B(x) else 0)
+         m = max(A(x) or else 0, B(x) or else 0)
          if m>0
             M[x] = m
          end
@@ -45,7 +45,7 @@ extend(Map,{
    function plus(A;B)
       M = {}
       for x in A|B
-         s = (A(x) else 0)+(B(x) else 0)
+         s = (A(x) or else 0)+(B(x) or else 0)
          if s>0
             M[x] = s
          end
@@ -54,7 +54,7 @@ extend(Map,{
    end,
 
    function disjoint(A;B)
-      (A|B).all(|x| min(A(x) else 0,B(x) else 0)==0)
+      (A|B).all(|x| min(A(x) or else 0,B(x) or else 0)==0)
    end
 })
 

@@ -506,7 +506,7 @@ function system(argm = {})
    {wx=10/fscale,wy=10/fscale,px=0,py=0,n=1000,dark=false,
     alignx="center", aligny="center"
    } = m
-   show_grid = m("grid") else true
+   show_grid = m("grid") or else true
    assert_empty(argm)
    ax = alignx_tab[alignx]
    ay = aligny_tab[aligny]*h/w

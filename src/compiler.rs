@@ -1832,6 +1832,14 @@ fn disjunction(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
     let t = &p[i.index];
     if t.value==Symbol::Or {
         i.index+=1;
+        let p2 = i.next_token_optional(self)?;
+        let t2 = &p2[i.index];
+        if t2.value==Symbol::Else {
+            i.index+=1;
+            let y = self.conjunction(i)?;
+            return Ok(binary_operator(t2.line,t2.col,Symbol::Else,x,y));
+        }
+
         let y = self.conjunction(i)?;
         x = binary_operator(t.line,t.col,Symbol::Or,x,y);
         loop{
@@ -1919,10 +1927,6 @@ fn if_expression(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error> {
         }else{
             return Ok(binary_operator(t.line,t.col,Symbol::If,condition,x));
         }
-    }else if t.value == Symbol::Else {
-        i.index+=1;
-        let y = self.disjunction(i)?;
-        return Ok(binary_operator(t.line,t.col,Symbol::Else,x,y));
     }else if t.value == Symbol::For {
         return self.for_expression(i,x);
     }else{

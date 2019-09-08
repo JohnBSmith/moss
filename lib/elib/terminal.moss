@@ -1,0 +1,71 @@
+
+# Usage example:
+# yellow = format(color = [255,220,0])
+# yellow.print("Hello")
+
+begin
+public Format, format, clear
+
+_print_ = print
+_put_ = put
+
+function apply_format(fmt)
+   if "color" in fmt
+      put("\x{1b}[38;2;{};{};{}m"%fmt["color"])
+   end
+   if "background" in fmt
+      put("\x{1b}[48;2;{};{};{}m"%fmt["background"])
+   end
+   if "underline" in fmt and fmt["underline"]
+      put("\x{1b}[4m")
+   end
+   if "bold" in fmt and fmt["bold"]
+      put("\x{1b}[1m")
+   end
+   if "italic" in fmt and fmt["italic"]
+      put("\x{1b}[3m")
+   end
+end
+
+Format = table(Type,"Format"){
+   function print(*a)
+      apply_format(record(self))
+      put(*a)
+      put("\x{1b}[0m")
+      put("\n")
+   end,
+   function put(*a)
+      apply_format(record(self))
+      _put_(*a)
+      _put_("\x{1b}[0m")
+   end
+}
+
+function u8(x)
+   x: Int and 0<=x and x<256
+end
+
+function check_color_spec(t)
+   if not(t: List and len(t)==3 and t.all(u8))
+      raise ["Error: color must be a list [r,g,b]\s",
+             "where r,g,b in 0..255."].join()
+   end
+end
+
+function format(argm = {})
+   if "color" in argm
+      check_color_spec(argm["color"])
+   end
+   if "background" in argm
+      check_color_spec(argm["background"])
+   end
+   return table Format(argm)
+end
+
+function clear()
+   _put_("\x{1b}[2J")
+   _put_("\x{1b}[H")
+end
+
+end
+
