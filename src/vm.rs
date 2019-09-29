@@ -39,6 +39,7 @@ pub mod interface_index{
     pub const BYTES: usize = 2;
     pub const FILE: usize = 3;
     pub const REGEX: usize = 4;
+    pub const HASH: usize = 5;
 }
 
 // byte code size

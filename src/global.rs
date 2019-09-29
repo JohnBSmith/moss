@@ -1206,6 +1206,8 @@ pub fn init_rte(rte: &RTE){
         let mut m = type_bytes.map.borrow_mut();
         m.insert_fn_plain("list",crate::data::bytes_list,0,0);
         m.insert_fn_plain("decode",crate::data::bytes_decode,0,1);
+        m.insert_fn_plain("len",crate::data::bytes_len,0,0);
+        m.insert_fn_plain("hex",crate::data::bytes_hex,0,0);
     }
     interface_types_set(rte,interface_index::BYTES,type_bytes);
 }

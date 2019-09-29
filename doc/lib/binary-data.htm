@@ -22,13 +22,13 @@
 <dt>bytes(a)
 <dd>Create a byte list from a list of integers less than 256.
 
-<dt>hash(a)
+<dt>hash().push(a).value()
 <dd>Cryptographic hash value (SHA3-256) of the byte list <code>a</code>.
 
 <pre class="moss">
 use data: hash
 
-h = hash("".encode("utf-8"))
+h = hash().push("".encode("utf-8")).value()
 print(hex(h).chunks(4).map(|t| t.join()).join("\s"))
 
 # a7ff c6f8 bf1e d766 51c1 4756 a061 d662

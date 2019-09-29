@@ -8,11 +8,13 @@ use std::fmt::Write;
 
 use crate::object::{
     Object, Exception, FnResult, Interface, List,
+    Table, CharString,
     new_module, downcast, interface_object_get,
     ptr_eq_plain
 };
-use crate::vm::{Env,RTE,interface_index};
+use crate::vm::{Env,RTE,interface_index,interface_types_set};
 use crate::iterable::new_iterator;
+use crate::tuple::Tuple;
 
 mod crypto;
 
@@ -163,24 +165,92 @@ pub fn bytes_decode(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult 
     }
 }
 
-fn sha_sum(data: &[u8]) -> FnResult {
-    let mut hash = crypto::sha3::Keccak::new_sha3_256();
-    hash.update(&data);
-    let mut value: Vec<u8> = vec![0; 32];
-    hash.finalize(&mut value);
-    return Ok(Bytes::object_from_vec(value));
+pub fn bytes_len(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+    match argv.len() {
+        0 => {}, n => return env.argc_error(n,0,0,"len")
+    }
+    if let Some(data) = downcast::<Bytes>(pself) {
+        Ok(Object::Int(data.data.borrow().len() as i32))
+    }else{
+        env.type_error("Type error in a.len(): a is not of type Bytes.")
+    }
+}
+
+pub fn bytes_hex(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+    match argv.len() {
+        0 => {}, n => return env.argc_error(n,0,0,"hex")
+    }
+    if let Some(data) = downcast::<Bytes>(pself) {
+        Ok(base16(&data.data.borrow()))
+    }else{
+        env.type_error("Type error in a.hex(): a is not of type Bytes.")
+    }
+}
+
+struct Hash {
+    state: RefCell<Option<crypto::sha3::Keccak>>
+}
+impl Hash {
+    fn new() -> Self {
+        Self{state: RefCell::new(Some(crypto::sha3::Keccak::new_sha3_256()))}
+    }
+}
+
+impl Interface for Hash {
+    fn as_any(&self) -> &dyn Any {self}
+    fn get(self: Rc<Self>, key: &Object, env: &mut Env) -> FnResult {
+        interface_object_get("Hash",key,env,interface_index::HASH)
+    }
+    fn to_string(self: Rc<Self>, _env: &mut Env) -> Result<String,Box<Exception>> {
+        Ok(String::from("hash object"))
+    }
 }
 
 fn data_hash(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
-        1 => {}, n => return env.argc_error(n,1,1,"sha_sum")
+        0 => {}, n => return env.argc_error(n,0,0,"hash")
     }
-    if let Some(data) = downcast::<Bytes>(&argv[0]) {
-        sha_sum(&data.data.borrow())
+    return Ok(Object::Interface(Rc::new(Hash::new())));
+}
+
+fn hash_push(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+    if let Some(hash) = downcast::<Hash>(pself) {
+        if let Some(data) = downcast::<Bytes>(&argv[0]) {
+            let mut state = hash.state.borrow_mut();
+            if let Some(state) = state.as_mut() {
+                state.update(&data.data.borrow());
+                return Ok(pself.clone());
+            }else{
+                return Ok(Object::Null);
+            }
+        }else{
+            return env.type_error1(
+               "Type error in h.push(a): a is not a of type Bytes.",
+               "a",&argv[0]
+            );
+        }
     }else{
-        env.type_error1(
-           "Type error in sha_sum(a): a is not a of type Bytes.",
-           "a",&argv[0])    
+        return env.type_error1(
+            "Type error in h.push(a): h is not of type Hash.",
+            "h",pself
+        );
+    }
+}
+
+fn hash_value(env: &mut Env, pself: &Object, _argv: &[Object]) -> FnResult {
+    if let Some(hash) = downcast::<Hash>(pself) {
+        let mut value: Vec<u8> = vec![0; 32];
+        if let Some(state) = hash.state.borrow_mut().take() {
+            state.finalize(&mut value);
+            return Ok(Bytes::object_from_vec(value));
+        }else{
+            return Ok(Object::Null);
+        }
+    }else{
+        return env.type_error1(
+            "Type error in h.value(): h is not of type Hash.",
+            "h",pself
+        );
     }
 }
 
@@ -194,6 +264,18 @@ pub fn base16(data: &[u8]) -> Object {
 
 pub fn load_data(env: &mut Env) -> Object
 {
+    let type_hash = Table::new(Tuple::new_object(vec![
+        Object::Interface(env.rte().type_type.clone()),
+        CharString::new_object_str("Hash"),
+        Object::Null
+    ]));
+    {
+        let mut m = type_hash.map.borrow_mut();
+        m.insert_fn_plain("push",crate::data::hash_push,1,1);
+        m.insert_fn_plain("value",crate::data::hash_value,0,0);
+    }
+    interface_types_set(env.rte(),interface_index::HASH,type_hash.clone());
+
     let data = new_module("data");
     {
         let mut m = data.map.borrow_mut();
@@ -203,6 +285,8 @@ pub fn load_data(env: &mut Env) -> Object
         let type_bytes = env.rte().interface_types
             .borrow()[interface_index::BYTES].clone();
         m.insert("Bytes",Object::Interface(type_bytes));
+        m.insert("Hash",Object::Interface(type_hash));
     }
+
     return Object::Interface(Rc::new(data));
 }

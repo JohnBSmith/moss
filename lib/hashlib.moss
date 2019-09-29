@@ -1,0 +1,34 @@
+
+begin
+public hash, Hash
+
+use fs: open
+use data: Bytes, Hash, hasher=hash
+
+blocksize = 2^16
+
+Hash.push_file = fn push_file|path|
+   f = open(path)
+   while true
+      data = f.read(blocksize)
+      if len(data)==0 then break end
+      self.push(data)
+   end
+   return self
+end
+
+Hash.hex = fn hex||
+   return self.value().hex()
+end
+
+function hash(x=null)
+   if x is null
+      return hasher()
+   elif x: Bytes
+      return hasher().push(x).value()
+   else
+      return hasher().push(str(x).encode("utf-8")).value()
+   end
+end
+
+end
