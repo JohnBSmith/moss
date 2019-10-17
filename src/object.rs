@@ -421,7 +421,7 @@ pub trait Interface {
     }
     fn set(self: Rc<Self>, env: &mut Env, key: Object, _value: Object) -> FnResult {
         env.std_exception(&format!(
-            "Type error in t.{} = value: getter is not implemented for objects of this type.",key))
+            "Type error in t.{} = value: setter is not implemented for objects of this type.",key))
     }
     fn index(self: Rc<Self>, _indices: &[Object], env: &mut Env) -> FnResult {
         env.std_exception("Type error in a[i]: indexing is not implemented for objects of this type.")

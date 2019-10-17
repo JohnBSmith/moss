@@ -14,6 +14,7 @@
 
 <ul>
 <li><a href="#cmd">Command-line options</a>
+<li><a href="#tools">Using Moss for command-line tools</a>
 <li><a href="#building">Building</a>
   <ul>
   <li><a href="#linux">Linux</a>
@@ -44,6 +45,38 @@
             and execution of shell commands. Running an untrusted
             module in unsafe mode is a security hazard.
 </pre>
+
+<br>
+<h2 id="tools">Using Moss for command-line tools</h2>
+
+<p>Crate a file <code>tool.moss</code> with the following content:
+<pre class="indent">
+#!/usr/bin/env moss
+use sys: argv
+
+print(argv)
+</pre>
+
+<p>Now strip the file name extension from the file name and
+change the file permission to <i>executeable</i>.
+Open a terminal in the directory and type in:
+<pre class="indent">
+./tool hello world
+</pre>
+
+<p>Now copy the file to a place in <code>PATH</code>.
+These places are shown by:
+<pre class="indent">
+echo $PATH
+</pre>
+
+<p>But make sure that the file does not shadow another command with the
+same name. The program may now be executed in every directory
+by typing:
+<pre class="indent">
+tool hello world
+</pre>
+
 
 <br>
 <h2 id="building">Building</h2>

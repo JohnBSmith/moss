@@ -98,6 +98,21 @@ impl Interface for Bytes {
         });
         Ok(new_iterator(f))
     }
+    fn add(self: Rc<Self>, b: &Object, env: &mut Env) -> FnResult {    
+        if let Some(b) = downcast::<Bytes>(b) {
+            let data1 = self.data.borrow();
+            let data2 = b.data.borrow();
+            let l1 = data1.len();
+            let l2 = data2.len();
+            let mut v: Vec<u8> = Vec::with_capacity(l1+l2);
+            v.extend_from_slice(&data1);
+            v.extend_from_slice(&data2);
+            return Ok(Bytes::object_from_vec(v));
+        }else{
+            return env.type_error1(
+                "Type error in a+b: expected b of type Bytes","b",b);
+        }
+    }
 }
 
 fn bytes(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {

@@ -14,7 +14,7 @@ var keyword = {
   "while": 0, "do": 0, "for": 0, "in": 0, "is": 0,
   "break": 0, "continue": 0,
   "try": 0, "catch": 0, "global": 0, "public": 0,
-  "not": 0, "and": 0, "or": 0, "table": 0, "of": 0,
+  "not": 0, "and": 0, "or": 0, "table": 0, "class": 0, "of": 0,
   "raise": 0, "yield": 0, "return": 0,
   "true": 0, "false": 0, "null": 0,
   "goto": 0, "label": 0, "use": 0,

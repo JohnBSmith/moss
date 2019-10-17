@@ -22,7 +22,8 @@ pub struct Class {
     pub pset: PSet,
     pub to_string: PToString,
     pub name: String,
-    pub map: Rc<RefCell<Map>>
+    pub map: Rc<RefCell<Map>>,
+    pub parent: Object
 }
 
 impl Class {
@@ -57,6 +58,18 @@ impl Interface for Class {
             return Ok(Object::Null);
         }
     }
+    fn set(self: Rc<Self>, _env: &mut Env, key: Object, value: Object) -> FnResult {
+        self.map.borrow_mut().m.insert(key,value);
+        return Ok(Object::Null);
+    }
+    fn eq_plain(&self, b: &Object) -> bool {
+        match downcast::<Class>(b) {Some(_) => true, None => false}
+    }
+    fn eq(self: Rc<Self>, b: &Object, _env: &mut Env) -> FnResult {
+        Ok(Object::Bool(match downcast::<Class>(b) {
+            Some(_) => true, None => false
+        }))
+    }
 }
 
 fn standard_getter(env: &mut Env, t: Rc<Instance>, key: &Object)
@@ -65,6 +78,19 @@ fn standard_getter(env: &mut Env, t: Rc<Instance>, key: &Object)
     if let Some(y) = t.map.borrow().m.get(key) {
         return Ok(y.clone());
     }else{
+        let mut p = &t.prototype;
+        loop{
+            if let Some(class) = downcast::<Class>(p) {
+                if let Some(y) = class.map.borrow().m.get(key) {
+                    return Ok(y.clone());
+                }else{
+                    p = &class.parent;
+                    if let Object::Null = p {break;}
+                }
+            }else{
+                break;
+            }
+        }
         return env.index_error("Index error: slot not found.");
     }
 }
@@ -91,7 +117,7 @@ fn custom_setter(f: Object) -> PSet {
 fn standard_to_string(env: &mut Env, t: Rc<Instance>)
 -> Result<String,Box<Exception>>
 {
-    match object_to_string(env,&Object::Interface(t)) {
+    match object_to_string(env,&Object::Map(t.map.clone())) {
         Ok(value) => {
             let mut s = String::from("table");
             s.push_str(&value);
@@ -120,21 +146,20 @@ fn custom_to_string(f: Object) -> PToString {
 
 pub fn class_new(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
-        1 => {}, n => return env.argc_error(n,1,1,"class")
+        3 => {}, n => return env.argc_error(n,3,3,"class")
     }
     let mut destructor = Object::Null;
     let mut call_drop = false;
-    match argv[0] {
+    let name: String = argv[0].to_string();
+    let parent: Object = argv[1].clone();
+
+    match argv[2] {
         Object::Map(ref map) => {
             let m = &map.borrow().m;
             if let Some(x) = m.get(&Object::from("drop")) {
                 destructor = x.clone();
                 call_drop = true;
             }
-            let name: String = match m.get(&Object::from("name")) {
-                Some(value) => value.to_string(),
-                None => String::from("class object")
-            };
             let pget: PGet = match m.get(&Object::from("get")) {
                 Some(f) => custom_getter(f.clone()),
                 None => Box::new(standard_getter)
@@ -150,7 +175,8 @@ pub fn class_new(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
             return Ok(Object::Interface(Rc::new(Class{
                 rte: env.rte().clone(),
                 destructor, call_drop, pget, pset,
-                name, to_string, map: map.clone()
+                name, to_string, map: map.clone(),
+                parent
             })));
         },
         _ => panic!()
@@ -160,6 +186,19 @@ pub fn class_new(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
 pub struct Instance {
     pub prototype: Object,
     pub map: Rc<RefCell<Map>>
+}
+
+impl Instance {
+    pub fn slot(&self, key: &Object) -> Option<Object> {
+        if let Some(class) = downcast::<Class>(&self.prototype) {
+            match class.map.borrow_mut().m.get(key) {
+                Some(value) => Some(value.clone()),
+                None => None
+            }
+        }else{
+            None
+        }
+    }
 }
 
 impl Interface for Instance {
@@ -196,6 +235,83 @@ impl Interface for Instance {
         }else{
             unreachable!();
         }        
+    }
+    fn neg(self: Rc<Self>, env: &mut Env) -> FnResult {
+        if let Some(ref f) = self.slot(&env.rte().key_neg) {
+            env.call(f,&Object::Interface(self),&[])
+        }else{
+            env.type_error1("Type error in -x.","x",&Object::Interface(self))
+        }
+    }
+    fn add(self: Rc<Self>, y: &Object, env: &mut Env) -> FnResult {
+        if let Some(ref f) = self.slot(&env.rte().key_add) {
+            env.call(f,&Object::Interface(self),&[y.clone()])
+        }else{
+            Ok(Object::unimplemented())
+        }
+    }
+    fn radd(self: Rc<Self>, x: &Object, env: &mut Env) -> FnResult {
+        if let Some(ref f) = self.slot(&env.rte().key_radd) {
+            env.call(f,&x,&[Object::Interface(self)])
+        }else{
+            Ok(Object::unimplemented())
+        }
+    }
+    fn sub(self: Rc<Self>, y: &Object, env: &mut Env) -> FnResult {
+        if let Some(ref f) = self.slot(&env.rte().key_sub) {
+            env.call(f,&Object::Interface(self),&[y.clone()])
+        }else{
+            Ok(Object::unimplemented())
+        }
+    }
+    fn rsub(self: Rc<Self>, x: &Object, env: &mut Env) -> FnResult {
+        if let Some(ref f) = self.slot(&env.rte().key_rsub) {
+            env.call(f,&x,&[Object::Interface(self)])
+        }else{
+            Ok(Object::unimplemented())
+        }
+    }
+    fn mul(self: Rc<Self>, y: &Object, env: &mut Env) -> FnResult {
+        if let Some(ref f) = self.slot(&env.rte().key_mul) {
+            env.call(f,&Object::Interface(self),&[y.clone()])
+        }else{
+            Ok(Object::unimplemented())
+        }
+    }
+    fn rmul(self: Rc<Self>, x: &Object, env: &mut Env) -> FnResult {
+        if let Some(ref f) = self.slot(&env.rte().key_rmul) {
+            env.call(f,&x,&[Object::Interface(self)])
+        }else{
+            Ok(Object::unimplemented())
+        }
+    }
+    fn div(self: Rc<Self>, y: &Object, env: &mut Env) -> FnResult {
+        if let Some(ref f) = self.slot(&env.rte().key_div) {
+            env.call(f,&Object::Interface(self),&[y.clone()])
+        }else{
+            Ok(Object::unimplemented())
+        }
+    }
+    fn rdiv(self: Rc<Self>, x: &Object, env: &mut Env) -> FnResult {
+        if let Some(ref f) = self.slot(&env.rte().key_rdiv) {
+            env.call(f,&x,&[Object::Interface(self)])
+        }else{
+            Ok(Object::unimplemented())
+        }
+    }
+    fn pow(self: Rc<Self>, y: &Object, env: &mut Env) -> FnResult {
+        if let Some(ref f) = self.slot(&env.rte().key_pow) {
+            env.call(f,&Object::Interface(self),&[y.clone()])
+        }else{
+            Ok(Object::unimplemented())
+        }
+    }
+    fn rpow(self: Rc<Self>, x: &Object, env: &mut Env) -> FnResult {
+        if let Some(ref f) = self.slot(&env.rte().key_rpow) {
+            env.call(f,&x,&[Object::Interface(self)])
+        }else{
+            Ok(Object::unimplemented())
+        }
     }
 }
 

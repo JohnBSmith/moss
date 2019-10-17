@@ -28,7 +28,7 @@ enum Symbol{
     Lt, Gt, Le, Ge, Eq, Ne, In, Is, Isin, Notin, Isnot, Range,
     And, Or, Amp, Vline, Neg, Not, Tilde, Svert, Assignment,
     PLeft, PRight, BLeft, BRight, CLeft, CRight, Newline,
-    Lshift, Rshift, Assert, Begin, Break, Catch, Continue,
+    Lshift, Rshift, Assert, Begin, Break, Catch, Class, Continue,
     Elif, Else, End, For, Global, Goto, Label, Of,
     If, While, Do, Raise, Return, Fn, Function, Table, Then, Try,
     Use, Yield, True, False, Null, Dot, Comma, Colon, Semicolon,
@@ -96,6 +96,7 @@ static KEYWORDS: &'static [KeywordsElement] = &[
       KeywordsElement{s: "begin",   t: &SymbolType::Keyword, v: &Symbol::Begin},
       KeywordsElement{s: "break",   t: &SymbolType::Keyword, v: &Symbol::Break},
       KeywordsElement{s: "catch",   t: &SymbolType::Keyword, v: &Symbol::Catch},
+      KeywordsElement{s: "class",   t: &SymbolType::Keyword, v: &Symbol::Class},
       KeywordsElement{s: "continue",t: &SymbolType::Keyword, v: &Symbol::Continue},
       KeywordsElement{s: "do",      t: &SymbolType::Keyword, v: &Symbol::Do},
       KeywordsElement{s: "elif",    t: &SymbolType::Keyword, v: &Symbol::Elif},
@@ -605,6 +606,7 @@ fn symbol_to_string(value: Symbol) -> &'static str {
         Symbol::Begin => "begin",
         Symbol::Break => "break",
         Symbol::Catch => "catch",
+        Symbol::Class => "class",
         Symbol::Continue => "continue",
         Symbol::Do => "do",
         Symbol::Elif => "elif",
@@ -1148,8 +1150,60 @@ fn table_literal(&mut self, i: &mut TokenIterator, t0: &Token) -> Result<Rc<AST>
         value: Symbol::Table, info: Info::None, s: None, a: Some(Box::new([prototype,map]))}));
 }
 
+fn expect_assignment(&mut self, i: &mut TokenIterator)
+-> Result<(),Error>
+{
+    let p = i.next_token(self)?;
+    let t = &p[i.index];
+    if t.value == Symbol::Assignment {
+        i.index+=1;
+        return Ok(());
+    }else{
+        return Err(self.syntax_error(t.line,t.col,"expected '='."));
+    }
+}
+
+fn parent(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error> {
+    let p = i.next_token(self)?;
+    let t = &p[i.index];
+    if t.value == Symbol::Colon {
+        i.index+=1;
+        return self.atom(i);
+    }else{
+        return Ok(atomic_literal(t.line,t.col,Symbol::Null));
+    }
+}
+
+fn class_literal(&mut self, i: &mut TokenIterator, t0: &Token) -> Result<Rc<AST>,Error> {
+    i.index+=1;
+    let name = self.atom(i)?;
+    let parent = self.parent(i)?;
+    let map = self.atom(i)?;
+    let fid = identifier("class",t0.line,t0.col); 
+    return Ok(apply(t0.line, t0.col, Box::new([fid,name,parent,map])));
+}
+
+fn class_statement(&mut self, i: &mut TokenIterator, t0: &Token) -> Result<Rc<AST>,Error> {
+    i.index+=1;
+    let id = self.atom(i)?;
+    let name = if id.symbol_type == SymbolType::Identifier {
+        match id.s.as_ref() {
+            Some(value) => string(value.clone(),t0.line,t0.col),
+            None => unreachable!()
+        }
+    }else{
+        return Err(self.syntax_error(id.line, id.col, "expected an identifier."));            
+    };
+    let parent = self.parent(i)?;
+    self.expect_assignment(i)?;
+    let map = self.expression(i)?;
+    let fid = identifier("class",t0.line,t0.col); 
+    let app = apply(t0.line, t0.col, Box::new([fid,name,parent,map]));
+    return Ok(assignment(t0.line,t0.col,id,app));
+}
+
 fn arguments_list(&mut self, i: &mut TokenIterator, t0: &Token, terminator: Symbol)
-    -> Result<Rc<AST>,Error>
+-> Result<Rc<AST>,Error>
 {
     let mut v: Vec<Rc<AST>> = Vec::new();
     let mut selfarg = false;
@@ -1504,6 +1558,8 @@ fn atom(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error> {
     }else if t.value==Symbol::Table {
         i.index+=1;
         y = self.table_literal(i,t)?;
+    }else if t.value==Symbol::Class {
+        y = self.class_literal(i,t)?;
     }else if t.value==Symbol::Vline {
         i.index+=1;
         y = self.concise_function_literal(i,t)?;
@@ -2550,6 +2606,9 @@ fn statements(&mut self, i: &mut TokenIterator, last_value: Value)
             }else if value == Symbol::Assert {
                 i.index+=1;
                 let x = self.assert_statement(i,t)?;
+                v.push(x);
+            }else if value == Symbol::Class {
+                let x = self.class_statement(i,t)?;
                 v.push(x);
             }else{
                 let x = self.assignment(i)?;
@@ -3757,10 +3816,10 @@ fn expect_char(i: &mut Chars, c: char) -> Result<char,String> {
     match i.next() {
         Some(y) => {
             if c=='*' || y==c {return Ok(y);} else {
-                return Err(format!("after \\u: unexpected character: '{}'.",y));
+                return Err(format!("after \\x: unexpected character: '{}'.",y));
             }
         },
-        _ => return Err("in \\u{}: unexpected end of input.".to_string())
+        _ => return Err("in \\x{}: unexpected end of input.".to_string())
     }
 }
 
@@ -3773,7 +3832,7 @@ fn unicode_literal(i: &mut Chars) -> Result<char,String> {
         else{
             x = 16*x+match c.to_digit(16) {
                 Some(digit) => digit,
-                None => return Err("in \\u{}: expected hexadecimal digits.".to_string())
+                None => return Err("in \\x{}: expected hexadecimal digits.".to_string())
             };
         }
     }

@@ -17,13 +17,19 @@
 <div class="toc">
 <h2 id="toc">Table of contents</h2>
 <ol>
-<li><a href="#construction">Construction</a>
-<li><a href="#literal">Object literal</a>
-<li><a href="#prototypes">Prototypes</a>
-<li><a href="#basic-data-types">Basic data types</a>
-<li><a href="#classes-and-metaclasses">Classes and Metaclasses</a>
-<li><a href="#inheritance">Multiple inheritance</a>
+<li><a href="#a-simple-class">A simple class</a>
+<li><a href="#constructors">Constructors</a>
+<li><a href="#destructors">Destructors</a>
+<li><a href="#type-checks">Runtime type checks</a>
+<li><a href="#inheritance">Inheritance</a>
+<li><a href="#multiple-inheritance">Multiple inheritance</a>
 <li><a href="#reflection">Reflection</a>
+</ol>
+
+<p>[outdated:]
+<ol>
+<li><a href="#prototypes">Prototypes</a>
+<li><a href="#classes-and-metaclasses">Classes and Metaclasses</a>
 <li><a href="#monkey">Monkey patching</a>
 <li><a href="#overloading">Operator overloading</a>
 <li><a href="#read-only">Read-only properties</a>
@@ -33,109 +39,224 @@
 </ol>
 </div>
 
-<h2 id="construction">Construction</h2>
+<h2 id="a-simple-class">A simple class</h2>
 
-<p>We can take different approaches to construct an object. A simple
-object can be constructed in one of the following three ways or
-a mixture of them.
-
-<pre class="moss indent">
-# imperative construction
-# vmax in kn
-Bristol = table{}
-Bristol.id = "HMS Bristol"
-Bristol.color = "gray blue"
-Bristol.engine = "diesel"
-Bristol.vmax = 25
-
-# via object literal
-Bristol = table{
-   id = "HMS Bristol",
-   color = "gray blue",
-   engine = "diesel",
-   vmax = 25
-}
-</pre>
-
-<p>Such an object may have a method which operates on it.
-We will define one.
+<p>As a first example, a class with a method <code>quack</code>
+is stated.
 
 <pre class="moss indent">
-Bristol.move = fn||
-   print(self.id, " moves at ", self.vmax//2, " kn.")
-end
-
-Bristol.move()
-# HMS Bristol moves at 12 kn.
-</pre>
-
-<p>If there shall be more than one ship, there are certain options
-now. Firstly we can simply delegate to HMS Bristol and shadow
-some of the member objects.
-
-<pre class="moss indent">
-Hermes = table Bristol{}
-Hermes.id = "HMS Hermes"
-Hermes.vmax = 25
-</pre>
-
-<p>But we might also clone HMS Bristol completely and then
-overwrite some of the member objects.
-
-<pre class="moss indent">
-Hermes = table{}
-extend(Hermes,Bristol)
-Hermes.id = "HMS Hermes"
-Hermes.vmax = 25
-</pre>
-
-<p>Another way is to use a constructor <code>ship</code>
-and a type/class/metaobject <code>Ship</code>.
-
-<pre class="moss indent">
-function ship(id,vmax)
-   return table Ship{id=id, vmax=vmax}
-end
-
-Ship = table{
-   color = "gray blue",
-   engine = "diesel",
-   function move()
-      print(self.id, " moves at ", self.vmax//2 " kn.")
+class Duck = {
+   function quack()
+      print(self.name, " quacks.")
    end
 }
 
-Bristol = ship("HMS Bristol",25)
-Hermes = ship("HMS Hermes",25)
+d = table Duck{name = "Dagobert"}
+d.quack()
 </pre>
 
-<p>Frankly speaking, the metaobject <code>Ship</code> can be
-regarded as a table of virtual methods and class variables.
-
-
-<h2 id="literal">Object literal</h2>
-
-<p>The following ways to construct Hermes have the same result.
+<p>Object properties shadow class properties. For example,
+the method <code>quack</code> may be shadowed by a
+special method:
 
 <pre class="moss indent">
-Hermes = table Bristol{}
-Hermes.id = "HMS Hermes"
-Hermes.vmax = 25
+d.quack = fn||
+   print(self.name, " quacks loudly.")
+end
 
-Hermes = table Bristol{
-   id = "HMS Hermes",
-   vmax = 24
-}
-
-Hermes = table Bristol{
-   "id": "HMS Hermes",
-   "vmax": 24
-}
-
-m = {id = "HMS Hermes", vmax = 24}
-Hermes = table Bristol(m)
+d.quack()
 </pre>
 
+<h2 id="constructors">Constructors</h2>
+
+<p>Objects are constructed by ordinary functions.
+For example, a function <code>duck</code> may create
+an object of class <code>Duck</code>.
+
+<pre class="moss indent">
+function duck(name)
+   return table Duck{name=name}
+end
+
+d = duck("Dagobert")
+d.quack()
+</pre>
+
+<p>It can be moved into the class, that is only a matter of style:
+<pre class="moss indent">
+class Duck = {
+   function quack()
+      print(self.name, " quacks.")
+   end,
+   function new(name)
+      return table Duck{name=name}
+   end
+}
+
+d = Duck.new("Dagobert")
+d.quack()
+</pre>
+
+
+<h2 id="destructors">Destructors</h2>
+
+<p>When an object is not needed anymore, a destructor method
+<code>drop</code> may be called automatically. It is a special method
+that can only be stated at class construction and cannot
+be shadowed by local properties.
+
+<pre class="moss indent">
+class Duck = {
+   function quack()
+      print(self.name, " quacks.")
+   end,
+   function drop()
+      print(self.name, " flies away.")
+   end
+}
+</pre>
+
+<h2 id="type-checks">Runtime type checks</h2>
+
+<p>Type checks are performed in two ways.
+
+<pre class="moss indent">
+&gt; type(d) is Duck
+true
+
+&gt; d: Duck
+true
+</pre>
+
+<p>The former is only true if the types match exactly.
+The latter is also true if <code>d</code> is an descendant.
+For example, <code>d: Bird</code> would also be true,
+in case <code>Duck</code> inherits from <code>Bird</code>.
+
+<h2 id="inheritance">Inheritance</h2>
+
+<p>A class may inherit properties from a parent class.
+
+<pre class="moss indent">
+class Bird = {
+   function fly()
+      print(self.name, " flies.")
+   end
+}
+
+class Duck: Bird = {
+   function quack()
+      print(self.name, " quacks.")
+   end
+}
+
+d = table Duck{name="Dagobert"}
+d.fly()
+d.quack()
+</pre>
+
+<p>As Duck just points to Bird, changing Bird afterwards will be
+reflected in Duck. This may be prevented by swallowing the
+properties of Bird instead. Replace
+
+<pre class="moss indent">
+class Duck: Bird = {...}
+</pre>
+
+<p>by shallow copy:
+
+<pre class="moss indent">
+class Duck = record(Bird)|{...}
+</pre>
+
+<p>or by deep copy:
+
+<pre class="moss indent">
+class Duck = deep_copy(record(Bird))|{...}
+</pre>
+
+<p>The function <code>deep_copy</code> is not part of the
+core language. You will find it in the standard library.
+
+<h2 id="multiple-inheritance">Multiple inheritance</h2>
+
+<p>A class may inherit from more than one parent.
+
+<pre class="moss indent">
+class Diver = {
+   function dive()
+      print(self.name, " dives.")
+   end
+}
+
+class Bird = {
+   function fly()
+      print(self.name, " flies.")
+   end
+}
+
+class Duck: [Bird, Diver] = {
+   function quack()
+      print(self.name, " quacks.")
+   end
+}
+
+d = table Duck{name="Dagobert"}
+d.fly()
+d.dive()
+d.quack()
+</pre>
+
+<p>A property is first searched in Duck, then in Bird
+and then in Diver.
+
+<h2 id="reflection">Reflection</h2>
+
+<p>Reflection is the possibility to construct, obtain and modify the
+structure of a type at runtime. To achieve this, classes and objects
+may constructed dynamically from data.
+
+<pre class="moss indent">
+Duck = class "Duck" {
+   "quack": fn||
+      print(self.("name"), " quacks.")
+   end
+}
+
+d = table Duck{"name": "Dagobert"}
+d.("quack")()
+</pre>
+
+<p>The properties are ordinary key-value maps:
+
+<pre class="moss indent">
+class_data = {
+   "quack": fn||
+      print(self.("name"), " quacks.")
+   end
+}
+Duck = class "Duck" (class_data)
+
+table_data = {"name": "Dagobert"}
+d = table Duck(table_data)
+d.("quack")()
+</pre>
+
+<p>The map may be accessed with <code>record</code>:
+
+<pre class="moss indent">
+m = record(Duck)
+m["quack"](d;)
+</pre>
+
+<p>We have:
+<pre class="moss indent">
+d.name == d.("name") == record(d)["name"]
+</pre>
+
+<p>But note that the dot operation also searches in
+the class and its ancestors, whereas the record lookup
+does not.
 
 <h2 id="prototypes">Prototypes</h2>
 
@@ -308,7 +429,7 @@ print("type: ", type(d))
 # type: Duck
 </pre>
 
-<h2 id="inheritance">Multiple inheritance</h2>
+<h2>Multiple inheritance</h2>
 
 <p>An object can have more than one prototype.
 
@@ -333,42 +454,6 @@ sea_duck.take_off()
 
 <p>A method is searched at first in <code>Ship</code>,
 and then, if not found, in <code>Plane</code>.
-
-<h2 id="reflection">Reflection</h2>
-
-<p>Reflection is the possibility to construct, obtain and modify the
-structure of a type at runtime.
-
-<pre class="moss indent">
-# direct construction
-Bristol = table{color = "gray blue", engine = "diesel"}
-
-# reflection
-x = "color"; y = "engine"
-Bristol = table{x: "gray blue", y: "diesel"}
-
-# reflection, by a custom map
-x = "color"; y = "engine"
-m = {x: "gray blue", y: "diesel"}
-Bristol = table null(m)
-
-# direct access
-&gt; Bristol.engine
-"diesel"
-
-# reflection
-&gt; Bristol.("engine")
-"diesel"
-
-# direct method call
-&gt; Bristol.move()
-
-# reflection
-&gt; Bristol.("move")()
-
-# inspect a type
-&gt; m == record(Bristol)
-</pre>
 
 
 <h2 id="monkey">Monkey patching</h2>

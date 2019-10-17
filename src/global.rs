@@ -25,7 +25,7 @@ use crate::table::{table_get,type_to_string};
 use crate::tuple::Tuple;
 use crate::iterable::new_iterator;
 use crate::map::map_extend;
-use crate::class::{class_new,Instance};
+use crate::class::{Class,Instance,class_new};
 use crate::range::Range;
 use crate::data::{Bytes,base16};
 
@@ -375,6 +375,8 @@ fn record(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     if let Some(t) = downcast::<Table>(&argv[0]) {
         Ok(Object::Map(t.map.clone()))
     }else if let Some(t) = downcast::<Instance>(&argv[0]) {
+        Ok(Object::Map(t.map.clone()))
+    }else if let Some(t) = downcast::<Class>(&argv[0]) {
         Ok(Object::Map(t.map.clone()))
     }else{
         env.type_error1(
