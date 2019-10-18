@@ -23,7 +23,9 @@
 <li><a href="#type-checks">Runtime type checks</a>
 <li><a href="#inheritance">Inheritance</a>
 <li><a href="#multiple-inheritance">Multiple inheritance</a>
+<li><a href="#composition">Composition over inheritance</a>
 <li><a href="#reflection">Reflection</a>
+<li><a href="#aop">Aspect-oriented programming</a>
 </ol>
 
 <p>[outdated:]
@@ -210,6 +212,137 @@ d.quack()
 <p>A property is first searched in Duck, then in Bird
 and then in Diver.
 
+<p>Instead of pointing to Bird and Diver, we can
+alternatively create a shallow copy:
+
+<pre class="moss indent">
+function extends(*a)
+   buffer = {}
+   for m in a
+      buffer.extend(record(m))
+   end
+   return fn|m|
+      buffer.update(m)
+      return buffer
+   end
+end
+
+class Diver = {
+   function dive()
+      print(self.name, " dives.")
+   end
+}
+
+class Bird = {
+   function fly()
+      print(self.name, " flies.")
+   end
+}
+
+class Duck = extends(Bird,Diver){
+   function quack()
+      print(self.name, " quacks.")
+   end
+}
+
+d = table Duck{name="Dagobert"}
+d.fly()
+d.dive()
+d.quack()
+</pre>
+
+<h2 id="composition">Composition over inheritance</h2>
+
+<p>Inheritance has the disadvantage that it might lead to
+name clashes. In case both ancestors have a method with the
+same name, which one should be used? This problem is solved
+by replacing inheritance with composition.
+
+<p>The following approach enables automatic composition
+by prefixing class properties.
+
+<pre class="moss indent">
+function compose(tab)
+   buffer = {}
+   for prefix, type in tab.items()
+      for key, value in record(type).items()
+         buffer[prefix+"_"+key] = value
+      end
+   end
+   return fn|m|
+      buffer.update(m)
+      return buffer
+   end
+end
+
+class Diver = {
+   function dive()
+      print(self.name, " dives.")
+   end
+}
+
+class Bird = {
+   function fly()
+      print(self.name, " flies.")
+   end
+}
+
+class Duck = compose{"bird": Bird, "diver": Diver}{
+   function quack()
+      print(self.name, " quacks.")
+   end
+}
+
+d = table Duck{name="Dagobert"}
+d.bird_fly()
+d.diver_dive()
+d.quack()
+</pre>
+
+<p>It might be that not only class properties clash, but also
+object properties. To solve this problem, we need more fine-grained
+control.
+
+<pre class="moss indent">
+class Diver = {
+   function dive()
+      print(self.name, " dives ", self.quickness, ".")
+   end
+}
+
+class Bird = {
+   function fly()
+      print(self.name, " flies ", self.quickness, ".")
+   end
+}
+
+class Duck = {
+   function quack()
+      print(self.name, " quacks.")
+   end
+}
+
+function duck(argm)
+   name = argm["name"]
+   bq = argm["bird_quickness"]
+   dq = argm["diver_quickness"]
+   return table Duck{
+      name = name,
+      bird = table Bird{name = name, quickness = bq},
+      diver = table Diver{name = name, quickness = dq}
+   }
+end
+
+d = duck{
+   name = "Dagobert",
+   bird_quickness = "fast",
+   diver_quickness = "very fast"
+}
+d.bird.fly()
+d.diver.dive()
+d.quack()
+</pre>
+
 <h2 id="reflection">Reflection</h2>
 
 <p>Reflection is the possibility to construct, obtain and modify the
@@ -257,6 +390,45 @@ d.name == d.("name") == record(d)["name"]
 <p>But note that the dot operation also searches in
 the class and its ancestors, whereas the record lookup
 does not.
+
+
+<h2 id="aop">Aspect-oriented programming</h2>
+
+<p>A class may be modified automatically in such a way, that
+a special function called an <i>advice</i> enables us to do operations
+before and after each method call. We will call this <i>wrapping</i>.
+For example, a function <code>log</code> should print to the
+command-line when a method starts and ends.
+
+<pre class="moss indent">
+function wrap(Class,advice)
+   m = record(Class)
+   for key, value in m.items()
+      if type(value) is Function
+         m[key] = |*argv| advice(key,value,self,argv)
+      end
+   end
+end
+
+function log(name,method,pself,argv)
+   print("[Start of method {}]"%[name])
+   rv = method(pself;*argv)
+   print("[End of method {}]"%[name])
+   return rv
+end
+
+class Duck = {
+   function quack()
+      print(self.name, " quacks.")
+   end
+}
+
+wrap(Duck,log)
+
+d = table Duck{name = "Dagobert"}
+d.quack()
+</pre>
+
 
 <h2 id="prototypes">Prototypes</h2>
 
