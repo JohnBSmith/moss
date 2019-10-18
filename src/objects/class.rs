@@ -72,6 +72,28 @@ impl Interface for Class {
     }
 }
 
+fn get_from_ancestor(mut p: &Object, key: &Object) -> Option<Object> {
+    loop{
+        if let Some(class) = downcast::<Class>(p) {
+            if let Some(y) = class.map.borrow().m.get(key) {
+                return Some(y.clone());
+            }else{
+                p = &class.parent;
+                if let Object::Null = p {return None;}
+            }
+        }else if let Object::List(a) = p {
+            for x in &a.borrow().v {
+                if let Some(value) = get_from_ancestor(x,key) {
+                    return Some(value);
+                }
+            }
+            return None;
+        }else{
+            return None;
+        }
+    }
+}
+
 fn standard_getter(env: &mut Env, t: Rc<Instance>, key: &Object)
 -> FnResult
 {
@@ -87,6 +109,13 @@ fn standard_getter(env: &mut Env, t: Rc<Instance>, key: &Object)
                     p = &class.parent;
                     if let Object::Null = p {break;}
                 }
+            }else if let Object::List(a) = p {
+                for x in &a.borrow().v {
+                    if let Some(value) = get_from_ancestor(x,key) {
+                        return Ok(value);
+                    }
+                }
+                break;
             }else{
                 break;
             }

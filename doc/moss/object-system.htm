@@ -26,6 +26,7 @@
 <li><a href="#composition">Composition over inheritance</a>
 <li><a href="#reflection">Reflection</a>
 <li><a href="#aop">Aspect-oriented programming</a>
+<li><a href="#overloading">Operator overloading</a>
 </ol>
 
 <p>[outdated:]
@@ -33,7 +34,6 @@
 <li><a href="#prototypes">Prototypes</a>
 <li><a href="#classes-and-metaclasses">Classes and Metaclasses</a>
 <li><a href="#monkey">Monkey patching</a>
-<li><a href="#overloading">Operator overloading</a>
 <li><a href="#read-only">Read-only properties</a>
 <li><a href="#private">Private properties</a>
 <li><a href="#advanced">Advanced classes</a>
@@ -134,6 +134,15 @@ true
 The latter is also true if <code>d</code> is an descendant.
 For example, <code>d: Bird</code> would also be true,
 in case <code>Duck</code> inherits from <code>Bird</code>.
+
+<p>Of course, type checks are also provided for the basic data types
+<p class="indent">
+<code>Bool, Int, Long, Float, Complex,
+Range, List, Map, String, Function.</code>
+
+<p>The types <code>Range</code>, <code>List</code>, <code>Map</code>,
+<code>String</code>, <code>Function</code> inherit
+from <code>Iterable</code>.
 
 <h2 id="inheritance">Inheritance</h2>
 
@@ -430,6 +439,176 @@ d.quack()
 </pre>
 
 
+<h2 id="overloading">Operator overloading</h2>
+
+<p>Table of binary overloadable operators:
+
+<table class="bt indent">
+<tr>
+  <th>Op.
+  <th>left
+  <th>right
+<tr>
+  <td class="r"><code>a+b</code>
+  <td><code>add</code>
+  <td><code>radd</code>
+<tr>
+  <td class="r"><code>a-b</code>
+  <td><code>sub</code>
+  <td><code>rsub</code>
+<tr>
+  <td class="r"><code>a*b</code>
+  <td><code>mul</code>
+  <td><code>rmul</code>
+<tr>
+  <td class="r"><code>a/b</code>
+  <td><code>div</code>
+  <td><code>rdiv</code>
+<tr>
+  <td class="r"><code>a//b</code>
+  <td><code>idiv</code>
+  <td><code>ridiv</code>
+<tr>
+  <td class="r"><code>a^b</code>
+  <td><code>pow</code>
+  <td><code>rpow</code>
+<tr>
+  <td class="r"><code>a&amp;b</code>
+  <td><code>band</code>
+  <td><code>rband</code>
+<tr>
+  <td class="r"><code>a|b</code>
+  <td><code>bor</code>
+  <td><code>rbor</code>
+<tr>
+  <td class="r"><code>a==b</code>
+  <td><code>eq</code>
+  <td><code>req</code>
+<tr>
+  <td class="r"><code>a&lt;b</code>
+  <td><code>lt</code>
+  <td><code>rlt</code>
+<tr>
+  <td class="r"><code>a&lt;=b</code>
+  <td><code>le</code>
+  <td><code>rle</code>
+</table>
+
+<p>Table of unary overloadable operators:
+<table class="bt indent">
+<tr>
+  <th>Op.
+  <th>Method
+<tr>
+  <td class="r"><code>-a</code>
+  <td><code>neg</code>
+<tr>
+  <td class="r"><code>~a</code>
+  <td><code>comp</code>
+</table>
+
+<p>Here is an implementation of complex number arithmetic.
+Complex numbers are covered already by the Moss language,
+but this implementation allows also for arithmetic of
+complex integers.
+
+<pre class="moss indent">
+function complex(x,y)
+   return table Complex{re=x, im=y}
+end
+
+class Complex = {
+   function string()
+      return "({}, {})" % [self.re, self.im]
+   end,
+
+   function neg()
+      return table Complex{re = -self.re, im = -self.im}
+   end,
+
+   function add(a;b)
+      if b: Complex
+         return table Complex{re = a.re+b.re, im = a.im+b.im}
+      else
+         return table Complex{re = a.re+b, im = a.im}
+      end
+   end,
+
+   function radd(a;b)
+      return table Complex{re = a+b.re, im = b.im}
+   end,
+
+   function sub(a;b)
+      if b: Complex
+         return table Complex{re = a.re-b.re, im = a.im-b.im}
+      else
+         return table Complex{re = a.re-b, im = a.im}
+      end
+   end,
+
+   function rsub(a;b)
+      return table Complex{re = a-b.re, im = -b.im}
+   end,
+
+   function mul(a;b)
+      if b: Complex
+         return table Complex{
+            re = a.re*b.re-a.im*b.im,
+            im = a.re*b.im+a.im*b.re
+         }
+      else
+         return table Complex{re = a.re*b, im = a.im*b}
+      end
+   end,
+
+   function rmul(a;b)
+      return table Complex{re = a*b.re, im = a*b.im}
+   end,
+
+   function div(a;b)
+      if b: Complex
+         r2 = b.re*b.re+b.im*b.im
+         return table Complex{
+            re = (a.re*b.re+a.im*b.im)/r2,
+            im = (a.im*b.re-a.re*b.im)/r2
+         }
+      else
+         return table Complex{re = a.re/b, im = a.im/b}
+      end
+   end,
+
+   function rdiv(a;b)
+      r2 = b.re*b.re+b.im*b.im
+      return table Complex{
+         re = a*b.re/r2,
+         im = -a*b.im/r2
+      }
+   end,
+
+   function pow(a;n)
+      return (1..n).prod(|k| a)
+   end
+}
+</pre>
+
+<p>Example of use:
+<pre class="moss cmd-box">
+&gt; i = complex(0,1)
+&gt; 4+2*i
+(4, 2)
+
+&gt; (4+2*i)*(5+3*i)
+(14, 22)
+
+&gt; (4+2*i)^60
+(-964275081903216557328422924784146317312,
+  472329409445772258729579365571477110784)
+
+&gt; (4+2i)^60
+-9.64275e+38+4.72329e+38i
+</pre>
+
+
 <h2 id="prototypes">Prototypes</h2>
 
 <p>Every object <code>x</code> has a prototype.
@@ -508,35 +687,6 @@ false
 &gt; record(T) &lt; record(S)
 true
 </pre>
-
-<h2 id="basic-data-types">Basic data types</h2>
-
-<p>Variables of all basic data types as well as the data types
-itself are objects. Thus the object system applies
-to the basic data types too. Type checks are performed in one
-of two ways:
-<pre class="moss cmd-box">
-&gt; x = 1
-&gt; x: Int
-true
-
-&gt; type(x) is Int
-true
-</pre>
-
-<p>Here is a list of the basic data types:
-<pre class="indent">
-Bool, Int, Long, Float, Complex,
-Range, List, Map, String, Function.
-</pre>
-
-<p>A data type is written capitalized, the corresponding constructor
-function in lower case.
-<pre class="moss cmd-box">
-&gt; list(1..10): List
-true
-</pre>
-
 
 <h2 id="classes-and-metaclasses">Classes and Metaclasses</h2>
 
@@ -641,175 +791,6 @@ splits the list into pairs.
 &gt; List.pairs = || list(self.chunks(2))
 &gt; list(1..4).pairs()
 [[1,2], [3,4]]
-</pre>
-
-<h2 id="overloading">Operator overloading</h2>
-
-<p>Table of binary overloadable operators:
-
-<table class="bt indent">
-<tr>
-  <th>Op.
-  <th>left
-  <th>right
-<tr>
-  <td class="r"><code>a+b</code>
-  <td><code>add</code>
-  <td><code>radd</code>
-<tr>
-  <td class="r"><code>a-b</code>
-  <td><code>sub</code>
-  <td><code>rsub</code>
-<tr>
-  <td class="r"><code>a*b</code>
-  <td><code>mul</code>
-  <td><code>rmul</code>
-<tr>
-  <td class="r"><code>a/b</code>
-  <td><code>div</code>
-  <td><code>rdiv</code>
-<tr>
-  <td class="r"><code>a//b</code>
-  <td><code>idiv</code>
-  <td><code>ridiv</code>
-<tr>
-  <td class="r"><code>a^b</code>
-  <td><code>pow</code>
-  <td><code>rpow</code>
-<tr>
-  <td class="r"><code>a&amp;b</code>
-  <td><code>band</code>
-  <td><code>rband</code>
-<tr>
-  <td class="r"><code>a|b</code>
-  <td><code>bor</code>
-  <td><code>rbor</code>
-<tr>
-  <td class="r"><code>a==b</code>
-  <td><code>eq</code>
-  <td><code>req</code>
-<tr>
-  <td class="r"><code>a&lt;b</code>
-  <td><code>lt</code>
-  <td><code>rlt</code>
-<tr>
-  <td class="r"><code>a&lt;=b</code>
-  <td><code>le</code>
-  <td><code>rle</code>
-</table>
-
-<p>Table of unary overloadable operators:
-<table class="bt indent">
-<tr>
-  <th>Op.
-  <th>Method
-<tr>
-  <td class="r"><code>-a</code>
-  <td><code>neg</code>
-<tr>
-  <td class="r"><code>~a</code>
-  <td><code>comp</code>
-</table>
-
-<p>Here is an implementation of complex number arithmetic.
-Complex numbers are covered already by the Moss language,
-but this implementation allows also for arithmetic of
-complex integers.
-
-<pre class="moss indent">
-function complex(x,y)
-   return table Complex{re=x, im=y}
-end
-
-Complex = table(Type,"Complex"){
-   function string()
-      return "({}|{})" % [self.re, self.im]
-   end,
-
-   function neg()
-      return table Complex{re = -self.re, im = -self.im}
-   end,
-
-   function add(a;b)
-      if b: Complex
-         return table Complex{re = a.re+b.re, im = a.im+b.im}
-      else
-         return table Complex{re = a.re+b, im = a.im}
-      end
-   end,
-
-   function radd(a;b)
-      return table Complex{re = a+b.re, im = b.im}
-   end,
-
-   function sub(a;b)
-      if b: Complex
-         return table Complex{re = a.re-b.re, im = a.im-b.im}
-      else
-         return table Complex{re = a.re-b, im = a.im}
-      end
-   end,
-
-   function rsub(a;b)
-      return table Complex{re = a-b.re, im = -b.im}
-   end,
-
-   function mul(a;b)
-      if b: Complex
-         return table Complex{
-            re = a.re*b.re-a.im*b.im,
-            im = a.re*b.im+a.im*b.re
-         }
-      else
-         return table Complex{re = a.re*b, im = a.im*b}
-      end
-   end,
-
-   function rmul(a;b)
-      return table Complex{re = a*b.re, im = a*b.im}
-   end,
-
-   function div(a;b)
-      if b: Complex
-         r2 = b.re*b.re+b.im*b.im
-         return table Complex{
-            re = (a.re*b.re+a.im*b.im)/r2,
-            im = (a.im*b.re-a.re*b.im)/r2
-         }
-      else
-         return table Complex{re = a.re/b, im = a.im/b}
-      end
-   end,
-
-   function rdiv(a;b)
-      r2 = b.re*b.re+b.im*b.im
-      return table Complex{
-         re = a*b.re/r2,
-         im = -a*b.im/r2
-      }
-   end,
-
-   function pow(a;n)
-      return (1..n).prod(|k| a)
-   end
-}
-</pre>
-
-<p>Example of use:
-<pre class="moss cmd-box">
-&gt; i = complex(0,1)
-&gt; 4+2*i
-(4, 2)
-
-&gt; (4+2*i)*(5+3*i)
-(14, 22)
-
-&gt; (4+2*i)^60
-(-964275081903216557328422924784146317312,
-  472329409445772258729579365571477110784)
-
-&gt; (4+2i)^60
--9.64275e+38+4.72329e+38i
 </pre>
 
 
