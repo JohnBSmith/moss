@@ -1,0 +1,105 @@
+
+class Deque: Iterable = {
+   function empty()
+      self.last is null
+   end,
+   function push(x)
+      if self.last is null
+         self.last = [x,null,null]
+         self.first = self.last
+      else
+         last = self.last
+         t = [x,last,null]
+         last[2] = t
+         self.last = t
+      end
+   end,
+   function shift(x)
+      if self.last is null
+         self.last = [x,null,null]
+         self.first = self.last
+      else
+         first = self.first
+         t = [x,null,first]
+         first[1] = t
+         self.first = t
+      end
+   end,
+   function pop()
+      if self.last is null
+         raise "Empty deque"
+      end
+      last = self.last
+      if last[1] is null
+         self.first = null
+         self.last = null
+         return last[0]
+      else
+         last[1][2] = null
+         self.last = last[1]
+         return last[0]
+      end
+   end,
+   function unshift()
+      if self.last is null
+         raise "Empty deque"
+      end
+      first = self.first
+      if first[2] is null
+         self.first = null
+         self.last = null
+         return first[0]
+      else
+         first[2][1] = null
+         self.first = first[2]
+         return first[0]
+      end
+   end,
+   function iter()
+      p = self.first
+      return fn||
+         if p is null
+            return empty
+         else
+            x = p[0]; p = p[2]
+            return x
+         end
+      end
+   end,
+   function reverse()
+      p = self.last
+      return fn||
+         if p is null
+            raise empty
+         else
+            x = p[0]; p = p[1]
+            return x
+         end
+      end
+   end,
+   function string()
+      return ["deque(",list(self.iter()),")"].join()
+   end,
+   function extend(a)
+      for x in a do self.push(x) end
+   end,
+   function drop()
+      p = self.last
+      self.last = null
+      self.first = null
+      while not p is null
+         h = p; p = p[1]; h[1] = null
+         if not p is null
+            p[2] = null
+         end
+      end
+   end
+}
+
+function deque(a=null)
+   d = table Deque{first=null, last=null}
+   if not a is null
+      for x in a do d.push(x) end
+   end
+   return d
+end

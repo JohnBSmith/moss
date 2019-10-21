@@ -229,6 +229,8 @@ impl Drop for Interpreter {
             }
             buffer.clear();
         }
+        let mut state = self.rte.secondary_state.borrow_mut();
+        *state = None;
     }
 }
 

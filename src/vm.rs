@@ -220,8 +220,14 @@ fn print_op(a: &[u32], i: usize){
 }
 
 #[allow(dead_code)]
-fn print_stack(env: &mut Env, a: &[Object]){
-    let s = match list_to_string(env,a) {Ok(s)=>s, Err(_)=>panic!()};
+fn print_stack(a: &[Object]){
+    let mut s = String::from("[");
+    let mut first = true;
+    for x in a {
+        if first {first = false;} else {s.push_str(", ");}
+        s.push_str(&format!("{}",x.to_repr()));
+    }
+    s.push_str("]");
     println!("stack: {}",s);
 }
 
@@ -3054,7 +3060,7 @@ fn operator_dot(env: &mut EnvPart, sp: usize, stack: &mut [Object])
 fn operator_dot_set(env: &mut EnvPart, sp: usize, stack: &mut [Object])
 -> OperatorResult
 {
-    match stack[sp-2].clone() {
+    match stack[sp-2].take() {
         Object::Interface(t) => {
             let key = stack[sp-1].take();
             let value = stack[sp-3].take();
@@ -4029,7 +4035,8 @@ fn vm_loop(
       bc::STORE => {
           let index = load_u32(&a,ip+BCSIZE);
           let key = module.data[index as usize].clone();
-          gtab.borrow_mut().m.insert(key,stack[sp-1].take());
+          let _delay = gtab.borrow_mut().m.insert(key,stack[sp-1].take());
+          // Delay drop to avert 'already mutably borrowed'.
           sp-=1;
           ip+=BCASIZE;
       },

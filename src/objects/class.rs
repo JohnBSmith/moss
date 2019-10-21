@@ -9,6 +9,7 @@ use crate::object::{
     FnResult, Exception
 };
 use crate::vm::{Env,RTE,secondary_env,object_to_string};
+use crate::table::Table;
 
 type PGet = Box<dyn Fn(&mut Env,Rc<Instance>,&Object)->FnResult>;
 type PSet = Box<dyn Fn(&mut Env,Rc<Instance>,Object,Object)->FnResult>;
@@ -116,11 +117,18 @@ fn standard_getter(env: &mut Env, t: Rc<Instance>, key: &Object)
                     }
                 }
                 break;
+            }else if let Some(t) = downcast::<Table>(p) {
+                if let Some(y) = t.map.borrow().m.get(key) {
+                    return Ok(y.clone());
+                }else{
+                    p = &t.prototype;
+                    if let Object::Null = p {break;}
+                }                
             }else{
                 break;
             }
         }
-        return env.index_error("Index error: slot not found.");
+        return env.index_error(&format!("Index error: slot '{}' not found.",key));
     }
 }
 
@@ -341,6 +349,13 @@ impl Interface for Instance {
         }else{
             Ok(Object::unimplemented())
         }
+    }
+    fn iter(self: Rc<Self>, env: &mut Env) -> FnResult {
+        if let Some(ref f) = self.slot(&env.rte().key_iter) {
+            env.call(f,&Object::Interface(self),&[])
+        }else{
+            env.type_error1("Type error in iter(x).","x",&Object::Interface(self))
+        }        
     }
 }
 
