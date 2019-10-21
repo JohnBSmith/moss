@@ -1161,6 +1161,60 @@ assert_empty(m)
 <p>To my pleasure, being a library feature, it holds the
 interpreter kernel smaller.
 
+<h3 data-date="20191021" id="classes"
+>First class support for classes</h3>
+
+<p>So, with the introduction of classes, Moss has got a second
+slighly different object system. Now this system was made the
+primary object system, as I have found ordinary named types to be the
+most common pattern. The prototype based object system is just used
+very infrequently.
+
+<p>For the sake of convenience, a new class literal syntax is
+introduced:
+
+<pre class="moss indent">
+class Duck = {
+   function quack()
+      print(self.name, " quacks.")
+   end
+}
+
+d = table Duck{name = "Dagobert"}
+d.quack()
+</pre>
+
+<p>More generally:
+<pre class="moss indent">
+class Name = map_object
+class Name: Parent = map_object
+class Name: [Parent1,Parent2,...] = map_object
+</pre>
+
+<p>where <code>Parent</code> is an atomic expression
+and <code>map_object</code> is an expression.
+Or as an expression:
+<pre class="moss indent">
+class name_string: parent_signature map_object
+</pre>
+<p>where <code>name_string</code>, <code>parent_signature</code>
+and <code>map_object</code> are atomic expressions.
+
+<p>The syntax is just syntactic sugar for:
+<pre class="moss indent">
+class_constructor(name_string,parent_signature,map_object)
+</pre>
+
+<p>So the first example is just:
+<pre class="moss indent">
+Duck = class_constructor("Duck",null,{
+   "quack": fn quack||
+      print(self.name, " quacks.")
+   end
+})
+</pre>
+
+
 </body>
 </html>
 
