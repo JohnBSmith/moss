@@ -23,6 +23,7 @@
 <li><a href="#type-checks">Runtime type checks</a>
 <li><a href="#inheritance">Inheritance</a>
 <li><a href="#multiple-inheritance">Multiple inheritance</a>
+<li><a href="#prototypes">Prototype based inheritance</a>
 <li><a href="#composition">Composition over inheritance</a>
 <li><a href="#reflection">Reflection</a>
 <li><a href="#aop">Aspect-oriented programming</a>
@@ -31,12 +32,6 @@
 <li><a href="#private">Private properties</a>
 <li><a href="#monkey">Monkey patching</a>
 <li><a href="#custom">Custom class constructors</a>
-</ol>
-
-<p>[outdated:]
-<ol>
-<li><a href="#prototypes">Prototypes</a>
-<li><a href="#classes-and-metaclasses">Classes and Metaclasses</a>
 </ol>
 </div>
 
@@ -76,7 +71,7 @@ an object of class <code>Duck</code>.
 
 <pre class="moss indent">
 function duck(name)
-   return table Duck{name=name}
+   return table Duck{name = name}
 end
 
 d = duck("Dagobert")
@@ -90,7 +85,7 @@ class Duck = {
       print(self.name, " quacks.")
    end,
    function new(name)
-      return table Duck{name=name}
+      return table Duck{name = name}
    end
 }
 
@@ -121,7 +116,7 @@ class Duck = {
 
 <p>Type checks are performed in two ways.
 
-<pre class="moss indent">
+<pre class="moss cmd-box">
 &gt; type(d) is Duck
 true
 
@@ -160,7 +155,7 @@ class Duck: Bird = {
    end
 }
 
-d = table Duck{name="Dagobert"}
+d = table Duck{name = "Dagobert"}
 d.fly()
 d.quack()
 </pre>
@@ -211,7 +206,7 @@ class Duck: [Bird, Diver] = {
    end
 }
 
-d = table Duck{name="Dagobert"}
+d = table Duck{name = "Dagobert"}
 d.fly()
 d.dive()
 d.quack()
@@ -253,10 +248,45 @@ class Duck = extends(Bird,Diver){
    end
 }
 
-d = table Duck{name="Dagobert"}
+d = table Duck{name = "Dagobert"}
 d.fly()
 d.dive()
 d.quack()
+</pre>
+
+<h2 id="prototypes">Prototype based inheritance</h2>
+
+<p>An instance object may inherit from another instance object,
+its prototype. For example, a duck object may be regarded as
+an descendant of a bird object.
+
+<pre class="moss indent">
+bird = table{
+   function fly()
+      print(self.name, " flies.")
+   end,
+   name = "Unnamed bird"
+}
+
+d = table bird{name = "Dagobert"}
+
+bird.fly()
+d.fly()
+</pre>
+
+<p>The prototype system also allows multiple inheritance:
+
+<pre class="moss indent">
+diver = table{
+   function dive()
+      print(self.name, " dives.")
+   end,
+   name = "Unnamed diver"
+}
+
+d = table[bird, diver]{name = "Dagobert"}
+d.fly()
+d.dive()
 </pre>
 
 <h2 id="composition">Composition over inheritance</h2>
@@ -301,7 +331,7 @@ class Duck = compose{"bird": Bird, "diver": Diver}{
    end
 }
 
-d = table Duck{name="Dagobert"}
+d = table Duck{name = "Dagobert"}
 d.bird_fly()
 d.diver_dive()
 d.quack()
@@ -727,177 +757,6 @@ bird.fly()
 d.fly()
 </pre>
 
-<h2 id="prototypes">Prototypes</h2>
-
-<p>Every object <code>x</code> has a prototype.
-If some member object is not found in <code>x</code>, it will be
-looked up in the prototype of <code>x</code> and then in the
-prototype of the prototype of <code>x</code> and so on.
-
-<p>In Moss, the type of an object and its prototype coincide,
-because the type of an object is determined by its prototype.
-The prototype stores the propertys and operations, that objects
-of some kind have in common.
-
-<pre class="moss cmd-box">
-&gt; a = table{time="14:12"}
-# a is a new object with prototype null
-
-&gt; b = table a{}
-# b is a new object with prototype a
-
-&gt; type(b) is a
-true
-
-&gt; type(null) is null
-true
-# null is its own prototype and is the only
-# object which shall have this property
-
-&gt; b.time
-"14:12"
-# b does not have 'time', but a has it
-</pre>
-
-<p>There are two ways to determine, whether some object is of some
-type or not.
-
-<pre class="moss cmd-box">
-&gt; T = table{}
-&gt; S = table T{}
-&gt; a = table S{}
-
-# T is not the direct prototype of a.
-&gt; type(a) is T
-false
-&gt; type(a) is S
-true
-
-# But a is an ancestor of T.
-&gt; a: T
-true
-&gt; a: S
-true
-
-# S is a subtype of T.
-&gt; S: T
-true
-
-# S is a direct subtype of T.
-&gt; type(S) is T
-true
-</pre>
-
-<p>If <code>S</code> was extended by <code>T</code>, we must
-take a different approach.
-
-<pre class="moss cmd-box">
-&gt; T = table{a=1, b=2}
-&gt; S = table{c=3}
-&gt; extend(S,T)
-
-# This won't work anymore.
-&gt; S: T
-false
-
-# But one can test, whether all members of T
-# are contained in S.
-&gt; record(T) &lt; record(S)
-true
-</pre>
-
-<h2 id="classes-and-metaclasses">Classes and Metaclasses</h2>
-
-<p>To be honest, the coincidence between types and prototypes can
-be broken. A table constructor may take a tuple of three parts
-instead of a simple prototype. In general we have:
-<pre class="moss indent">
-x = table(type, name, prototype) {}
-</pre>
-
-<p>Properties are searched in <code>x</code> first and then
-in the prototype chain. But <code>type(x)</code> will lead
-to the type, not the prototype. The type of a type is sometimes
-called a metaclass. The metaclass of the basic data types
-is called <code>Type</code>. Thus we have:
-
-<pre class="moss cmd-box">
-&gt; type([])
-List
-
-&gt; type(List)
-Type
-
-&gt; prototype([])
-List
-
-&gt; prototype(List)
-Iterable
-</pre>
-
-<p>Now, basic class construction is stated as follows:
-<pre class="moss indent">
-Bird = table(Type,"Bird"){
-   function string()
-      "{} is a bird." % [self.name]
-   end,
-   function fly()
-      "{} can fly!" % [self.name]
-   end
-})
-
-Duck = table(Type,"Duck",Bird){
-   function string()
-      "{} is a duck." % [self.name]
-   end,
-   function dive()
-      "{} can dive!" % [self.name]
-   end
-})
-
-d = table Duck{name = "Donald"}
-
-print(d)
-print(d.fly())
-print(d.dive())
-print("type: ", type(d))
-
-# Output:
-# Donald is a duck.
-# Donald can fly!
-# Donald can dive!
-# type: Duck
-</pre>
-
-<h2>Multiple inheritance</h2>
-
-<p>An object can have more than one prototype.
-
-<pre class="moss indent">
-Plane = table{
-   function take_off()
-      print(self.id, " is in the sky.")
-   end
-}
-
-sea_duck = table[Ship, Plane]{
-   id = "Sea duck",
-   vmax = 40
-}
-
-sea_duck.move()
-# Sea duck moves at 20 kn.
-
-sea_duck.take_off()
-# Sea duck is in the sky.
-</pre>
-
-<p>A method is searched at first in <code>Ship</code>,
-and then, if not found, in <code>Plane</code>.
-
-
 
 </body>
 </html>
-
-
