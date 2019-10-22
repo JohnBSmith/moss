@@ -46,6 +46,15 @@ impl Class {
 
 impl Interface for Class {
     fn as_any(&self) -> &dyn Any {self}
+    fn get_type(&self, env: &mut Env) -> FnResult {
+        return Ok(Object::Interface(env.rte().type_type.clone()));
+    }
+    fn is_instance_of(&self, type_obj: &Object, rte: &RTE) -> bool {
+        if let Object::Interface(t) = type_obj {
+            return ptr_eq_plain(t,&rte.type_type); 
+        }
+        return false;
+    }
     fn type_name(&self, _env: &mut Env) -> String {
         "Class".to_string()
     }

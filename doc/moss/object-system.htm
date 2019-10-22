@@ -27,17 +27,16 @@
 <li><a href="#reflection">Reflection</a>
 <li><a href="#aop">Aspect-oriented programming</a>
 <li><a href="#overloading">Operator overloading</a>
+<li><a href="#read-only">Read-only properties</a>
+<li><a href="#private">Private properties</a>
+<li><a href="#monkey">Monkey patching</a>
+<li><a href="#custom">Custom class constructors</a>
 </ol>
 
 <p>[outdated:]
 <ol>
 <li><a href="#prototypes">Prototypes</a>
 <li><a href="#classes-and-metaclasses">Classes and Metaclasses</a>
-<li><a href="#monkey">Monkey patching</a>
-<li><a href="#read-only">Read-only properties</a>
-<li><a href="#private">Private properties</a>
-<li><a href="#advanced">Advanced classes</a>
-<li><a href="#custom">Custom class constructors</a>
 </ol>
 </div>
 
@@ -608,6 +607,125 @@ class Complex = {
 -9.64275e+38+4.72329e+38i
 </pre>
 
+<h2 id="read-only">Read-only properties</h2>
+
+<p>Sometimes only methods that belong to the object should have write
+access to a property. Such a close relationship of the object
+to its methods can be achieved by a closure-binding of an interal
+private property table.
+
+<pre class="moss indent">
+class Duck = {}
+
+function duck()
+   private_tab = {beak_color = "yellow"}
+   return table Duck{
+      function get(property)
+         return private_tab[property]
+      end,
+      function orange_beak()
+         private_tab["beak_color"] = "orange"
+      end
+   }
+end
+
+d = duck()
+print(d.get("beak_color"))
+d.orange_beak()
+print(d.get("beak_color"))
+</pre>
+<p>Every method that has direct access to <code>private_tab</code>
+must belong to <code>d</code> and not to its
+type <code>Duck</code>.
+
+<h2 id="private">Private properties</h2>
+
+<p>Private properties are constructed the same way as read-only
+properties. Only methods that belong to the object should be able
+to see the properties.
+
+<pre class="moss indent">
+class Duck = {}
+
+function duck()
+   private_tab = {beak_color = "yellow"}
+   return table Duck{
+      function quack()
+         color = private_tab["beak_color"]
+         print("The duck quacks out of his {} beak."%[color])
+      end,
+      function orange_beak()
+         private_tab["beak_color"] = "orange"
+      end
+   }
+end
+
+d = duck()
+d.quack()
+d.orange_beak()
+d.quack()
+</pre>
+
+<h2 id="monkey">Monkey patching</h2>
+
+<p>We are able to add methods to already existent types. This
+technique is called <i>monkey patching</i> and considered a bad
+practice, because it can result in name conflicts.
+
+<p>As an example, we will add a method to the list type, that
+splits the list into pairs.
+
+<pre class="moss cmd-box">
+&gt; List.pairs = || list(self.chunks(2))
+&gt; list(1..4).pairs()
+[[1,2], [3,4]]
+</pre>
+
+<h2 id="custom">Custom class constructors</h2>
+
+<p>Custom class constructors allow us to state object systems with
+different behavior.
+
+<pre class="moss">
+# An implementation of prototyping inheritance.
+function get(key)
+   data = record(self)
+   while true
+      if key in data
+         return data[key]
+      elif "prototype" in data
+         data = record(data["prototype"])
+      else
+         raise "key '{}' not found" % [key]
+      end
+   end
+end
+
+function set(key,value)
+   record(self)[key] = value
+end
+
+# A custom class constructor.
+function pclass(name,m)
+   m["get"] = get
+   m["set"] = set
+   return class(name)(m)
+end
+
+Object = pclass("Object",{})
+
+bird = table Object{
+   function fly()
+      print(self.name, " flies.")
+   end,
+   name = "Unnamed bird"
+}
+
+d = table Object{prototype = bird, name = "Dagobert"}
+
+bird.fly()
+d.fly()
+</pre>
 
 <h2 id="prototypes">Prototypes</h2>
 
@@ -777,139 +895,6 @@ sea_duck.take_off()
 <p>A method is searched at first in <code>Ship</code>,
 and then, if not found, in <code>Plane</code>.
 
-
-<h2 id="monkey">Monkey patching</h2>
-
-<p>We are able to add methods to already existent types. This
-technique is called <i>monkey patching</i> and considered a bad
-practice, because it can result in name conflicts.
-
-<p>As an example, we will add a method to the list type, that
-splits the list into pairs.
-
-<pre class="moss cmd-box">
-&gt; List.pairs = || list(self.chunks(2))
-&gt; list(1..4).pairs()
-[[1,2], [3,4]]
-</pre>
-
-
-<h2 id="read-only">Read-only properties</h2>
-
-<p>Sometimes only methods that belong to the object should have write
-access to a property. Such a close relationship of the object
-to its methods can be achieved by a closure-binding of an interal
-private property table.
-
-<pre class="moss indent">
-Ship = table{}
-
-function ship
-   private_tab = {color = "blue"}
-   return table Ship{
-      function get(property)
-         return private_tab[property]
-      end,
-      function change_color()
-         private_tab["color"] = "green"
-      end
-   }
-end
-
-Bristol = ship()
-print(Bristol.get("color"))
-Bristol.change_color()
-print(Birstol.get("color"))
-</pre>
-<p>Every method that has direct access to <code>private_tab</code>
-must belong to <code>ship</code> and not to its
-type <code>Ship</code>.
-
-<h2 id="private">Private properties</h2>
-
-<p>Private properties are constructed the same way as read-only
-properties. Only methods that belong to the object should be able
-to see the properties.
-
-<pre class="moss indent">
-Ship = table{}
-
-function ship
-   private_tab = {color = "blue"}
-   return table Ship{
-      function info()
-         return "A {} ship." % private_tab["color"]
-      end,
-      function change_color()
-        private_tab["color"] = "green"
-      end
-   }
-end
-
-Bristol = ship()
-print(Bristol.info())
-Bristol.change_color()
-print(Bristol.info())
-</pre>
-
-<h2 id="advanced">Advanced classes</h2>
-
-<p>Advanced classes allow for features like getters, setters
-and destructors. Such classes are created by the function
-<code>class</code>:
-<pre class="moss indent">
-Object = class{
-   name = "Object",
-   get = |key| "~{}~"%[record(self)[key]],
-   drop = || print("dropped")
-}
-
-t = table Object{x=1,y=2}
-print(t.x)
-</pre>
-<p>This program prints:
-<pre class="indent">
-~1~
-dropped
-</pre>
-
-<h2 id="custom">Custom class constructors</h2>
-
-<pre class="moss">
-# An implementation of prototyping inheritance.
-function get(key)
-   data = record(self)
-   while true
-      if key in data
-         return data[key]
-      elif "prototype" in data
-         data = record(data["prototype"])
-      else
-         raise "key '{}' not found" % [key]
-      end
-   end
-end
-
-function set(key,value)
-   record(self)[key] = value
-end
-
-# A custom class constructor.
-function pclass(m)
-   m["get"] = get
-   m["set"] = set
-   return class(m)
-end
-
-Object = pclass{name = "Object"}
-
-a = table Object{x=1,y=2}
-b = table Object{z=3,prototype=a}
-print([b.x,b.y,b.z])
-
-# Output:
-# [1, 2, 3]
-</pre>
 
 
 </body>
