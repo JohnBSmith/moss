@@ -17,6 +17,7 @@
 <h2>Table of contents</h2>
 <ol>
 <li><a href="#formalism">Raising and catching</a>
+<li><a href="#destructors">Destructors</a>
 </ol>
 </div>
 
@@ -25,12 +26,12 @@
 is thrown an then catched.
 
 <pre class="moss indent">
-E = table{}
+class E = {}
 
 try
-   raise table E{value = "Some message"}
+   raise table E{text = "Some message"}
 catch e if e: E
-   print(e.value)
+   print(e.text)
 end
 </pre>
 <p>The catch-part is only reached if the exception is of
@@ -39,10 +40,10 @@ an unconditional catch.
 
 <pre class="moss indent">
 try
-   raise table E{value = "Some message"}
+   raise table E{text = "Some message"}
 catch e
    if e: E
-      print(e.value)
+      print(e.text)
    else
       raise e
    end
@@ -52,6 +53,38 @@ end
 <p>But in case of an unconditional catch, the traceback so far
 will be clipped off.
 
+
+<h2 id="destructors">Destructors</h2>
+
+<p>Destructors are called automatically during stack unwinding.
+The following program demonstrates the behavior.
+
+<pre class="moss indent">
+class E = {}
+
+class Duck = {
+   function drop()
+      print("A duck flies away.")
+   end
+}
+
+function subroutine()
+   d = table Duck{}
+   raise table E{text = "Error"}
+end
+
+try
+   subroutine()
+catch e if e: E
+   print(e.text)
+end
+</pre>
+
+<p>The output is produced always in this order:
+<pre class="indent">
+A duck flies away.
+Error
+</pre>
 
 </body>
 </html>
