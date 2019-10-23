@@ -34,7 +34,7 @@ begin
 
    prime_tab = (2..).filter(isprime_trial_division).list(10)
    TooLarge = table ValueError{
-      value="Value error in isprime(n): n is too large."
+      value = "Value error in isprime(n): n is too large."
    }
 
    function witness(a,d,n,r)
@@ -171,5 +171,4 @@ function base(n,b)
    end
    return a
 end
-
 

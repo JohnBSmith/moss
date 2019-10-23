@@ -359,12 +359,80 @@ impl Interface for Instance {
             Ok(Object::unimplemented())
         }
     }
+    fn lt(self: Rc<Self>, y: &Object, env: &mut Env) -> FnResult {
+        if let Some(ref f) = self.slot(&env.rte().key_lt) {
+            env.call(f,&Object::Interface(self),&[y.clone()])
+        }else{
+            Ok(Object::unimplemented())
+        }
+    }
+    fn rlt(self: Rc<Self>, x: &Object, env: &mut Env) -> FnResult {
+        if let Some(ref f) = self.slot(&env.rte().key_rlt) {
+            env.call(f,&x,&[Object::Interface(self)])
+        }else{
+            Ok(Object::unimplemented())
+        }
+    }
+    fn le(self: Rc<Self>, y: &Object, env: &mut Env) -> FnResult {
+        if let Some(ref f) = self.slot(&env.rte().key_le) {
+            env.call(f,&Object::Interface(self),&[y.clone()])
+        }else{
+            Ok(Object::unimplemented())
+        }
+    }
+    fn rle(self: Rc<Self>, x: &Object, env: &mut Env) -> FnResult {
+        if let Some(ref f) = self.slot(&env.rte().key_rle) {
+            env.call(f,&x,&[Object::Interface(self)])
+        }else{
+            Ok(Object::unimplemented())
+        }
+    }
+    fn eq(self: Rc<Self>, y: &Object, env: &mut Env) -> FnResult {
+        if let Some(ref f) = self.slot(&env.rte().key_eq) {
+            env.call(f,&Object::Interface(self),&[y.clone()])
+        }else{
+            Ok(Object::unimplemented())
+        }
+    }
+    fn req(self: Rc<Self>, x: &Object, env: &mut Env) -> FnResult {
+        if let Some(ref f) = self.slot(&env.rte().key_req) {
+            env.call(f,&x,&[Object::Interface(self)])
+        }else{
+            Ok(Object::Bool(match x {
+                Object::Interface(px) => ptr_eq_plain(&self,px),
+                _ => false
+            }))
+        }
+    }
+    fn index(self: Rc<Self>, indices: &[Object], env: &mut Env) -> FnResult {
+        if let Some(f) = self.slot(&env.rte().key_index) {
+            return env.call(&f,&Object::Interface(self),indices);
+        }else{
+            return env.type_error1(
+                "Type error in x[i]: x is not indexable.","x",&Object::Interface(self));
+        }
+    }
     fn iter(self: Rc<Self>, env: &mut Env) -> FnResult {
         if let Some(ref f) = self.slot(&env.rte().key_iter) {
             env.call(f,&Object::Interface(self),&[])
         }else{
             env.type_error1("Type error in iter(x).","x",&Object::Interface(self))
         }        
+    }
+    fn call(&self, env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+        if let Some(ref f) = self.slot(&env.rte().key_call) {
+            env.call(f,pself,argv)
+        }else{
+            env.type_error1("Type error in x(...).","x",pself)
+        }
+    }
+    fn abs(self: Rc<Self>, env: &mut Env) -> FnResult {
+        if let Some(f) = self.slot(&env.rte().key_abs) {
+            return env.call(&f,&Object::Interface(self),&[]);
+        }else{
+            return env.std_exception(
+                "Error: abs(x) is not implemented for objects of this type.");
+        }
     }
 }
 

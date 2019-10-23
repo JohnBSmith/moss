@@ -1,5 +1,5 @@
 
-Drain = table(Type,"Drain"){
+class Drain = {
    function call(key)
       if key in self.m
          return self.m.remove(key)
@@ -13,7 +13,7 @@ Drain = table(Type,"Drain"){
 }
 
 function drain(m)
-   return table Drain{m=m}
+   return table Drain{m = m}
 end
 
 function assert_empty(m)
@@ -22,4 +22,3 @@ function assert_empty(m)
          text = "Value error: unexpected named arguments:\n\s\s{}."%[m]}
    end
 end
-

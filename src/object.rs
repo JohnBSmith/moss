@@ -444,6 +444,9 @@ pub trait Interface {
     fn iter(self: Rc<Self>, env: &mut Env) -> FnResult {
         env.type_error("Type error in iter(x): x is not iterable.")
     }
+    fn call(&self, env: &mut Env, pself: &Object, _argv: &[Object]) -> FnResult {
+        env.type_error1("Type error in x(...): x is not callable.","x",pself)
+    }
 }
 
 pub fn interface_object_get(

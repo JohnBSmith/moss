@@ -18,7 +18,6 @@ use crate::{string,list,function,global,module};
 use crate::complex::Complex64;
 use crate::long::Long;
 use crate::tuple::Tuple;
-use crate::table::object_get;
 use crate::range::Range;
 use crate::format::u32string_format;
 use crate::global::{type_name,list};
@@ -3305,19 +3304,15 @@ fn load_u64(a: &[u32], ip: usize) -> u64{
 }
 
 fn new_table(prototype: Object, map: Object) -> Object {
-    match map {
-        Object::Map(map) => {
-            'interface: loop{
-                if let Object::Interface(ref x) = prototype {
-                    if let Some(_) = x.as_any().downcast_ref::<Class>() {
-                        break 'interface;
-                    }
-                }
-                return Object::Interface(Rc::new(Table{prototype, map}));
+    if let Object::Map(map) = map {
+        if let Object::Interface(ref x) = prototype {
+            if let Some(_) = x.as_any().downcast_ref::<Class>() {
+                return Object::Interface(Rc::new(Instance{prototype, map}));
             }
-            return Object::Interface(Rc::new(Instance{prototype, map}));
-        },
-        _ => panic!()
+        }
+        return Object::Interface(Rc::new(Table{prototype, map}));
+    }else{
+        panic!();
     }
 }
 
@@ -4433,22 +4428,19 @@ fn object_call(env: &mut EnvPart, f: &Object,
             };
             return Ok(());
         },
+        Object::Interface(ref x) => {
+            let (s1,s2) = stack.split_at_mut(sp);
+            let mut env = Env{sp: 0, stack: s2, env: env};
+            return match x.call(&mut env,&f,&s1[sp-argc..sp]) {
+                Ok(y) => {s1[sp-argc-2] = y; Ok(())},
+                Err(e) => Err(e)
+            };
+        },
         _ => {
-            match object_get(f,&env.rte.key_call) {
-                Some(fobj) => {
-                    let (s1,s2) = stack.split_at_mut(sp);
-                    let mut env = Env{sp: 0, stack: s2, env: env};
-                    return match env.call(&fobj,&f,&s1[sp-argc..sp]) {
-                        Ok(y) => {s1[sp-argc-2]=y; Ok(())},
-                        Err(e) => Err(e)
-                    };
-                },
-                None => {}
-            }    
+            Err(env.type_error1_plain(sp,stack,
+                "Type error in f(...): f is not callable.", "f", f))
         }
     }
-    Err(env.type_error1_plain(sp,stack,
-        "Type error in f(...): f is not callable.", "f", f))
 }
 
 fn bounded_repr(env: &mut Env, x: &Object) -> Result<String,Box<Exception>> {
@@ -4605,15 +4597,14 @@ fn call_object(env: &mut Env,
                 None => Object::Null
             });
         },
+        Object::Interface(ref x) => {
+            return x.call(env,fobj,argv);
+        },
         _ => {
-            match object_get(fobj,&env.rte().key_call) {
-                Some(f) => return env.call(&f,fobj,argv),
-                None => {}
-            }
+            env.type_error1(
+                "Type error in f(...): f is not callable.", "f", fobj)
         }
     }
-    env.type_error1(
-        "Type error in f(...): f is not callable.", "f", fobj)
 }
 
 // Calling environment of a function call

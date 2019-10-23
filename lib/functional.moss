@@ -7,7 +7,7 @@ function fix(m,F)
    end
 end
 
-Lazy = table(Type,"Lazy"){
+class Lazy = {
    function string()
       "lazy expression"
    end,
@@ -23,7 +23,7 @@ Lazy = table(Type,"Lazy"){
 }
 
 function lazy(f)
-   return table Lazy{f=f,x=null}
+   return table Lazy{f = f, x = null}
 end
 
 Function.add = |f;g| |x| f(x)+g(x)
