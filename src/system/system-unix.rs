@@ -1,13 +1,11 @@
 
-extern crate libc;
-extern crate termios;
 use std::str;
 use std::env::var;
 use std::io;
 use std::io::Write;
 use std::os::unix::io::RawFd;
 use std::path::PathBuf;
-use self::termios::{
+use termios::{
     Termios, tcsetattr, TCSANOW, ICANON, ECHO
 };
 

@@ -138,6 +138,16 @@ Range, List, Map, String, Function.</code>
 <code>String</code>, <code>Function</code> inherit
 from <code>Iterable</code>.
 
+<p>Runtime type checks return a boolean value. Assert statements
+stay quiet for true and turn false into an exception.
+Any expression with boolean value is possible:
+
+<pre class="moss indent">
+assert d: Duck
+
+assert x: Int and x&gt;=0
+</pre>
+
 <h2 id="inheritance">Inheritance</h2>
 
 <p>A class may inherit properties from a parent class.

@@ -5,10 +5,10 @@ small = 0
 medium = 1
 full = 2
 
-function test_extern(path)
+function test_extern(path,extra)
    return fn test|name|
       print(name)
-      cmd(path,[name])
+      cmd(path,extra+[name])
    end
 end
 
@@ -19,12 +19,12 @@ function test_self()
    end
 end
 
-function tests(scale,path)
+function tests(scale,path,extra=[])
    print("\nStarting tests: ",path)
    if path=="self"
       test = test_self()
    else
-      test = test_extern(path)
+      test = test_extern(path,extra)
    end
 
    test("test-basic")
@@ -48,9 +48,9 @@ function tests(scale,path)
    end
 end
 
-tests(medium,"../target/debug/moss")
-tests(full,"../target/release/moss")
-tests(full,"self")
-tests(full,"moss")
-# tests(small,"valgrind ../target/debug/moss")
+# tests(medium,"../target/debug/moss")
+# tests(full,"../target/release/moss")
+# tests(full,"self")
+# tests(full,"moss")
+tests(small,"valgrind",["../target/debug/moss"])
 

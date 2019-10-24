@@ -1,5 +1,4 @@
 
-extern crate moss;
 use std::env;
 use moss::object::{Object,Map};
 use moss::CompilerExtra;
@@ -17,7 +16,7 @@ Options:
     -sh     Prelude shell commands.
     -t      Prelude development tools.
 
--d          Debug mode: compile assert statements.
+-u          Unchecked mode: do not compile assert statements.
 
 -e "1+2"    Evaluate some Moss code inline.
 
@@ -58,7 +57,7 @@ impl Info{
             argv: Vec::new(),
             cmd: None,
             exit: false,
-            debug_mode: false,
+            debug_mode: true,
             compile: false,
             unsafe_mode: false
         };
@@ -84,8 +83,8 @@ impl Info{
                     println!("{}",HELP);
                     info.exit = true;
                     return Box::new(info);
-                }else if s=="-d" {
-                    info.debug_mode = true;
+                }else if s=="-u" {
+                    info.debug_mode = false;
                 }else if s=="-c" {
                     info.compile = true;
                 }else if s=="-unsafe" {

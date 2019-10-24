@@ -28,22 +28,29 @@
 <br>
 <h2 id="cmd">Command-line options</h2>
 <pre>
-<b>moss [options] [file [arguments]]</b>
+<b>Usage</b>: moss [options] [file [arguments]]
 
 <b>Options</b>:
 -i file     Include and execute a file before normal execution.
             Multiple files are possible: '-i file1 -i file2'.
 
--m          Math mode: use moss as a calculator.
+-file       Shorthand for '-i file'. Have a look at 'lib/include'.
+    -m      Prelude mathematical functions.
+    -la     Prelude mathematical functions and linear algebra.
+    -sh     Prelude shell commands.
+    -t      Prelude development tools.
+
+-u          Unchecked mode: do not compile assert statements.
 
 -e "1+2"    Evaluate some Moss code inline.
-
--d          Debug mode: compile assert statements.
 
 -unsafe     Unsafe mode: run the interpreter in privileged mode,
             which allows write access to files, network access
             and execution of shell commands. Running an untrusted
             module in unsafe mode is a security hazard.
+
+-c          Compile a module to reduce load time.
+            Only needed for very large modules.
 </pre>
 
 <br>

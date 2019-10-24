@@ -18,6 +18,7 @@
 <ol>
 <li><a href="#formalism">Raising and catching</a>
 <li><a href="#destructors">Destructors</a>
+<li><a href="#assertions">Assertions</a>
 </ol>
 </div>
 
@@ -84,6 +85,29 @@ end
 <pre class="indent">
 A duck flies away.
 Error
+</pre>
+
+<h2 id="assertions">Assertions</h2>
+
+<p>Assertions check at runtime for an invariant that shall stay true each
+time the program execution passes the specific point. When an assertion
+is not fulfilled, an exception is thrown. The syntax allows for
+brief and verbose exception messages:
+
+<pre class="moss indent">
+assert type(x) is Int and x>=0
+
+assert type(x) is Int and x>=0, "x: Int, x>=0"
+
+assert type(x) is Int and x>=0, begin
+   "Expected x: Int, x>=0, but got x = {}" % [x]
+end
+
+assert type(x) is Int and x>=0, begin
+   argv = [type(x),x]
+   "Expected x: Int, x>=0, but got x: {}, x = {}" % argv
+end
+
 </pre>
 
 </body>
