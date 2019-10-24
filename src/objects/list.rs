@@ -3,12 +3,13 @@ use std::rc::Rc;
 use std::cell::RefCell;
 
 use crate::object::{
-    Object, FnResult, Function, Table, List,
+    Object, FnResult, Function, List,
     VARIADIC, MutableFn,
 };
 use crate::vm::Env;
 use crate::rand::Rand;
 use crate::global::list;
+use crate::class::Class;
 
 fn push(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
     match *pself {
@@ -463,7 +464,7 @@ fn list_rot(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
     }
 }
 
-pub fn init(t: &Table){
+pub fn init(t: &Class){
     let mut m = t.map.borrow_mut();
     m.insert_fn_plain("push",push,0,VARIADIC);
     m.insert_fn_plain("append",append,0,VARIADIC);

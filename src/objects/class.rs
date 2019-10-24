@@ -5,30 +5,27 @@ use std::cell::RefCell;
 use std::mem::replace;
 
 use crate::object::{
-    Object, Map, Interface, downcast, ptr_eq_plain,
+    Object, List, Map, Interface, downcast, ptr_eq_plain,
     FnResult, Exception
 };
 use crate::vm::{Env,RTE,secondary_env,object_to_string};
-use crate::table::Table;
+use crate::tuple::Tuple;
 
-type PGet = Box<dyn Fn(&mut Env,Rc<Instance>,&Object)->FnResult>;
-type PSet = Box<dyn Fn(&mut Env,Rc<Instance>,Object,Object)->FnResult>;
-type PToString = Box<dyn Fn(&mut Env,Rc<Instance>)->Result<String,Box<Exception>>>;
+// const TYPE: usize = 0;
+// const NAME: usize = 1;
+const PROTOTYPE: usize = 2;
 
-pub struct Class {
+type PGet = Box<dyn Fn(&mut Env,Rc<Table>,&Object)->FnResult>;
+type PSet = Box<dyn Fn(&mut Env,Rc<Table>,Object,Object)->FnResult>;
+type PToString = Box<dyn Fn(&mut Env,Rc<Table>)->Result<String,Box<Exception>>>;
+
+pub struct Destructor {
     pub rte: Rc<RTE>,
-    pub call_drop: bool,
-    pub destructor: Object,
-    pub pget: PGet,
-    pub pset: PSet,
-    pub to_string: PToString,
-    pub name: String,
-    pub map: Rc<RefCell<Map>>,
-    pub parent: Object
+    pub destructor: Object
 }
 
-impl Class {
-    pub fn destructor(&self, mut t: Instance, env: &mut Env){
+impl Destructor {
+    pub fn destructor(&self, mut t: Table, env: &mut Env){
         if let Object::Function(_) = self.destructor {
             let p = Rc::new(t);
             {
@@ -40,6 +37,36 @@ impl Class {
             }
         }else{
             t.prototype = Object::Null;
+        }
+    }
+}
+
+pub struct Class {
+    pub drop: Option<Destructor>,
+    pub pget: PGet,
+    pub pset: PSet,
+    pub to_string: PToString,
+    pub name: String,
+    pub map: Rc<RefCell<Map>>,
+    pub parent: Object
+}
+
+impl Class {
+    pub fn new(name: &str, parent: &Object) -> Rc<Class> {
+        Rc::new(Class{
+            drop: None,
+            pget: Box::new(standard_getter),
+            pset: Box::new(standard_setter),
+            to_string: Box::new(standard_to_string),
+            name: String::from(name),
+            map: Map::new(),
+            parent: parent.clone()
+        })
+    }
+    pub fn slot(&self, key: &Object) -> Option<Object> {
+        match self.map.borrow().m.get(key) {
+            Some(value) => Some(value.clone()),
+            None => None
         }
     }
 }
@@ -98,13 +125,20 @@ fn get_from_ancestor(mut p: &Object, key: &Object) -> Option<Object> {
                 }
             }
             return None;
+        }else if let Some(t) = downcast::<Table>(p) {
+            if let Some(y) = t.map.borrow().m.get(key) {
+                return Some(y.clone());
+            }else{
+                p = &t.prototype;
+                if let Object::Null = p {return None;}
+            }
         }else{
             return None;
         }
     }
 }
 
-fn standard_getter(env: &mut Env, t: Rc<Instance>, key: &Object)
+fn standard_getter(env: &mut Env, t: Rc<Table>, key: &Object)
 -> FnResult
 {
     if let Some(y) = t.map.borrow().m.get(key) {
@@ -142,12 +176,12 @@ fn standard_getter(env: &mut Env, t: Rc<Instance>, key: &Object)
 }
 
 fn custom_getter(f: Object) -> PGet {
-    Box::new(move |env: &mut Env, t: Rc<Instance>, key: &Object| -> FnResult {
+    Box::new(move |env: &mut Env, t: Rc<Table>, key: &Object| -> FnResult {
         env.call(&f,&Object::Interface(t.clone()),&[key.clone()])
     })
 }
 
-fn standard_setter(_env: &mut Env, t: Rc<Instance>, key: Object, value: Object)
+fn standard_setter(_env: &mut Env, t: Rc<Table>, key: Object, value: Object)
 -> FnResult
 {
     t.map.borrow_mut().m.insert(key,value);
@@ -155,17 +189,21 @@ fn standard_setter(_env: &mut Env, t: Rc<Instance>, key: Object, value: Object)
 }
 
 fn custom_setter(f: Object) -> PSet {
-    Box::new(move |env: &mut Env, t: Rc<Instance>, key: Object, value: Object| -> FnResult {
+    Box::new(move |env: &mut Env, t: Rc<Table>, key: Object, value: Object| -> FnResult {
         env.call(&f,&Object::Interface(t.clone()),&[key,value])
     })
 }
 
-fn standard_to_string(env: &mut Env, t: Rc<Instance>)
+fn standard_to_string(env: &mut Env, t: Rc<Table>)
 -> Result<String,Box<Exception>>
 {
     match object_to_string(env,&Object::Map(t.map.clone())) {
         Ok(value) => {
             let mut s = String::from("table");
+            if let Some(class) = downcast::<Class>(&t.prototype) {
+                s.push(' ');
+                s.push_str(&class.name);
+            }
             s.push_str(&value);
             Ok(s)
         },
@@ -174,7 +212,7 @@ fn standard_to_string(env: &mut Env, t: Rc<Instance>)
 }
 
 fn custom_to_string(f: Object) -> PToString {
-    Box::new(move |env: &mut Env, t: Rc<Instance>|
+    Box::new(move |env: &mut Env, t: Rc<Table>|
     -> Result<String,Box<Exception>>
     {
         match env.call(&f,&Object::Interface(t),&[]) {
@@ -194,8 +232,7 @@ pub fn class_new(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         3 => {}, n => return env.argc_error(n,3,3,"class")
     }
-    let mut destructor = Object::Null;
-    let mut call_drop = false;
+    let mut drop = None;
     let name: String = argv[0].to_string();
     let parent: Object = argv[1].clone();
 
@@ -203,8 +240,10 @@ pub fn class_new(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
         Object::Map(ref map) => {
             let m = &map.borrow().m;
             if let Some(x) = m.get(&Object::from("drop")) {
-                destructor = x.clone();
-                call_drop = true;
+                drop = Some(Destructor{
+                    rte: env.rte().clone(),
+                    destructor: x.clone()
+                });
             }
             let pget: PGet = match m.get(&Object::from("get")) {
                 Some(f) => custom_getter(f.clone()),
@@ -219,22 +258,23 @@ pub fn class_new(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
                 None => Box::new(standard_to_string)
             };
             return Ok(Object::Interface(Rc::new(Class{
-                rte: env.rte().clone(),
-                destructor, call_drop, pget, pset,
-                name, to_string, map: map.clone(),
-                parent
+                drop, pget, pset, name, to_string,
+                map: map.clone(), parent
             })));
         },
         _ => panic!()
     }
 }
 
-pub struct Instance {
+pub struct Table {
     pub prototype: Object,
     pub map: Rc<RefCell<Map>>
 }
 
-impl Instance {
+impl Table {
+    pub fn new(prototype: Object) -> Rc<Table> {
+        Rc::new(Table{prototype: prototype, map: Map::new()})
+    }
     pub fn slot(&self, key: &Object) -> Option<Object> {
         if let Some(class) = downcast::<Class>(&self.prototype) {
             match class.map.borrow_mut().m.get(key) {
@@ -247,7 +287,7 @@ impl Instance {
     }
 }
 
-impl Interface for Instance {
+impl Interface for Table {
     fn as_any(&self) -> &dyn Any {self}
     fn get_type(&self, _env: &mut Env) -> FnResult {
         return Ok(self.prototype.clone());
@@ -257,13 +297,25 @@ impl Interface for Instance {
         if let Some(class) = downcast::<Class>(&self.prototype) {
             (class.to_string)(env,self.clone())
         }else{
-            Ok(String::from("interface object"))
+            standard_to_string(env,self.clone())
         }
     }
     fn is_instance_of(&self, type_obj: &Object, _rte: &RTE) -> bool {
         if let Object::Interface(t) = type_obj {
-            if let Object::Interface(p) = &self.prototype {
-                return ptr_eq_plain(p,t); 
+            let mut pobj = &self.prototype;
+            loop{
+                if let Object::Interface(p) = pobj {
+                    if ptr_eq_plain(p,t) {return true;}
+                    if let Some(pclass) = p.as_any().downcast_ref::<Class>() {
+                        pobj = &pclass.parent;
+                    }else if let Some(pt) = p.as_any().downcast_ref::<Table>() {
+                        pobj = &pt.prototype;
+                    }else{
+                        return false;
+                    }
+                }else{
+                    return false;
+                }
             }
         }
         return false;
@@ -272,14 +324,14 @@ impl Interface for Instance {
         if let Some(class) = downcast::<Class>(&self.prototype) {
             (class.pget)(env,self.clone(),key)
         }else{
-            unreachable!();
+            standard_getter(env,self.clone(),key)
         }
     }
     fn set(self: Rc<Self>, env: &mut Env, key: Object, value: Object) -> FnResult {
         if let Some(class) = downcast::<Class>(&self.prototype) {
             (class.pset)(env,self.clone(),key,value)
         }else{
-            unreachable!();
+            standard_setter(env,self.clone(),key,value)
         }        
     }
     fn neg(self: Rc<Self>, env: &mut Env) -> FnResult {
@@ -436,36 +488,87 @@ impl Interface for Instance {
     }
 }
 
-impl Drop for Instance {
+impl Drop for Table {
     fn drop(&mut self) {
         if let Some(class) = downcast::<Class>(&self.prototype) {
-            if !class.call_drop {return;}
-            if class.rte.root_drop.get() {
-                let state = &mut class.rte.secondary_state.borrow_mut();
-                let env = &mut secondary_env(&class.rte,state);
-                let t = Instance {
-                    prototype: self.prototype.clone(),
-                    map: replace(&mut self.map, class.rte.empty_map.clone())
-                };
-                class.rte.root_drop.set(false);
-                class.destructor(t,env);
-                loop{
-                    let x = class.rte.drop_buffer.borrow_mut().pop();
-                    if let Some(t) = x {
-                        class.destructor(t,env);
-                    }else{
-                        break;
+            if let Some(context) = &class.drop {
+                if context.rte.root_drop.get() {
+                    let state = &mut context.rte.secondary_state.borrow_mut();
+                    let env = &mut secondary_env(&context.rte,state);
+                    let t = Table {
+                        prototype: self.prototype.clone(),
+                        map: replace(&mut self.map, context.rte.empty_map.clone())
+                    };
+                    context.rte.root_drop.set(false);
+                    context.destructor(t,env);
+                    loop{
+                        let x = context.rte.drop_buffer.borrow_mut().pop();
+                        if let Some(t) = x {
+                            context.destructor(t,env);
+                        }else{
+                            break;
+                        }
                     }
+                    context.rte.root_drop.set(true);
+                }else{
+                    let buffer = &mut context.rte.drop_buffer.borrow_mut();
+                    buffer.push(Table {
+                        prototype: self.prototype.clone(),
+                        map: replace(&mut self.map, context.rte.empty_map.clone())
+                    });
                 }
-                class.rte.root_drop.set(true);
-            }else{
-                let buffer = &mut class.rte.drop_buffer.borrow_mut();
-                buffer.push(Instance {
-                    prototype: self.prototype.clone(),
-                    map: replace(&mut self.map, class.rte.empty_map.clone())
-                });
             }
         }
+    }
+}
+
+pub fn table_get(mut p: &Table, key: &Object) -> Option<Object> {
+    loop{
+        if let Some(y) = p.map.borrow().m.get(key) {
+            return Some(y.clone());
+        }else{
+            if let Some(pt) = downcast::<Table>(&p.prototype) {
+                p = pt;
+            }else{
+                match p.prototype {
+                    Object::List(ref a) => {
+                        return list_get(a,key);
+                    },
+                    Object::Interface(ref x) => {
+                        if let Some(x) = x.as_any().downcast_ref::<Tuple>() {
+                            if let Some(prototype) = x.v.get(PROTOTYPE) {
+                                return object_get(prototype,key);
+                            }else{
+                                return None;
+                            }
+                        }
+                        return None;
+                    },
+                    _ => return None
+                }
+            }
+        }
+    }
+}
+
+fn list_get(a: &Rc<RefCell<List>>, key: &Object) -> Option<Object> {
+    for x in &a.borrow().v {
+        if let Some(pt) = downcast::<Table>(x) {
+            if let Some(y) = table_get(pt,key) {
+                return Some(y.clone());
+            }
+        }
+    }
+    return None;
+}
+
+pub fn object_get(x: &Object, key: &Object) -> Option<Object> {
+    if let Some(pt) = downcast::<Table>(x) {
+        table_get(pt,key)
+    }else if let Object::List(ref a) = *x {
+        list_get(a,key)
+    }else{
+        None
     }
 }
 

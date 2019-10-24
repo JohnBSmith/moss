@@ -21,11 +21,10 @@ use crate::system::{History,open_module_file};
 use crate::module::eval_module;
 use crate::compiler::Value;
 use crate::long::{Long, pow_mod};
-use crate::table::{table_get,type_to_string};
-use crate::tuple::Tuple;
+use crate::class::{table_get};
 use crate::iterable::new_iterator;
 use crate::map::map_extend;
-use crate::class::{Class,Instance,class_new};
+use crate::class::{Class,class_new};
 use crate::range::Range;
 use crate::data::{Bytes,base16};
 
@@ -374,7 +373,7 @@ fn record(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     }
     if let Some(t) = downcast::<Table>(&argv[0]) {
         Ok(Object::Map(t.map.clone()))
-    }else if let Some(t) = downcast::<Instance>(&argv[0]) {
+    }else if let Some(t) = downcast::<Table>(&argv[0]) {
         Ok(Object::Map(t.map.clone()))
     }else if let Some(t) = downcast::<Class>(&argv[0]) {
         Ok(Object::Map(t.map.clone()))
@@ -1001,23 +1000,29 @@ fn extend(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     if argv.len()<2 {
         return env.argc_error(argv.len(),2,VARIADIC,"extend");
     }
-    if let Some(t) = downcast::<Table>(&argv[0]) {
-        let m = &mut t.map.borrow_mut();
-        for p in &argv[1..] {
-            if let Object::Map(ref pm) = *p {
-                let pm = &pm.borrow();
-                map_extend(m,pm);
-            }else if let Some(pt) = downcast::<Table>(p) {
-                let pm = &pt.map.borrow();
-                map_extend(m,pm);
-            }else{
-                return env.type_error("Type error in extend(x,y): y is not a table.");
-            }
-        }
-        return Ok(Object::Null);
+    let mut borrow = if let Some(t) = downcast::<Table>(&argv[0]) {
+        t.map.borrow_mut()
+    }else if let Some(t) = downcast::<Class>(&argv[0]) {
+        t.map.borrow_mut()
     }else{
         return env.type_error("Type error in extend(x,y): x is not a table.");
+    };
+    let m = &mut borrow;
+    for p in &argv[1..] {
+        if let Object::Map(ref pm) = *p {
+            let pm = &pm.borrow();
+            map_extend(m,pm);
+        }else if let Some(pt) = downcast::<Table>(p) {
+            let pm = &pt.map.borrow();
+            map_extend(m,pm);
+        }else if let Some(pc) = downcast::<Class>(p) {
+            let pm = &pc.map.borrow();
+            map_extend(m,pm);
+        }else{
+            return env.type_error("Type error in extend(x,y): y is not a table.");
+        }
     }
+    return Ok(Object::Null);
 }
 
 fn long(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
@@ -1190,20 +1195,13 @@ pub fn init_rte(rte: &RTE){
 
     let type_index_error = rte.type_index_error.clone();
     gtab.insert("IndexError", Object::Interface(type_index_error));
-    
-    {
-        let mut m = rte.type_type_base.map.borrow_mut();
-        m.insert_fn_plain("string",type_to_string,0,0);
-    }
 
     let type_type = rte.type_type.clone();
     gtab.insert("Type", Object::Interface(type_type));
 
-    let type_bytes = Table::new(Tuple::new_object(vec![
-        Object::Interface(rte.type_type.clone()),
-        CharString::new_object_str("Bytes"),
-        Object::Interface(rte.type_iterable.clone())
-    ]));
+    let type_bytes = Class::new("Bytes",
+        &Object::Interface(rte.type_iterable.clone())
+    );
     {
         let mut m = type_bytes.map.borrow_mut();
         m.insert_fn_plain("list",crate::data::bytes_list,0,0);

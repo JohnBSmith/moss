@@ -1,10 +1,11 @@
 
 use crate::object::{
-    Object, FnResult, Table, List, Map,
+    Object, FnResult, List, Map,
     VARIADIC
 };
 use crate::vm::Env;
 use crate::iterable::new_iterator;
+use crate::class::Class;
 
 pub fn map_update(m: &mut Map, m2: &Map){
     for (key,value) in &m2.m {
@@ -177,7 +178,7 @@ pub fn subset(a: &Map, b: &Map) -> bool {
     return a.m.len()<b.m.len() && subseteq(a,b);
 }
 
-pub fn init(t: &Table){
+pub fn init(t: &Class){
     let mut m = t.map.borrow_mut();
     m.insert_fn_plain("update",update,1,1);
     m.insert_fn_plain("extend",extend,1,1);

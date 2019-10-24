@@ -12,10 +12,11 @@ use std::ops::{Add,Sub,Mul,AddAssign};
 
 use crate::complex::c64;
 use crate::object::{
-  Object, List, Exception, Table, FnResult, Interface,
-  VARIADIC, new_module, downcast
+    Object, List, Exception, FnResult, Interface,
+    VARIADIC, new_module, downcast
 };
 use crate::vm::{Env,interface_types_set,interface_index};
+use crate::class::Class;
 
 trait Zero {fn zero() -> Self;}
 impl Zero for i32 {fn zero() -> i32 {0}}
@@ -615,7 +616,7 @@ fn matrix(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
 
 pub fn load_la(env: &mut Env) -> Object
 {
-    let type_array = Table::new(Object::Null);
+    let type_array = Class::new("Array",&Object::Null);
     /*{
         let mut m = type_array.map.borrow_mut();
         m.insert_fn_plain("map",map,1,1);

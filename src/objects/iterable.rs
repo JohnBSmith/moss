@@ -4,13 +4,14 @@ use std::cell::RefCell;
 use std::cmp::Ordering;
 
 use crate::object::{
-    Object, Table, List, CharString,
+    Object, List, CharString,
     FnResult, Function, EnumFunction,
     MutableFn, Exception, downcast
 };
 use crate::vm::{Env, op_add, op_mul, op_lt, op_le};
 use crate::global::list;
 use crate::range::Range;
+use crate::class::Class;
 
 pub fn new_iterator(f: MutableFn) -> Object {
     Object::Function(Rc::new(Function{
@@ -874,7 +875,7 @@ fn iterable_max(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     return Ok(maximum);
 }
 
-pub fn init(t: &Table){
+pub fn init(t: &Class){
     let mut m = t.map.borrow_mut();
     m.insert_fn_plain("list",to_list,0,1);
     m.insert_fn_plain("each",each,1,1);

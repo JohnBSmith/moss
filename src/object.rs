@@ -10,7 +10,7 @@ use crate::complex::Complex64;
 use crate::vm;
 use crate::vm::{Module,RTE};
 pub use crate::vm::Env;
-pub use crate::table::Table;
+pub use crate::class::Table;
 
 pub enum Object {
     Null,

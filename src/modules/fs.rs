@@ -7,11 +7,12 @@ use std::io::{Read,Write};
 use std::path::Path;
 
 use crate::object::{
-    Object, List, Table, Interface, Exception, FnResult,
+    Object, List, Interface, Exception, FnResult,
     new_module, downcast, interface_object_get
 };
 use crate::vm::{Env,interface_types_set,interface_index};
 use crate::data::{Bytes};
+use crate::class::Class;
 
 struct File {
     file: RefCell<fs::File>,
@@ -231,7 +232,7 @@ fn working_dir(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
 
 pub fn load_fs(env: &mut Env) -> Object
 {
-    let type_file = Table::new(Object::Null);
+    let type_file = Class::new("File",&Object::Null);
     {
         let mut m = type_file.map.borrow_mut();
         m.insert_fn_plain("read",file_read,0,1);

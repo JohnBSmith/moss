@@ -289,6 +289,36 @@ d.fly()
 d.dive()
 </pre>
 
+<p>Usage of the class system and the prototype system may be mixed:
+
+<pre class="moss indent">
+class Bird = {
+   function fly()
+      print(self.name, " flies.")
+   end
+}
+
+bird = table Bird{name = "Unnamed bird"}
+d = table bird{name = "Dagobert"}
+
+bird.fly()
+d.fly()
+assert d: Bird
+assert d: bird
+assert type(d) is bird
+</pre>
+
+<p>It should be noted that <code>type</code> only returns the flat
+type. To obtain the deeper underlying class, the more advanced behavior
+shown in <code>deep_type</code> is necessary.
+
+<pre class="moss indent">
+function deep_type(t)
+   T = type(t)
+   return T if type(T) is Type else deep_type(T)
+end
+</pre>
+
 <h2 id="composition">Composition over inheritance</h2>
 
 <p>Inheritance has the disadvantage that it might lead to

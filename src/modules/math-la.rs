@@ -6,11 +6,13 @@ use std::cell::RefCell;
 use std::any::Any;
 
 use crate::object::{
-    Object, FnResult, List, Table, Interface,
-    Exception, new_module, downcast, VARIADIC
+    Object, FnResult, List, Interface,
+    Exception, new_module, downcast, VARIADIC,
+    ptr_eq_plain
 };
+use crate::class::Class;
 use crate::vm::{
-    Env, op_neg, op_add, op_sub, op_mul, op_div, op_eq,
+    RTE, Env, op_neg, op_add, op_sub, op_mul, op_div, op_eq,
     interface_types_set, interface_index
 };
 use crate::complex::Complex64;
@@ -49,6 +51,15 @@ impl Interface for Array {
     fn as_any(&self) -> &dyn Any {self}
     fn type_name(&self, _env: &mut Env) -> String {
         "Array".to_string()
+    }
+    fn get_type(&self, env: &mut Env) -> FnResult {
+        Ok(Object::Interface(env.rte().interface_types
+            .borrow()[interface_index::POLY_ARRAY].clone()))
+    }
+    fn is_instance_of(&self, type_obj: &Object, rte: &RTE) -> bool {
+        if let Object::Interface(p) = type_obj {
+            ptr_eq_plain(p,&rte.interface_types.borrow()[interface_index::POLY_ARRAY])
+        }else{false}
     }
     fn to_string(self: Rc<Self>, env: &mut Env) -> Result<String,Box<Exception>> {
         if self.n==1 {
@@ -1049,12 +1060,12 @@ fn la_copy(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
 
 pub fn load_math_la(env: &mut Env) -> Object
 {
-    let type_array = Table::new(Object::Null);
+    let type_array = Class::new("Array",&Object::Null);
     {
         let mut m = type_array.map.borrow_mut();
         m.insert_fn_plain("map",map,1,1);
     }
-    interface_types_set(env.rte(),interface_index::POLY_ARRAY,type_array);
+    interface_types_set(env.rte(),interface_index::POLY_ARRAY,type_array.clone());
 
     let la = new_module("la");
     {
@@ -1066,6 +1077,7 @@ pub fn load_math_la(env: &mut Env) -> Object
         m.insert_fn_plain("unit",unit,2,2);
         m.insert_fn_plain("diag",diag,0,VARIADIC);
         m.insert_fn_plain("id",la_copy,1,1);
+        m.insert("Array",Object::Interface(type_array));
     }
 
     return Object::Interface(Rc::new(la));

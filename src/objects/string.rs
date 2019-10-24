@@ -1,9 +1,10 @@
 
 use crate::object::{
-    Object, Table, FnResult, CharString
+    Object, FnResult, CharString
 };
 use crate::vm::Env;
 use crate::data::Bytes;
+use crate::class::Class;
 
 fn isdigit(c: char) -> bool {
     ('0' as u32)<=(c as u32) && (c as u32)<=('9' as u32)
@@ -418,7 +419,7 @@ fn string_encode(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     }
 }
 
-pub fn init(t: &Table){
+pub fn init(t: &Class){
     let mut m = t.map.borrow_mut();
     m.insert_fn_plain("isdigit",string_isdigit,0,1);
     m.insert_fn_plain("isalpha",string_isalpha,0,0);

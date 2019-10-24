@@ -3,11 +3,12 @@ use std::rc::Rc;
 use std::i32;
 
 use crate::object::{
-    Object, FnResult, Function, Table, VARIADIC
+    Object, FnResult, Function, VARIADIC
 };
 use crate::vm::Env;
 use crate::iterable::new_iterator;
 use crate::range::Range;
+use crate::class::Class;
 
 fn orbit(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     if argv.len()!=1 {
@@ -67,7 +68,7 @@ pub fn iterate(env: &mut Env, f: &Object, n: &Object) -> FnResult {
     }
 }
 
-pub fn init(t: &Table){
+pub fn init(t: &Class){
     let mut m = t.map.borrow_mut();
     m.insert_fn_plain("orbit",orbit,1,1);
     m.insert_fn_plain("argc", argc,0,0);

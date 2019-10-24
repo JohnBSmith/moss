@@ -6,8 +6,8 @@ use std::rc::Rc;
 use std::any::Any;
 
 use crate::object::{
-    Object, Table, FnResult, Interface, Exception,
-    downcast
+    Object, FnResult, Interface, Exception,
+    downcast, ptr_eq_plain
 };
 use crate::vm::{Env, RTE};
 
@@ -644,8 +644,8 @@ impl Interface for Long {
     }
 
     fn is_instance_of(&self, type_obj: &Object, rte: &RTE) -> bool {
-        if let Some(t) = downcast::<Table>(type_obj) {
-            return t as *const Table == &*rte.type_long as *const Table;
+        if let Object::Interface(p) = type_obj {
+            return ptr_eq_plain(p,&rte.type_long);
         }else{
             return false;
         }

@@ -8,13 +8,12 @@ use std::fmt::Write;
 
 use crate::object::{
     Object, Exception, FnResult, Interface, List,
-    Table, CharString,
     new_module, downcast, interface_object_get,
     ptr_eq_plain
 };
 use crate::vm::{Env,RTE,interface_index,interface_types_set};
 use crate::iterable::new_iterator;
-use crate::tuple::Tuple;
+use crate::class::Class;
 
 mod crypto;
 
@@ -279,11 +278,7 @@ pub fn base16(data: &[u8]) -> Object {
 
 pub fn load_data(env: &mut Env) -> Object
 {
-    let type_hash = Table::new(Tuple::new_object(vec![
-        Object::Interface(env.rte().type_type.clone()),
-        CharString::new_object_str("Hash"),
-        Object::Null
-    ]));
+    let type_hash = Class::new("Hash",&Object::Null);
     {
         let mut m = type_hash.map.borrow_mut();
         m.insert_fn_plain("push",crate::data::hash_push,1,1);

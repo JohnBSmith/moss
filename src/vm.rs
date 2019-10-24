@@ -10,7 +10,7 @@ use std::io::Read;
 use std::fmt::Write;
 
 use crate::object::{
-    Object, Table, Map, List, Function, EnumFunction, StandardFn,
+    Object, Map, List, Function, EnumFunction, StandardFn,
     FnResult, OperatorResult, Exception, CharString,
     VARIADIC, Downcast, TypeName, downcast, ptr_eq_plain
 };
@@ -25,7 +25,7 @@ use crate::rand::Rand;
 use crate::list::cartesian_power;
 use crate::iterable::iter;
 use crate::map::{subseteq,subset};
-use crate::class::{Class,Instance};
+use crate::class::{Class,Table};
 
 use crate::system::{History,getline_history,init_search_paths};
 use crate::compiler;
@@ -3305,17 +3305,13 @@ fn load_u64(a: &[u32], ip: usize) -> u64{
 
 fn new_table(prototype: Object, map: Object) -> Object {
     if let Object::Map(map) = map {
-        if let Object::Interface(ref x) = prototype {
-            if let Some(_) = x.as_any().downcast_ref::<Class>() {
-                return Object::Interface(Rc::new(Instance{prototype, map}));
-            }
-        }
         return Object::Interface(Rc::new(Table{prototype, map}));
     }else{
         panic!();
     }
 }
 
+/*
 fn new_stamp(s: &str, ptype: &Rc<Table>, prototype: &Object) -> Object {
     return Tuple::new_object(vec![
         Object::Interface(ptype.clone()),
@@ -3323,13 +3319,14 @@ fn new_stamp(s: &str, ptype: &Rc<Table>, prototype: &Object) -> Object {
         prototype.clone()
     ]);
 }
+*/
 
-pub fn interface_types_set(rte: &RTE, index: usize, x: Rc<Table>) {
+pub fn interface_types_set(rte: &RTE, index: usize, x: Rc<Class>) {
     let mut v = rte.interface_types.borrow_mut();
     if index<v.len() {
         v[index] = x;
     }else{
-        let unimplemented = &rte.unimplemented;
+        let unimplemented = &rte.unimplemented_class;
         while v.len()<index {
             v.push(unimplemented.clone());
         }
@@ -3360,23 +3357,23 @@ pub struct Capabilities{
 
 // Runtime environment: globally accessible information.
 pub struct RTE{
-    pub type_bool: Rc<Table>,
-    pub type_int: Rc<Table>,
-    pub type_float: Rc<Table>,
-    pub type_complex: Rc<Table>,
-    pub type_long: Rc<Table>,
-    pub type_string: Rc<Table>,
-    pub type_list: Rc<Table>,
-    pub type_map: Rc<Table>,
-    pub type_function: Rc<Table>,
-    pub type_range: Rc<Table>,
-    pub type_iterable: Rc<Table>,
-    pub type_std_exception: Rc<Table>,
-    pub type_type_error: Rc<Table>,
-    pub type_value_error: Rc<Table>,
-    pub type_index_error: Rc<Table>,
-    pub type_type: Rc<Table>,
-    pub type_type_base: Rc<Table>,
+    pub type_bool: Rc<Class>,
+    pub type_int: Rc<Class>,
+    pub type_float: Rc<Class>,
+    pub type_complex: Rc<Class>,
+    pub type_long: Rc<Class>,
+    pub type_string: Rc<Class>,
+    pub type_list: Rc<Class>,
+    pub type_map: Rc<Class>,
+    pub type_function: Rc<Class>,
+    pub type_range: Rc<Class>,
+    pub type_iterable: Rc<Class>,
+    pub type_std_exception: Rc<Class>,
+    pub type_type_error: Rc<Class>,
+    pub type_value_error: Rc<Class>,
+    pub type_index_error: Rc<Class>,
+    pub type_type: Rc<Class>,
+    pub unimplemented_class: Rc<Class>,
     pub unimplemented: Rc<Table>,
     pub argv: RefCell<Option<Rc<RefCell<List>>>>,
     pub path: Rc<RefCell<List>>,
@@ -3384,12 +3381,12 @@ pub struct RTE{
     pub pgtab: RefCell<Rc<RefCell<Map>>>,
     pub delay: RefCell<Vec<Rc<RefCell<Map>>>>,
     pub module_table: Rc<RefCell<Map>>,
-    pub interface_types: RefCell<Vec<Rc<Table>>>,
+    pub interface_types: RefCell<Vec<Rc<Class>>>,
     pub seed_rng: RefCell<Rand>,
     pub compiler_config: RefCell<Option<Box<CompilerExtra>>>,
     pub secondary_state: RefCell<Option<State>>,
     pub root_drop: Cell<bool>,
-    pub drop_buffer: RefCell<Vec<Instance>>,
+    pub drop_buffer: RefCell<Vec<Table>>,
     pub empty_map: Rc<RefCell<Map>>,
     pub capabilities: RefCell<Capabilities>,
     pub char_table: Vec<Object>,
@@ -3426,36 +3423,30 @@ pub struct RTE{
 impl RTE{
     pub fn new() -> Rc<RTE>{
         let null = &Object::Null;
-        let type_type_base = Table::new(Object::Null);
-
-        let type_type = Table::new(Tuple::new_object(vec![
-            Object::Null,
-            Object::from("Type"),
-            Object::Interface(type_type_base.clone())
-        ]));
+        let type_type = Class::new("Type",null);
 
         let char_table: Vec<Object> = (0..128)
             .map(|i| Object::from(i as u8 as char))
             .collect();
         Rc::new(RTE{
-            type_bool: Table::new(new_stamp("Bool",&type_type,null)),
-            type_int: Table::new(new_stamp("Int",&type_type,null)),
-            type_float: Table::new(new_stamp("Float",&type_type,null)),
-            type_complex: Table::new(new_stamp("Complex",&type_type,null)),
-            type_string: Table::new(new_stamp("String",&type_type,null)),
-            type_list: Table::new(new_stamp("List",&type_type,null)),
-            type_map: Table::new(new_stamp("Map",&type_type,null)),
-            type_function: Table::new(new_stamp("Function",&type_type,null)),
-            type_range: Table::new(new_stamp("Range",&type_type,null)),
-            type_iterable: Table::new(new_stamp("Iterable",&type_type,null)),
-            type_long: Table::new(new_stamp("Long",&type_type,null)),
-            type_std_exception: Table::new(Object::Null),
-            type_type_error: Table::new(new_stamp("TypeError",&type_type,null)),
-            type_value_error: Table::new(new_stamp("ValueError",&type_type,null)),
-            type_index_error: Table::new(new_stamp("IndexError",&type_type,null)),
+            type_bool: Class::new("Bool",null),
+            type_int: Class::new("Int",null),
+            type_float: Class::new("Float",null),
+            type_complex: Class::new("Complex",null),
+            type_string: Class::new("String",null),
+            type_list: Class::new("List",null),
+            type_map: Class::new("Map",null),
+            type_function: Class::new("Function",null),
+            type_range: Class::new("Range",null),
+            type_iterable: Class::new("Iterable",null),
+            type_long: Class::new("Long",null),
+            type_std_exception: Class::new("Exception",null),
+            type_type_error: Class::new("TypeError",null),
+            type_value_error: Class::new("ValueError",null),
+            type_index_error: Class::new("IndexError",null),
             type_type: type_type.clone(),
-            type_type_base: type_type_base,
             unimplemented: Table::new(Object::Null),
+            unimplemented_class: Class::new("Unimplemented",null),
             argv: RefCell::new(None),
             path: Rc::new(RefCell::new(init_search_paths())),
             gtab: Map::new(),

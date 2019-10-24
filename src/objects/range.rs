@@ -5,9 +5,9 @@ use std::char;
 
 use crate::object::{
     Object, Env, Interface, FnResult, Exception,
-    CharString, downcast
+    CharString, downcast, ptr_eq_plain
 };
-use crate::vm::object_to_string;
+use crate::vm::{RTE,object_to_string};
 use crate::iterable::{new_iterator, int_range_iterator};
 
 pub struct Range {
@@ -135,6 +135,13 @@ impl Interface for Range {
 
     fn get_type(&self, env: &mut Env) -> FnResult {
         Ok(Object::Interface(env.rte().type_range.clone()))
+    }
+
+    fn is_instance_of(&self, type_obj: &Object, rte: &RTE) -> bool {
+        if let Object::Interface(p) = type_obj {
+            ptr_eq_plain(p,&rte.type_range) ||
+            ptr_eq_plain(p,&rte.type_iterable)
+        }else{false}
     }
 }
 

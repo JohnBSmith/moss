@@ -3,10 +3,11 @@ use std::rc::Rc;
 use std::any::Any;
 
 use crate::object::{
-    Object, List, CharString, Table, Function, FnResult, Interface,
-    Exception, new_module, downcast
+    Object, List, CharString, Function, FnResult, Interface,
+    Exception, new_module, downcast, ptr_eq_plain
 };
-use crate::vm::{Env,interface_index,interface_types_set};
+use crate::vm::{RTE,Env,interface_index,interface_types_set};
+use crate::class;
 
 #[derive(Debug,Clone,Copy)]
 enum Class{
@@ -607,6 +608,15 @@ impl Interface for Regex{
     fn to_string(self: Rc<Self>, _env: &mut Env) -> Result<String,Box<Exception>> {
         Ok("regex object".to_string())
     }
+    fn get_type(&self, env: &mut Env) -> FnResult {
+        Ok(Object::Interface(env.rte().interface_types
+            .borrow()[self.index].clone()))
+    }
+    fn is_instance_of(&self, type_obj: &Object, rte: &RTE) -> bool {
+        if let Object::Interface(p) = type_obj {
+            ptr_eq_plain(p,&rte.interface_types.borrow()[self.index])
+        }else{false}
+    }
     fn get(self: Rc<Self>, key: &Object, env: &mut Env) -> FnResult {
         let t = &env.rte().interface_types.borrow()[self.index];
         match t.slot(key) {
@@ -642,7 +652,7 @@ fn regex_compile(index: usize) -> Object {
 }
 
 pub fn load_regex(env: &mut Env) -> Object {
-    let type_regex = Table::new(Object::Null);
+    let type_regex = class::Class::new("Regex",&Object::Null);
     {
         let mut m = type_regex.map.borrow_mut();
         m.insert_fn_plain("match",regex_match,1,1);
@@ -651,12 +661,13 @@ pub fn load_regex(env: &mut Env) -> Object {
         m.insert_fn_plain("groups",regex_groups,1,1);
         m.insert_fn_plain("replace",regex_replace,2,2);
     }
-    interface_types_set(env.rte(),interface_index::REGEX,type_regex);
+    interface_types_set(env.rte(),interface_index::REGEX,type_regex.clone());
 
     let regex = new_module("regex");
     {
         let mut m = regex.map.borrow_mut();
         m.insert("re",regex_compile(interface_index::REGEX));
+        m.insert("Regex",Object::Interface(type_regex));
     }
     return Object::Interface(Rc::new(regex));
 }
