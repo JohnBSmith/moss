@@ -64,6 +64,21 @@ fn cmd(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     }
 }
 
+fn eput(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
+    for i in 0..argv.len() {
+        eprint!("{}",argv[i].string(env)?);
+    }
+    return Ok(Object::Null);
+}
+
+fn eprint(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
+    for i in 0..argv.len() {
+        eprint!("{}",argv[i].string(env)?);
+    }
+    eprintln!();
+    return Ok(Object::Null);
+}
+
 pub fn load_sys(rte: &Rc<RTE>) -> Object {
     let sys = new_module("sys");
     {
@@ -75,6 +90,8 @@ pub fn load_sys(rte: &Rc<RTE>) -> Object {
         m.insert_fn_plain("exit",exit,0,1);
         m.insert_fn_plain("call",crate::vm::sys_call,2,VARIADIC);
         m.insert_fn_plain("cmd",cmd,2,2);
+        m.insert_fn_plain("eput",eput,0,VARIADIC);
+        m.insert_fn_plain("eprint",eprint,0,VARIADIC);
     }
     return Object::Interface(Rc::new(sys));
 }

@@ -76,7 +76,6 @@ is found.
 Note: the list itself must be changed. Replacing <code>sys.path</code>
 with another list will not work.
 
-
 <dt>call(n,main,*argv)
 <dd>Call <code>main</code> with a new call stack of
 size <code>n</code>. This is used to obtain unlimited recursion
@@ -103,6 +102,10 @@ an integer.
 &gt; cmd("sh",["-c","GET en.wikipedia.org > /tmp/0"])
 &gt; s = read("/tmp/0")
 </pre>
+
+<dt>eprint(*a), eput(*a)
+<dd>Like <code>print(*a)</code> and <code>put(*a)</code>, but
+print to stderr instead of stdout.
 </dl>
 
 <h2 id="stackless">Module sys.stackless</h2>
