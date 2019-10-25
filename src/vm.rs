@@ -3428,7 +3428,8 @@ impl RTE{
         let char_table: Vec<Object> = (0..128)
             .map(|i| Object::from(i as u8 as char))
             .collect();
-        Rc::new(RTE{
+
+        return Rc::new(RTE{
             type_bool: Class::new("Bool",null),
             type_int: Class::new("Int",null),
             type_float: Class::new("Float",null),
@@ -3494,7 +3495,7 @@ impl RTE{
             key_req:    CharString::new_object_str("req"),
             key_index:  CharString::new_object_str("index"),
             key_list:   CharString::new_object_str("list")
-        })
+        });
     }
     pub fn clear_at_exit(&self, gtab: Rc<RefCell<Map>>){
         // Prevent a memory leak induced by a circular reference

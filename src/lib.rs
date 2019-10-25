@@ -108,7 +108,7 @@ use std::rc::Rc;
 use std::cell::RefCell;
 // use std::fs::File;
 // use std::io::Read;
-use object::{Object, List, CharString, TypeName, Downcast};
+use object::{Object, List, Map, CharString, TypeName, Downcast};
 use vm::{RTE,State,EnvPart,Env};
 pub use vm::{get_env};
 pub use compiler::{Value, CompilerExtra};
@@ -215,20 +215,38 @@ pub fn new_list_str(a: &[String]) -> Rc<RefCell<List>> {
     return Rc::new(RefCell::new(List{v: v, frozen: false}));
 }
 
+fn clear_map(buffer: &mut Vec<Object>, map: &Rc<RefCell<Map>>) {
+    {
+        let m = &mut map.borrow_mut().m;
+        for (_k,v) in m.drain() {
+            buffer.push(v);
+        }
+    }
+    buffer.clear();
+}
+
+// We need to break cyclic structures to avert memory leaks.
+// The cycles can be introduced by function objects.
 impl Drop for Interpreter {
     fn drop(&mut self) {
         let v = self.rte.delay.borrow_mut();
-        let mut buffer: Vec<Object> = Vec::new();
+        let mut buffer: Vec<Object> = Vec::with_capacity(32);
         for gtab in &v[..] {
             // println!("clear {}",Object::Map(gtab.clone()));
-            {
-                let m = &mut gtab.borrow_mut().m;
-                for (_k,v) in m.drain() {
-                    buffer.push(v);
-                }
-            }
-            buffer.clear();
+            clear_map(&mut buffer,gtab);
         }
+        clear_map(&mut buffer,&self.rte.type_bool.map);
+        clear_map(&mut buffer,&self.rte.type_int.map);
+        clear_map(&mut buffer,&self.rte.type_long.map);
+        clear_map(&mut buffer,&self.rte.type_float.map);
+        clear_map(&mut buffer,&self.rte.type_complex.map);
+        clear_map(&mut buffer,&self.rte.type_string.map);
+        clear_map(&mut buffer,&self.rte.type_list.map);
+        clear_map(&mut buffer,&self.rte.type_map.map);
+        clear_map(&mut buffer,&self.rte.type_range.map);
+        clear_map(&mut buffer,&self.rte.type_function.map);
+        clear_map(&mut buffer,&self.rte.type_iterable.map);
+
         let mut state = self.rte.secondary_state.borrow_mut();
         *state = None;
     }

@@ -48,9 +48,9 @@ function tests(scale,path,extra=[])
    end
 end
 
-# tests(medium,"../target/debug/moss")
-# tests(full,"../target/release/moss")
-# tests(full,"self")
-# tests(full,"moss")
+tests(medium,"../target/debug/moss")
+tests(full,"../target/release/moss")
+tests(full,"self")
+tests(full,"moss")
 tests(small,"valgrind",["../target/debug/moss"])
 
