@@ -1,0 +1,44 @@
+
+begin
+public Slice
+
+class Slice = {
+   function string()
+      return str(self.a[self.r])
+   end,
+   function list()
+      return self.a[self.r]
+   end,
+   function rev()
+      a = self.a; r = self.r; start = r[0]
+      b = a[r].rev()
+      for i in len(b) do a[start+i] = b[i] end
+   end,
+   function rot(n)
+      a = self.a; r = self.r; start = r[0]
+      b = a[r].rot(n)
+      for i in len(b) do a[start+i] = b[i] end
+   end,
+   function sort(*f)
+      a = self.a; r = self.r; start = r[0]
+      b = a[r].sort(*f)
+      for i in len(b) do a[start+i] = b[i] end
+   end,
+   function shuffle()
+      a = self.a; r = self.r; start = r[0]
+      b = a[r].shuffle()
+      for i in len(b) do a[start+i] = b[i] end
+   end,
+   function map(f)
+      a = self.a; r = self.r; start = r[0]
+      b = a[r].map(f)
+      for i in len(b) do a[start+i] = b[i] end
+   end
+}
+
+List.call = fn call|r,len=null|
+   table Slice{a = self, r = r if len is null else r..r+len-1}
+end
+
+end
+

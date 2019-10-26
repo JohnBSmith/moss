@@ -4,8 +4,7 @@
   <meta charset="UTF-8">
   <title>Shell scripting</title>
   <link href="../css/main.css" rel="stylesheet">
-  <script src = "../js/moss-syntax.js">
-  </script>
+  <script src = "../js/moss-syntax.js"></script>
 </head>
 <body>
 
@@ -19,6 +18,8 @@
 <ol>
 <li><a href="#walk">Walking through directory trees</a>
 <li><a href="#sh">Shell commands</a>
+<li><a href="#error-output">Error output</a>
+<li><a href="#exit">Exit with status code</a>
 </ol>
 </div>
 
@@ -82,6 +83,31 @@ catch e if e: ShException
    print("text: ",e.text)
 end
 </pre>
+
+<br>
+<h2 id="error-output">Error output</h2>
+
+<pre class="moss">
+use sys: eprint
+
+# Directed to stdout.
+print("Text")
+
+# Directed to stderr.
+eprint("Error message")
+</pre>
+
+<br>
+<h2 id="exit">Exit with status code</h2>
+
+<pre class="moss">
+use sys: exit
+
+# Exit the program with a status code
+# (0: success, 1: failure)
+exit(1)
+</pre>
+
 
 </body>
 </html>

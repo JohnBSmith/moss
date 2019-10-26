@@ -1,5 +1,4 @@
 
 * Attributes of data.Byte are not searched in Iterable.
-
-
+* How to reverse, rotate, sort slices?
 

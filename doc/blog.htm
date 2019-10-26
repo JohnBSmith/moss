@@ -602,13 +602,13 @@ that return <code>null</code> if <code>i</code> is out of bounds or
 function call operator.
 
 <p>Furthermore we introduce the null coalescing operator as
-"<code>a else b</code>". Now these to statements are
+"<code>a or else b</code>". Now these to statements are
 semantically equivalent:
 
 <pre class="moss indent">
 y = m[key] if key in m else x
 
-y = m(key) else x
+y = m(key) or else x
 </pre>
 
 <p>In both statements, <code>x</code> is lazily evaluated.

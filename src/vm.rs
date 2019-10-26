@@ -4429,8 +4429,12 @@ fn object_call(env: &mut EnvPart, f: &Object,
             };
         },
         _ => {
-            Err(env.type_error1_plain(sp,stack,
-                "Type error in f(...): f is not callable.", "f", f))
+            let (s1,s2) = stack.split_at_mut(sp);
+            let mut env = Env{sp: 0, stack: s2, env: env};
+            return match call_object(&mut env,&f,&Object::Null,&s1[sp-argc..sp]) {
+                Ok(y) => {s1[sp-argc-2] = y; Ok(())},
+                Err(e) => Err(e)
+            };
         }
     }
 }
@@ -4589,14 +4593,18 @@ fn call_object(env: &mut Env,
                 None => Object::Null
             });
         },
+        Object::List(_) => {
+            if let Some(f) = env.rte().type_list.slot(&env.rte().key_call) {
+                return env.call(&f,fobj,argv);
+            }
+        },
         Object::Interface(ref x) => {
             return x.call(env,fobj,argv);
         },
-        _ => {
-            env.type_error1(
-                "Type error in f(...): f is not callable.", "f", fobj)
-        }
+        _ => {}
     }
+    return env.type_error1(
+        "Type error in f(...): f is not callable.", "f", fobj);
 }
 
 // Calling environment of a function call
