@@ -526,26 +526,26 @@ pub fn table_get(mut p: &Table, key: &Object) -> Option<Object> {
     loop{
         if let Some(y) = p.map.borrow().m.get(key) {
             return Some(y.clone());
+        }else if let Some(pt) = downcast::<Table>(&p.prototype) {
+            p = pt;
+        }else if let Some(pc) = downcast::<Class>(&p.prototype) {
+            return class_get(pc,key);
         }else{
-            if let Some(pt) = downcast::<Table>(&p.prototype) {
-                p = pt;
-            }else{
-                match p.prototype {
-                    Object::List(ref a) => {
-                        return list_get(a,key);
-                    },
-                    Object::Interface(ref x) => {
-                        if let Some(x) = x.as_any().downcast_ref::<Tuple>() {
-                            if let Some(prototype) = x.v.get(PROTOTYPE) {
-                                return object_get(prototype,key);
-                            }else{
-                                return None;
-                            }
+            match p.prototype {
+                Object::List(ref a) => {
+                    return list_get(a,key);
+                },
+                Object::Interface(ref x) => {
+                    if let Some(x) = x.as_any().downcast_ref::<Tuple>() {
+                        if let Some(prototype) = x.v.get(PROTOTYPE) {
+                            return object_get(prototype,key);
+                        }else{
+                            return None;
                         }
-                        return None;
-                    },
-                    _ => return None
-                }
+                    }
+                    return None;
+                },
+                _ => return None
             }
         }
     }
@@ -560,6 +560,14 @@ fn list_get(a: &Rc<RefCell<List>>, key: &Object) -> Option<Object> {
         }
     }
     return None;
+}
+
+fn class_get(c: &Class, key: &Object) -> Option<Object> {
+    if let Some(value) = c.map.borrow().m.get(key) {
+        return Some(value.clone());
+    }else{
+        return object_get(&c.parent,key);
+    }
 }
 
 pub fn object_get(x: &Object, key: &Object) -> Option<Object> {

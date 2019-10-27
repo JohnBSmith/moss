@@ -33,6 +33,13 @@ class Slice = {
       a = self.a; r = self.r; start = r[0]
       b = a[r].map(f)
       for i in len(b) do a[start+i] = b[i] end
+   end,
+   function index(i)
+      return self.a[self.r[0]+i]
+   end,
+   function swap(i,j)
+      start = self.r[0]
+      self.a.swap(start+i,start+j)
    end
 }
 
@@ -41,4 +48,5 @@ List.call = fn call|r,len=null|
 end
 
 end
+
 

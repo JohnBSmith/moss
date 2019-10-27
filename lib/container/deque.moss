@@ -1,4 +1,6 @@
 
+class EmptyDeque = {string = || "Error: empty deque"}
+
 class Deque: Iterable = {
    function empty()
       self.last is null
@@ -27,7 +29,7 @@ class Deque: Iterable = {
    end,
    function pop()
       if self.last is null
-         raise "Empty deque"
+         raise table EmptyDeque{}
       end
       last = self.last
       if last[1] is null
@@ -42,7 +44,7 @@ class Deque: Iterable = {
    end,
    function unshift()
       if self.last is null
-         raise "Empty deque"
+         raise table EmptyDeque{}
       end
       first = self.first
       if first[2] is null
@@ -70,7 +72,7 @@ class Deque: Iterable = {
       p = self.last
       return fn||
          if p is null
-            raise empty
+            return empty
          else
             x = p[0]; p = p[1]
             return x
