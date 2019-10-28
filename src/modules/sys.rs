@@ -2,8 +2,9 @@
 use std::rc::Rc;
 use std::process;
 
-use crate::object::{Object, FnResult, VARIADIC, new_module};
+use crate::object::{Object, FnResult, VARIADIC, new_module, downcast};
 use crate::vm::{RTE,Env};
+use crate::class::{Class,Table};
 
 fn exit(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
@@ -79,6 +80,42 @@ fn eprint(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     return Ok(Object::Null);
 }
 
+fn istable(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
+    match argv.len() {
+        1 => {}, n => return env.argc_error(n,1,1,"istable")
+    }
+    return Ok(Object::Bool(match downcast::<Table>(&argv[0]) {
+        Some(_) => true, None => false
+    }));
+}
+
+fn isclass(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
+    match argv.len() {
+        1 => {}, n => return env.argc_error(n,1,1,"isclass")
+    }
+    return Ok(Object::Bool(match downcast::<Class>(&argv[0]) {
+        Some(_) => true, None => false
+    }));
+}
+
+fn ptr_as_u64<T: ?Sized>(p: &Rc<T>) -> u64 {
+    return &**p as *const T as *const () as u64;
+}
+
+fn id(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
+    match argv.len() {
+        1 => {}, n => return env.argc_error(n,1,1,"id")
+    }
+    Ok(match &argv[0] {
+        Object::String(x) => Object::id(ptr_as_u64(x)),
+        Object::List(x) => Object::id(ptr_as_u64(x)),
+        Object::Map(x) => Object::id(ptr_as_u64(x)),
+        Object::Function(x) => Object::id(ptr_as_u64(x)),
+        Object::Interface(x) => Object::id(ptr_as_u64(x)),
+        _ => Object::Null
+    })
+}
+
 pub fn load_sys(rte: &Rc<RTE>) -> Object {
     let sys = new_module("sys");
     {
@@ -92,6 +129,9 @@ pub fn load_sys(rte: &Rc<RTE>) -> Object {
         m.insert_fn_plain("cmd",cmd,2,2);
         m.insert_fn_plain("eput",eput,0,VARIADIC);
         m.insert_fn_plain("eprint",eprint,0,VARIADIC);
+        m.insert_fn_plain("istable",istable,1,1);
+        m.insert_fn_plain("isclass",isclass,1,1);
+        m.insert_fn_plain("id",id,1,1);
     }
     return Object::Interface(Rc::new(sys));
 }

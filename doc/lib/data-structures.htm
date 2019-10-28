@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Data structures</title>
+  <link href="../css/main.css" rel="stylesheet">
+  <script src="../js/moss-syntax.js"></script>
+</head>
+<body>
+
+<table class="navigation">
+<tr><td><b>&uarr;</b> <a href="toc.htm">Up</a>
+</table>
+<h1>Data structures</h1>
+
+<div class="toc">
+<h2 id="toc">Table of contents</h2>
+<ol>
+<li><a href="#deque">Module <code>container.deque</code> &mdash; double-ended queues
+<li><a href="#copylib">Module <code>copylib</code> &mdash; construction of deep copies</a>
+</ol>
+</div>
+
+<h2 id="deque">Module container.deque</h2>
+<p>Double-ended queues allow for appendage and removal of elements
+at the beginning and end in O(1) time complexity.
+
+<dl class="code">
+<dt>Deque
+<dd>Data type of double-ended queues.
+
+<dt>deque(), deque(a), a: List
+<dd>Constructor of double-ended queues.
+</dl>
+
+<h3>Type Deque, d: Deque</h3>
+<dl class="code">
+<dt>d.push(x)
+<dd>Append an element to the end.
+
+<dt>d.pop()
+<dd>Remove the last element and return it. Raises an exception if
+  empty.
+  
+<dt>d.shift(x)
+<dd>Append an element to the beginning.
+
+<dt>d.unshift()
+<dd>Remove the first element and return it. Raises an exception if
+  empty.
+</dl>
+
+<h2 id="copylib">Module copylib</h2>
+<p>Functions that create deep copies of trees and dags.
+
+<dl class="code">
+<dt>deep_copy_tree(x)
+<dd>Create a deep copy of <code>x</code> as a new tree.
+
+<dt>deep_copy_dag(x)
+<dd>Create a deep copy of <code>x</code> as a new directed
+acyclic graph.
+</dl>
+
+
+
+</body>
+</html>
+

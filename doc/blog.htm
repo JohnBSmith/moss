@@ -1215,6 +1215,15 @@ Duck = class_constructor("Duck",null,{
 })
 </pre>
 
+<h3 data-date="20191027" id="copy"
+>Deep copy moved out</h3>
+
+<p>The alogorithms for deep copy can become quite complicated.
+For example, when there is a non-tree-like graph, the possibility of
+respecting the graph structure emerges. The operations in such
+algorithms are actually handled quite well in Moss. For these reasons
+I have decided to move the functionality out of the interpreter into
+a library. That makes the interpreter a bit smaller again.
 
 </body>
 </html>

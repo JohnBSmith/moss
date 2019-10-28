@@ -178,6 +178,9 @@ the file is read as a binary file.
 2.0
 </pre>
 
+<dt>abort(), abort(text)
+<dd>Terminate the current program. Raises an exception.
+
 <dt>abs(x)
 <dd>Absolute value of <code>x</code>. Returns an integer if
 <code>x</code> is an integer. Takes also complex numbers.
@@ -203,12 +206,9 @@ If <code>n</code> is <code>null</code>, freeze the complete
 tree. Note that <code>const(x)</code> is equivalent to
 <code>const(1,x)</code>.
 
-<dt>copy(x), copy(n,x)
+<dt>copy(x)
 <dd>Construct a shallow copy of the object <code>x</code>
-and return it. If <code>n</code> is given, return a deep copy
-by depth <code>n</code>. If <code>n</code> is <code>null</code>,
-return a complete deep copy. Note that <code>copy(x)</code>
-is equivalent to <code>copy(1,x)</code>.
+and return it. For deep copy see copylib.
 
 <dt>type(x)
 <dd>Prototype of <code>x</code>.

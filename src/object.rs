@@ -70,6 +70,10 @@ impl Object{
             _ => false
         }
     }
+
+    pub fn id(x: u64) -> Object {
+        Object::Info(Info::Id(x))
+    }
 }
 
 impl fmt::Display for Object {
@@ -98,15 +102,16 @@ impl Clone for Object {
 
 #[derive(PartialEq,Eq,Clone,Copy)]
 pub enum Info {
-    Empty, Unimplemented
+    Empty, Unimplemented, Id(u64)
 }
 
 impl Info {
     pub fn to_string(&self) -> String {
-        String::from(match self {
-            Info::Empty => "empty",
-            Info::Unimplemented => "unimplemented"
-        })
+        match self {
+            Info::Empty => String::from("empty"),
+            Info::Unimplemented => String::from("unimplemented"),
+            Info::Id(x) => String::from(&format!("0x{:x}",x))
+        }
     }
 }
 

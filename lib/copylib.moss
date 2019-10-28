@@ -1,0 +1,57 @@
+
+begin
+public deep_copy_tree, deep_copy_dag
+
+use sys: id, istable, isclass
+
+function deep_copy_tree(x)
+   if id(x) is null
+      return x
+   end
+   T = type(x)
+   if T is List
+      return x.map(deep_copy_tree)
+   elif T is Map
+      return map([key,deep_copy_tree(value)] for key,value in x.items())
+   elif T is String
+      return x
+   elif istable(x)
+      return table T(deep_copy_tree(record(x)))
+   elif T is Range
+      return x
+   else
+      abort("unimplemented")
+   end
+end
+
+function copy_dag(x,m)
+   idx = id(x)
+   if idx is null
+      return x
+   elif idx in m
+      return m[idx]
+   else
+      T = type(x)
+      if T is List
+         y = x.map(|t| copy_dag(t,m))
+      elif T is Map
+         y = map([key,copy_dag(value,m)] for key,value in x.items())
+      elif T is String
+         y = x
+      elif istable(x)
+         y = table T(copy_dag(record(x,m)))
+      elif T is Range
+         y = x
+      else
+         abort("unimplemented")
+      end
+      m[idx] = y
+      return y
+   end
+end
+
+function deep_copy_dag(x)
+   return copy_dag(x,{})
+end
+
+end

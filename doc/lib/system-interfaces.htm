@@ -106,6 +106,21 @@ an integer.
 <dt>eprint(*a), eput(*a)
 <dd>Like <code>print(*a)</code> and <code>put(*a)</code>, but
 print to stderr instead of stdout.
+
+<dt>istable(x)
+<dd>True if <code>x</code> is a table object, else false.
+
+<dt>isclass(x)
+<dd>True if <code>x</code> is a class object, else false.
+
+<dt>id(x)
+<dd>Memory address of a pointer object. Value <code>null</code> for
+a non-pointer object. The only non-pointer objects are
+<code>null</code>, <code>empty</code> and
+objects of type <code>Bool</code>, <code>Int</code>, <code>Float</code>,
+<code>Complex</code>. Note that they are considered non-pointer, even
+if internally stored behind a pointer. Note that the address is not
+stored as an integer, because an integer cannot hold an u64 value.
 </dl>
 
 <h2 id="stackless">Module sys.stackless</h2>

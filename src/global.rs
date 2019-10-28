@@ -42,7 +42,8 @@ pub fn type_name(env: &mut Env, x: &Object) -> String {
         Object::Info(x) => {
             match x {
                 Info::Empty => "Empty",
-                Info::Unimplemented => "Unimplemented"
+                Info::Unimplemented => "Unimplemented",
+                Info::Id(_) => "Id"
             }
         },
         Object::Interface(ref x) => return x.type_name(env)
@@ -1040,11 +1041,11 @@ fn long(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     }
 }
 
-fn panic(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
+fn abort(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
-        0 => return env.std_exception("Panic."),
-        1 => return env.std_exception(&format!("Panic: {}.",argv[0])),
-        n => return env.argc_error(n,0,1,"panic")
+        0 => return env.std_exception("Aborted."),
+        1 => return env.std_exception(&format!("Aborted: {}.",argv[0])),
+        n => return env.argc_error(n,0,1,"abort")
     }
 }
 
@@ -1144,7 +1145,7 @@ pub fn init_rte(rte: &RTE){
     gtab.insert_fn_plain("map",map,1,1);
     gtab.insert_fn_plain("extend",extend,2,VARIADIC);
     gtab.insert_fn_plain("long",long,1,1);
-    gtab.insert_fn_plain("panic",panic,0,1);
+    gtab.insert_fn_plain("abort",abort,0,1);
     gtab.insert_fn_plain("getattr",getattr,2,2);
     gtab.insert_fn_plain("class",class_new,1,1);
     gtab.insert("empty", Object::empty());
