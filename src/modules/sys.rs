@@ -1,8 +1,12 @@
 
 use std::rc::Rc;
+use std::any::Any;
 use std::process;
 
-use crate::object::{Object, FnResult, VARIADIC, new_module, downcast};
+use crate::object::{
+    Object, FnResult, Interface, Exception,
+    VARIADIC, new_module, downcast
+};
 use crate::vm::{RTE,Env};
 use crate::class::{Class,Table};
 
@@ -98,8 +102,40 @@ fn isclass(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     }));
 }
 
+struct Id{
+    value: u64
+}
+
+impl Interface for Id {
+    fn as_any(&self) -> &dyn Any {self}
+    fn to_string(self: Rc<Self>, _env: &mut Env) -> Result<String,Box<Exception>> {
+        Ok(String::from(&format!("0x{:x}",self.value)))
+    }
+    fn hash(&self) -> u64 {self.value}
+    fn eq_plain(&self, b: &Object) -> bool {
+        if let Some(b) = downcast::<Id>(b) {
+            self.value == b.value
+        }else{
+            false
+        }
+    }
+    fn req_plain(&self, a: &Object) -> bool {
+        self.eq_plain(a)
+    }
+    fn eq(self: Rc<Self>, b: &Object, _env: &mut Env) -> FnResult {
+        Ok(Object::Bool(self.eq_plain(b)))
+    }
+    fn req(self: Rc<Self>, a: &Object, env: &mut Env) -> FnResult {
+        self.eq(a,env)
+    }
+}
+
 fn ptr_as_u64<T: ?Sized>(p: &Rc<T>) -> u64 {
     return &**p as *const T as *const () as u64;
+}
+
+fn address(x: u64) -> Object {
+    Object::Interface(Rc::new(Id{value: x}))
 }
 
 fn id(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
@@ -107,11 +143,11 @@ fn id(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
         1 => {}, n => return env.argc_error(n,1,1,"id")
     }
     Ok(match &argv[0] {
-        Object::String(x) => Object::id(ptr_as_u64(x)),
-        Object::List(x) => Object::id(ptr_as_u64(x)),
-        Object::Map(x) => Object::id(ptr_as_u64(x)),
-        Object::Function(x) => Object::id(ptr_as_u64(x)),
-        Object::Interface(x) => Object::id(ptr_as_u64(x)),
+        Object::String(x) => address(ptr_as_u64(x)),
+        Object::List(x) => address(ptr_as_u64(x)),
+        Object::Map(x) => address(ptr_as_u64(x)),
+        Object::Function(x) => address(ptr_as_u64(x)),
+        Object::Interface(x) => address(ptr_as_u64(x)),
         _ => Object::Null
     })
 }

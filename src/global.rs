@@ -42,8 +42,7 @@ pub fn type_name(env: &mut Env, x: &Object) -> String {
         Object::Info(x) => {
             match x {
                 Info::Empty => "Empty",
-                Info::Unimplemented => "Unimplemented",
-                Info::Id(_) => "Id"
+                Info::Unimplemented => "Unimplemented"
             }
         },
         Object::Interface(ref x) => return x.type_name(env)

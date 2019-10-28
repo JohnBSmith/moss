@@ -70,10 +70,6 @@ impl Object{
             _ => false
         }
     }
-
-    pub fn id(x: u64) -> Object {
-        Object::Info(Info::Id(x))
-    }
 }
 
 impl fmt::Display for Object {
@@ -102,15 +98,14 @@ impl Clone for Object {
 
 #[derive(PartialEq,Eq,Clone,Copy)]
 pub enum Info {
-    Empty, Unimplemented, Id(u64)
+    Empty, Unimplemented
 }
 
 impl Info {
     pub fn to_string(&self) -> String {
         match self {
             Info::Empty => String::from("empty"),
-            Info::Unimplemented => String::from("unimplemented"),
-            Info::Id(x) => String::from(&format!("0x{:x}",x))
+            Info::Unimplemented => String::from("unimplemented")
         }
     }
 }
@@ -437,8 +432,8 @@ pub trait Interface {
     fn type_name(&self, _env: &mut Env) -> String {
         "Interface object".to_string()
     }
-    fn get_type(&self, env: &mut Env) -> FnResult {
-        env.type_error("Type error in type(x): interface object x has no type")
+    fn get_type(&self, _env: &mut Env) -> FnResult {
+        Ok(Object::Null)
     }
     fn is_instance_of(&self, _type_obj: &Object, _rte: &RTE) -> bool {
         false

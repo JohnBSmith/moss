@@ -12,7 +12,7 @@ use std::fmt::Write;
 use crate::object::{
     Object, Map, List, Function, EnumFunction, StandardFn,
     FnResult, OperatorResult, Exception, CharString,
-    VARIADIC, Downcast, TypeName, Info, downcast, ptr_eq_plain
+    VARIADIC, Downcast, TypeName, downcast, ptr_eq_plain
 };
 use crate::{string,list,function,global,module};
 use crate::complex::Complex64;
@@ -353,13 +353,6 @@ impl Hash for Object{
             },
             Object::Interface(ref x) => {
                 state.write_u64(x.hash());
-            },
-            Object::Info(x) => {
-                if let Info::Id(x) = x {
-                    state.write_u64(x);
-                }else{
-                    panic!();
-                }
             },
             _ => panic!()
         }
