@@ -416,13 +416,17 @@ fn symbol_match(regex: &RegexSymbol, i: &mut CharIterator,
             }  
         },
         RegexSymbol::Complement(ref compl) => {
-            let index = i.index+1;
-            if symbol_match(compl,i,groups) {
-                i.index = index;
-                return false;
+            if let Some(_) = i.get() {
+                let index = i.index+1;
+                if symbol_match(compl,i,groups) {
+                    i.index = index;
+                    return false;
+                }else{
+                    i.index = index;
+                    return true;
+                }
             }else{
-                i.index = index;
-                return true;
+                return false;
             }
         }
     }

@@ -1,0 +1,161 @@
+
+use sys: exit
+use regex: re
+
+function error(s)
+   print("Error in test-regex: test #", s, " failed.")
+   exit(1)
+end
+
+if not re("ab").match("ab")
+   error("1.1")
+end
+
+if re("ab").match("a")
+   error("1.2")
+end
+
+if re("ab").match("abc")
+   error("1.3")
+end
+
+if not re(".").match("a")
+   error("1.4")
+end
+
+if not re("..").match("ab")
+   error("1.5")
+end
+
+if re(".").match("ab")
+   error("1.6")
+end
+
+if re("..").match("a")
+   error("1.7")
+end
+
+if re("ab").match("")
+   error("1.8")
+end
+
+if not re("").match("")
+   error("1.9")
+end
+
+if re("").match("a")
+   error("1.10")
+end
+
+if not re("a b").match("ab")
+   error("1.11")
+end
+
+if not re("\n\sa\s\n\sb\s\n").match("ab")
+   error("1.12")
+end
+
+if not re("[a-z]*").match("ab")
+   error("2.1")
+end
+
+if not re("[a-z]*").match("")
+   error("2.2")
+end
+
+if not re("[a-z]+").match("ab")
+   error("2.3")
+end
+
+if re("[a-z]+").match("")
+   error("2.4")
+end
+
+if not re("[a-z-]+").match("alpha-beta")
+   error("2.5")
+end
+
+if not re("(a|b)").match("a")
+   error("3.1")
+end
+
+if re("(a|b)").match("")
+   error("3.2")
+end
+
+if re("(a|b)").match("ab")
+   error("3.3")
+end
+
+if not re("(a|b)(a|b)").match("ab")
+   error("3.4")
+end
+
+if not re("(a|b)*").match("a")
+   error("3.5")
+end
+
+if not re("(a|b)*").match("ab")
+   error("3.6")
+end
+
+if not re("(a|b)*").match("")
+   error("3.7")
+end
+
+if not re("(a|b)+").match("a")
+   error("3.8")
+end
+
+if not re("(a|b)+").match("ab")
+   error("3.9")
+end
+
+if re("(a|b)+").match("")
+   error("3.10")
+end
+
+if re("(a|b)+").match("abc")
+   error("3.11")
+end
+
+if re("(a|b)+").match("ab\s")
+   error("3.12")
+end
+
+if re("(a|b)+").match("cab")
+   error("3.13")
+end
+
+if re("(a|b)+").match("\sab")
+   error("3.14")
+end
+
+begin
+   a = re("[a-z]+").list("alpha-beta-gamma")
+   if a!=["alpha","beta","gamma"]
+      error("4.1")
+   end
+   
+   a = re("(a|b)+").list("aa-ab-ba-bb")
+   if a!=["aa","ab","ba","bb"]
+      error("4.2")
+   end
+   
+   if re("[a-z]+").list("")!=[]
+      error("4.3")
+   end
+   
+   if re("(a|b)+").list("")!=[]
+      error("4.4")
+   end
+   
+   if re("[a-z]+").list("a")!=["a"]
+      error("4.5")
+   end
+   
+   if re("[a-z]+").list("ab")!=["ab"]
+      error("4.6")
+   end
+end
+

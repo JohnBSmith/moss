@@ -35,6 +35,7 @@ function tests(scale,path,extra=[])
    test("test-la")
    test("test-generators")
    test("test-exceptions")
+   test("test-regex")
    
    if scale>small
       test("test-cf")
