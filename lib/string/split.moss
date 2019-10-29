@@ -1,0 +1,31 @@
+
+begin
+use regex: re
+
+word = re("{a}+")
+nonspace = re("{~_}+")
+
+String.words = fn words||
+   return word.list(self)
+end
+
+String.split = fn split|sep=null|
+   if sep is null
+      return nonspace.list(self)
+   else
+      a = []; w = []
+      for c in self
+         if c in sep
+            if len(w)!=0 then a.push(w.join()) end
+            w = []
+         else
+            w.push(c)
+         end
+      end
+      if len(w)!=0 then a.push(w.join()) end
+      return a
+   end
+end
+
+end
+

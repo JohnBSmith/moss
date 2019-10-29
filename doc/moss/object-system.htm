@@ -742,7 +742,7 @@ d.quack()
 technique is called <i>monkey patching</i> and considered a bad
 practice, because it can result in name conflicts.
 
-<p>As an example, we will add a method to the list type, that
+<p>As an example, we will add a method to the list type that
 splits the list into pairs.
 
 <pre class="moss cmd-box">
@@ -750,6 +750,29 @@ splits the list into pairs.
 &gt; list(1..4).pairs()
 [[1,2], [3,4]]
 </pre>
+
+<p>A more interesting example of a convenience extension:
+<pre class="moss indent">
+String.split = fn|sep|
+   a = []; w = []
+   for c in self
+      if c in sep
+         if len(w)!=0 then a.push(w.join()) end
+         w = []
+      else
+         w.push(c)
+      end
+   end
+   if len(w)!=0 then a.push(w.join()) end
+   return a
+end
+</pre>
+
+<pre class="moss cmd-box">
+&gt; "1, 12, 3.5, 9".split(",\s")
+["1", "12", "3.5", "9"]
+</pre>
+
 
 <h2 id="custom">Custom class constructors</h2>
 

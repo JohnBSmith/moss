@@ -41,6 +41,34 @@ else <code>null</code>.
 <dd>Replace every non-overlapping match <code>x</code> with <code>f(x)</code>.
 </dl>
 
+<h2 id="split">Module string.split</h2>
+<p>Split strings into parts.
+
+<h3>Extension of String, s: String</h3>
+<dl class="code">
+<dt>s.words(), s.words(regex)
+<dd>Filter words out of a string.
+
+<dt>s.split(), s.split(sep)
+<dd>Split a string into parts separated by characters in the
+string <code>sep</code>.
+</dl>
+
+<p>Examples:
+<pre class="moss indent">
+uniq = |a| set(a).sort()
+text = read("input.txt")
+
+a = uniq(text.words().map(|s| s.lower()))
+
+lines = text.split("\n")
+
+a = "1, 12, 3, 04".words("[0-9]+").map(int)
+
+a = "1, 12, 3, 04".split(",\s").map(int)
+</pre>
+
+
 </body>
 </html>
 

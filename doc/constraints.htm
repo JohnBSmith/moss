@@ -24,7 +24,9 @@
 <li>Destructors should be possible.
 <li>The function <code>type(x)</code> should return <code>null</code>
   in case <code>x</code> has no type. Otherwise it cannot be used
-  for type guards in general.
+  for type guards in general. For the same reason, <code>x: T</code>
+  should return false for every object <code>T</code> if <code>x</code>
+  does not implement the operation.
 </ol>
 
 </body>
