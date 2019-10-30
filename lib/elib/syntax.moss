@@ -1,12 +1,19 @@
 
+begin
+public parser, simplify, SyntaxError
+
 class SyntaxError = {}
 class Symbol = {}
 class Number = {}
 class Identifier = {}
 
+function simplify(op)
+   return |t| t[1] if len(t)==2 else [op]+t[1..]
+end
+
 function syntax_error(line,col,s)
    return table SyntaxError{
-      text = "Line {}, col {}:\nSyntax error: {}." % [line,col,s]}
+      text = "Line {}, col {}:\nSyntax error: {}." % [line+1,col+1,s]}
 end
 
 function scan(s)
@@ -34,9 +41,9 @@ function scan(s)
          end
          a.push([String,s[j..i-1],line,col])
          i+=1; col+=1
-      elif s[i].isalpha()
+      elif s[i].isalpha() or s[i]=='_'
          j = i
-         while i<n and s[i].isalnum()
+         while i<n and (s[i].isalnum() or s[i]=='_')
             i+=1; col+=1
          end
          a.push([Identifier,s[j..i-1],line,col])
@@ -58,7 +65,7 @@ function scan(s)
             "unexpected character: '{}'"%[s[i]])
       end
    end
-   a.push([null,null])
+   a.push([null,null,line,col])
    return a
 end
 
@@ -149,8 +156,28 @@ function production_rules(s)
    return parse_rules(a,0)
 end
 
-function parser(grammar)
-   grammar_ast = production_rules(grammar)
+function parser(argm)
+   grammar_ast = production_rules(argm["grammar"])
+   transform_tab = argm("transform") or else {}
+   function transform(t)
+      if type(t) is List
+         trafo = transform_tab(t[0])
+         if trafo is null
+            return t
+         elif type(trafo) is String
+            if len(trafo)==0
+               return t[1] if len(t)==2 else t
+            else
+               t[0] = trafo
+               return t
+            end
+         else
+            return trafo(t)
+         end
+      else
+         return t
+      end
+   end
    ftab = {
       identifier = fn|a,i,option|
          t = a[i]
@@ -173,19 +200,50 @@ function parser(grammar)
          end
       end
    }
-   function alternative(a,i,items)
-      for item in items
-         if type(item) is String
-            value = ftab[item](a,i,true)
+   function alternative(a,i,parts,operation)
+      for part in parts
+         if type(part) is String
+            value = ftab[part](a,i,true)
             if not value is null
-               return value
+               operation.push(value[1])
+               return value[0],transform(operation)
+            end
+         elif part[0]=="chain"
+            accepted = true
+            k = i
+            buffer = []
+            for item in part[1..]
+               if type(item) is String
+                  value = ftab[item](a,k,true)
+                  if not value is null
+                     k,x = value
+                     buffer.push(x)
+                  else
+                     accepted = false
+                     break
+                  end
+               elif item[0]=="symbol"
+                  t = a[k]
+                  if t[0] is Symbol and t[1]==item[1]
+                     k+=1
+                  else
+                     accepted = false
+                     break
+                  end
+               else
+                  abort()
+               end
+            end
+            if accepted
+               operation.append(buffer)
+               return k,transform(operation)
             end
          else
-            abort()
+            abort(part)
          end
       end
       t = a[i]
-      raise syntax_error(t[2],t[3],"alternative")
+      raise syntax_error(t[2],t[3],"unexpected token: "+str(t[1]))
    end
    for key, rule in grammar_ast
       if type(rule) is String
@@ -195,8 +253,12 @@ function parser(grammar)
             operation = [key]
             for item in rule[1..]
                if type(item) is String
-                  i,x = ftab[item](a,i,option)
-                  operation.push(x)
+                  value = ftab[item](a,i,option)
+                  if value is null
+                     return null
+                  end
+                  i = value[0]
+                  operation.push(value[1])
                elif item[0]=="symbol"
                   t = a[i]
                   if t[0] is Symbol and t[1]==item[1]
@@ -209,17 +271,21 @@ function parser(grammar)
                      ].join())
                   end
                elif item[0]=="or"
-                  i,x = alternative(a,i,item[1..])
-                  operation.push(x)
+                  value = alternative(a,i,item[1..])
+                  if value is null
+                     return null
+                  end
+                  i = value[0]
+                  operation.push(value[1])
                else
                   abort()
                end
             end
-            return i,operation
+            return i,transform(operation)
          end
       elif rule[0]=="or"
          ftab[key] = fn|a,i,option|
-            return alternative(a,i,rule[1..])
+            return alternative(a,i,rule[1..],[key])
          end
       else
          abort("unexpected rule: "+rule[0])
@@ -236,15 +302,33 @@ function parser(grammar)
    end
 end
 
-/*
-parse = parser("""
-   operand = identifier | number;
-   addition = operand '+' operand;
-   ast = addition;
-""")
+end
 
-t = parse("x+y")
+/*
+grammar = """
+   operand = identifier | number;
+   multiplication = operand '*' mul_expr;
+   division = operand '/' mul_expr;
+   mul_expr = multiplication | division | operand;
+   subtraction = mul_expr '-' add_expr;
+   addition = mul_expr '+' add_expr;
+   add_expr = addition | subtraction | mul_expr;
+   ast = add_expr;
+"""
+
+transform = {
+   addition = |t| t[1] if len(t)==2 else ["+"]+t[1..],
+   subtraction = |t| t[1] if len(t)==2 else ["-"]+t[1..],
+   multiplication = |t| t[1] if len(t)==2 else ["*"]+t[1..],
+   add_expr = "",
+   mul_expr = "",
+   operand = ""
+}
+
+parse = parser({grammar = grammar,transform = transform})
+
+t = parse("x+(a*b)")
 print(t)
-*/
+# */
 
 
