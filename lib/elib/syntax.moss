@@ -1,0 +1,250 @@
+
+class SyntaxError = {}
+class Symbol = {}
+class Number = {}
+class Identifier = {}
+
+function syntax_error(line,col,s)
+   return table SyntaxError{
+      text = "Line {}, col {}:\nSyntax error: {}." % [line,col,s]}
+end
+
+function scan(s)
+   a = []
+   n = len(s)
+   i = 0
+   line = 0; col = 0
+   while i<n
+      if s[i] in "+-*/^(){}[];,=|"
+         a.push([Symbol,s[i],line,col])
+         i+=1; col+=1
+      elif s[i]=='"'
+         i+=1; col+=1
+         j = i
+         while i<n and s[i]!='"'
+            i+=1; col+=1
+         end
+         a.push([String,s[j..i-1],line,col])
+         i+=1; col+=1
+      elif s[i]=="'"
+         i+=1; col+=1
+         j = i
+         while i<n and s[i]!="'"
+            i+=1; col+=1
+         end
+         a.push([String,s[j..i-1],line,col])
+         i+=1; col+=1
+      elif s[i].isalpha()
+         j = i
+         while i<n and s[i].isalnum()
+            i+=1; col+=1
+         end
+         a.push([Identifier,s[j..i-1],line,col])
+      elif s[i].isdigit()
+         j = i
+         while i<n and s[i].isdigit()
+            i+=1; col+=1
+         end
+         a.push([Number,int(s[j..i-1]),line,col])
+      elif s[i].isspace()
+         if s[i]=='\n'
+            col = 0; line+=1
+         else
+            col+=1
+         end
+         i+=1
+      else
+         raise syntax_error(line,col,
+            "unexpected character: '{}'"%[s[i]])
+      end
+   end
+   a.push([null,null])
+   return a
+end
+
+function identifier(a,i)
+   t = a[i]
+   if t[0] is Identifier
+      return i+1,t[1]
+   else
+      raise syntax_error(t[2],t[3],"expected identifier")
+   end
+end
+
+function parse_atom(a,i)
+   t = a[i]
+   if t[0] is Identifier
+      return i+1,t[1]
+   elif t[0] is String
+      return i+1,["symbol",t[1]]
+   else
+      raise syntax_error(t[2],t[3],"expected identifier or string")
+   end
+end
+
+function parse_chain(a,i)
+   operands = ["chain"]
+   while true
+      i,x = parse_atom(a,i)
+      operands.push(x)
+      t = a[i]
+      if t[0] is Symbol and (t[1]=="|" or t[1]==";")
+         if len(operands)==2
+            return i,operands[1]
+         else
+            return i,operands
+         end
+      end
+   end
+end
+
+function parse_alternative(a,i)
+   operands = ["or"]
+   while true
+      i,x = parse_chain(a,i)
+      operands.push(x)
+      t = a[i]
+      if t[0] is Symbol and t[1]=="|"
+         i+=1
+      else
+         if len(operands)==2
+            return i,operands[1]
+         else
+            return i,operands
+         end
+      end
+   end
+end
+
+function parse_rule(a,i)
+   i,key = identifier(a,i)
+   t = a[i]
+   if not(t[0] is Symbol and t[1]=="=")
+      syntax_error(t[2],t[3],"expected '='")
+   else
+      i+=1
+   end
+   i,x = parse_alternative(a,i)
+   t = a[i]
+   if not(t[0] is Symbol and t[1]==";")
+      syntax_error(t[2],t[3],"expected ';'")
+   end
+   i+=1
+   return i,[key,x]
+end
+
+function parse_rules(a,i)
+   rules = []
+   while true
+      i,x = parse_rule(a,i)
+      rules.push(x)
+      if a[i][0] is null
+         return rules
+      end
+   end
+end
+
+function production_rules(s)
+   a = scan(s)
+   return parse_rules(a,0)
+end
+
+function parser(grammar)
+   grammar_ast = production_rules(grammar)
+   ftab = {
+      identifier = fn|a,i,option|
+         t = a[i]
+         if t[0] is Identifier
+            return i+1,t[1]
+         elif option
+            return null
+         else
+            raise syntax_error(t[2],t[3],"expected identifier")
+         end
+      end,
+      number = fn|a,i,option|
+         t = a[i]
+         if t[0] is Number
+            return i+1,t[1]
+         elif option
+            return null
+         else
+            raise syntax_error(t[2],t[3],"expected number")
+         end
+      end
+   }
+   function alternative(a,i,items)
+      for item in items
+         if type(item) is String
+            value = ftab[item](a,i,true)
+            if not value is null
+               return value
+            end
+         else
+            abort()
+         end
+      end
+      t = a[i]
+      raise syntax_error(t[2],t[3],"alternative")
+   end
+   for key, rule in grammar_ast
+      if type(rule) is String
+         ftab[key] = ftab[rule]
+      elif rule[0]=="chain"
+         ftab[key] = fn|a,i,option|
+            operation = [key]
+            for item in rule[1..]
+               if type(item) is String
+                  i,x = ftab[item](a,i,option)
+                  operation.push(x)
+               elif item[0]=="symbol"
+                  t = a[i]
+                  if t[0] is Symbol and t[1]==item[1]
+                     i+=1
+                  elif option
+                     return null
+                  else
+                     raise syntax_error(t[2],t[3],[
+                        "expected '", item[1], "', but got '", t[1], "'"
+                     ].join())
+                  end
+               elif item[0]=="or"
+                  i,x = alternative(a,i,item[1..])
+                  operation.push(x)
+               else
+                  abort()
+               end
+            end
+            return i,operation
+         end
+      elif rule[0]=="or"
+         ftab[key] = fn|a,i,option|
+            return alternative(a,i,rule[1..])
+         end
+      else
+         abort("unexpected rule: "+rule[0])
+      end
+   end
+   return fn parse|s|
+      a = scan(s)
+      i,x = ftab["ast"](a,0,false)
+      if not a[i][0] is null
+         raise syntax_error(a[i][2],a[i][3],
+             "expected end of input, but got '"+a[i][1]+"'")
+      end
+      return x
+   end
+end
+
+/*
+parse = parser("""
+   operand = identifier | number;
+   addition = operand '+' operand;
+   ast = addition;
+""")
+
+t = parse("x+y")
+print(t)
+*/
+
+

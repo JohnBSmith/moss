@@ -30,7 +30,7 @@
 # takes an input string,
 # returns a list of tokens.
 
-SyntaxError = table{}
+class SyntaxError = {}
 
 function syntax_error(s)
    return table SyntaxError{value = "Syntax error: {}."%[s]}
@@ -214,10 +214,10 @@ function eval(t)
       elif op=="~"
          return -eval(t[1])
       else
-        panic()
+         abort("unimplemented")
       end
    else
-      panic()
+      abort("unimplemented")
    end
 end
 
