@@ -1,0 +1,47 @@
+
+use string.syntax: parser, SyntaxError
+
+parse = parser{
+   scan = {symbols = list("+-*/^()")},
+   transform = {
+      atom = "", power_expr = "",
+      add_expr = "", mul_expr = "", neg_expr = "",
+      add = "+", sub = "-", mul = "*", div = "/",
+      power = "^", neg = "~"
+   },
+   grammar = "
+      atom = number | '(' add_expr ')';
+      power = atom '^' neg_expr;
+      power_expr = power | atom;
+      neg = '-' power_expr;
+      neg_expr = neg | power_expr;
+      mul = '*' neg_expr;
+      div = '/' neg_expr;
+      mul_expr = neg_expr {mul | div};
+      add = '+' mul_expr;
+      sub = '-' mul_expr;
+      add_expr = mul_expr {add | sub};
+      ast = add_expr;
+   "
+}
+
+dispatch = {
+   "+": |x,y| x+y, "-": |x,y| x-y,
+   "*": |x,y| x*y, "/": |x,y| x/y,
+   "^": |x,y| x^y, "~": |x| -x
+}
+
+evaluate = |t| (t if t: Int
+   else dispatch[t[0]](*t[1..].map(evaluate)))
+
+while true
+   s = input("# ")
+   if s=="" then continue end
+   try
+      t = parse(s)
+      print("AST: ",t)
+      print("Value: ",evaluate(t),"\n")
+   catch e if e: SyntaxError
+      print(e.text,"\n")
+   end
+end

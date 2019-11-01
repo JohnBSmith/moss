@@ -20,6 +20,7 @@
 <li><a href="#scan">Lexical analysis</a>
 <li><a href="#recursive-descent">A recursive descent parser</a>
 <li><a href="#eval">A simple evaluator</a>
+<li><a href="#generator">Using a parser generator</a>
 </ol>
 </div>
 
@@ -243,6 +244,48 @@ dispatch = {
 
 eval = |t| (t if t: Int else
   dispatch[t[0]](*t[1..].map(eval)))
+</pre>
+
+<h2 id="generator">Using a parser generator</h2>
+
+<pre class="moss">
+# The standard library contains a simple parser generator.
+
+use string.syntax: parser, SyntaxError
+
+ast = parser{
+   scan = {symbols = list("+-*/^()")},
+   transform = {
+      atom = "", power_expr = "", neg_expr = "",
+      add_expr = "", mul_expr = "",
+      add = "+", sub = "-", mul = "*", div = "/",
+      power = "^", neg = "~"
+   },
+   grammar = "
+      atom = number | identifier | '(' add_expr ')';
+      power = atom '^' neg_expr;
+      power_expr = power | atom;
+      neg = '-' power_expr;
+      neg_expr = neg | power_expr;
+      mul = '*' neg_expr;
+      div = '/' neg_expr;
+      mul_expr = neg_expr {mul | div};
+      add = '+' mul_expr;
+      sub = '-' mul_expr;
+      add_expr = mul_expr {add | sub};
+      ast = add_expr;
+   "
+}
+
+while true
+   s = input("> ")
+   try
+      t = ast(s)
+      print(t)
+   catch e if e: SyntaxError
+      print(e.text)
+   end
+end
 </pre>
 
 </body>
