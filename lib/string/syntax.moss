@@ -115,7 +115,12 @@ function parse_atom(a,i)
       if not(t[0] is Symbol and t[1]=="}")
          raise syntax_error(t[2],t[3],"expected '}'")
       end
-      return i+1,["rep",x]
+      t = a[i+1]
+      if t[0] is Symbol and t[1]=="*"
+         return i+2,["*",x]
+      else
+         return i+1,["rep",x]
+      end
    else
       raise syntax_error(t[2],t[3],
          "expected identifier or string, but got: '"+str(t[1])+"'")
@@ -263,20 +268,12 @@ function parser(argm)
          return rec_tab.alternative(a,i,part[1..],operation,option)
       elif part[0]=="rep"
          return rec_tab.repitition(a,i,part[1],operation,option)
+      elif part[0]=="*"
+         return rec_tab.repitition_plain(a,i,part[1],operation,option)
       else
          abort(part)
       end
       return null   
-   end
-   function repitition_plain(a,i,part,operation,option)
-      while true
-         value = node(a,i,part,operation,true)
-         if value is null
-            return i,operation
-         else
-            i,x = value
-         end
-      end
    end
    function repitition(a,i,part,operation,option)
       while true
@@ -286,7 +283,19 @@ function parser(argm)
          else
             i,[y] = value
             x = operation.pop()
+            assert len(y)==2
             operation.push([y[0],x,y[1]])
+         end
+      end
+   end
+   function repitition_plain(a,i,part,operation,option)
+      while true
+         value = node(a,i,part,[],true)
+         if value is null
+            return i,operation
+         else
+            i,y = value
+            operation.append(y)
          end
       end
    end
@@ -324,8 +333,9 @@ function parser(argm)
    end
 
    rec_tab.repitition = repitition
-   rec_tab.alternative = alternative;
-   rec_tab.chain = chain;
+   rec_tab.repitition_plain = repitition_plain
+   rec_tab.alternative = alternative
+   rec_tab.chain = chain
 
    for key, rule in grammar_ast
       if type(rule) is String
@@ -349,6 +359,10 @@ function parser(argm)
          ftab[key] = fn|a,i,option|
             return repitition(a,i,rule[1],[key],option)
          end
+      elif rule[0]=="*"
+         ftab[key] = fn|a,i,option|
+            return repitition_plain(a,i,rule[1],[key],option)
+         end
       else
          abort("unexpected rule: "+rule[0])
       end
@@ -367,4 +381,5 @@ function parser(argm)
 end
 
 end
+
 

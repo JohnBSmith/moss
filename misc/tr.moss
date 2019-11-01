@@ -2,7 +2,7 @@
 use string.syntax: parser, SyntaxError
 
 parse = parser{
-   scan = {symbols = list("+-*/^()")},
+   scan = {symbols = list("+-*/^()[],")},
    transform = {
       atom = "", power_expr = "",
       add_expr = "", mul_expr = "", neg_expr = "",
@@ -10,7 +10,8 @@ parse = parser{
       power = "^", neg = "~"
    },
    grammar = "
-      atom = number | '(' add_expr ')';
+      atom = number | '(' add_expr ')' | list;
+      list = '[' add_expr {',' add_expr}* ']';
       power = atom '^' neg_expr;
       power_expr = power | atom;
       neg = '-' power_expr;
@@ -28,7 +29,8 @@ parse = parser{
 dispatch = {
    "+": |x,y| x+y, "-": |x,y| x-y,
    "*": |x,y| x*y, "/": |x,y| x/y,
-   "^": |x,y| x^y, "~": |x| -x
+   "^": |x,y| x^y, "~": |x| -x,
+   "list": |*a| a
 }
 
 evaluate = |t| (t if t: Int
@@ -45,3 +47,4 @@ while true
       print(e.text,"\n")
    end
 end
+
