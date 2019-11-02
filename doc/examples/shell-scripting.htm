@@ -20,6 +20,7 @@
 <li><a href="#sh">Shell commands</a>
 <li><a href="#error-output">Error output</a>
 <li><a href="#exit">Exit with status code</a>
+<li><a href="#main">Modules as main programs</a>
 </ol>
 </div>
 
@@ -106,6 +107,24 @@ use sys: exit
 # Exit the program with a status code
 # (0: success, 1: failure)
 exit(1)
+</pre>
+
+<br>
+<h2 id="main">Modules as main programs</h2>
+
+<p>A module may show different behavior, depending on whether
+it is executed as the main program or loaded as a module. The
+function <code>sys.main</code> requests the runtime environment,
+whether the current code is run as the main program or not.
+
+<pre class="moss">
+use sys
+
+if sys.main()
+   print("Module was executed as the main program.")
+else
+   print("Module was loaded from somewhere.")
+end
 </pre>
 
 

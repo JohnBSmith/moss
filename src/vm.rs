@@ -3315,16 +3315,6 @@ fn new_table(prototype: Object, map: Object) -> Object {
     }
 }
 
-/*
-fn new_stamp(s: &str, ptype: &Rc<Table>, prototype: &Object) -> Object {
-    return Tuple::new_object(vec![
-        Object::Interface(ptype.clone()),
-        CharString::new_object_str(s),
-        prototype.clone()
-    ]);
-}
-*/
-
 pub fn interface_types_set(rte: &RTE, index: usize, x: Rc<Class>) {
     let mut v = rte.interface_types.borrow_mut();
     if index<v.len() {
@@ -3394,6 +3384,7 @@ pub struct RTE{
     pub empty_map: Rc<RefCell<Map>>,
     pub capabilities: RefCell<Capabilities>,
     pub char_table: Vec<Object>,
+    pub main_module: Cell<bool>,
 
     pub key_string: Object,
     pub key_iter: Object,
@@ -3471,6 +3462,7 @@ impl RTE{
                 command: false
             }),
             char_table: char_table,
+            main_module: Cell::new(true),
 
             key_string: CharString::new_object_str("string"),
             key_iter:   CharString::new_object_str("iter"),

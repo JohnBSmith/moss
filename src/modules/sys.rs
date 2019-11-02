@@ -152,6 +152,13 @@ fn id(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     })
 }
 
+fn ismain(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
+    match argv.len() {
+        0 => {}, n => return env.argc_error(n,0,0,"main")
+    }
+    Ok(Object::Bool(env.rte().main_module.get()))
+}
+
 pub fn load_sys(rte: &Rc<RTE>) -> Object {
     let sys = new_module("sys");
     {
@@ -168,6 +175,7 @@ pub fn load_sys(rte: &Rc<RTE>) -> Object {
         m.insert_fn_plain("istable",istable,1,1);
         m.insert_fn_plain("isclass",isclass,1,1);
         m.insert_fn_plain("id",id,1,1);
+        m.insert_fn_plain("main",ismain,0,0);
     }
     return Object::Interface(Rc::new(sys));
 }

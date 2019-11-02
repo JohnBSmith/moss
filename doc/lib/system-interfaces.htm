@@ -99,8 +99,8 @@ Returns <code>null</code> if the process was successful, otherwise
 an integer.
 
 <pre class="moss">
-&gt; cmd("sh",["-c","GET en.wikipedia.org > /tmp/0"])
-&gt; s = read("/tmp/0")
+cmd("sh",["-c","GET en.wikipedia.org > /tmp/0"])
+s = read("/tmp/0")
 </pre>
 
 <dt>eprint(*a), eput(*a)
@@ -121,6 +121,10 @@ objects of type <code>Bool</code>, <code>Int</code>, <code>Float</code>,
 <code>Complex</code>. Note that they are considered non-pointer, even
 if internally stored behind a pointer. Note that the address is not
 stored as an integer, because an integer cannot hold an u64 value.
+
+<dt>main()
+<dd>Request whether the current module is executed as the main
+program or not. Returns a boolean value.
 </dl>
 
 <h2 id="stackless">Module sys.stackless</h2>
@@ -130,7 +134,7 @@ It should be used together with <code>sys.call</code> to
 enable unlimited recursion depth.
 
 <p>The following functions are patched:
-<pre>
+<pre class="indent">
 List.map, List.filter,
 Iterable.map, Iterable.filter, Iterable.all, Iterable.any,
 Iterable.count, Iterable.reduce

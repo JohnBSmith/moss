@@ -283,8 +283,9 @@ fn load_file(env: &mut Env, id: &str) -> FnResult {
 
     let module = new_module(id);
     env.rte().clear_at_exit(module.map.clone());
-
+    let cond = env.rte().main_module.get();
     let value = if binary {
+        env.rte().main_module.set(false);
         eval_module(env,module.map.clone(),&mut f,id)
     }else{
         let mut s = String::new();
@@ -292,8 +293,10 @@ fn load_file(env: &mut Env, id: &str) -> FnResult {
             return env.std_exception(&format!(
                 "Error in load: could not read file '{}.moss'.",id));
         }
+        env.rte().main_module.set(false);
         env.eval_string(&s,id,module.map.clone(),Value::None)
     };
+    env.rte().main_module.set(cond);
     return Ok(match value? {
         Object::Null => Object::Interface(Rc::new(module)),
         x => x
