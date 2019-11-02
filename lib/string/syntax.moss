@@ -2,12 +2,15 @@
 begin
 public parser, left, simplify, SyntaxError
 
+use regex: re
+
 class SyntaxError = {}
 class Symbol = {}
 class Number = {}
 class Identifier = {}
 
 rec_gtab = table{}
+default_symbols = list("+-*/^(){}[];,=|")
 
 function simplify(op)
    return |t| t[1] if len(t)==2 else [op]+t[1..]
@@ -35,7 +38,14 @@ function syntax_error(line,col,s)
 end
 
 function scanner(scan_table)
-   symbols1 = set(scan_table["symbols"].filter(|x| len(x)==1))
+   symbols = scan_table("symbols") or else default_symbols
+   symbols1 = set(symbols.filter(|x| len(x)==1))
+   if "letter" in scan_table
+      r = re(scan_table["letter"])
+      letter = |c| r.match(c)
+   else
+      letter = |c| c.isalpha() or c=='_'
+   end
    return fn scan|s|
       a = []
       n = len(s)
@@ -61,18 +71,18 @@ function scanner(scan_table)
             end
             a.push([String,s[j..i-1],line,col])
             i+=1; col+=1
-         elif s[i].isalpha() or s[i]=='_'
-            j = i
-            while i<n and (s[i].isalnum() or s[i]=='_')
-               i+=1; col+=1
-            end
-            a.push([Identifier,s[j..i-1],line,col])
          elif s[i].isdigit()
             j = i
-            while i<n and s[i].isdigit()
+            while i<n and (s[i].isdigit() or s[i]=='.')
                i+=1; col+=1
             end
             a.push([Number,int(s[j..i-1]),line,col])
+         elif letter(s[i])
+            j = i
+            while i<n and (letter(s[i]) or s[i].isdigit())
+               i+=1; col+=1
+            end
+            a.push([Identifier,s[j..i-1],line,col])
          elif s[i].isspace()
             if s[i]=='\n'
                col = 0; line+=1
@@ -91,7 +101,7 @@ function scanner(scan_table)
 end
 
 default_scan = scanner({
-   symbols = list("+-*/^(){}[];,=|")
+   symbols = default_symbols
 })
 
 function identifier(a,i)
@@ -398,20 +408,4 @@ function parser(argm)
 end
 
 end
-
-/*
-ast = parser{
-   grammar = """
-      atom = number | identifier;
-      list = ('(' expr {expr}* ')');
-      expr = atom | list;
-      ast = expr;
-   """,
-   transform = {
-      atom = "", expr = ""
-   }
-}
-
-print(ast("(1 2 (3 + 4))"))
-#*/
 

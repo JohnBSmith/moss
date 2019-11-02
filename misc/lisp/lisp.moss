@@ -3,6 +3,7 @@ use string.syntax: parser, SyntaxError
 use sys: argv
 
 ast = parser{
+   scan = {symbols = list("()"), letter = "[~{_}()]"},
    transform = {atom = "", expr = "", list = |t| t[1..]},
    grammar = """
       atom = number | identifier;
@@ -13,22 +14,21 @@ ast = parser{
 }
 
 dispatch = {
-   "lambda": |t,con| |x| evaluate(t[2],table con(
-      map(zip(t[1],x)) if t[1]: List else {t[1]: x[0]})),
+   "lambda": |t,con| |x| evaluate(t[2],table con(map(zip(t[1],x)))),
    "if": (|t,con|
-      evaluate(t[2],con) if evaluate(t[1],con) else
-      evaluate(t[3],con)),
+      evaluate(t[3],con) if evaluate(t[1],con) is false else
+      evaluate(t[2],con)),
    "define": fn|t,con|
       con.(t[1]) = evaluate(t[2],con)
    end
 }
 
 global_context = table{
-   "add": |a| a.sum(), "mul": |a| a.prod(),  
-   "sub": |a| a[0]-a[1], "div": |a| a[0]/a[1],
-   "true": true, "false": false,
-   "eq": |a| a[0]==a[1], "neq": |a| a[0]!=a[1],
-   "lt": |a| a[0]<a[1], "le": |a| a[0]<=a[1],
+   "+": |a| a.sum(), "*": |a| a.prod(),  
+   "-": |a| a[0]-a[1], "/": |a| a[0]/a[1],
+   "#t": true, "#f": false,
+   "=": |a| a[0]==a[1], "not": |a| a[0] is false,
+   "<": |a| a[0]<a[1], "<=": |a| a[0]<=a[1],
    "block": |a| a[-1], "display": |a| print(*a)
 }
 

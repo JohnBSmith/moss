@@ -1,7 +1,7 @@
 
 (define fac
-    (lambda n
-        (if (eq n 0) 1 (mul n (fac (sub n 1))))))
+    (lambda (n)
+        (if (= n 0) 1 (* n (fac (- n 1))))))
 
 (display (fac 4))
 
