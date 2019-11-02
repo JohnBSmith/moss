@@ -2599,7 +2599,11 @@ fn operator_index(env: &mut EnvPart, argc: usize,
     }
     match stack[sp-2].clone() {
         Object::List(a) => {
-            let a = a.borrow();
+            let a = match a.try_borrow() {
+                Ok(value) => value,
+                Err(_) => return Err(env.std_exception_plain(
+                    "Error in a[i]: a is already borrowed."))
+            };
             if let Object::Int(i) = stack[sp-1] {
                 let index = if i<0 {
                     let iplus = i+(a.v.len() as i32);

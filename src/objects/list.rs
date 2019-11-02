@@ -155,7 +155,7 @@ fn map(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
         return env.argc_error(argv.len(),1,1,"map");
     }
     let a = match *pself {
-        Object::List(ref a) => a.borrow_mut(),
+        Object::List(ref a) => a.borrow(),
         _ => {return env.type_error("Type error in a.map(f): a is not a list.");}
     };
     let mut v: Vec<Object> = Vec::with_capacity(a.v.len());
@@ -171,7 +171,7 @@ fn filter(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
         return env.argc_error(argv.len(),1,1,"filter");
     }
     let a = match *pself {
-        Object::List(ref a) => a.borrow_mut(),
+        Object::List(ref a) => a.borrow(),
         _ => {return env.type_error("Type error in a.filter(p): a is not a list.");}
     };
     let mut v: Vec<Object> = Vec::new();
@@ -212,14 +212,14 @@ fn list_chain(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
         0 => {}, n => return env.argc_error(n,0,0,"chain")
     }
     let a = match *pself {
-        Object::List(ref a) => a.borrow_mut(),
+        Object::List(ref a) => a.borrow(),
         _ => return env.type_error("Type error in a.chain(): a is not a list.")
     };
     let mut v: Vec<Object> = Vec::new();
     for t in &a.v {
         match *t {
             Object::List(ref t) => {
-                for x in &t.borrow_mut().v {
+                for x in &t.borrow().v {
                     v.push(x.clone());
                 }
             },

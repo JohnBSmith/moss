@@ -121,6 +121,16 @@ function parse_atom(a,i)
       else
          return i+1,["rep",x]
       end
+   elif t[0] is Symbol and t[1]=="("
+      i,x = rec_gtab.parse_chain(a,i+1)
+      t = a[i]
+      if not(t[0] is Symbol and t[1]==")")
+         raise syntax_error(t[2],t[3],"expected ')'")
+      end
+      if x: List and x[0]=="chain"
+         x[1] = true
+      end
+      return i+1,x
    else
       raise syntax_error(t[2],t[3],
          "expected identifier or string, but got: '"+str(t[1])+"'")
@@ -128,14 +138,14 @@ function parse_atom(a,i)
 end
 
 function parse_chain(a,i)
-   operands = ["chain"]
+   operands = ["chain",false]
    while true
       i,x = parse_atom(a,i)
       operands.push(x)
       t = a[i]
-      if t[0] is Symbol and (t[1]=="|" or t[1]==";" or t[1]=="}")
-         if len(operands)==2
-            return i,operands[1]
+      if t[0] is Symbol and (t[1]=="|" or t[1]==";" or t[1]=="}" or t[1]==")")
+         if len(operands)==3
+            return i,operands[2]
          else
             return i,operands
          end
@@ -194,7 +204,8 @@ function production_rules(s)
    return parse_rules(a,0)
 end
 
-rec_gtab.parse_alternative = parse_alternative;
+rec_gtab.parse_alternative = parse_alternative
+rec_gtab.parse_chain = parse_chain
 
 function parser(argm)
    grammar_ast = production_rules(argm["grammar"])
@@ -258,12 +269,13 @@ function parser(argm)
          elif option
             return null
          else
+            x = "end of input" if t[1] is null else "'"+t[1]+"'"
             raise syntax_error(t[2],t[3],[
-               "expected '", part[1], "', but got '", t[1], "'"
+               "expected '", part[1], "', got ", x
             ].join())
          end
       elif part[0]=="chain"
-         return rec_tab.chain(a,i,part[1..],operation,option)
+         return rec_tab.chain(a,i,part[1],part[2..],operation,option)
       elif part[0]=="or"
          return rec_tab.alternative(a,i,part[1..],operation,option)
       elif part[0]=="rep"
@@ -300,8 +312,10 @@ function parser(argm)
       end
    end
    function alternative(a,i,parts,operation,option)
-      for part in parts
-         value = node(a,i,part,operation,true)
+      n = len(parts)
+      for k in n
+         cond = k!=n-1 or option
+         value = node(a,i,parts[k],operation,cond)
          if not value is null
             return value
          end
@@ -313,10 +327,13 @@ function parser(argm)
          raise syntax_error(t[2],t[3],"unexpected token: "+str(t[1]))
       end
    end
-   function chain(a,i,parts,operation,option)
+   function chain(a,i,strict,parts,operation,option)
       buffer = []
+      first = true
       for item in parts
-         value = node(a,i,item,buffer,option)
+         cond = option and first if strict else option
+         value = node(a,i,item,buffer,cond)
+         if first then first = false end
          if value is null
             if option
                return null
@@ -349,7 +366,7 @@ function parser(argm)
          end
       elif rule[0]=="chain"
          ftab[key] = fn|a,i,option|
-            return chain(a,i,rule[1..],[key],option)
+            return chain(a,i,rule[1],rule[2..],[key],option)
          end
       elif rule[0]=="or"
          ftab[key] = fn|a,i,option|
@@ -382,4 +399,19 @@ end
 
 end
 
+/*
+ast = parser{
+   grammar = """
+      atom = number | identifier;
+      list = ('(' expr {expr}* ')');
+      expr = atom | list;
+      ast = expr;
+   """,
+   transform = {
+      atom = "", expr = ""
+   }
+}
+
+print(ast("(1 2 (3 + 4))"))
+#*/
 
