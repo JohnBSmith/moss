@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Lisp</title>
+  <link href="../css/main.css" rel="stylesheet">
+  <script src = "../js/moss-syntax.js">
+  </script>
+</head>
+<body>
+
+<table class="navigation">
+<tr><td><b>&uarr;</b> <a href="toc.htm">Up</a>
+</table>
+<h2>A Lisp interpreter</h2>
+
+<pre class="moss">
+# A 24 lines long minimal Lisp interpreter.
+# Permits arithmetic and recursive functions.
+
+use sys, string.syntax
+ast = syntax.parser{
+   scan = {symbols = list("()"), letter = "[~{_}()]"},
+   transform = {atom = "", expr = "", list = |t| t[1..]},
+   grammar = "atom = number | identifier; list = ('(' {expr}* ')');
+              expr = atom | list; ast = expr;"}
+dispatch = {
+   "define": fn|t,env| env.(t[1]) = ev(t[2],env) end,
+   "lambda": |t,env| |x| ev(t[2],table env(map(zip(t[1],x)))),
+   "if": |t,env| (ev(t[2],env) if ev(t[1],env) else ev(t[3],env)),
+   "let": |t,env| ev(t[2],
+      table env(map(t[1].map(|[k,v]| [k,ev(v,env)]))))}
+global_env = table{
+   "+": |a| a.sum(),   "*": |a| a.prod(),  "#t": true,
+   "-": |a| a[0]-a[1], "/": |a| a[0]/a[1], "#f": false,
+   "=": |a| a[0]==a[1],"not": |a| not a[0],
+   "&lt;": |a| a[0]&lt;a[1], "&lt;=": |a| a[0]&lt;=a[1],
+   "block": |a| a[-1], "display": |a| print(*a)}
+ev = |t,env| (t if t: Int else env.(t) if t: String
+   else dispatch[t[0]](t,env) if t[0]: String and t[0] in dispatch
+   else begin a = t.map(|x| ev(x,env)); a[0](a[1..]) end)
+evals = |s| ev(ast(["(block ",s,")"].join()),global_env)
+evals(read(sys.argv[1]))
+</pre>
+
+<br>
+<hr>
+<pre>
+(define fac
+    (lambda (n)
+        (if (= n 0) 1 (* n (fac (- n 1))))))
+
+(display (fac 4))
+</pre>
+
+</body>
+</html>
+

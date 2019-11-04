@@ -14,16 +14,16 @@ ast = parser{
 }
 
 dispatch = {
-   "lambda": |t,con| |x| evaluate(t[2],table con(map(zip(t[1],x)))),
-   "if": (|t,con|
-      evaluate(t[3],con) if evaluate(t[1],con) is false else
-      evaluate(t[2],con)),
-   "define": fn|t,con|
-      con.(t[1]) = evaluate(t[2],con)
-   end
+   "define": fn|t,env| env.(t[1]) = evaluate(t[2],env) end,
+   "lambda": |t,env| |x| evaluate(t[2],table env(map(zip(t[1],x)))),
+   "if": (|t,env|
+      evaluate(t[3],env) if evaluate(t[1],env) is false else
+      evaluate(t[2],env)),
+   "let": |t,env| evaluate(t[2],
+      table env(map(t[1].map(|[k,v]| [k,evaluate(v,env)]))))
 }
 
-global_context = table{
+global_env = table{
    "+": |a| a.sum(), "*": |a| a.prod(),  
    "-": |a| a[0]-a[1], "/": |a| a[0]/a[1],
    "#t": true, "#f": false,
@@ -32,14 +32,14 @@ global_context = table{
    "block": |a| a[-1], "display": |a| print(*a)
 }
 
-function evaluate(t,con)
+function evaluate(t,env)
    if t: String
-      return con.(t)
+      return env.(t)
    elif t: List
       if t[0]: String and t[0] in dispatch
-         return dispatch[t[0]](t,con)
+         return dispatch[t[0]](t,env)
       else
-         a = t.map(|x| evaluate(x,con))
+         a = t.map(|x| evaluate(x,env))
          return a[0](a[1..])
       end
    else
@@ -58,7 +58,7 @@ function repl()
          print(e.text,"\n")
          continue
       end
-      value = evaluate(t,global_context)
+      value = evaluate(t,global_env)
       if not value is null
          print(value)
       end
@@ -67,7 +67,7 @@ end
 
 function evals(s)
    t = ast(["(block ",s,")"].join())
-   value = evaluate(t,global_context)
+   value = evaluate(t,global_env)
 end
 
 if len(argv)==1
