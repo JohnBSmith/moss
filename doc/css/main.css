@@ -52,6 +52,7 @@ div.toc a:hover{
 
 pre, code{
   font-family: "FreeMono", "Courier New", monospace;
+  color: #282828;
 }
 
 div.code{
@@ -70,11 +71,11 @@ div.code{
 }
 .symbol{
   font-weight: bold;
-  color: #202020;
+  color: #404040;
 }
 .bracket{
   font-weight: bold;
-  color: #006060;
+  color: #406060;
 }
 .number{
   color: #204040;

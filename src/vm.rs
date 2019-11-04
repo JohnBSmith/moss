@@ -328,8 +328,6 @@ impl Eq for Object{}
 impl Hash for Object{
     fn hash<H: Hasher>(&self, state: &mut H){
         match *self {
-            Object::Null => {},
-            Object::Bool(x) => {x.hash(state);},
             Object::Int(x) => {x.hash(state);},
             Object::String(ref s) => {
                 s.data.hash(state);
@@ -354,7 +352,15 @@ impl Hash for Object{
             Object::Interface(ref x) => {
                 state.write_u64(x.hash());
             },
-            _ => panic!()
+            Object::Null => {},
+            Object::Bool(x) => {x.hash(state);},
+            _ => {
+                if let Object::Function(ref x) = *self {
+                    state.write_u64(&(**x) as *const _ as u64);
+                }else{
+                    panic!();
+                }            
+            }
         }
     }
 }

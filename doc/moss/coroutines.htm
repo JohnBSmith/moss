@@ -20,6 +20,7 @@
 <li><a href="#basic-concept">The basic concept</a>
 <li><a href="#generators">Generators</a>
 <li><a href="#send">Sending data into a coroutine</a>
+<li><a href="#coroutine-calls">Coroutine calls</a>
 </ol>
 </div>
 
@@ -221,6 +222,110 @@ end
 # ["d", 4]
 </pre>
 
+<h2 id="coroutine-calls">Coroutine calls</h2>
+
+<p>A coroutine is able to call another coroutine in such a way that only the
+control flow reaches it, but the call stack is not consumed,
+overcoming the otherwise limited recursion depth.
+We say, the coroutine <i>yields to</i> another coroutine. Moss does not
+allow such a kind of call directly. Nevertheless, it is possible in
+an indirect way using a device called <i>trampoline</i>.
+
+<p>The coroutine call
+<pre class="indent">
+<b>yield to</b> routine <b>with</b> argv
+</pre>
+<p>will be written:
+<pre class="moss indent">
+yield routine, argv
+</pre>
+
+<p>A standard example consists of a producer and a consumer,
+both yielding to each other mutually.
+
+<pre class="moss indent">
+class Exit = {}
+
+function exit(x=null)
+   raise table Exit{value = x}
+end
+
+function produce()
+   return fn*||
+      while true
+         s = input("# ")
+         yield consume,[s]
+      end
+   end
+end
+
+function consume()
+   return fn*|s|
+      while true
+         if s=="exit" then exit() end
+         print("Obtained input: ",s)
+         yield produce,[]
+      end
+   end
+end
+
+function call(f,argv,dispatch)
+   try
+      while true
+         f,argv = dispatch[f](*argv)
+      end
+   catch e if e: Exit
+      return e.value
+   end
+end
+
+call(produce,[],{
+   produce: produce(),
+   consume: consume()
+})
+</pre>
+
+<p>The trampoline is the main loop inside of <code>call</code>.
+
+<p>Coroutines are a good tool when it comes to implement a state
+machine. Furthermore, the given example may be regarded as such
+a machine. The construction is easily modified to give it a more
+natural shape for a state machine.
+
+<pre class="moss indent">
+class Machine = {
+   function call()
+      f = self.entrance
+      while true
+         f = f(self;)
+         if f is empty then break end
+      end
+   end
+}
+
+function new_state_machine()
+   state = table Machine{
+      function* produce()
+         while true
+            self.s = input("# ")
+            yield self.consume
+         end
+      end,
+      function* consume()
+         while true
+            if self.s=="exit" then break end
+            print("Obtained input: ",self.s)
+            yield self.produce
+         end
+      end
+   }
+   state.entrance = state.produce
+   return state
+end
+
+state = new_state_machine()
+state.call()
+</pre>
 
 </body>
 </html>
