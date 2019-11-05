@@ -233,11 +233,11 @@ an indirect way using a device called <i>trampoline</i>.
 
 <p>The coroutine call
 <pre class="indent">
-<b>yield to</b> routine <b>with</b> argv
+<b>yield to</b> coroutine <b>with</b> argv
 </pre>
 <p>will be written:
 <pre class="moss indent">
-yield routine, argv
+yield coroutine, argv
 </pre>
 
 <p>A standard example consists of a producer and a consumer,

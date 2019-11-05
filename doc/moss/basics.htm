@@ -53,16 +53,16 @@ press the return-key.
 </pre>
 
 <p>There is no invisible times, the multiplication
-operator <code>(*)</code> has always to be stated explicitly, wich is
+operator (<code>*</code>) has always to be stated explicitly, wich is
 a good thing. This allows us to have multiple letter identifiers and
 an invisible function application operator.
 These concepts will be explained later.
-The division operator is the slash <code>(/)</code>.
+The division operator is the slash (<code>/</code>).
 
 <p>Only round brackets can be used to undermine the order of
 operations. Square brackets and curly brackets have another purpose.
 The expression "10 to the power of two" is written
-<code>"10^2"</code>.
+"<code>10^2</code>".
 
 <pre class="moss cmd-box">
 &gt; (2+4)*(4-2)
@@ -74,7 +74,7 @@ The expression "10 to the power of two" is written
 
 <p>For integer division, use the the operator "<code>//</code>"
 instead of "<code>/</code>". The remainder of the division is
-calculated by the modulo operator <code>"%"</code>.
+calculated by the modulo operator "<code>%</code>".
 
 <pre class="moss cmd-box">
 &gt; 14/5
@@ -88,7 +88,7 @@ calculated by the modulo operator <code>"%"</code>.
 </pre>
 
 <p>It is possible to store the value of an expression in a variable.
-The statement <code>"a=12"</code> means that the value 12 is assigned
+The statement "<code>a=12</code>" means that the value 12 is assigned
 to the variable <code>a</code>. If <code>a</code> afterwards occurs
 itself in an expression, it has this value. So the variable contains
 this value until some other value is assigned to it.
@@ -103,14 +103,15 @@ this value until some other value is assigned to it.
 </pre>
 
 <p>A variable is represented via an identifier, in this case
-<code>"a"</code>. An identifer can consist of more than one letter.
+"<code>a</code>". An identifer may consist of more than one letter.
 Some or all of the letters can be capital letters, but
 <code>Omega</code> is different from <code>omega</code>. That means,
 in Moss identifiers are <i>case sensitive</i>.
 
 
-<p>We can test, whether two numbers are equal or not. The expression
-"a is equal to b" is written "<code>a==b</code>".
+<p>We can check whether two numbers are equal or not. The expression
+"a is equal to b" is written "<code>a==b</code>". The expression
+"a is not equal to b" is written "<code>a!=b</code>".
 
 <pre class="moss cmd-box">
 &gt; a=360
@@ -126,15 +127,17 @@ in Moss identifiers are <i>case sensitive</i>.
 
 <p>To get the minimum and maximum of two numbers,
 use the functions <code>min(x,y)</code> and <code>max(x,y)</code>.
+The sign of a number is calculated by <code>sgn(x)</code>,
+the absolute value by <code>abs(x)</code>.
 
-<p>Calculations with complex numbers are possible.
+<p>Calculations with complex numbers are possible:
 
 <pre class="moss cmd-box">
 &gt; (4+2i)*(2+1i)
 6+8i
 </pre>
 
-<p>Moss can calculate really big numbers.
+<p>Moss is capable of handling really big numbers.
 
 <pre class="moss cmd-box">
 &gt; 2^10
@@ -207,7 +210,7 @@ and store it in the variable <code>f</code>.
 
 <p>This is a function wich takes the value of the variable
 <code>x</code> as its input and returns the value of <code>4+2*x</code>
-as output. The <code>x</code> is a variable,
+as its output. The <code>x</code> is a variable,
 but it is bound to the function because it appears between
 the vertical bars. Because of this the variable <code>x</code>
 is called <em>formal argument</em> of the function.
@@ -238,7 +241,7 @@ Think of much longer patterns.
 </pre>
 
 <p>A function may have more than one argument. We will state a
-function that has two arguments. There is more than one way to
+function that has two. There is more than one way to
 achieve this. The first one uses two formal arguments.
 Formal arguments appear between the vertical bars and
 are separated there by commata.
@@ -284,8 +287,9 @@ are separated there by commata.
 12
 </pre>
 
-<p>If a function not only consists of a single expression, but of
-a sequence of statements, a longer syntax has to be used.
+<p>If a function consists not only of a single expression,
+but of a sequence of statements, a longer syntax has to be used.
+
 <pre class="moss indent">
 # (1) Short syntax
 f = |x| 2*x
@@ -303,7 +307,7 @@ f = fn f|x| return 2*x end
 function f(x) return 2*x end
 </pre>
 
-<p>A function can contain statements and local variables.
+<p>A longer function usually contains statements and local variables.
 Here is an example, an approximation of the natural exponential
 function:
 <pre class="moss indent">
@@ -340,7 +344,7 @@ The function <code>int</code> does the reverse.
 &gt; int("360")
 360
 </pre>
-<p>Called on a string, <code>str</code> does not change anything.
+<p>Applied to a string, <code>str</code> does not change anything.
 To <code>int</code> applies the same.
 
 <pre class="moss cmd-box">
@@ -368,7 +372,7 @@ is to numbers.
 "Elm tree"
 </pre>
 
-<p>We can test, whether two strings are equal or not.
+<p>We can test whether two strings are equal or not.
 
 <pre class="moss cmd-box">
 &gt; s = "Mouse"
