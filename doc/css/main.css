@@ -1,4 +1,6 @@
-
+html{
+  font-size: 0.9em;
+}
 body{
   margin-left: 16%;
   margin-right: 4%;
@@ -9,7 +11,7 @@ body{
   font-family: "DejaVu Sans", "Verdana", sans-serif;
 }
 p{
-  line-height: 24px;
+  line-height: 1.5;
 }
 @media(max-width: 68em){
   body{margin-left: 10%;}
@@ -26,7 +28,7 @@ p{
     padding-left: 2em;
   }
   p{
-    line-height: 22px;
+    line-height: 1.4;
   }
 }
 h1, h2, h3, h4{
@@ -49,14 +51,18 @@ div.toc a{
 div.toc a:hover{
   text-decoration: underline;
 }
-
 pre, code{
-  font-family: "FreeMono", "Courier New", monospace;
-  color: #282828;
+  font-family: "DejaVu Sans Mono", monospace;
 }
-
+pre{
+  line-height: 1.3;
+}
+code{
+  color: #902040;
+  font-weight: bold;
+}
 div.code{
-  font-family: "FreeMono", "Courier New", monospace;
+  font-family: "DejaVu Sans Mono", monospace;
 }
 
 .keyword{
@@ -81,12 +87,13 @@ div.code{
   color: #204040;
 }
 .code dt{
-  font-family: "FreeMono", "Courier New", "monospace";
+  font-family: "DejaVu Sans Mono", "monospace";
   font-weight: bold;
   color: #204060;
 }
 dd{
   margin-bottom: 1em;
+  line-height: 1.4;
 }
 
 table.bt{
