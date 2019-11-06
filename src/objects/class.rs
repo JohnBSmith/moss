@@ -9,11 +9,6 @@ use crate::object::{
     FnResult, Exception
 };
 use crate::vm::{Env,RTE,secondary_env,object_to_string};
-use crate::tuple::Tuple;
-
-// const TYPE: usize = 0;
-// const NAME: usize = 1;
-const PROTOTYPE: usize = 2;
 
 type PGet = Box<dyn Fn(&mut Env,Rc<Table>,&Object)->FnResult>;
 type PSet = Box<dyn Fn(&mut Env,Rc<Table>,Object,Object)->FnResult>;
@@ -530,23 +525,10 @@ pub fn table_get(mut p: &Table, key: &Object) -> Option<Object> {
             p = pt;
         }else if let Some(pc) = downcast::<Class>(&p.prototype) {
             return class_get(pc,key);
+        }else if let Object::List(ref a) = p.prototype {
+            return list_get(a,key);
         }else{
-            match p.prototype {
-                Object::List(ref a) => {
-                    return list_get(a,key);
-                },
-                Object::Interface(ref x) => {
-                    if let Some(x) = x.as_any().downcast_ref::<Tuple>() {
-                        if let Some(prototype) = x.v.get(PROTOTYPE) {
-                            return object_get(prototype,key);
-                        }else{
-                            return None;
-                        }
-                    }
-                    return None;
-                },
-                _ => return None
-            }
+            return None;
         }
     }
 }

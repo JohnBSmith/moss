@@ -12,6 +12,7 @@
 </table>
 <h2>Development driven by constraints</h2>
 
+<h3>Language specification</h3>
 <ol>
 <li>Positional arguments should not be callable as named
   arguments. This would make an argument's name a
@@ -21,12 +22,33 @@
 <li>Named arguments and dictionaries should be unified.
 <li>Private global variables should be possible.
 <li>Private class and object fields should be possible.
+</ol>
+
+
+<h3>Object system</h3>
+<ol>
 <li>Destructors should be possible.
 <li>The function <code>type(x)</code> should return <code>null</code>
   in case <code>x</code> has no type. Otherwise it cannot be used
   for type guards in general. For the same reason, <code>x: T</code>
   should return false for every object <code>T</code> if <code>x</code>
   does not implement the operation.
+</ol>
+
+<h3>Implementation</h3>
+<ol>
+<li>A new object on the call stack should have
+<code>refcount==1</code>. For example, if <code>A()</code> computes a
+large matrix, then <code>A().map(f)</code> and <code>A()+B</code>
+etc. do not need a memory allocation, because the buffer can be
+reused. Rust offers <code>get_mut(this: &amp;mut Rc&lt;T&gt;)</code>,
+<code>make_mut(this: &amp;mut Rc&lt;T&gt;)</code>
+and <code>try_unwrap(this: Rc&lt;T&gt;)</code>. Thus, as a further
+implication, ownership of <code>Object</code> is needed, because
+<code>&amp;Object</code> does not allow access as
+<code>&amp;mut Rc</code>. However, matrix types have an inner
+<code>Rc</code> of the buffer, therefore it suffices to check
+<code>strong_count</code>, which needs only <code>&amp;Rc</code>.
 </ol>
 
 </body>

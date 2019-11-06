@@ -1,61 +1,46 @@
-
 body{
   font-family: "DejaVu Sans", "Verdana", sans-serif;
   color: #404040;
-  margin-top: 2.6em;
+  margin-top: 0;
+  margin-left: 0;
+  margin-right: 0;
 }
-main{
-  width: 76%;
+div.box{
+  width: 72%;
   margin: 0 auto;
 }
 h1{
   font-family: "DejaVu Serif", "Verdana", sans-serif;
-  background: #204060;
   color: #ffffff;
-  padding-left: 32px;
-  padding-right: 1em;
-  padding-top: 0.1em;
-  padding-bottom: 0.1em;
   border-radius: 8px;
 }
 .indent{
   margin-left: 32px;
 }
-
+div.header{
+  padding-top: 0.5em;
+  padding-bottom: 0.5em;
+  background: #304050;
+  color: #eaeae4;
+}
+div.header a{
+  color: #f0d080;
+}
 @media(max-width: 60em){
-  main{width: 84%;}
+  div.box{width: 80%;}
 }
-
 @media(max-width: 52em){
-  main{width: 94%;}
-  h1{padding-left: 1em;}
+  div.box{width: 90%;}
 }
-
 @media(max-width: 32em){
-  main{width: 96%;}
-  h1{padding-left: 16px;}
+  div.box{width: 96%;}
   .indent{margin-left: 16px;}
 }
-
-div.text{
-  padding-left: 2em;
-  padding-right: 1em;
-  padding-bottom: 16em;
-  border-top: 2px solid #dadad4;
-  color: #404040;
-}
-
 a{
   color: #004060;
   text-decoration: none;
 }
-
 a:hover{
   color: #602020;
   text-decoration: underline;
 }
-
-
-
-
-
