@@ -24,6 +24,10 @@ use crate::object::{
     new_module, downcast
 };
 use crate::vm::Env;
+use crate::data::Bytes;
+
+#[path = "graphics/font.rs"]
+mod font;
 
 fn sleep(t: u32) {
     unsafe{SDL_Delay(t as Uint32);}
@@ -138,6 +142,23 @@ impl MutableCanvas {
                     }
                 }
                 index+=1;
+            }
+        }
+    }
+    
+    fn pset_data(&mut self, x: usize, y: usize, w: usize, h: usize, data: &[u8]) {
+        let width = self.width as usize;
+        let height = self.height as usize;
+        for px in 0..w {
+            for py in 0..h {
+                let byte = data[py*w+px];
+                if x+px<width && y+py<height {
+                    let p = &mut self.buffer[(y+py)*width+x+px];
+                    p.r = self.color.r;
+                    p.g = self.color.g;
+                    p.b = self.color.b;
+                    p.a = 255-byte;
+                }
             }
         }
     }
@@ -415,8 +436,8 @@ impl Interface for Canvas {
         "Canvas".to_string()
     }
     fn get(self: Rc<Self>, key: &Object, env: &mut Env) -> FnResult {
-        match self.type_canvas.slot(key) {
-            Some(value) => return Ok(value),
+        match self.type_canvas.map.borrow_mut().m.get(key) {
+            Some(value) => return Ok(value.clone()),
             None => {
                 env.index_error(&format!(
                     "Index error in Canvas.{0}: {0} not found.", key
@@ -795,6 +816,77 @@ fn canvas_scale(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     }
 }
 
+fn canvas_set_glyph(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+    let x = match argv[0] {
+        Object::Int(value) => value as usize,
+        _ => panic!()
+    };
+    let y = match argv[1] {
+        Object::Int(value) => value as usize,
+        _ => panic!()
+    };
+    let data_obj = match downcast::<Bytes>(&argv[2]) {
+        Some(value) => value,
+        None => panic!()
+    };
+    let index = match argv[3] {
+        Object::Int(value) => value as usize,
+        _ => panic!()
+    };
+    let w = match argv[4] {
+        Object::Int(value) => value as usize,
+        _ => panic!()
+    };
+    let h = match argv[5] {
+        Object::Int(value) => value as usize,
+        _ => panic!()
+    };
+    if let Some(canvas) = downcast::<Canvas>(pself) {
+        let mut canvas = canvas.canvas.borrow_mut();
+        let data = data_obj.data.borrow_mut();
+        let pdata = &data[index*w*h..];
+        canvas.pset_data(x,y,w,h,pdata);
+        return Ok(Object::Null);
+    }else{
+        type_error_canvas(env,"canvas.set_glyph","canvas")
+    }
+}
+
+fn load_font(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
+    let data = match downcast::<Bytes>(&argv[0]) {
+        Some(value) => value,
+        None => return env.type_error(
+            "Type error in load_font(data): expected data: Data.")
+    };
+    let cols = match argv[1] {
+        Object::Int(value) => value as usize,
+        _ => panic!()
+    };
+    let rows = match argv[2] {
+        Object::Int(value) => value as usize,
+        _ => panic!()
+    };
+    let w = match argv[3] {
+        Object::Int(value) => value as usize,
+        _ => panic!()
+    };
+    let h = match argv[4] {
+        Object::Int(value) => value as usize,
+        _ => panic!()
+    };
+    let shiftw = match argv[5] {
+        Object::Int(value) => value as usize,
+        _ => panic!()
+    };
+    let shifth = match argv[6] {
+        Object::Int(value) => value as usize,
+        _ => panic!()
+    };
+    let pdata = data.data.borrow_mut();
+    let v = font::pgm_as_glyph_data(&pdata,cols,rows,w,h,shiftw,shifth);
+    return Ok(Bytes::object_from_vec(v));
+}
+
 pub fn load_graphics() -> Object
 {
     let type_canvas = Table::new(Object::Null);
@@ -814,13 +906,16 @@ pub fn load_graphics() -> Object
         m.insert_fn_plain("clear",canvas_clear,3,3);
         m.insert_fn_plain("fill",canvas_fill,4,4);
         m.insert_fn_plain("scale",canvas_scale,2,2);
+        m.insert_fn_plain("glyph",canvas_set_glyph,6,6);
     }
 
     let graphics = new_module("graphics");
     {
         let mut m = graphics.map.borrow_mut();
+        m.insert("Canvas",Object::Interface(type_canvas.clone()));
         m.insert("canvas",canvas_bind_type(type_canvas));
         m.insert_fn_plain("sleep",graphics_sleep,1,1);
+        m.insert_fn_plain("load_font",load_font,7,7);
     }
     
     // Workaround for a bug in SDL on Ubuntu 18.04 on i386.

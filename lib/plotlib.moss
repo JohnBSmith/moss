@@ -95,7 +95,7 @@ end
 
 w = rand()
 
-System = table{
+class System = {
    function plot(f,argm={})
       canvas = self.c
       wx = self.wx; px = self.px; ax = self.ax
@@ -379,7 +379,7 @@ function sys3d(canvas,c,s)
    draw_line(canvas,0,0,0,0.5)
 end
 
-System3d = table{
+class System3d = {
    idle = System.idle,
    rgb = System.rgb,
    function plot(f,argm={})

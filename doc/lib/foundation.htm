@@ -95,7 +95,7 @@ s = str(math.pi,"f",4)
   A default value may be specified by null coalescing operation:
 
 <pre class="moss">
-c = chr(x) else '?'
+c = chr(x) or else '?'
 </pre>
 
 <dt>list(x)
@@ -160,11 +160,10 @@ the list <code>a</code> randomly.
 <dd>Return a random number generator that returns floats
 between zero and one.
 
-<dt>read(id), read(id,mode)
+<dt>read(id)
 <dd>Read the text file with filename <code>id</code> and encoding
 <code>UTF-8</code>. Return the contents as an
-<code>UTF32</code>-string. If <code>mode=='b'</code>,
-the file is read as a binary file.
+<code>UTF32</code>-string.
 
 <dt>load(id)
 <dd>Load the module with filename <code>id</code> and
