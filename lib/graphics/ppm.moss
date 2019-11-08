@@ -4,17 +4,17 @@ public load_img
 
 use graphics: load_img_data
 use fs: open
-PGM = 0
+PPM = 1
 
-class Pgm = {
+class Ppm = {
    function draw(canvas,x,y)
-      canvas.glyph(x,y,self.data,0,self.width,self.height)
+      canvas.pixmap(x,y,self.data,self.width,self.height)
    end
 }
 
 function load_img(path)
    data = open(path).read()
-   return table Pgm(load_img_data(data,PGM))
+   return table Ppm(load_img_data(data,PPM))
 end
 
 end

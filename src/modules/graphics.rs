@@ -20,7 +20,7 @@ use std::rc::Rc;
 use std::cell::RefCell;
 
 use crate::object::{
-    Object, Interface, Function, FnResult, Table, CharString,
+    Object, Interface, Function, FnResult, Map, Table, CharString,
     new_module, downcast
 };
 use crate::vm::Env;
@@ -149,13 +149,36 @@ impl MutableCanvas {
     fn draw_graymap(&mut self, x: usize, y: usize, w: usize, h: usize, data: &[u8]) {
         let width = self.width as usize;
         let height = self.height as usize;
-        for px in 0..w {
-            for py in 0..h {
-                let byte = data[py*w+px];
+        for py in 0..h {
+            let py_w = py*w;
+            for px in 0..w {
+                let byte = data[py_w+px];
                 if byte<255 && x+px<width && y+py<height {
                     let c = &self.color;
                     unsafe{
                         SDL_SetRenderDrawColor(self.rdr,c.r,c.g,c.b,255-byte);
+                        SDL_RenderDrawPoint(self.rdr,(x+px) as c_int,(y+py) as c_int);
+                    }
+                }
+            }
+        }
+    }
+
+    fn draw_pixmap(&mut self, x: usize, y: usize, w: usize, h: usize, data: &[u8]) {
+        let width = self.width as usize;
+        let height = self.height as usize;
+        let alpha = self.color.a;
+        let w3 = w*3;
+        for py in 0..h {
+            let py_w3 = py*w3;
+            for px in 0..w {
+                if x+px<width && y+py<height {
+                    let index = py_w3+px*3;
+                    let r = data[index];
+                    let g = data[index+1];
+                    let b = data[index+2];
+                    unsafe{
+                        SDL_SetRenderDrawColor(self.rdr,r,g,b,alpha);
                         SDL_RenderDrawPoint(self.rdr,(x+px) as c_int,(y+py) as c_int);
                     }
                 }
@@ -852,51 +875,95 @@ fn canvas_set_glyph(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult 
     }
 }
 
+fn canvas_set_pixmap(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+    let x = match argv[0] {
+        Object::Int(value) => value as usize,
+        _ => panic!()
+    };
+    let y = match argv[1] {
+        Object::Int(value) => value as usize,
+        _ => panic!()
+    };
+    let data_obj = match downcast::<Bytes>(&argv[2]) {
+        Some(value) => value,
+        None => panic!()
+    };
+    let w = match argv[3] {
+        Object::Int(value) => value as usize,
+        _ => panic!()
+    };
+    let h = match argv[4] {
+        Object::Int(value) => value as usize,
+        _ => panic!()
+    };
+    if let Some(canvas) = downcast::<Canvas>(pself) {
+        let mut canvas = canvas.canvas.borrow_mut();
+        let data = data_obj.data.borrow_mut();
+        canvas.draw_pixmap(x,y,w,h,&data);
+        return Ok(Object::Null);
+    }else{
+        type_error_canvas(env,"canvas.pixmap","canvas")
+    }
+}
+
+fn load_img(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
+    let data = match downcast::<Bytes>(&argv[0]) {
+        Some(value) => value,
+        None => return env.type_error(
+            "Type error in load_img_data(data): expected data: Data.")
+    };
+    let fmt = match argv[1] {
+        Object::Int(index) => {
+            match index {0 => font::Fmt::PGM, _ => font::Fmt::PPM}
+        },
+        _ => panic!()
+    };
+    let pdata = data.data.borrow_mut();
+
+    let gdata = font::pnm_as_single_image(&pdata,fmt);
+    let map = Map::new();
+    {
+        let mut m = map.borrow_mut();
+        m.insert("width",Object::Int(gdata.width as i32));
+        m.insert("height",Object::Int(gdata.height as i32));
+        m.insert("data",Bytes::object_from_vec(gdata.data));
+    }
+    return Ok(Object::Map(map));
+}
+
 fn load_font(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     let data = match downcast::<Bytes>(&argv[0]) {
         Some(value) => value,
         None => return env.type_error(
             "Type error in load_font(data): expected data: Data.")
     };
+    let cols = match argv[1] {
+        Object::Int(value) => value as usize,
+        _ => panic!()
+    };
+    let rows = match argv[2] {
+        Object::Int(value) => value as usize,
+        _ => panic!()
+    };
+    let w = match argv[3] {
+        Object::Int(value) => value as usize,
+        _ => panic!()
+    };
+    let h = match argv[4] {
+        Object::Int(value) => value as usize,
+        _ => panic!()
+    };
+    let shiftw = match argv[5] {
+        Object::Int(value) => value as usize,
+        _ => panic!()
+    };
+    let shifth = match argv[6] {
+        Object::Int(value) => value as usize,
+        _ => panic!()
+    };
     let pdata = data.data.borrow_mut();
-    if argv.len()==1 {
-        let gdata = font::pgm_as_single_image(&pdata);
-        let t = Table::new(Object::Null);
-        {
-            let mut m = t.map.borrow_mut();
-            m.insert("width",Object::Int(gdata.width as i32));
-            m.insert("height",Object::Int(gdata.height as i32));
-            m.insert("data",Bytes::object_from_vec(gdata.data));
-        }
-        return Ok(Object::Interface(t));
-    }else{
-        let cols = match argv[1] {
-            Object::Int(value) => value as usize,
-            _ => panic!()
-        };
-        let rows = match argv[2] {
-            Object::Int(value) => value as usize,
-            _ => panic!()
-        };
-        let w = match argv[3] {
-            Object::Int(value) => value as usize,
-            _ => panic!()
-        };
-        let h = match argv[4] {
-            Object::Int(value) => value as usize,
-            _ => panic!()
-        };
-        let shiftw = match argv[5] {
-            Object::Int(value) => value as usize,
-            _ => panic!()
-        };
-        let shifth = match argv[6] {
-            Object::Int(value) => value as usize,
-            _ => panic!()
-        };
-        let gdata = font::pgm_as_glyph_data(&pdata,cols,rows,w,h,shiftw,shifth);
-        return Ok(Bytes::object_from_vec(gdata.data));
-    }
+    let gdata = font::pgm_as_glyph_data(&pdata,cols,rows,w,h,shiftw,shifth);
+    return Ok(Bytes::object_from_vec(gdata.data));
 }
 
 pub fn load_graphics() -> Object
@@ -919,6 +986,7 @@ pub fn load_graphics() -> Object
         m.insert_fn_plain("fill",canvas_fill,4,4);
         m.insert_fn_plain("scale",canvas_scale,2,2);
         m.insert_fn_plain("glyph",canvas_set_glyph,6,6);
+        m.insert_fn_plain("pixmap",canvas_set_pixmap,2,2);
     }
 
     let graphics = new_module("graphics");
@@ -928,6 +996,7 @@ pub fn load_graphics() -> Object
         m.insert("canvas",canvas_bind_type(type_canvas));
         m.insert_fn_plain("sleep",graphics_sleep,1,1);
         m.insert_fn_plain("load_font",load_font,7,7);
+        m.insert_fn_plain("load_img_data",load_img,2,2);
     }
     
     // Workaround for a bug in SDL on Ubuntu 18.04 on i386.

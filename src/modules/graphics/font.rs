@@ -35,19 +35,24 @@ fn read_uint(p: &[u8], j: &mut usize) -> u32 {
     return x;
 }
 
-fn pgm_as_data(pgm: &[u8]) -> ImgData {
-    if pgm[0]!=b'P' || pgm[1]!=b'5' {panic!("Error: not a PGM");}
+pub enum Fmt{PGM, PPM}
+
+fn pnm_as_data(p: &[u8], fmt: Fmt) -> ImgData {
+    match fmt {
+        Fmt::PGM => {if p[0]!=b'P' || p[1]!=b'5' {panic!("Error: not a PGM");}},
+        Fmt::PPM => {if p[0]!=b'P' || p[1]!=b'6' {panic!("Error: not a PPM");}}
+    }
     let mut i = 2;
-    advance_space(pgm,&mut i);
-    if pgm[i]==b'#' {
+    advance_space(p,&mut i);
+    if p[i]==b'#' {
         panic!("Error while reading PGM: comments not allowed");
     }
-    let w = read_uint(pgm,&mut i);
-    advance_space(pgm,&mut i);
-    let h = read_uint(pgm,&mut i);
-    advance_space(pgm,&mut i);
-    let max = read_uint(pgm,&mut i);
-    return ImgData{w,h,max,data: &pgm[i+1..]};
+    let w = read_uint(p,&mut i);
+    advance_space(p,&mut i);
+    let h = read_uint(p,&mut i);
+    advance_space(p,&mut i);
+    let max = read_uint(p,&mut i);
+    return ImgData{w,h,max,data: &p[i+1..]};
 }
 
 fn glyph_data(img: ImgData,
@@ -73,17 +78,17 @@ fn glyph_data(img: ImgData,
 pub fn pgm_as_glyph_data(pgm: &[u8],
     cols: usize, rows: usize, w: usize, h: usize, shiftw: usize, shifth: usize
 ) -> GlyphData {
-    let img = pgm_as_data(pgm);
+    let img = pnm_as_data(pgm,Fmt::PGM);
     return GlyphData{width: img.w, height: img.h,
         data: glyph_data(img,cols,rows,w,h,shiftw,shifth)
     };
 }
 
-pub fn pgm_as_single_image(pgm: &[u8]) -> GlyphData {
-    let img = pgm_as_data(pgm);
+pub fn pnm_as_single_image(pnm: &[u8], fmt: Fmt) -> GlyphData {
+    let img = pnm_as_data(pnm,fmt);
     let w = img.w;
     let h = img.h;
     return GlyphData{width: w, height: h,
-        data: glyph_data(img,1,1,w as usize,h as usize,0,0)
+        data: img.data.to_vec()
     };
 }
