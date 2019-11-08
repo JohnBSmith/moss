@@ -146,18 +146,18 @@ impl MutableCanvas {
         }
     }
     
-    fn pset_data(&mut self, x: usize, y: usize, w: usize, h: usize, data: &[u8]) {
+    fn draw_graymap(&mut self, x: usize, y: usize, w: usize, h: usize, data: &[u8]) {
         let width = self.width as usize;
         let height = self.height as usize;
         for px in 0..w {
             for py in 0..h {
                 let byte = data[py*w+px];
                 if byte<255 && x+px<width && y+py<height {
-                    let p = &mut self.buffer[(y+py)*width+x+px];
-                    p.r = self.color.r;
-                    p.g = self.color.g;
-                    p.b = self.color.b;
-                    p.a = 255-byte;
+                    let c = &self.color;
+                    unsafe{
+                        SDL_SetRenderDrawColor(self.rdr,c.r,c.g,c.b,255-byte);
+                        SDL_RenderDrawPoint(self.rdr,(x+px) as c_int,(y+py) as c_int);
+                    }
                 }
             }
         }
@@ -845,7 +845,7 @@ fn canvas_set_glyph(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult 
         let mut canvas = canvas.canvas.borrow_mut();
         let data = data_obj.data.borrow_mut();
         let pdata = &data[index*w*h..];
-        canvas.pset_data(x,y,w,h,pdata);
+        canvas.draw_graymap(x,y,w,h,pdata);
         return Ok(Object::Null);
     }else{
         type_error_canvas(env,"canvas.set_glyph","canvas")
