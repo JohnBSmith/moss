@@ -1,0 +1,17 @@
+
+begin
+public load_pgm
+
+use graphics: Canvas, load_font
+use fs: open
+
+function load_pgm(path)
+   data = open(path).read()
+   return load_font(data)
+end
+
+Canvas.draw_img = fn draw_img|x,y,img|
+   self.glyph(x,y,img.data,0,img.width,img.height)
+end
+
+end

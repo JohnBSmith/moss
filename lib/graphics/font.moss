@@ -1,0 +1,32 @@
+
+begin
+use graphics: Canvas, load_font
+use fs: open
+use sys: path
+
+function load_font_from_file(path,cols,rows,x,y,shiftx,shifty)
+   pgm = open(path).read()
+   return load_font(pgm,cols,rows,x,y,shiftx,shifty)
+end
+
+w = 11; h = 23
+font_path = path[1]+"graphics/fonts/DejaVu-Sans-Mono-11-23.pgm"
+font_data = load_font_from_file(font_path,16,8,w,h,w,h)
+
+Canvas.print = fn print|x,y,s|
+   x0 = x
+   for c in str(s)
+      if c=='\n'
+         x = x0
+         y = y+h
+      else
+         i = ord(c)
+         if i<128
+            self.glyph(x,y,font_data,i,w,h)
+         end
+         x = x+w
+      end
+   end
+end
+
+end

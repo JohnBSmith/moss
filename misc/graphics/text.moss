@@ -1,0 +1,14 @@
+
+use graphics: canvas, sleep
+use graphics.font
+
+c = canvas(720,480)
+c.print(40,20,"Hello, world")
+
+c.vflush()
+c.flush()
+
+while c.key()!="q"
+   sleep(0.1)
+end
+

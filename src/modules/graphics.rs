@@ -152,7 +152,7 @@ impl MutableCanvas {
         for px in 0..w {
             for py in 0..h {
                 let byte = data[py*w+px];
-                if x+px<width && y+py<height {
+                if byte<255 && x+px<width && y+py<height {
                     let p = &mut self.buffer[(y+py)*width+x+px];
                     p.r = self.color.r;
                     p.g = self.color.g;
@@ -858,33 +858,45 @@ fn load_font(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
         None => return env.type_error(
             "Type error in load_font(data): expected data: Data.")
     };
-    let cols = match argv[1] {
-        Object::Int(value) => value as usize,
-        _ => panic!()
-    };
-    let rows = match argv[2] {
-        Object::Int(value) => value as usize,
-        _ => panic!()
-    };
-    let w = match argv[3] {
-        Object::Int(value) => value as usize,
-        _ => panic!()
-    };
-    let h = match argv[4] {
-        Object::Int(value) => value as usize,
-        _ => panic!()
-    };
-    let shiftw = match argv[5] {
-        Object::Int(value) => value as usize,
-        _ => panic!()
-    };
-    let shifth = match argv[6] {
-        Object::Int(value) => value as usize,
-        _ => panic!()
-    };
     let pdata = data.data.borrow_mut();
-    let v = font::pgm_as_glyph_data(&pdata,cols,rows,w,h,shiftw,shifth);
-    return Ok(Bytes::object_from_vec(v));
+    if argv.len()==1 {
+        let gdata = font::pgm_as_single_image(&pdata);
+        let t = Table::new(Object::Null);
+        {
+            let mut m = t.map.borrow_mut();
+            m.insert("width",Object::Int(gdata.width as i32));
+            m.insert("height",Object::Int(gdata.height as i32));
+            m.insert("data",Bytes::object_from_vec(gdata.data));
+        }
+        return Ok(Object::Interface(t));
+    }else{
+        let cols = match argv[1] {
+            Object::Int(value) => value as usize,
+            _ => panic!()
+        };
+        let rows = match argv[2] {
+            Object::Int(value) => value as usize,
+            _ => panic!()
+        };
+        let w = match argv[3] {
+            Object::Int(value) => value as usize,
+            _ => panic!()
+        };
+        let h = match argv[4] {
+            Object::Int(value) => value as usize,
+            _ => panic!()
+        };
+        let shiftw = match argv[5] {
+            Object::Int(value) => value as usize,
+            _ => panic!()
+        };
+        let shifth = match argv[6] {
+            Object::Int(value) => value as usize,
+            _ => panic!()
+        };
+        let gdata = font::pgm_as_glyph_data(&pdata,cols,rows,w,h,shiftw,shifth);
+        return Ok(Bytes::object_from_vec(gdata.data));
+    }
 }
 
 pub fn load_graphics() -> Object

@@ -5,6 +5,11 @@ struct ImgData<'a> {
     data: &'a [u8]
 }
 
+pub struct GlyphData {
+    pub width: u32, pub height: u32,
+    pub data: Vec<u8>
+}
+
 fn advance_space(p: &[u8], index: &mut usize) {
     let mut i = *index;
     loop{
@@ -67,7 +72,18 @@ fn glyph_data(img: ImgData,
 
 pub fn pgm_as_glyph_data(pgm: &[u8],
     cols: usize, rows: usize, w: usize, h: usize, shiftw: usize, shifth: usize
-) -> Vec<u8> {
+) -> GlyphData {
     let img = pgm_as_data(pgm);
-    return glyph_data(img,cols,rows,w,h,shiftw,shifth);
+    return GlyphData{width: img.w, height: img.h,
+        data: glyph_data(img,cols,rows,w,h,shiftw,shifth)
+    };
+}
+
+pub fn pgm_as_single_image(pgm: &[u8]) -> GlyphData {
+    let img = pgm_as_data(pgm);
+    let w = img.w;
+    let h = img.h;
+    return GlyphData{width: w, height: h,
+        data: glyph_data(img,1,1,w as usize,h as usize,0,0)
+    };
 }

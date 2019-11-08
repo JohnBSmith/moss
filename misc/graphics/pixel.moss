@@ -1,0 +1,10 @@
+
+use graphics: canvas, sleep
+
+c = canvas(360,240)
+c.fill(40,20,4,4)
+c.flush()
+
+while c.key()!="q"
+   sleep(0.1)
+end

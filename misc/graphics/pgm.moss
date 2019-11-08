@@ -1,0 +1,18 @@
+
+use graphics: canvas, sleep
+use graphics.pgm: load_pgm
+use sys
+use data: bytes
+
+img = load_pgm("img/yuki.pgm")
+
+c = canvas(img.width+40,img.height+40)
+c.clear(1,1,1)
+c.rgb(0,0,0)
+c.draw_img(20,20,img)
+c.vflush()
+c.flush()
+
+while c.key()!="q"
+   sleep(0.1)
+end
