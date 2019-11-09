@@ -162,6 +162,8 @@ impl MutableCanvas {
                 }
             }
         }
+        let c = &self.color;
+        unsafe{SDL_SetRenderDrawColor(self.rdr,c.r,c.g,c.b,c.a);}
     }
 
     fn draw_pixmap(&mut self, x: usize, y: usize, w: usize, h: usize, data: &[u8]) {
@@ -184,6 +186,8 @@ impl MutableCanvas {
                 }
             }
         }
+        let c = &self.color;
+        unsafe{SDL_SetRenderDrawColor(self.rdr,c.r,c.g,c.b,c.a);}
     }
 
     fn pset(&mut self, x: u32, y: u32) {

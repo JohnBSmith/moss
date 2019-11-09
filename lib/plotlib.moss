@@ -3,9 +3,10 @@
 begin
 public system, system3d, System
 
-use math: pi, tau, hypot, tanh, atan2, sin, cos
+use math: pi, tau, hypot, tanh, atan2, sin, cos, floor
 use cmath: re, im, arg
 use graphics: sleep
+use graphics.font
 use unpack: drain, assert_empty
 
 palette = [
@@ -73,7 +74,16 @@ function draw_vector(canvas,x1,y1,x2,y2)
    draw_line(canvas,x2,y2,x2-0.02*x,y2-0.02*y)
 end
 
-function grid(canvas,w,h,ax,ay,csys,cgrid,scale=1)
+function ftos(x)
+   x = sgn(x)*floor(1000*abs(x)+0.5)/1000
+   if x==int(x)
+      return str(int(x))
+   else
+      return str(x)
+   end
+end
+
+function grid(sys,canvas,w,h,ax,ay,csys,cgrid,scale=1)
    canvas.rgb(*cgrid)
    step = w/20*scale
    x = w//2+int(ax*w/2)
@@ -91,6 +101,27 @@ function grid(canvas,w,h,ax,ay,csys,cgrid,scale=1)
    canvas.rgb(*csys)
    hline(canvas,w,y)
    vline(canvas,h,x)
+   for k in -ycount+yshift..ycount+yshift
+      if k!=0
+         canvas.fill(x-4,y+int(k*step),10,2)
+      end
+   end
+   for k in -xcount-xshift..xcount-xshift
+      if k!=0
+         canvas.fill(x+int(k*step),y-4,2,10)
+      end
+   end
+   canvas.rgb(0.4,0.4,0.4)
+   for k in -ycount+yshift..ycount+yshift
+      if k!=0
+         canvas.print(x-52,y+int(k*step)-11,"{:r4}"%[ftos(k*sys.wy/10*scale)])
+      end
+   end
+   for k in -xcount-xshift..xcount-xshift
+      if k!=0
+         canvas.print(x+int(k*step)-16,y+8,"{:r2}"%[ftos(k*sys.wx/10*scale)])
+      end
+   end
 end
 
 w = rand()
@@ -238,7 +269,7 @@ class System = {
 
    function system()
       if self.grid
-         grid(self.c,self.w,self.h,
+         grid(self,self.c,self.w,self.h,
             self.csys,self.cgrid,self.fscale)
          self.color(0)
       end
@@ -288,7 +319,7 @@ class System = {
             canvas.clear(*bg)
          end
          if self.grid
-            grid(canvas,w,h,ax,ay,csys,cgrid,fscale)
+            grid(self,canvas,w,h,ax,ay,csys,cgrid,fscale)
          end
          canvas.rgb(*palette[0])
          f(a)
@@ -311,7 +342,7 @@ class System = {
       aj = 2/(H-1)
       wx = self.wx; px = self.px; ax = self.ax
       wy = self.wy; py = self.py; ay = self.ay
-      grid(canvas,self.w,self.h,ax,ay,[0,0,0],[0,0,0,0.4],self.fscale)
+      grid(self,canvas,self.w,self.h,ax,ay,[0,0,0],[0,0,0,0.4],self.fscale)
       px = px-ax*wx
       py = py-ay*wy
       for j in 0..H-1
@@ -326,7 +357,7 @@ class System = {
             canvas.fill(i*n,j*n,n,n)
          end
       end
-      # grid(canvas,self.w,self.h,[0.7,0.7,0.7,0.4],[0.9,0.9,0.9,0.2])
+      # grid(self,canvas,self.w,self.h,[0.7,0.7,0.7,0.4],[0.9,0.9,0.9,0.2])
    end,
 
    function field(f,argm={})
@@ -339,7 +370,7 @@ class System = {
       aj = 2/(H-1)
       wx = self.wx; px = self.px; ax = self.ax
       wy = self.wy; py = self.py; ay = self.ay
-      grid(canvas,self.w,self.h,ax,ay,[0,0,0],[0,0,0,0.4],self.fscale)
+      grid(self,canvas,self.w,self.h,ax,ay,[0,0,0],[0,0,0,0.4],self.fscale)
       px = px-ax*wx
       py = py-ay*wy
       for j in 0..H-1
@@ -522,12 +553,7 @@ function system(argm = {})
       palette = palette
    end
    canvas = graphics.canvas(w,h)
-   canvas.clear(*bg)
-   if show_grid
-      grid(canvas,w,h,ax,ay,csys,cgrid,fscale)
-   end
-   canvas.rgb(*palette[0])
-   return table System{
+   sys = table System{
       c=canvas, w=w, h=h, n=n,
       wx=wx, wy=wy, px=px, py=py, ax=ax, ay=ay,
       point = canvas.point, needle = canvas.needle,
@@ -535,6 +561,12 @@ function system(argm = {})
       csys=csys, cgrid=cgrid, grid = show_grid,
       lock = false, fscale = fscale, dark = dark
    }
+   canvas.clear(*bg)
+   if show_grid
+      grid(sys,canvas,w,h,ax,ay,csys,cgrid,fscale)
+   end
+   canvas.rgb(*palette[0])
+   return sys
 end
 
 function system3d(argm = {})

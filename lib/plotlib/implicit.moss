@@ -57,7 +57,7 @@ extend(System,{
       wy = self.wy; py = self.py; ay = self.ay
       px = px-ax*wx
       py = py-ay*wy
-      # grid(canvas,self.w,self.h,[0,0,0],[0,0,0,0.4],self.fscale)
+      # grid(self,canvas,self.w,self.h,[0,0,0],[0,0,0,0.4],self.fscale)
       tau = 2*pi
       for j in 0..H-1
          for i in 0..W-1
