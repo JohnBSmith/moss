@@ -1,0 +1,31 @@
+
+space = ord["\s\t\n"]
+ordP = ord('P')
+ord5 = ord('5')
+
+function advance_space(a,i)
+   while a[i] in space do i+=1 end
+   return i
+end
+
+function read_int(a,i)
+   x = 0
+   while 48<=a[i] and a[i]<=57
+      x = 10*x+a[i]-48
+      i+=1
+   end
+   return [i,x]
+end
+
+function load_img_data(a)
+   if a[0]!=ordP or a[1]!=ord5
+      raise "Error: not a PGM"
+   end
+   i = advance_space(a,2)
+   i,w = read_int(a,i)
+   i = advance_space(a,i)
+   i,h = read_int(a,i)
+   i = advance_space(a,i)
+   i,max = read_int(a,i)
+   return {width = w, height = h, data = a[i+1..]}
+end

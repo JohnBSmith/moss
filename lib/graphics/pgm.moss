@@ -1,6 +1,6 @@
 
 begin
-public load_img
+public Pgm, load_img
 
 use graphics: load_img_data
 use fs: open

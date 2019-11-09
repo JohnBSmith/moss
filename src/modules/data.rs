@@ -14,6 +14,7 @@ use crate::object::{
 use crate::vm::{Env,RTE,interface_index,interface_types_set};
 use crate::iterable::new_iterator;
 use crate::class::Class;
+use crate::range::Range;
 
 mod crypto;
 
@@ -63,23 +64,28 @@ impl Interface for Bytes {
     }
     fn index(self: Rc<Self>, indices: &[Object], env: &mut Env) -> FnResult {
         let a = self.data.borrow();
-        let index = if indices.len()==1 {
-            match indices[0] {
-                Object::Int(index) => {
-                    if index<0 {
-                        return env.index_error("Index error in a[i]: i is out of lower bound.");
-                    } else {
-                        let index = index as usize;
-                        if index>=a.len() {
-                            return env.index_error("Index error in a[i]: i is out of upper bound.");
-                        }
-                        index
+        match indices.len() {
+            1 => {}, n => return env.argc_error(n,1,1,"index operation")
+        }
+        let index = match indices[0] {
+            Object::Int(index) => {
+                if index<0 {
+                    return env.index_error("Index error in a[i]: i is out of lower bound.");
+                }else{
+                    let index = index as usize;
+                    if index>=a.len() {
+                        return env.index_error("Index error in a[i]: i is out of upper bound.");
                     }
-                },
-                _ => return env.type_error("Type error in a[i]: is not an integer.")
+                    index
+                }
+            },
+            _ => {
+                if let Some(range) = downcast::<Range>(&indices[0]){
+                    return index_range(&a,range,env);
+                }else{
+                    return env.type_error("Type error in a[i]: is not an integer.")
+                }
             }
-        }else{
-            panic!()
         };
         return Ok(Object::Int(a[index] as i32));
     }
@@ -112,6 +118,28 @@ impl Interface for Bytes {
                 "Type error in a+b: expected b of type Bytes","b",b);
         }
     }
+}
+
+fn index_range(a: &Vec<u8>, r: &Range, env: &mut Env) -> FnResult {
+    let len = a.len();
+    let i = match r.a {
+        Object::Int(value) => {
+            if value<0 {0} else {value as usize}
+        },
+        Object::Null => 0,
+        _ => return env.type_error1("Type error in a[i..j]: i is not an integer.","i",&r.a)
+    };
+    let j = match r.b {
+        Object::Int(value) => {
+            if value<0 {0} else {
+                if value>=len as i32 {len} else {value as usize+1}
+            }
+        },
+        Object::Null => len,
+        _ => return env.type_error1("Type error in a[i..j]: j is not an integer.","j",&r.a)
+    };
+    let v = if j<i {Vec::new()} else {a[i..j].to_vec()};
+    return Ok(Bytes::object_from_vec(v));
 }
 
 fn bytes(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
