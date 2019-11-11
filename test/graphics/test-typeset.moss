@@ -1,0 +1,33 @@
+
+use graphics: canvas, sleep
+use graphics.typeset: load_font
+
+test_text = """
+  ! " # $ % & ' ( ) * + , - . / 0 1 2 3 4 5 6 7 8 9 : ; < = > ?
+@ A B C D E F G H I J K L M N O P Q R S T U V W X Y Z [ \b ] ^ _
+` a b c d e f g h i j k l m n o p q r s t u v w x y z { | } ~
+
+  ¡ ¢ £ ¤ ¥ ¦ § ¨ © ª « ¬   ® ¯ ° ± ² ³ ´ µ ¶ · ¸ ¹ º » ¼ ½ ¾ ¿
+À Á Â Ã Ä Å Æ Ç È É Ê Ë Ì Í Î Ï Ð Ñ Ò Ó Ô Õ Ö × Ø Ù Ú Û Ü Ý Þ ß
+à á â ã ä å æ ç è é ê ë ì í î ï ð ñ ò ó ô õ ö ÷ ø ù ú û ü ý þ ÿ
+
+It was just at this time that Gandalf reappeared after his long
+absence. For three years after the Party he had been away. Then
+he paid Frodo a brief visit, and after taking a good look at him
+he went off again. During the next year or two he had turned up
+fairly often, coming unexpectedly after dusk, and going off
+without warning before sunrise.
+"""
+
+font = load_font(10)
+
+c = canvas(800,480)
+c.clear(1,1,1)
+c.rgb(0,0,0)
+font.print(c,20,20,test_text)
+c.flush()
+
+while c.key()!="q"
+   sleep(0.1)
+end
+

@@ -1,9 +1,14 @@
 
 use graphics: canvas, sleep
-use graphics.font
+use graphics.typeset: load_font
+
+font = load_font(12)
 
 c = canvas(720,480)
-c.print(40,20,"Hello, world")
+c.clear(1,1,0.86)
+c.rgb(0,0,0)
+
+font.print(c,40,20,"Hello, world")
 c.flush()
 
 while c.key()!="q"

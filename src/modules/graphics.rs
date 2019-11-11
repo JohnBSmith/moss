@@ -5,7 +5,7 @@ use std::os::raw::{c_int};
 use std::mem;
 use crate::sdl::{
     SDL_WINDOWPOS_CENTERED, SDL_WINDOW_SHOWN, SDL_RENDERER_ACCELERATED,
-    SDL_KEYDOWN, 
+    SDL_KEYDOWN, SDL_KEYUP,
     Uint32, SDL_Scancode, SDL_Window, SDL_Renderer, SDL_Rect,
     SDL_Event, SDL_PollEvent, SDL_BlendMode,
     SDL_Delay, SDL_CreateWindow, SDL_CreateRenderer,
@@ -442,6 +442,20 @@ fn get_key() -> Object {
     }
 }
 
+fn get_scancode() -> Object {
+    unsafe{
+        let mut event: SDL_Event = mem::uninitialized();
+        while SDL_PollEvent(&mut event)!=0 {
+            if event.event_type == SDL_KEYDOWN {
+                return Object::Int(event.key.keysym.scancode as i32);
+            }else if event.event_type == SDL_KEYUP {
+                return Object::Int(event.key.keysym.scancode as i32+1000);
+            }
+        }
+        return Object::Null;
+    }
+}
+
 struct Canvas {
     canvas: RefCell<MutableCanvas>,
     type_canvas: Rc<Table>
@@ -500,6 +514,10 @@ fn canvas_bind_type(type_canvas: Rc<Table>) -> Object {
 
 fn canvas_key(_env: &mut Env, _pself: &Object, _argv: &[Object]) -> FnResult {
     Ok(get_key())
+}
+
+fn canvas_scancode(_env: &mut Env, _pself: &Object, _argv: &[Object]) -> FnResult {
+    Ok(get_scancode())
 }
 
 #[inline(never)]
@@ -976,6 +994,7 @@ pub fn load_graphics() -> Object
     {
         let mut m = type_canvas.map.borrow_mut();
         m.insert_fn_plain("key",canvas_key,0,0);
+        m.insert_fn_plain("scan",canvas_scancode,0,0);
         m.insert_fn_plain("flush",canvas_flush,0,0);
         m.insert_fn_plain("vflush",canvas_vflush,0,0);
         m.insert_fn_plain("vcflush",canvas_vcflush,0,0);

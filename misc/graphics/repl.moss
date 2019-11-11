@@ -1,0 +1,25 @@
+
+use elib.terminal: terminal
+
+gtab = {}
+
+function evaluate(s)
+   try
+      value = eval(s,gtab)
+   catch e
+      value = e.text
+   end
+   return value
+end
+
+term = terminal()
+while true
+   s = term.input("> ")
+   if s=="exit" or s=="quit" then break end
+   if len(s)!=0
+      value = evaluate(s)
+      if not value is null
+         term.print(value)
+      end
+   end
+end

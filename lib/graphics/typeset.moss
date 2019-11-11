@@ -1,0 +1,86 @@
+
+begin
+public load_font
+
+use graphics: load_font_plain = load_font
+use fs: open
+use sys: path
+
+function load_font_from_file(path,cols,rows,x,y,shiftx,shifty)
+   pgm = open(path).read()
+   return load_font_plain(pgm,cols,rows,x,y,shiftx,shifty)
+end
+
+font_table = {9: [9,21], 10: [10,22], 11: [11,24], 12: [12,26]}
+SPACE = ord('\s')
+
+function line_lengths(s)
+   a = []
+   count = 0
+   for c in s
+      if c=='\n'
+         a.push(count)
+         count = 0
+      else
+         count+=1
+      end
+   end
+   return a
+end
+
+function underline(font,canvas,x,y,s,lw,shift)
+   h = font.height; w = font.width
+   y = y+h-4+shift
+   for n in line_lengths(str(s))
+      if n!=0
+         canvas.fill(x,y,w*n-1,lw)
+      end
+      y = y+h
+   end
+end
+
+class Font = {
+   function bprint(canvas,x,y,s)
+      self.print(canvas,x,y,s)
+      self.print(canvas,x,y+1,s)
+   end,
+   function bbprint(canvas,x,y,s)
+      self.bprint(canvas,x,y,s)
+      self.bprint(canvas,x+1,y,s)
+   end,
+   function uprint(canvas,x,y,s,lw=1,shift=0)
+      self.print(canvas,x,y,s)
+      underline(self,canvas,x,y,s,lw,shift)
+   end,
+   function ubprint(canvas,x,y,s,lw=2,shift=0)
+      self.bprint(canvas,x,y,s)
+      underline(self,canvas,x,y,s,lw,shift+1)
+   end
+}
+
+function load_font(width=12, add=0)
+   assert width in 9..12, "load_font(width): width in 9..12"
+   w,h = font_table[width]
+   font_path = path[1]+"graphics/fonts/Vera-{}-{}.pgm" % [w,h]
+   font_data = load_font_from_file(font_path,32,8,w,h,w,h)
+   height = h+add
+
+   function print(canvas,x,y,s)
+      x0 = x
+      for c in str(s)
+         if c=='\n'
+            x = x0
+            y = y+height
+         else
+            i = ord(c)
+            if i<256 and i!=SPACE
+               canvas.glyph(x,y,font_data,i,w,h)
+            end
+            x = x+w
+         end
+      end
+   end
+   return table Font{print = print, width = w, height = height}
+end
+
+end

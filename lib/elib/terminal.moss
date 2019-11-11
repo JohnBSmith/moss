@@ -1,71 +1,148 @@
 
-# Usage example:
-# yellow = format(color = [255,220,0])
-# yellow.print("Hello")
-
 begin
-public Format, format, clear
+public terminal
 
-_print_ = print
-_put_ = put
+use graphics: canvas, sleep
+use graphics.typeset: load_font
+use sys.lang
 
-function apply_format(fmt)
-   if "color" in fmt
-      put("\x{1b}[38;2;{};{};{}m"%fmt["color"])
-   end
-   if "background" in fmt
-      put("\x{1b}[48;2;{};{};{}m"%fmt["background"])
-   end
-   if "underline" in fmt and fmt["underline"]
-      put("\x{1b}[4m")
-   end
-   if "bold" in fmt and fmt["bold"]
-      put("\x{1b}[1m")
-   end
-   if "italic" in fmt and fmt["italic"]
-      put("\x{1b}[3m")
-   end
+keymapping = load("graphics/keymap/"+lang.keymap)
+use(keymapping){
+   charmap_lower, charmap_upper, charmap_alt,
+   KEY_RETURN, KEY_SHIFT_LEFT, KEY_SHIFT_RIGHT,
+   KEY_ALT_GR, KEY_BACKSPACE
+}
+
+XSTART = 20
+YSTART = 10
+
+function cursor(term,canv,buffer,font)
+   w = font.width
+   h = font.height
+   n = len(buffer[term.buffer_index])
+   font.print(canv,XSTART+n*w-4,YSTART+h*term.buffer_index,"|")
 end
 
-Format = table(Type,"Format"){
+function show(term,canv,buffer)
+   font = term.font
+   canv.clear(*term.bcolor)
+   canv.rgb(*term.color)
+   h = font.height
+   for i,s in buffer.enum()
+      font.print(canv,XSTART,YSTART+h*i,s)
+   end
+   cursor(term,canv,buffer,font)
+   canv.flush()
+end
+
+function input_loop(term,prompt)
+   a = []
+   buffer = term.buffer
+   canv = term.canv
+   buffer[term.buffer_index] = prompt
+   show(term,canv,buffer)
+   upper = false
+   charmap = charmap_lower
+   while true
+      key = canv.scan()
+      if key is null
+         sleep(0.1)
+      elif key>=1000
+         key = key-1000
+         if key==KEY_ALT_GR
+            charmap = charmap_lower
+         elif key==KEY_SHIFT_LEFT or key==KEY_SHIFT_RIGHT
+            upper = false
+            charmap = charmap_lower
+         end
+      elif key==KEY_RETURN
+         if term.buffer_index<len(buffer)-1
+            term.buffer_index += 1
+         else
+            buffer = buffer[1..]+[""]
+            term.buffer = buffer
+         end
+         break
+      elif key==KEY_ALT_GR
+         charmap = charmap_alt
+      elif key==KEY_SHIFT_LEFT or key==KEY_SHIFT_RIGHT
+         upper = true
+         charmap = charmap_upper
+      elif key==KEY_BACKSPACE
+         if len(a)!=0
+            buffer[term.buffer_index] = buffer[term.buffer_index][0..-2]
+            a.pop()
+         end
+         show(term,canv,buffer)
+      else
+         char = charmap(key) or else str(key)
+         a.push(char)
+         buffer[term.buffer_index] += str(char)
+         show(term,canv,buffer)
+      end
+   end
+   return a.join()
+end
+
+function print_line(term,line)
+   index = term.buffer_index
+   term.buffer[index] = line
+   if index<len(term.buffer)-1
+      term.buffer_index += 1
+   else
+      term.buffer = term.buffer[1..]+[""]
+   end
+   show(term,term.canv,term.buffer)
+end
+
+class Terminal = {
    function print(*a)
-      apply_format(record(self))
-      put(*a)
-      put("\x{1b}[0m")
-      put("\n")
+      s = a.join()
+      buff = []
+      cols = self.cols
+      for c in s
+         if c=='\n' or len(buff)==cols
+            print_line(self,buff.join())
+            buff.clear()
+         else
+            buff.push(c)
+         end
+      end
+      if len(buff)!=0
+         print_line(self,buff.join())
+      end
    end,
-   function put(*a)
-      apply_format(record(self))
-      _put_(*a)
-      _put_("\x{1b}[0m")
+   function input(prompt)
+      input_loop(self,prompt)
    end
 }
 
-function u8(x)
-   x: Int and 0<=x and x<256
+function terminal()
+   return table Terminal{
+      canv = canvas(960,640),
+      buffer = [""]*25,
+      buffer_index = 0,
+      font = load_font(11),
+      cols = 80,
+      color = [0,0,0],
+      bcolor = [1,1,0.8]}
 end
 
-function check_color_spec(t)
-   if not(t: List and len(t)==3 and t.all(u8))
-      raise ["Error: color must be a list [r,g,b]\s",
-             "where r,g,b in 0..255."].join()
+end
+
+function main()
+   term = terminal()
+   while true
+      s = term.input("> ")
+      if s=="exit" then break end
+      if len(s)!=0
+         term.print(s)
+      end
    end
 end
 
-function format(argm = {})
-   if "color" in argm
-      check_color_spec(argm["color"])
-   end
-   if "background" in argm
-      check_color_spec(argm["background"])
-   end
-   return table Format(argm)
-end
-
-function clear()
-   _put_("\x{1b}[2J")
-   _put_("\x{1b}[H")
-end
-
+use sys
+if sys.main()
+   main()
 end
 
