@@ -402,7 +402,7 @@ fn scancode_to_key(x: SDL_Scancode) -> &'static str {
         SDL_Scancode::N8 => "8",
         SDL_Scancode::N9 => "9",
         SDL_Scancode::RETURN => "return",
-        SDL_Scancode::ESCAPE => "escape",
+        SDL_Scancode::ESCAPE => "esc",
         SDL_Scancode::BACKSPACE => "backspace",
         SDL_Scancode::SPACE => "space",
         SDL_Scancode::TAB => "tab",
@@ -425,6 +425,13 @@ fn scancode_to_key(x: SDL_Scancode) -> &'static str {
         SDL_Scancode::RIGHT => "right",
         SDL_Scancode::UP => "up",
         SDL_Scancode::DOWN => "down",
+        SDL_Scancode::CAPSLOCK => "capslock",
+        SDL_Scancode::LSHIFT => "lshift",
+        SDL_Scancode::RSHIFT => "rshift",
+        SDL_Scancode::LCTRL => "lctrl",
+        SDL_Scancode::RCTRL => "rctrl",
+        SDL_Scancode::LALT => "lalt",
+        SDL_Scancode::RALT => "ralt",
         _ => "unknown",
     }
 }
@@ -434,8 +441,24 @@ fn get_key() -> Object {
         let mut event: SDL_Event = mem::uninitialized();
         while SDL_PollEvent(&mut event)!=0 {
             if event.event_type == SDL_KEYDOWN {
-                let key = scancode_to_key(event.key.keysym.scancode);
-                return CharString::new_object_str(key);
+                let key = event.key.keysym.sym as u32;
+                if 32<key && key<256 {
+                    return Object::from(key as u8 as char);
+                }else{
+                    return Object::from(scancode_to_key(event.key.keysym.scancode));
+                }
+            }else if event.event_type == SDL_KEYUP {
+                let key = event.key.keysym.sym as u32;
+                if 32<key && key<256 {
+                    return CharString::new_object(vec!['-',key as u8 as char]);
+                }else{
+                    let mut v: Vec<char> = Vec::with_capacity(8);
+                    v.push('-');
+                    for c in scancode_to_key(event.key.keysym.scancode).chars() {
+                        v.push(c);
+                    }
+                    return CharString::new_object(v);
+                }
             }
         }
         return Object::Null;
