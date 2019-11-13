@@ -395,12 +395,29 @@ class System = {
       end
    end,
    
-   function save(path)
-      sleep(0.1)
+   function save(name)
       use fs: open
-      f = open(path,"w")
+      use fs.path: extension
+      sleep(0.1) # circumvent SDL flicker bug
+      ext = extension(name)
+      if ext=="png" or ext=="jpg" or ext=="jpeg"
+         path = "/tmp/out.ppm"
+      else
+         path = name
+      end
+      file = open(path,"w")
       header = "P6 {} {} 255\n"%[self.w,self.h]
-      f.write(header.encode()+self.c.dump())
+      file.write(header.encode()+self.c.dump())
+      file = null
+      if ext=="png"
+         use sys: cmd
+         cmd("sh",["-c","pnmtopng /tmp/out.ppm > "+name])
+         cmd("rm",["/tmp/out.ppm"])
+      elif ext=="jpg" or ext=="jpeg"
+         use sys: cmd
+         cmd("sh",["-c","pnmtojpeg /tmp/out.ppm >"+name])
+         cmd("rm",["/tmp/out.ppm"])
+      end
    end
 }
 
