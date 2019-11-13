@@ -27,12 +27,10 @@ fn time_sleep(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     }
     let duration = match argv[0] {
         Object::Float(x) => {
-            let x = if x<0.0 {0.0} else {x};
-            Duration::from_micros((1000000.0*x) as u64)
+            Duration::from_micros((1000000.0*x.max(0.0)) as u64)
         },
         Object::Int(x) => {
-            let x = if x<0 {0} else {x};
-            Duration::from_secs(x as u64)
+            Duration::from_secs(x.max(0) as u64)
         },
         ref x => return type_error_int_float(env,"sleep",x)
     };

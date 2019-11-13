@@ -1,17 +1,18 @@
 
 
 use std::ffi::{CString};
-use std::os::raw::{c_int};
+use std::os::raw::{c_int, c_void};
 use std::mem;
 use crate::sdl::{
     SDL_WINDOWPOS_CENTERED, SDL_WINDOW_SHOWN, SDL_RENDERER_ACCELERATED,
-    SDL_KEYDOWN, SDL_KEYUP,
+    SDL_KEYDOWN, SDL_KEYUP, SDL_PIXELFORMAT_RGB24,
     Uint32, SDL_Scancode, SDL_Window, SDL_Renderer, SDL_Rect,
     SDL_Event, SDL_PollEvent, SDL_BlendMode,
     SDL_Delay, SDL_CreateWindow, SDL_CreateRenderer,
     SDL_SetRenderDrawColor, SDL_RenderClear, SDL_RenderPresent,
     SDL_RenderDrawPoint, SDL_RenderFillRect,
-    SDL_Quit, SDL_DestroyWindow, SDL_SetRenderDrawBlendMode
+    SDL_Quit, SDL_DestroyWindow, SDL_SetRenderDrawBlendMode,
+    SDL_RenderReadPixels
 };
 use std::f64::consts::PI;
 
@@ -33,8 +34,16 @@ fn sleep(t: u32) {
     unsafe{SDL_Delay(t as Uint32);}
 }
 
+// fn fade(x: f64) -> i32 {
+//     return (255.0*(-0.4*x*x*x).exp()) as i32;
+// }
+
+// Performant approximation:
 fn fade(x: f64) -> i32 {
-    return (255.0*(-0.4*x*x*x).exp()) as i32;
+    let t = x+0.128*x*x;
+    let y = 13.8/(t*t*t+13.8);
+    let y2 = y*y;
+    return (255.0*(y2*y2)) as i32;
 }
 
 fn fade_needle(x: f64) -> i32 {
@@ -149,12 +158,14 @@ impl MutableCanvas {
     fn draw_graymap(&mut self, x: usize, y: usize, w: usize, h: usize, data: &[u8]) {
         let width = self.width as usize;
         let height = self.height as usize;
-        for py in 0..h {
+        let hmin = h.min(height.saturating_sub(y));
+        let wmin = w.min(width.saturating_sub(x));
+        let c = &self.color;
+        for py in 0..hmin {
             let py_w = py*w;
-            for px in 0..w {
+            for px in 0..wmin {
                 let byte = data[py_w+px];
-                if byte<255 && x+px<width && y+py<height {
-                    let c = &self.color;
+                if byte<255 {
                     unsafe{
                         SDL_SetRenderDrawColor(self.rdr,c.r,c.g,c.b,255-byte);
                         SDL_RenderDrawPoint(self.rdr,(x+px) as c_int,(y+py) as c_int);
@@ -171,18 +182,18 @@ impl MutableCanvas {
         let height = self.height as usize;
         let alpha = self.color.a;
         let w3 = w*3;
-        for py in 0..h {
+        let hmin = h.min(height.saturating_sub(y));
+        let wmin = w.min(width.saturating_sub(x));
+        for py in 0..hmin {
             let py_w3 = py*w3;
-            for px in 0..w {
-                if x+px<width && y+py<height {
-                    let index = py_w3+px*3;
-                    let r = data[index];
-                    let g = data[index+1];
-                    let b = data[index+2];
-                    unsafe{
-                        SDL_SetRenderDrawColor(self.rdr,r,g,b,alpha);
-                        SDL_RenderDrawPoint(self.rdr,(x+px) as c_int,(y+py) as c_int);
-                    }
+            for px in 0..wmin {
+                let index = py_w3+px*3;
+                let r = data[index];
+                let g = data[index+1];
+                let b = data[index+2];
+                unsafe{
+                    SDL_SetRenderDrawColor(self.rdr,r,g,b,alpha);
+                    SDL_RenderDrawPoint(self.rdr,(x+px) as c_int,(y+py) as c_int);
                 }
             }
         }
@@ -360,6 +371,18 @@ impl MutableCanvas {
             SDL_RenderClear(self.rdr);
             SDL_SetRenderDrawColor(self.rdr,c.r,c.g,c.b,c.a);
         }
+    }
+    
+    fn read(&self) -> Vec<u8> {
+        let w = self.width as usize;
+        let h = self.height as usize;
+        let mut buffer: Vec<u8> = vec![0;3*w*h];
+        unsafe{
+            SDL_RenderReadPixels(self.rdr,
+                std::ptr::null(),SDL_PIXELFORMAT_RGB24,
+                buffer.as_mut_ptr() as *mut c_void,3*w as i32);
+        }
+        return buffer;
     }
 }
 
@@ -851,8 +874,8 @@ fn graphics_sleep(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
         1 => {}, n => return env.argc_error(n,1,1,"sleep")
     }
     let t = match argv[0] {
-        Object::Int(x) => x as f64,
-        Object::Float(x) => x,
+        Object::Int(x) => x.max(0) as f64,
+        Object::Float(x) => x.max(0.0),
         ref x => return type_error_int_float(env,"sleep(x)","x",x)
     };
     let ms = (1000.0*t) as u32;
@@ -951,6 +974,14 @@ fn canvas_set_pixmap(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult
     }
 }
 
+fn canvas_dump(env: &mut Env, pself: &Object, _argv: &[Object]) -> FnResult {
+    if let Some(canvas) = downcast::<Canvas>(pself) {
+        Ok(Bytes::object_from_vec(canvas.canvas.borrow_mut().read()))
+    }else{
+        type_error_canvas(env,"canvas.dump","canvas")
+    }
+}
+
 fn load_img(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     let data = match downcast::<Bytes>(&argv[0]) {
         Some(value) => value,
@@ -1033,6 +1064,7 @@ pub fn load_graphics() -> Object
         m.insert_fn_plain("scale",canvas_scale,2,2);
         m.insert_fn_plain("glyph",canvas_set_glyph,6,6);
         m.insert_fn_plain("pixmap",canvas_set_pixmap,2,2);
+        m.insert_fn_plain("dump",canvas_dump,0,0);
     }
 
     let graphics = new_module("graphics");

@@ -2,7 +2,7 @@
 #![allow(non_camel_case_types)]
 #![allow(dead_code)]
 
-use std::os::raw::{c_int, c_uint, c_char};
+use std::os::raw::{c_int, c_uint, c_char, c_void};
 
 pub type Uint8 = u8;
 pub type Uint32 = u32;
@@ -308,6 +308,8 @@ pub const SDL_RENDERER_ACCELERATED: c_uint = 0x00000002;
 pub const SDL_KEYDOWN: u32 = 0x300;
 pub const SDL_KEYUP: u32 = 0x301;
 
+pub const SDL_PIXELFORMAT_RGB24: u32 = 0x17101803;
+
 #[repr(C)]
 pub struct SDL_Window {
     _mem: [u8; 0]
@@ -357,6 +359,10 @@ extern "C" {
     pub fn SDL_SetRenderDrawBlendMode(
         rdr: *mut SDL_Renderer, blend_mode: SDL_BlendMode
     ) -> c_int;
-}
 
+    pub fn SDL_RenderReadPixels(rdr: *mut SDL_Renderer,
+        rect: *const SDL_Rect, format: Uint32,
+        pixels: *mut c_void, picth: c_int
+    ) -> c_int;
+}
 

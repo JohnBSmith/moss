@@ -6,8 +6,10 @@ public system, system3d, System
 use math: pi, tau, hypot, tanh, atan2, sin, cos, floor
 use cmath: re, im, arg
 use graphics: sleep
-use graphics.font
+use graphics.typeset: load_font
 use unpack: drain, assert_empty
+
+font = load_font(10)
 
 palette = [
    [0,0,0.6],
@@ -114,12 +116,18 @@ function grid(sys,canvas,w,h,ax,ay,csys,cgrid,scale=1)
    canvas.rgb(0.4,0.4,0.4)
    for k in -ycount+yshift..ycount+yshift
       if k!=0
-         canvas.print(x-52,y+int(k*step)-11,"{:r4}"%[ftos(k*sys.wy/10*scale)])
+         py = y+int(k*step)
+         if 10<py and py<sys.h-10
+            font.print(canvas,x-50,py-11,"{:r4}"%[ftos(k*sys.wy/10*scale)])
+         end
       end
    end
    for k in -xcount-xshift..xcount-xshift
       if k!=0
-         canvas.print(x+int(k*step)-16,y+8,"{:r2}"%[ftos(k*sys.wx/10*scale)])
+         px = x+int(k*step)
+         if 12<px and px<sys.w-12
+            font.print(canvas,px-14,y+8,"{:r2}"%[ftos(k*sys.wx/10*scale)])
+         end
       end
    end
 end
@@ -325,10 +333,10 @@ class System = {
          f(a)
          canvas.vcflush()
          canvas.flush()
-         a+=0.02
+         a+=0.01
          key = canvas.key()
          if key=="q" then break end
-         sleep(0.01)
+         sleep(0.002)
       end
    end,
 
@@ -385,6 +393,14 @@ class System = {
             canvas.fill(i*n,j*n,n,n)
          end
       end
+   end,
+   
+   function save(path)
+      sleep(0.1)
+      use fs: open
+      f = open(path,"w")
+      header = "P6 {} {} 255\n"%[self.w,self.h]
+      f.write(header.encode()+self.c.dump())
    end
 }
 
