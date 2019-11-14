@@ -8,6 +8,7 @@ use cmath: re, im, arg
 use graphics: sleep
 use graphics.typeset: load_font
 use unpack: drain, assert_empty
+use data: bytes
 
 font = load_font(10)
 
@@ -118,7 +119,7 @@ function grid(sys,canvas,w,h,ax,ay,csys,cgrid,scale=1)
       if k!=0
          py = y+int(k*step)
          if 10<py and py<sys.h-10
-            font.print(canvas,x-50,py-11,"{:r4}"%[ftos(k*sys.wy/10*scale)])
+            font.print(canvas,x-50,py-11,"{:r4}"%[ftos(sys.py-k*sys.wy/10*scale)])
          end
       end
    end
@@ -126,7 +127,7 @@ function grid(sys,canvas,w,h,ax,ay,csys,cgrid,scale=1)
       if k!=0
          px = x+int(k*step)
          if 12<px and px<sys.w-12
-            font.print(canvas,px-14,y+8,"{:r2}"%[ftos(k*sys.wx/10*scale)])
+            font.print(canvas,px-14,y+8,"{:r2}"%[ftos(sys.px+k*sys.wx/10*scale)])
          end
       end
    end
@@ -139,8 +140,11 @@ class System = {
       canvas = self.c
       wx = self.wx; px = self.px; ax = self.ax
       wy = self.wy; py = self.py; ay = self.ay
-      {n = self.n, point = canvas.point} = drain(argm)
+      {n = self.n, point = canvas.point, color = null} = drain(argm)
       assert_empty(argm)
+      if not color is null
+         canvas.rgb(*color)
+      end
       step = wx/n
       px = px-ax*wx
       py = py-ay*wy
@@ -155,9 +159,12 @@ class System = {
                point(canvas;(x-px)/wx,(y-py)/wy)
             end
          end
-         if not self.lock
+         if not self.lock and color is null
             self.next_color()
          end
+      end
+      if not color is null
+         self.color(0)
       end
    end,
 
@@ -166,9 +173,12 @@ class System = {
       wx = self.wx; px = self.px; ax = self.ax
       wy = self.wy; py = self.py; ay = self.ay
       { n=self.n, t0=0, t1=2*pi,
-         point = canvas.point
+         point = canvas.point, color = null
       } = drain(argm)
       assert_empty(argm)
+      if not color is null
+         canvas.rgb(*color)
+      end
       step = 1/n
       a = [f] if f: Function else f
       for f in a
@@ -176,9 +186,12 @@ class System = {
             x,y = f(t)
             point(canvas;ax+(x-px)/wx,ay+(y-py)/wy)
          end
-         if not self.lock
+         if not self.lock and color is null
             self.next_color()
          end
+      end
+      if not color is null
+         self.color(0)
       end
    end,
 
@@ -418,6 +431,20 @@ class System = {
          cmd("sh",["-c","pnmtojpeg /tmp/out.ppm >"+name])
          cmd("rm",["/tmp/out.ppm"])
       end
+   end,
+
+   function transform(f)
+      self.c.vcflush()
+      a = self.c.dump().list().chunks(3).map(f).list()
+      self.c.pixmap(0,0,bytes(a.chain()),self.w,self.h)
+   end,
+
+   function desaturate()
+      self.transform(|[r,g,b]| 3*[(r+g+b)//3])
+   end,
+
+   function red_green_blind()
+      self.transform(|[r,g,b]| [(r+g)//2,(r+g)//2,b])
    end
 }
 
@@ -561,19 +588,23 @@ aligny_tab = {
 
 function system(argm = {})
    m = drain(argm)
-   {w=960,h=640,scale = null} = m
-   if scale is null
+   {w=960,h=640,count=null} = m
+   if count is null
       fscale = 1
    else
-      fscale = scale
+      fscale = 1/(count/10)
    end
-   {wx=10/fscale,wy=10/fscale,px=0,py=0,n=1000,dark=false,
+   {scale=1, origin=[0,0], n=1000, dark=false,
     alignx="center", aligny="center"
    } = m
    show_grid = m("grid") or else true
    assert_empty(argm)
-   ax = alignx_tab[alignx]
-   ay = aligny_tab[aligny]*h/w
+   scale = [scale,scale] if scale: Int else scale
+   assert scale[0]!=0 and scale[1]!=0
+   wx = scale[0]*10/fscale
+   wy = scale[1]*10/fscale
+   ax = (1-96/w)/0.9*alignx_tab[alignx]
+   ay = (1-64/h)/0.9*aligny_tab[aligny]*h/w
    if dark
       bg = [0,0.02,0.06]
       csys = [0.3,0.3,0.3]
@@ -588,7 +619,7 @@ function system(argm = {})
    canvas = graphics.canvas(w,h)
    sys = table System{
       c=canvas, w=w, h=h, n=n,
-      wx=wx, wy=wy, px=px, py=py, ax=ax, ay=ay,
+      wx=wx, wy=wy, px=origin[0], py=origin[1], ax=ax, ay=ay,
       point = canvas.point, needle = canvas.needle,
       color_index = 0, palette = palette, bg=bg,
       csys=csys, cgrid=cgrid, grid = show_grid,
