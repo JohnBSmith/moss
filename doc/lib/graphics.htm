@@ -110,13 +110,11 @@ s.idle()
 
 <h3>plotlib.system</h3>
 <dl class="code">
-<dt>system({w=960, h=640, n=1000, scale=1, px=0, py=0,<br>
-wx=10/scale, wy=10/scale, dark=false, grid=true,<br>
+<dt>system({w=960, h=640, origin=[0,0], scale=[1,1],
+count=10, dark=false, grid=true,
 alignx="center", aligny="center"})
-<dd>Create a new coordinate system with center <code>(px,py)</code>
-where the visible range is <code>x&in;[px-wx,px+wx]</code>
-and <code>y&in;[py-wy,py+wy]</code> by assuming <code>w==h</code>.
-The resolution will be <code>w*h</code> pixels.
+<dd>Create a new coordinate system. The resolution will be
+<code>w*h</code> pixels.
 </dl>
 
 <b>Type System, <code>s: System</code></b>
@@ -124,12 +122,10 @@ The resolution will be <code>w*h</code> pixels.
 <dt>s.idle()
 <dd>Idle until <code>"q"</code> (quit) is pressed.
 
-<dt>s.plot(f,{n=s.n})
-<dd>Graph a function <code>f</code> as <code>y=f(x)</code>,
-using <code>n</code> points for <code>x&in;[px-wx,0]</code> and
-<code>n</code> points for <code>x&in;[0,px+wx]</code>.
+<dt>s.plot(f)
+<dd>Graph the function <code>f</code>.
 
-<dt>s.vplot(f,{n=s.n, t0=0, t1=2*pi})
+<dt>s.vplot(f,{t0=0, t1=2*pi, n=1000})
 <dd>Graph a vector curve <code>f</code> as <code>[x,y]=f(t)</code>
 using <code>n</code> points for <code>t&in;[t0,t1]</code>.
 
@@ -147,7 +143,7 @@ where the color (HSL) is <code>H=arg(w)</code> and
 to <code>[x2,y2]=p2</code>.
 
 <dt>s.scatter(a,{type="disc", radius=0.008})
-<dd>Draw a list scatter points <code>[x,y]=a[k]</code>.
+<dd>Draw a list of scatter points <code>[x,y]=a[k]</code>.
 The <code>type</code> is <code>"disc"</code>, <code>"circle"</code>
 or <code>"box"</code>.
 
@@ -186,6 +182,17 @@ A random color is picked this way:
 rng = rand(s.palette)
 s.rgb(*rng())
 </pre>
+
+<dt>s.desaturate()
+<dd>Desaturate the colors.
+
+<dt>s.desaturate_red_green()
+<dd>Try to simulate red-green color blindness.
+
+<dt>s.save(filename)
+<dd>Save the plot as an image file. Supported formats are
+PPM, PNG and JPEG. The software package <code>netpbm</code> is
+required for PNG and JPEG.
 </dl>
 
 <h2 id="plotlib-implicit">Module plotlib.implicit</h2>

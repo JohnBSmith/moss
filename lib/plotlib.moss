@@ -135,6 +135,61 @@ end
 
 w = rand()
 
+function plot_simple(canvas,point,f,px,py,wx,wy,step)
+   for x in px-wx..px+wx: step
+      y = f(x)
+      if y: Complex
+         point(canvas;(x-px)/wx,(re(y)-py)/wy)
+         point(canvas;(x-px)/wx,(im(y)-py)/wy)
+      else
+         point(canvas;(x-px)/wx,(y-py)/wy)
+      end
+   end
+end
+
+function new_plot_rec(canvas,point,f,px,py,wx,wy)
+   ya = py-wy; yb = py+wy
+   count = 0
+   max_count = 600
+   limit = 0.02*wy/10
+   return fn plot_rec|depth,a,b,d|
+      delta_max = 0
+      y0 = f(a)
+      for x in a..b: d
+         y = f(x)
+         if ya<y and y<yb
+            point(canvas;(x-px)/wx,(y-py)/wy)
+         end
+         if (ya<y or ya<y0) and (y<yb or y0<yb)
+            delta = abs(y-y0)
+            if delta>delta_max then delta_max = delta end
+         end
+         y0 = y
+      end
+      if depth<8 and delta_max>limit
+         if count>max_count and depth>2
+            return
+         end
+         count+=1
+         n = 10
+         h = (b-a)/n
+         for i in n
+            plot_rec(depth+1,a+h*i,a+h*(i+1),d/n)
+         end
+      end
+   end
+end
+
+function plot_adaptive(canvas,point,f,px,py,wx,wy,step)
+   plot_rec = new_plot_rec(canvas,point,f,px,py,wx,wy)
+   n = 100
+   a = px-wx; b = px+wx; h = (b-a)/n
+   d = 0.01*wx/10
+   for i in n
+      plot_rec(0,a+h*i,a+h*(i+1),d)
+   end
+end
+
 class System = {
    function plot(f,argm={})
       canvas = self.c
@@ -146,19 +201,12 @@ class System = {
          canvas.rgb(*color)
       end
       step = wx/n
-      px = px-ax*wx
+      #px = px-ax*wx
       py = py-ay*wy
       a = [f] if f: Function else f
       for f in a
-         for x in px-wx..px+wx: step
-            y = f(x)
-            if y: Complex
-               point(canvas;(x-px)/wx,(re(y)-py)/wy)
-               point(canvas;(x-px)/wx,(im(y)-py)/wy)
-            else
-               point(canvas;(x-px)/wx,(y-py)/wy)
-            end
-         end
+         # plot_simple(canvas,point,f,px,py,wx,wy,step)
+         plot_adaptive(canvas,point,f,px,py,wx,wy,step)
          if not self.lock and color is null
             self.next_color()
          end
@@ -599,7 +647,7 @@ function system(argm = {})
    } = m
    show_grid = m("grid") or else true
    assert_empty(argm)
-   scale = [scale,scale] if scale: Int else scale
+   scale = scale if scale: List else [scale,scale]
    assert scale[0]!=0 and scale[1]!=0
    wx = scale[0]*10/fscale
    wy = scale[1]*10/fscale
