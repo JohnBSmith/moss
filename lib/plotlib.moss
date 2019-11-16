@@ -22,7 +22,7 @@ palette = [
 
 palette_dark = [
    [0.8,0.7,0],
-   [0.8,0,0.8],
+   [0.7,0,0.6],
    [0,0.6,0.6]
 ]
 
@@ -147,8 +147,8 @@ function plot_simple(canvas,point,f,px,py,wx,wy,step)
    end
 end
 
-function new_plot_rec(canvas,point,f,px,py,wx,wy)
-   ya = py-wy; yb = py+wy
+function new_plot_rec(canvas,point,f,px,py,wx,wy,ratio)
+   ya = py-ratio*wy; yb = py+ratio*wy
    count = 0
    max_count = 600
    limit = 0.02*wy/10
@@ -180,14 +180,22 @@ function new_plot_rec(canvas,point,f,px,py,wx,wy)
    end
 end
 
-function plot_adaptive(canvas,point,f,px,py,wx,wy,step)
-   plot_rec = new_plot_rec(canvas,point,f,px,py,wx,wy)
+function plot_adaptive(canvas,point,f,px,py,wx,wy,step,ratio)
+   plot_rec = new_plot_rec(canvas,point,f,px,py,wx,wy,ratio)
    n = 100
    a = px-wx; b = px+wx; h = (b-a)/n
    d = 0.01*wx/10
    for i in n
       plot_rec(0,a+h*i,a+h*(i+1),d)
    end
+end
+
+function bisection_fast(N,state,f,a,b)
+   for k in N
+      m = 0.5*(a+b);
+      if f(m)<0==state then a=m else b=m end
+   end
+   return m
 end
 
 class System = {
@@ -201,18 +209,97 @@ class System = {
          canvas.rgb(*color)
       end
       step = wx/n
-      #px = px-ax*wx
+      px = px-ax*wx
       py = py-ay*wy
+      ratio = 1.5*self.h/self.w
       a = [f] if f: Function else f
       for f in a
          # plot_simple(canvas,point,f,px,py,wx,wy,step)
-         plot_adaptive(canvas,point,f,px,py,wx,wy,step)
+         plot_adaptive(canvas,point,f,px,py,wx,wy,step,ratio)
          if not self.lock and color is null
             self.next_color()
          end
       end
       if not color is null
          self.color(0)
+      end
+   end,
+
+   function plot_zero_set(f,argm = {})
+      {point = self.point, inc=1, density=1, N=14} = drain(argm)
+      assert_empty(argm)
+      use(self): w, h, wx, wy, px, py, canvas=c, ax, ay
+      n = 10*inc
+      mx = wx*2/w; dx = mx*n
+      my = wy*2/h; dy = my*n
+      px = px-ax*wx
+      py = py-ay*wy
+      shift = 1/density
+      for pixely in 0..h-1: shift
+         state = null
+         for pixelx in 0..w-1: n
+            x = mx*pixelx-wx-ax*wx
+            y = my*pixely-wy-ay*wy
+            z = f(x,y)<0
+            if z!=state
+               if not state is null
+                  x0 = bisection_fast(N,state,|x| f(x,y),x-dx,x+dx)
+                  if abs(f(x0,y))<0.1
+                     point(canvas;(x0-px)/wx,(y-py)/wy)
+                  end
+               end
+               state = z
+            end
+         end
+      end
+
+      for pixelx in 0..w-1: shift
+         state = null
+         for pixely in 0..h-1: n
+            x = mx*pixelx-wx-ax*wx
+            y = my*pixely-wy-ay*wy
+            z = f(x,y)<0
+            if z!=state
+               if not state is null
+                  y0 = bisection_fast(N,state,|y| f(x,y),y-dy,y+dy)
+                  if abs(f(x,y0))<0.1
+                     point(canvas;(x-px)/wx,(y0-py)/wy)
+                  end
+               end
+               state = z
+            end
+         end
+      end
+      if not self.lock
+         self.next_color()
+      end
+   end,
+
+   function plot_level(f,argm={})
+      canvas = self.c
+      {n=4,freq=1,alpha=0.4,phi0=4*pi/3} = argm
+      W = self.w//n
+      H = self.h//n
+      ratio = H/W
+      ai = 2/(W-1)
+      aj = 2/(H-1)
+      wx = self.wx; px = self.px; ax = self.ax
+      wy = self.wy; py = self.py; ay = self.ay
+      px = px-ax*wx
+      py = py-ay*wy
+      # grid(self,canvas,self.w,self.h,[0,0,0],[0,0,0,0.4],self.fscale)
+      tau = 2*pi
+      for j in 0..H-1
+         for i in 0..W-1
+            x = px+(ai*i-1)*wx
+            y = py-(aj*j-1)*ratio*wy
+            z = phi0-freq*f(x,y)
+            # L = 0.5-0.5*cos(tau*z)
+            # canvas.hsl(3.4,sat,0.1,L*alpha)
+            phi = z-tau*floor(z/tau)
+            canvas.hsl(phi,1,0.5,alpha)
+            canvas.fill(i*n,j*n,n,n)
+         end
       end
    end,
 
@@ -493,6 +580,11 @@ class System = {
 
    function red_green_blind()
       self.transform(|[r,g,b]| [(r+g)//2,(r+g)//2,b])
+   end,
+   
+   function flush()
+      self.c.vcflush()
+      self.c.flush()
    end
 }
 

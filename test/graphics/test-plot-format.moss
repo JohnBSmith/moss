@@ -1,0 +1,153 @@
+
+use plotlib: system
+use time: sleep
+use math: sin
+
+a = [|x| x^2, sin, |x| 1/x]
+
+begin
+   s = system()
+   s.plot(a)
+   s.flush()
+   sleep(2)
+end
+
+begin
+   s = system(w=360,h=240,count=5)
+   s.plot(a)
+   s.flush()
+   sleep(2)
+end
+
+begin
+   s = system(w=240,h=640,count=4)
+   s.plot(a)
+   s.flush()
+   sleep(2)
+end
+
+begin
+   s = system(w=960,h=240)
+   s.plot(a)
+   s.flush()
+   sleep(2)
+end
+
+begin
+   s = system(count=4)
+   s.plot(a)
+   s.flush()
+   sleep(2)
+end
+
+begin
+   s = system(aligny="bottom")
+   s.plot(a)
+   s.flush()
+   sleep(2)
+end
+
+begin
+   s = system(aligny="top")
+   s.plot(a)
+   s.flush()
+   sleep(2)
+end
+
+begin
+   s = system(alignx="left")
+   s.plot(a)
+   s.flush()
+   sleep(2)
+end
+
+begin
+   s = system(alignx="right")
+   s.plot(a)
+   s.flush()
+   sleep(2)
+end
+
+begin
+   s = system(alignx="left",aligny="top")
+   s.plot(a)
+   s.flush()
+   sleep(2)
+end
+
+begin
+   s = system(alignx="right",aligny="top")
+   s.plot(a)
+   s.flush()
+   sleep(2)
+end
+
+begin
+   s = system(alignx="right",aligny="bottom")
+   s.plot(a)
+   s.flush()
+   sleep(2)
+end
+
+begin
+   s = system(alignx="left",aligny="bottom")
+   s.plot(a)
+   s.flush()
+   sleep(2)
+end
+
+begin
+   s = system(w=240,h=640,count=4,aligny="bottom")
+   s.plot(a)
+   s.flush()
+   sleep(2)
+end
+
+begin
+   s = system(alignx="left")
+   s.plot(a)
+   s.flush()
+   sleep(2)
+end
+
+begin
+   s = system(scale=1000)
+   s.plot(a.map(|f| |x| 1000*f(x/1000)))
+   s.flush()
+   sleep(2)
+end
+
+begin
+   s = system(scale=0.001)
+   s.plot(a.map(|f| |x| f(1000*x)/1000))
+   s.flush()
+   sleep(2)
+end
+
+begin
+   s = system(scale=5,count=2)
+   s.plot(a)
+   s.flush()
+   sleep(2)
+end
+
+begin
+   s = system(scale=5,count=2,alignx="left",aligny="bottom")
+   s.plot(a)
+   s.flush()
+   sleep(2)
+end
+
+begin
+   s = system(scale=0.5,count=20)
+   s.plot(a)
+   s.flush()
+   sleep(2)
+end
+
+begin
+   s = system(scale=0.5,count=20,alignx="left",aligny="bottom")
+   s.plot(a)
+   s.flush()
+   sleep(2)
+end

@@ -1,0 +1,33 @@
+
+use plotlib: system
+use time: sleep
+use math: sin, gamma
+
+begin
+   s = system()
+   s.plot(gamma)
+   s.flush()
+   sleep(4)
+end
+
+begin
+   s = system()
+   s.plot(|x| 1/sin(x^2))
+   s.flush()
+   sleep(4)
+end
+
+begin
+   s = system()
+   s.plot(|x| sin(x^4))
+   s.flush()
+   sleep(4)
+end
+
+begin
+   s = system()
+   s.plot(|x| 1/sin(x^4))
+   s.flush()
+   sleep(4)
+end
+

@@ -59,7 +59,7 @@ index = [
    "math/sf",
    "math/sf/ei",
    "plotlib",
-   "plotlib/implicit",
+   "plotlib/color",
    "ser/json",
    "svg/plotlib",
    "sys/stackless"

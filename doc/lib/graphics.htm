@@ -125,9 +125,18 @@ alignx="center", aligny="center"})
 <dt>s.plot(f)
 <dd>Graph the function <code>f</code>.
 
-<dt>s.vplot(f,{t0=0, t1=2*pi, n=1000})
+<dt>s.vplot(f,{t0=0,t1=2*pi,n=1000})
 <dd>Graph a vector curve <code>f</code> as <code>[x,y]=f(t)</code>
 using <code>n</code> points for <code>t&in;[t0,t1]</code>.
+
+<dt>s.plot_zero_set(F,{inc=1,density=1,N=20})
+<dd>Graph the solutions of <code>F(x,y)==0</code>.
+
+<dt>s.plot_level(F,{n=4,freq=1,alpha=0.4})
+<dd>Draw <code>z=F(x,y)</code> by color. The color change frequency
+is given by <code>freq</code>. Alpha blending is adjusted by
+<code>alpha</code>. The integer number
+<code>n</code> is the raster size in pixels.
 
 <dt>s.cplot(f,{n=4})
 <dd>Graph a complex function <code>f</code> as <code>w=f(x+y*1i)</code>
@@ -142,7 +151,7 @@ where the color (HSL) is <code>H=arg(w)</code> and
 <dd>Draw a vector arrow from <code>[x1,y1]=p1</code>
 to <code>[x2,y2]=p2</code>.
 
-<dt>s.scatter(a,{type="disc", radius=0.008})
+<dt>s.scatter(a,{type="disc",radius=0.008})
 <dd>Draw a list of scatter points <code>[x,y]=a[k]</code>.
 The <code>type</code> is <code>"disc"</code>, <code>"circle"</code>
 or <code>"box"</code>.
@@ -195,34 +204,6 @@ PPM, PNG and JPEG. The software package <code>netpbm</code> is
 required for PNG and JPEG.
 </dl>
 
-<h2 id="plotlib-implicit">Module plotlib.implicit</h2>
-<p>Patches plotlib with functionality to draw zero sets.
-
-<p>A basic example:
-<pre class="moss indent">
-use plotlib: system
-use plotlib.implicit
-
-s = system()
-
-s.plot_zero_set(|x,y| x^2-y^2-1)
-
-s.idle()
-</pre>
-
-<b>Type System, <code>s: System</code></b>
-<dl class="code">
-<dt>s.plot_zero_set(F,{n=1000,m=10,method="bisection"})
-<dd>Draw the solutions of <code>F(x,y)=0</code>.
-A large line density needs a large <code>m</code>.
-If there are gaps, try to increase <code>m</code> to 20 or 100.
-
-<dt>s.plot_level(F,{n=4,freq=1,alpha=0.4})
-<dd>Draw <code>z=F(x,y)</code> by color. The color change frequency
-is given by <code>freq</code>. Alpha blending is adjusted by
-<code>alpha</code>. The integer number
-<code>n</code> is the raster size in pixels.
-</dl>
 
 </body>
 </html>
