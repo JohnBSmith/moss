@@ -115,18 +115,19 @@ rng = rand()
 a = list(-2..2: 0.1).map(|x| [x,x+2*rng()])
 r = linear_regression(a)
 
-# print(r)
+print(r)
 
 # Let us plot this sample
-use svg.plotlib: system
+use plotlib: system
 
-s = system()
-s.scatter(a)
+s = system(w=400,h=400,count=5)
+s.scatter(a,color=[0.5,0.5,0.5])
+s.scatter([r.center],color=[0.5,0,0.5])
+s.flush()
+
 s.plot([r.fx,r.gy])
-s.scatter([r.center],color="800080")
 
-print(s.flush())
-# moss lr &gt; plot.svg
+s.idle()
 </pre>
 
 <div>
@@ -138,7 +139,7 @@ print(s.flush())
 
 <pre class="moss">
 use math: sqrt,erf
-use svg.plotlib: system
+use plotlib: system
 
 # Numerical analysis:
 # inversion by bisection method
@@ -173,9 +174,9 @@ X = rand_cdf(Phi)
 F1 = cdf(X.list(10))
 F2 = cdf(X.list(100))
 
-s = system(wy=1.25,n=100)
+s = system(w=400,h=400,count=5,scale=[1,0.25])
 s.plot([Phi,F1,F2])
-print(s.flush())
+s.idle()
 </pre>
 
 <div>

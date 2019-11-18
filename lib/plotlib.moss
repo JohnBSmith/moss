@@ -1,5 +1,4 @@
 
-
 begin
 public system, system3d, System
 
@@ -86,6 +85,13 @@ function ftos(x)
    end
 end
 
+function border(canvas,w,h)
+   hline(canvas,w,0)
+   hline(canvas,w,h-2)
+   vline(canvas,h,0)
+   vline(canvas,h,w-2)
+end
+
 function grid(sys,canvas,w,h,ax,ay,csys,cgrid,scale=1)
    canvas.rgb(*cgrid)
    step = w/20*scale
@@ -101,6 +107,7 @@ function grid(sys,canvas,w,h,ax,ay,csys,cgrid,scale=1)
    for k in -xcount-xshift..xcount-xshift
       vline(canvas,h,x+int(k*step))
    end
+   border(canvas,w,h)
    canvas.rgb(*csys)
    hline(canvas,w,y)
    vline(canvas,h,x)
@@ -114,12 +121,14 @@ function grid(sys,canvas,w,h,ax,ay,csys,cgrid,scale=1)
          canvas.fill(x+int(k*step),y-4,2,10)
       end
    end
+   fw = font.width
    canvas.rgb(0.4,0.4,0.4)
    for k in -ycount+yshift..ycount+yshift
       if k!=0
          py = y+int(k*step)
          if 10<py and py<sys.h-10
-            font.print(canvas,x-50,py-11,"{:r4}"%[ftos(sys.py-k*sys.wy/10*scale)])
+            s = "{}"%[ftos(sys.py-k*sys.wy/10*scale)]
+            font.print(canvas,x-9-len(s)*fw,py-11,s)
          end
       end
    end
@@ -127,7 +136,9 @@ function grid(sys,canvas,w,h,ax,ay,csys,cgrid,scale=1)
       if k!=0
          px = x+int(k*step)
          if 12<px and px<sys.w-12
-            font.print(canvas,px-14,y+8,"{:r2}"%[ftos(sys.px+k*sys.wx/10*scale)])
+            s = "{}"%[ftos(sys.px+k*sys.wx/10*scale)]
+            yadd = 5+14*(k%2) if len(s)*fw+4>step else 6
+            font.print(canvas,px+1-len(s)*fw//2,y+yadd,s)
          end
       end
    end
@@ -362,9 +373,10 @@ class System = {
       wy = self.wy; py = self.py; ay = self.ay
       if argm is null
          mark = canvas.disc
-         radius = 0.008
+         radius = 1
+         color = null
       else
-         {type = "disc", radius = 0.008} = argm
+         {type = "disc", radius = 1, color = null} = argm
          if type=="disc"
             mark = canvas.disc
          elif type=="circle"
@@ -373,8 +385,15 @@ class System = {
             mark = canvas.box
          end
       end
+      radius = radius*7.68/self.w
+      if not color is null
+         canvas.rgb(*color)
+      end
       for x,y in a
          mark(canvas;ax+(x-px)/wx,ay+(y-py)/wy,radius)
+      end
+      if not color is null
+         self.color(0)
       end
    end,
 
@@ -542,11 +561,11 @@ class System = {
          end
       end
    end,
-   
+
    function save(name)
+      self.c.vcflush()
       use fs: open
       use fs.path: extension
-      sleep(0.1) # circumvent SDL flicker bug
       ext = extension(name)
       if ext=="png" or ext=="jpg" or ext=="jpeg"
          path = "/tmp/out.ppm"
@@ -578,7 +597,7 @@ class System = {
       self.transform(|[r,g,b]| 3*[(r+g+b)//3])
    end,
 
-   function red_green_blind()
+   function desaturate_red_green()
       self.transform(|[r,g,b]| [(r+g)//2,(r+g)//2,b])
    end,
    
@@ -798,5 +817,4 @@ function system3d(argm = {})
 end
 
 end
-
 

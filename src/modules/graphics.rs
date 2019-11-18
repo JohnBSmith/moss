@@ -3,16 +3,19 @@
 use std::ffi::{CString};
 use std::os::raw::{c_int, c_void};
 use std::mem;
+use std::ptr::null;
 use crate::sdl::{
     SDL_WINDOWPOS_CENTERED, SDL_WINDOW_SHOWN, SDL_RENDERER_ACCELERATED,
     SDL_KEYDOWN, SDL_KEYUP, SDL_PIXELFORMAT_RGB24,
-    Uint32, SDL_Scancode, SDL_Window, SDL_Renderer, SDL_Rect,
-    SDL_Event, SDL_PollEvent, SDL_BlendMode,
+    SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET,
+    Uint32, SDL_Scancode, SDL_Window, SDL_Renderer, SDL_Texture,
+    SDL_Rect, SDL_Event, SDL_PollEvent, SDL_BlendMode,
     SDL_Delay, SDL_CreateWindow, SDL_CreateRenderer,
     SDL_SetRenderDrawColor, SDL_RenderClear, SDL_RenderPresent,
     SDL_RenderDrawPoint, SDL_RenderFillRect,
     SDL_Quit, SDL_DestroyWindow, SDL_SetRenderDrawBlendMode,
-    SDL_RenderReadPixels
+    SDL_RenderReadPixels, SDL_CreateTexture, SDL_SetRenderTarget,
+    SDL_RenderCopy
 };
 use std::f64::consts::PI;
 
@@ -84,6 +87,7 @@ struct Color {
 struct MutableCanvas {
     window: *mut SDL_Window,
     rdr: *mut SDL_Renderer,
+    texture: *mut SDL_Texture,
     buffer: Box<[Color]>,
     width: u32, height: u32,
     px: i32, py: i32, wx: f64, wy: f64,
@@ -100,17 +104,25 @@ impl MutableCanvas {
         let rdr = unsafe{
             SDL_CreateRenderer(window,0,SDL_RENDERER_ACCELERATED)
         };
+        let black = Color{r: 0, b: 0, g: 0, a: 0};
+        let buffer = vec![black; w*h].into_boxed_slice();
+        let texture = unsafe{
+            SDL_CreateTexture(rdr,SDL_PIXELFORMAT_RGBA8888,
+                SDL_TEXTUREACCESS_TARGET, w as c_int, h as c_int)
+        };
         unsafe{
             SDL_SetRenderDrawBlendMode(rdr,SDL_BlendMode::BLEND);
             SDL_SetRenderDrawColor(rdr,0,0,0,255);
             SDL_RenderClear(rdr);
-            SDL_SetRenderDrawColor(rdr,0xa0,0xa0,0xa0,255);
             SDL_RenderPresent(rdr);
+            SDL_SetRenderTarget(rdr,texture);
+            SDL_RenderClear(rdr);
+            SDL_SetRenderDrawColor(rdr,0xa0,0xa0,0xa0,255);
         }
-        let black = Color{r: 0, b: 0, g: 0, a: 0};
-        let buffer = vec![black; w*h].into_boxed_slice();
+
         return MutableCanvas{
-            window, rdr, buffer, width: w as u32, height: h as u32,
+            window, rdr, texture, buffer,
+            width: w as u32, height: h as u32,
             px: w as i32/2, py: h as i32/2,
             wx: 0.5*w as f64, wy: 0.5*w as f64,
             color: Color{r: 0xa0, g: 0xa0, b: 0xa0, a: 255}
@@ -118,7 +130,12 @@ impl MutableCanvas {
     }
 
     fn flush(&mut self) {
-        unsafe{SDL_RenderPresent(self.rdr);}
+        unsafe{
+            SDL_SetRenderTarget(self.rdr,null::<SDL_Texture>() as *mut _);
+            SDL_RenderCopy(self.rdr,self.texture,null(),null());
+            SDL_RenderPresent(self.rdr);
+            SDL_SetRenderTarget(self.rdr,self.texture);
+        }
     }
 
     fn flush_vg_buffer(&mut self) {
@@ -379,7 +396,7 @@ impl MutableCanvas {
         let mut buffer: Vec<u8> = vec![0;3*w*h];
         unsafe{
             SDL_RenderReadPixels(self.rdr,
-                std::ptr::null(),SDL_PIXELFORMAT_RGB24,
+                null(),SDL_PIXELFORMAT_RGB24,
                 buffer.as_mut_ptr() as *mut c_void,3*w as i32);
         }
         return buffer;

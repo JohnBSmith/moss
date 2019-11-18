@@ -309,6 +309,8 @@ pub const SDL_KEYDOWN: u32 = 0x300;
 pub const SDL_KEYUP: u32 = 0x301;
 
 pub const SDL_PIXELFORMAT_RGB24: u32 = 0x17101803;
+pub const SDL_PIXELFORMAT_RGBA8888: u32 = 0x16462004;
+pub const SDL_TEXTUREACCESS_TARGET: c_int = 2;
 
 #[repr(C)]
 pub struct SDL_Window {
@@ -317,6 +319,11 @@ pub struct SDL_Window {
 
 #[repr(C)]
 pub struct SDL_Renderer {
+    _mem: [u8; 0]
+}
+
+#[repr(C)]
+pub struct SDL_Texture {
     _mem: [u8; 0]
 }
 
@@ -363,6 +370,20 @@ extern "C" {
     pub fn SDL_RenderReadPixels(rdr: *mut SDL_Renderer,
         rect: *const SDL_Rect, format: Uint32,
         pixels: *mut c_void, picth: c_int
+    ) -> c_int;
+
+    pub fn  SDL_CreateTexture(rdr: *mut SDL_Renderer,
+        format: Uint32, access: c_int, w: c_int, h: c_int
+    ) -> *mut SDL_Texture;
+    
+    pub fn SDL_SetRenderTarget(rdr: *mut SDL_Renderer,
+        texture: *mut SDL_Texture
+    ) -> c_int;
+
+    pub fn SDL_RenderCopy(rdr: *mut SDL_Renderer,
+        texture: *mut SDL_Texture,
+        srcrect: *const SDL_Rect,
+        dstrect: *const SDL_Rect
     ) -> c_int;
 }
 

@@ -165,7 +165,7 @@ sin = euler_any_order(|x,y| -y[0],{
 <h2 id="dynamical-systems">Dynamical systems</h2>
 
 <pre class="moss">
-use svg.plotlib: system
+use plotlib: system
 use math.ode: runge_kutta
 
 # Lorenz attractor
@@ -179,9 +179,9 @@ x,y,z = runge_kutta({
    w=40, unilateral = true
 })
 
-s = system(wx=25, wy=25, py=25)
-s.vplot(|t| [x(t),z(t)], {t0=0, t1=40, n=200})
-print(s.flush())
+s = system(w=400,h=400,scale=5,origin=[0,25],count=5)
+s.vplot(|t| [x(t),z(t)], {t0=0, t1=40, n=4000})
+s.idle()
 </pre>
 
 <div>
@@ -209,13 +209,8 @@ x,v = runge_kutta({
    unilateral = true
 })
 
-s = system(dark = true, w=400, h=400, scale=2)
-
-s.animate(fn|tstep|
-   t = 40*tstep
-   s.scatter([x(t)])
-end, clear = false)
-
+s = system(dark=true,w=400,h=400,count=5)
+s.scatter(x[0..34])
 s.idle()
 </pre>
 
@@ -239,8 +234,8 @@ function nbody({G,m})
    n = len(m)
    vindex = vector(*list(0..n-1))
    return |x| vindex.map(|i| G*(0..n-1).sum(|k|
-     vector(0,0) if k==i else
-     m[k]*(x[k]-x[i])/abs(x[k]-x[i])^3))
+      vector(0,0) if k==i else
+      m[k]*(x[k]-x[i])/abs(x[k]-x[i])^3))
 end
 
 m,x0,v0 = list(zip(
@@ -265,20 +260,20 @@ x,v = runge_kutta({
    unilateral = true
 })
 
-s = system(dark = true, w=720, h=480, scale=2)
+s = system(dark=true,w=720,h=480,count=5)
 
-s.animate(fn|tstep|
-   t = 4*tstep
+for t in 0..31:0.1
    xt = x(t)
 
-   s.scatter([xt[0]], radius=0.002)
+   s.rgb(0.8,0.7,0)
+   s.scatter([xt[0]], radius=0.5)
 
    s.rgb(0.6,0.6,0.8)
-   s.scatter([xt[1]], radius=0.001)
+   s.scatter([xt[1]], radius=0.1)
 
    s.rgb(0,0.6,0.6)
-   s.scatter([xt[2]], radius=0.0005)
-end, clear = false)
+   s.scatter([xt[2]], radius=0.02)
+end
 
 s.idle()
 </pre>
