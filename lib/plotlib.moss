@@ -237,18 +237,18 @@ class System = {
    end,
 
    function plot_zero_set(f,argm = {})
-      {point = self.point, inc=1, density=1, N=14} = drain(argm)
+      {point = self.point, n=100, N=14, density=1} = drain(argm)
       assert_empty(argm)
       use(self): w, h, wx, wy, px, py, canvas=c, ax, ay
-      n = 10*inc
-      mx = wx*2/w; dx = mx*n
-      my = wy*2/h; dy = my*n
+      inc = int(w/n) if w/n>2 else w/n
+      mx = wx*2/w; dx = mx*inc
+      my = wy*2/h; dy = my*inc
       px = px-ax*wx
       py = py-ay*wy
       shift = 1/density
       for pixely in 0..h-1: shift
          state = null
-         for pixelx in 0..w-1: n
+         for pixelx in 0..w-1: inc
             x = mx*pixelx-wx-ax*wx
             y = my*pixely-wy-ay*wy
             z = f(x,y)<0
@@ -266,7 +266,7 @@ class System = {
 
       for pixelx in 0..w-1: shift
          state = null
-         for pixely in 0..h-1: n
+         for pixely in 0..h-1: inc
             x = mx*pixelx-wx-ax*wx
             y = my*pixely-wy-ay*wy
             z = f(x,y)<0

@@ -128,8 +128,12 @@ alignx="center", aligny="center"})
 <dd>Graph a vector curve <code>f</code> as <code>[x,y]=f(t)</code>
 using <code>n</code> points for <code>t&in;[t0,t1]</code>.
 
-<dt>s.plot_zero_set(F,{inc=1,density=1,N=20})
+<dt>s.plot_zero_set(F,{N=20,n=100,density=1})
 <dd>Graph the solutions of <code>F(x,y)==0</code>.
+Uses the bisection method with a maximum of <code>N</code> iterations,
+applied to <code>n</code> subintervals. A larger value of <code>n</code>
+leads to better results. For high quality plots, set
+the fibration density to <code>density=2</code> or larger.
 
 <dt>s.plot_level(F,{n=4,freq=1,alpha=0.4})
 <dd>Draw <code>z=F(x,y)</code> by color. The color change frequency

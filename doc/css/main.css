@@ -52,7 +52,7 @@ div.toc a:hover{
   text-decoration: underline;
 }
 pre, code{
-  font-family: "DejaVu Sans Mono", "Menlo", monospace;
+  font-family: "DejaVu Sans Mono", "Menlo", "Consolas", monospace;
 }
 pre{
   line-height: 1.3;
@@ -62,7 +62,7 @@ code{
   font-weight: bold;
 }
 div.code{
-  font-family: "DejaVu Sans Mono", "Menlo", monospace;
+  font-family: "DejaVu Sans Mono", "Menlo", "Consolas", monospace;
 }
 
 .keyword{
@@ -87,7 +87,7 @@ div.code{
   color: #204040;
 }
 .code dt{
-  font-family: "DejaVu Sans Mono", "Menlo", monospace;
+  font-family: "DejaVu Sans Mono", "Menlo", "Consolas", monospace;
   font-weight: bold;
   color: #204060;
 }
