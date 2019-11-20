@@ -18,7 +18,8 @@
 <h2 id="toc">Table of contents</h2>
 <ol>
 <li><a href="#mean-sigma">Mean, standard deviation</a>
-<li><a href="#simple-linear-regression">Simple linear regression</a>
+<li><a href="#linear-regression">Simple linear regression</a>
+<li><a href="#polynomial-regression">Simple polynomial regression</a>
 <li><a href="#inverse-transform-sampling">Inverse transform sampling</a>
 <li><a href="#cdf-from-pmf">Obtaining a CDF from a PMF</a>
 </ol>
@@ -62,7 +63,7 @@ s = stat(rand(1..6).list(10000))
 print(s)
 </pre>
 
-<h2 id="simple-linear-regression">Simple linear regression</h2>
+<h2 id="linear-regression">Simple linear regression</h2>
 
 <pre class="moss">
 LinearRegression = table{
@@ -132,6 +133,43 @@ s.idle()
 
 <div>
 <img src="../img/linear-regression.png">
+</div>
+
+<br><br><br>
+<h2 id="polynomial-regression">Simple polynomial regression</h2>
+
+<pre class="moss">
+# The least squares method applied to a polynomial function of
+# degree n leads to a linear equation system of n+1 equations.
+
+use math.la: vector, matrix
+use math.la.inversion: solve
+
+function regression(points,{degree})
+   n = degree
+   A = matrix(*(
+      list(points.sum(|[x,y]| x^(i+j)) for j in 0..n)
+         for i in 0..n))
+   w = vector(*(points.sum(|[x,y]| y*x^i) for i in 0..n))
+   a = solve(A,w)
+   return table{coeff = a, f = |x| (0..n).sum(|k| a[k]*x^k)}
+end
+
+use plotlib: system
+
+points = [
+   [1,1],[2,1],[2,2],[3,2],[3,3],
+   [4,3],[4,4],[5,3],[5,5],[6,4]
+]
+
+s = system(w=360,h=240,count=5,align=["left","bottom"])
+s.scatter(points,color=[0.5,0.5,0.5])
+t = regression(points,degree=2)
+s.plot(t.f)
+s.idle()
+</pre>
+<div>
+<img src="../img/polynomial-regression.png">
 </div>
 
 <br><br><br>

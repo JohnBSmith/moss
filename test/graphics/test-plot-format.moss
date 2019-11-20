@@ -41,70 +41,70 @@ begin
 end
 
 begin
-   s = system(aligny="bottom")
+   s = system(align=["center","bottom"])
    s.plot(a)
    s.flush()
    sleep(2)
 end
 
 begin
-   s = system(aligny="top")
+   s = system(align=["center","top"])
    s.plot(a)
    s.flush()
    sleep(2)
 end
 
 begin
-   s = system(alignx="left")
+   s = system(align=["left","center"])
    s.plot(a)
    s.flush()
    sleep(2)
 end
 
 begin
-   s = system(alignx="right")
+   s = system(align=["right","center"])
    s.plot(a)
    s.flush()
    sleep(2)
 end
 
 begin
-   s = system(alignx="left",aligny="top")
+   s = system(align=["left","top"])
    s.plot(a)
    s.flush()
    sleep(2)
 end
 
 begin
-   s = system(alignx="right",aligny="top")
+   s = system(align=["right","top"])
    s.plot(a)
    s.flush()
    sleep(2)
 end
 
 begin
-   s = system(alignx="right",aligny="bottom")
+   s = system(align=["right","bottom"])
    s.plot(a)
    s.flush()
    sleep(2)
 end
 
 begin
-   s = system(alignx="left",aligny="bottom")
+   s = system(align=["left","bottom"])
    s.plot(a)
    s.flush()
    sleep(2)
 end
 
 begin
-   s = system(w=240,h=640,count=4,aligny="bottom")
+   s = system(w=240,h=640,count=4,align=["center","bottom"])
    s.plot(a)
    s.flush()
    sleep(2)
 end
 
 begin
-   s = system(alignx="left")
+   s = system(align=["left","center"])
    s.plot(a)
    s.flush()
    sleep(2)
@@ -132,7 +132,7 @@ begin
 end
 
 begin
-   s = system(scale=5,count=2,alignx="left",aligny="bottom")
+   s = system(scale=5,count=2,align=["left","bottom"])
    s.plot(a)
    s.flush()
    sleep(2)
@@ -146,7 +146,7 @@ begin
 end
 
 begin
-   s = system(scale=0.5,count=20,alignx="left",aligny="bottom")
+   s = system(scale=0.5,count=20,align=["left","bottom"])
    s.plot(a)
    s.flush()
    sleep(2)

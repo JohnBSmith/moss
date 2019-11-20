@@ -2991,15 +2991,18 @@ fn compile_fn(&mut self, bv: &mut Vec<u32>, t: &Rc<AST>)
     let vtab = replace(&mut self.vtab,VarTab::new(t.s.clone()));
     self.vtab.context = Some(Box::new(vtab));
 
-    self.function_nesting+=1;
-    self.arguments(&mut bv2,&a[0],selfarg)?;
-    let count_optional = self.vtab.count_optional_arg;
-
+    // Change the state of self.coroutine while the 
+    // arguments and the function body are compiled.
     let coroutine = self.coroutine;
     self.coroutine = match t.info {
         Info::Coroutine => true,
         _ => false
     };
+    
+    // Compile the arguments.
+    self.function_nesting+=1;
+    self.arguments(&mut bv2,&a[0],selfarg)?;
+    let count_optional = self.vtab.count_optional_arg;
 
     // Compile the function body.
     self.compile_ast(&mut bv2,&a[1])?;

@@ -1,0 +1,10 @@
+
+function log(s)
+   print("Test ",s)
+end
+
+log("1.1")
+eval("fn|| return (|[x,y]| null) end")
+
+log("1.2")
+eval("fn*|| yield (|[x,y]| null) end")

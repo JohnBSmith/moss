@@ -754,16 +754,15 @@ function system(argm = {})
       fscale = 1/(count/10)
    end
    {scale=1, origin=[0,0], n=1000, dark=false,
-    alignx="center", aligny="center"
-   } = m
+    align=["center","center"]} = m
    show_grid = m("grid") or else true
    assert_empty(argm)
    scale = scale if scale: List else [scale,scale]
    assert scale[0]!=0 and scale[1]!=0
    wx = scale[0]*10/fscale
    wy = scale[1]*10/fscale
-   ax = (1-96/w)/0.9*alignx_tab[alignx]
-   ay = (1-64/h)/0.9*aligny_tab[aligny]*h/w
+   ax = (1-96/w)/0.9*alignx_tab[align[0]]
+   ay = (1-64/h)/0.9*aligny_tab[align[1]]*h/w
    if dark
       bg = [0,0.02,0.06]
       csys = [0.3,0.3,0.3]
