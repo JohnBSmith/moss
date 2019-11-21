@@ -1,0 +1,23 @@
+
+function regression(argm = {})
+   use math.la: vector, matrix
+   use math.la.inversion: solve
+   class Regression = {
+       function string()
+          ["table Regression{\n\s\s\dcoeff\d: ", str(self.coeff), 
+          ",\n\s\s\df\d: |x| coeff.enum().sum(|[k,a]| a*x^k)","\n}"].join()
+       end
+   }
+   {degree=1} = argm
+   range = 0..degree
+   return fn regression|points|
+      A = matrix(*(
+         list(points.sum(|[x,y]| x^(i+j)) for j in range)
+            for i in range))
+      w = vector(*(points.sum(|[x,y]| y*x^i) for i in range))
+      a = solve(A,w).list
+      return table Regression{
+          coeff = a,
+          f = fn f|x| range.sum(|k| a[k]*x^k) end}
+   end
+end

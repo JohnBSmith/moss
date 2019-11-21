@@ -1225,6 +1225,31 @@ algorithms are actually handled quite well in Moss. For these reasons
 I have decided to move the functionality out of the interpreter into
 a library. That makes the interpreter a bit smaller again.
 
+<h3 data-date="20191120" id="unicode-identifiers"
+>Unicode identifiers</h3>
+
+<p>Concerning Unicode identifiers, these were prohibited until now in
+order not to open the door to homoglyph attacks. It was unclear to me
+how to deal with them. However, the problem is already present in that
+strings are also affected, of which the program may be dependent in a
+sensitive way. Thus the Pandora's box is already open, so to speak.
+In some editors it may also be possible to hide code in the carriage
+return or in overlong lines.
+
+<p>For these reasons, as I believe, it makes more sense to check files
+with an external tool. Such a tool would also be able to scan an entire
+directory.
+
+<p>Therefore I am inclined to allow Unicode for identifiers as well.
+For the sake of simplicity this concerns all code points greater
+than 127. A remaining question is, whether Unicode should be the
+default mode or be enabled by a command-line option. The former is
+more convenient while the latter is safer.  As ASCII-only input
+in default mode would be a strong convenience regression, it seems
+better to me to allow Uniode in default mode. A bad stomach feeling
+remains.
+
+
 </body>
 </html>
 

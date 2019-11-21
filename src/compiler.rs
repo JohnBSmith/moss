@@ -254,10 +254,12 @@ pub fn scan(s: &str, line_start: usize, file: &str, new_line_start: bool)
                 v.push(Token{token_type: token_type, value: Symbol::None,
                     line: line, col: hcol, item: Item::String(number.clone())});
             }
-        }else if (c.is_alphabetic() && c.is_ascii()) || a[i]=='_' {
+        }else if c.is_ascii_alphabetic() || c=='_' || (c as u32)>127 {
             let j = i;
             hcol = col;
-            while i<n && (a[i].is_alphabetic() || a[i].is_digit(10) || a[i]=='_') {
+            while i<n && (a[i].is_ascii_alphabetic() ||
+                a[i].is_digit(10) || a[i]=='_' || (a[i] as u32)>127
+            ) {
                 i+=1; col+=1;
             }
             let id: &String = &a[j..i].iter().cloned().collect();
@@ -744,64 +746,113 @@ struct AST{
     a: Option<Box<[Rc<AST>]>>
 }
 
-#[derive(Clone,Copy,PartialEq)]
-enum VarType{
-    Local, Argument, Context, Global, FnId
-}
-
-struct VarInfo{
-    s: String,
-    index: usize,
-    var_type: VarType
-}
-
-struct VarTab{
-    v: Vec<VarInfo>,
-    count_local: usize,
-    count_arg: usize,
-    count_context: usize,
-    count_global: usize,
-    context: Option<Box<VarTab>>,
-    fn_id: Option<String>,
-    count_optional_arg: usize
-}
-impl VarTab{
-    fn new(id: Option<String>) -> VarTab {
-        VarTab{v: Vec::new(),
-            count_local: 0, count_arg: 0, count_context: 0, count_global: 0,
-            context: None, fn_id: id, count_optional_arg: 0
-        }
+mod var_tab {
+    #[derive(Clone,Copy,PartialEq)]
+    pub enum VarType{
+        Local, Argument, Context, Global, FnId
     }
-    fn index_type(&mut self, id: &str) -> Option<(usize,VarType)> {
-        if let Some(ref s) = self.fn_id {
-            if id==s {return Some((0,VarType::FnId));}
-        }
-        { 
-            let a = &self.v[..];
-            for i in 0..a.len() {
-                if a[i].s==id {
-                    return Some((a[i].index, a[i].var_type));
-                }
+    pub struct VarInfo{
+        pub s: String,
+        pub var_type: VarType,
+        index: usize
+    }
+    pub struct VarTab{
+        pub context: Option<Box<VarTab>>,
+        v: Vec<VarInfo>,
+        fn_id: Option<String>,
+        count_local: usize,
+        count_arg: usize,
+        count_context: usize,
+        count_global: usize,
+        count_optional_arg: usize
+    }
+    impl VarTab{
+        pub fn new(id: Option<String>) -> VarTab {
+            VarTab{
+                context: None, v: Vec::new(), fn_id: id,
+                count_local: 0, count_arg: 0, count_context: 0,
+                count_global: 0, count_optional_arg: 0
             }
         }
-        if let Some(ref mut context) = self.context {
-            if let Some((_,var_type)) = context.index_type(id) {
-                if var_type == VarType::Global {
+        pub fn push_argument(&mut self, identifier: String) {
+            self.v.push(VarInfo{
+                s: identifier,
+                index: self.count_arg,
+                var_type: VarType::Argument
+            });
+            self.count_arg+=1;    
+        }
+        pub fn push_global(&mut self, identifier: String) {
+            self.v.push(VarInfo{
+                s: identifier,
+                index: self.count_global,
+                var_type: VarType::Global
+            });
+            self.count_global+=1;    
+        }
+        pub fn push_local(&mut self, identifier: String) {
+            self.v.push(VarInfo{
+                s: identifier,
+                index: self.count_local,
+                var_type: VarType::Local
+            });
+            self.count_local+=1;
+        }
+        pub fn push_context(&mut self, identifier: String) {
+            self.v.push(VarInfo{
+                s: identifier,
+                index: self.count_context,
+                var_type: VarType::Context
+            });
+            self.count_context+=1;    
+        }
+        pub fn push_optional_argument(&mut self, identifier: String) {
+            self.push_argument(identifier);
+            self.count_optional_arg+=1;
+        }
+        pub fn index_type(&mut self, id: &str) -> Option<(usize,VarType)> {
+            if let Some(ref s) = self.fn_id {
+                if id==s {return Some((0,VarType::FnId));}
+            }
+            { 
+                let a = &self.v[..];
+                for i in 0..a.len() {
+                    if a[i].s==id {
+                        return Some((a[i].index, a[i].var_type));
+                    }
+                }
+            }
+            if let Some(ref mut context) = self.context {
+                if let Some((_,var_type)) = context.index_type(id) {
+                    if var_type == VarType::Global {
+                        return None;
+                    }
+                    self.push_context(id.to_string());
+                    return Some((self.count_context-1,VarType::Context));
+                }else{
                     return None;
                 }
-                self.v.push(VarInfo{index: self.count_context,
-                    s: id.to_string(), var_type: VarType::Context
-                });
-                self.count_context+=1;
-                return Some((self.count_context-1,VarType::Context));
             }else{
                 return None;
             }
-        }else{
-            return None;
         }
+        pub fn borrow_parts(&mut self)
+        -> (&[VarInfo], &mut Option<Box<VarTab>>)
+        {
+            (&self.v, &mut self.context)
+        }
+        pub fn list(&self) -> &[VarInfo] {
+            &self.v
+        }
+        pub fn count_local(&self) -> usize {self.count_local}
+        pub fn count_context(&self) -> usize {self.count_context}
+        pub fn count_optional_arg(&self) -> usize {self.count_optional_arg}
+        // pub fn _count_arg(&self) -> usize {self.count_arg}
+        // pub fn _count_global(&self) -> usize {self.count_global}
     }
 }
+
+use var_tab::{VarType, VarTab};
 
 pub struct JmpInfo{
     start: usize,
@@ -3002,13 +3053,13 @@ fn compile_fn(&mut self, bv: &mut Vec<u32>, t: &Rc<AST>)
     // Compile the arguments.
     self.function_nesting+=1;
     self.arguments(&mut bv2,&a[0],selfarg)?;
-    let count_optional = self.vtab.count_optional_arg;
+    let count_optional = self.vtab.count_optional_arg();
 
     // Compile the function body.
     self.compile_ast(&mut bv2,&a[1])?;
     self.function_nesting-=1;
     
-    let var_count = self.vtab.count_local;
+    let var_count = self.vtab.count_local();
 
     // Shift the start adresses of nested functions
     // by the now known offset and turn them into
@@ -3028,7 +3079,7 @@ fn compile_fn(&mut self, bv: &mut Vec<u32>, t: &Rc<AST>)
     // print_var_tab(&self.vtab,2);
 
     // Closure bindings.
-    if self.vtab.count_context>0 {
+    if self.vtab.count_context()>0 {
         self.closure(bv,t);
     }else{
         push_bc(bv, bc::NULL, t.line, t.col);
@@ -3177,48 +3228,27 @@ fn arguments(&mut self, bv: &mut Vec<u32>, t: &AST, selfarg: bool)
     let a = ast_argv(t);
 
     if !selfarg {
-        self.vtab.v.push(VarInfo{
-            s: "self".to_string(),
-            index: self.vtab.count_arg,
-            var_type: VarType::Argument
-        });
-        self.vtab.count_arg+=1;
+        self.vtab.push_argument("self".to_string());
     }
 
     for (i,x) in a.iter().enumerate() {
         if x.symbol_type == SymbolType::Identifier {
             if let Some(ref s) = x.s {
-                self.vtab.v.push(VarInfo{
-                    s: s.clone(),
-                    index: self.vtab.count_arg,
-                    var_type: VarType::Argument
-                });
-                self.vtab.count_arg+=1;
+                self.vtab.push_argument(s.clone());
             }else{
                 unreachable!();
             }
         }else if x.value == Symbol::List || x.value == Symbol::Map {
             let ids = format!("_t{}_",i);
             let helper = identifier(&ids,x.line,x.col);
-            self.vtab.v.push(VarInfo{
-                s: ids,
-                index: self.vtab.count_arg,
-                var_type: VarType::Argument
-            });
-            self.vtab.count_arg+=1;
+            self.vtab.push_argument(ids);
             self.compile_ast(bv,&helper)?;
             self.compile_left_hand_side(bv,x)?;
         }else if x.value == Symbol::Assignment {
             let u = ast_argv(x);
             if u[0].symbol_type == SymbolType::Identifier {
                 if let Some(ref s) = u[0].s {
-                    self.vtab.v.push(VarInfo{
-                        s: s.clone(),
-                        index: self.vtab.count_arg,
-                        var_type: VarType::Argument
-                    });
-                    self.vtab.count_arg+=1;
-                    self.vtab.count_optional_arg+=1;
+                    self.vtab.push_optional_argument(s.clone());
                     self.compile_default_argument(bv,x)?;
                 }else{
                     unreachable!();
@@ -3312,22 +3342,12 @@ fn compile_assignment(&mut self, bv: &mut Vec<u32>, t: &AST,
             None => {
                 if self.coroutine {
                     push_bc(bv,bc::STORE_CONTEXT,line,col);        
-                    push_u32(bv,self.vtab.count_context as u32);
-                    self.vtab.v.push(VarInfo{
-                        s: key.clone(),
-                        index: self.vtab.count_context,
-                        var_type: VarType::Context
-                    });
-                    self.vtab.count_context+=1;
+                    push_u32(bv,self.vtab.count_context() as u32);
+                    self.vtab.push_context(key.clone());
                 }else{
                     push_bc(bv,bc::STORE_LOCAL,line,col);
-                    push_u32(bv,self.vtab.count_local as u32);
-                    self.vtab.v.push(VarInfo{
-                        s: key.clone(),
-                        index: self.vtab.count_local,
-                        var_type: VarType::Local
-                    });
-                    self.vtab.count_local+=1;
+                    push_u32(bv,self.vtab.count_local() as u32);
+                    self.vtab.push_local(key.clone());
                 }
             }
         }
@@ -3393,13 +3413,12 @@ fn compile_compound_assignment(
 }
 
 fn closure(&mut self, bv: &mut Vec<u32>, t: &AST){
-    let n = self.vtab.v.len();
-    let a = &self.vtab.v[..];
-    let context = match self.vtab.context {
+    let (list,context) = self.vtab.borrow_parts();
+    let context = match context {
         Some(ref mut context) => context,
         None => unreachable!()
     };
-    for x in &a[0..n] {
+    for x in list {
         if x.var_type == VarType::Context {
             if let Some((index,var_type)) = context.index_type(&x.s) {
                 match var_type {
@@ -3437,19 +3456,14 @@ fn closure(&mut self, bv: &mut Vec<u32>, t: &AST){
         }
     }
     push_bc(bv,bc::LIST,t.line,t.col);
-    push_u32(bv,self.vtab.count_context as u32);
+    push_u32(bv,self.vtab.count_context() as u32);
 }
 
 fn global_declaration(&mut self, a: &[Rc<AST>]) -> Result<(),Error> {
     for t in a {
         if t.symbol_type == SymbolType::Identifier {
             let key = match t.s {Some(ref x) => x, None => unreachable!()};
-            self.vtab.v.push(VarInfo{
-                s: key.clone(),
-                index: self.vtab.count_global,
-                var_type: VarType::Global
-            });
-            self.vtab.count_global+=1;
+            self.vtab.push_global(key.clone());
         }else{
             return Err(self.syntax_error(t.line,t.col,
                 "expected identifier."
@@ -4170,16 +4184,15 @@ fn print_data(a: &[Object]){
 
 #[allow(dead_code)]
 fn print_var_tab(vtab: &VarTab, indent: usize){
-    let n = vtab.v.len();
-    let a = &vtab.v[..];
+    let a = vtab.list();
     let mut sequent = false;
 
     print!("{:1$}","",indent);
     print!("context: ");
-    for i in 0..n {
-        if a[i].var_type == VarType::Context {
+    for v in a {
+        if v.var_type == VarType::Context {
             if sequent {print!(", ")} else {sequent = true;}
-            print!("{}",&a[i].s);
+            print!("{}",&v.s);
         }
     }
     println!();
@@ -4187,10 +4200,10 @@ fn print_var_tab(vtab: &VarTab, indent: usize){
     sequent = false;
     print!("{:1$}","",indent);
     print!("local: ");
-    for i in 0..n {
-        if a[i].var_type == VarType::Local {
+    for v in a {
+        if v.var_type == VarType::Local {
             if sequent {print!(", ")} else {sequent = true;}
-            print!("{}",&a[i].s);
+            print!("{}",&v.s);
         }
     }
     println!();
@@ -4198,10 +4211,10 @@ fn print_var_tab(vtab: &VarTab, indent: usize){
     sequent = false;
     print!("{:1$}","",indent);
     print!("argument: ");
-    for i in 0..n {
-        if a[i].var_type == VarType::Argument {
+    for v in a {
+        if v.var_type == VarType::Argument {
             if sequent {print!(", ")} else {sequent = true;}
-            print!("{}",&a[i].s);
+            print!("{}",&v.s);
         }
     }
     println!();
