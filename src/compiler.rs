@@ -1,13 +1,12 @@
 
 use std::rc::Rc;
-use std::collections::HashMap;
 use std::mem::replace;
 use std::str::{Chars,FromStr};
 use std::char;
 
 use crate::system;
 use crate::vm::{bc, BCSIZE, BCASIZE, BCAASIZE, Module, RTE};
-use crate::object::{Object, CharString, VARIADIC};
+use crate::object::{Object, VARIADIC};
 
 #[derive(Copy,Clone,PartialEq)]
 pub enum Value{
@@ -746,6 +745,8 @@ struct AST{
     a: Option<Box<[Rc<AST>]>>
 }
 
+type ResultAST = Result<Rc<AST>,Error>;
+
 mod var_tab {
     #[derive(Clone,Copy,PartialEq)]
     pub enum VarType{
@@ -859,23 +860,32 @@ pub struct JmpInfo{
     breaks: Vec<usize>
 }
 
-pub struct Pool{
-    stab: HashMap<String,usize>,
-    stab_index: usize,
-    data: Vec<Object>
-}
-
-impl Pool{
-    fn get_index(&mut self, key: &str) -> usize {
-        if let Some(index) = self.stab.get(key) {
-            return *index;
+mod pool {
+    use crate::object::{Object,CharString};
+    use std::collections::HashMap;
+    pub struct Pool{
+        stab: HashMap<String,usize>,
+        stab_index: usize,
+        data: Vec<Object>
+    }    
+    impl Pool{
+        pub fn new() -> Self {
+            Self{stab: HashMap::new(), stab_index: 0, data: Vec::new()}
         }
-        self.data.push(CharString::new_object_str(key));
-        self.stab.insert(String::from(key),self.stab_index);
-        self.stab_index+=1;
-        return self.stab_index-1;
+        pub fn get_index(&mut self, key: &str) -> usize {
+            if let Some(index) = self.stab.get(key) {
+                return *index;
+            }
+            self.data.push(CharString::new_object_str(key));
+            self.stab.insert(String::from(key),self.stab_index);
+            self.stab_index+=1;
+            return self.stab_index-1;
+        }
+        pub fn into_data(self) -> Vec<Object> {self.data}
     }
 }
+
+use pool::Pool;
 
 pub struct Compilation<'a>{
     mode_cmd: bool,
@@ -975,7 +985,7 @@ fn assignment(line: usize, col: usize, x: Rc<AST>, y: Rc<AST>) -> Rc<AST> {
     binary_operator(line,col,Symbol::Assignment,x,y)
 }
 
-fn atomic_literal(line: usize, col: usize, value: Symbol) -> Rc<AST>{
+fn atomic_literal(line: usize, col: usize, value: Symbol) -> Rc<AST> {
     Rc::new(AST{line: line, col: col, symbol_type: SymbolType::Keyword,
         value: value, info: Info::None, s: None, a: None})
 }
@@ -1089,7 +1099,7 @@ fn list_literal(&mut self, i: &mut TokenIterator) -> Result<Box<[Rc<AST>]>,Error
     return Ok(v.into_boxed_slice());
 }
 
-fn map_literal(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error> {
+fn map_literal(&mut self, i: &mut TokenIterator) -> ResultAST {
     let mut v: Vec<Rc<AST>> = Vec::new();
     let p = i.next_token(self)?;
     let t = &p[i.index];
@@ -1179,7 +1189,9 @@ fn map_literal(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error> {
     }));
 }
 
-fn table_literal(&mut self, i: &mut TokenIterator, t0: &Token) -> Result<Rc<AST>,Error> {
+fn table_literal(&mut self, i: &mut TokenIterator, t0: &Token)
+-> ResultAST
+{
     let p = i.next_token(self)?;
     let t = &p[i.index];
     let prototype = if t.value==Symbol::CLeft {
@@ -1214,7 +1226,7 @@ fn expect_assignment(&mut self, i: &mut TokenIterator)
     }
 }
 
-fn parent(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error> {
+fn parent(&mut self, i: &mut TokenIterator) -> ResultAST {
     let p = i.next_token(self)?;
     let t = &p[i.index];
     if t.value == Symbol::Colon {
@@ -1225,7 +1237,7 @@ fn parent(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error> {
     }
 }
 
-fn class_literal(&mut self, i: &mut TokenIterator, t0: &Token) -> Result<Rc<AST>,Error> {
+fn class_literal(&mut self, i: &mut TokenIterator, t0: &Token) -> ResultAST {
     i.index+=1;
     let name = self.atom(i)?;
     let parent = self.parent(i)?;
@@ -1234,7 +1246,9 @@ fn class_literal(&mut self, i: &mut TokenIterator, t0: &Token) -> Result<Rc<AST>
     return Ok(apply(t0.line, t0.col, Box::new([fid,name,parent,map])));
 }
 
-fn class_statement(&mut self, i: &mut TokenIterator, t0: &Token) -> Result<Rc<AST>,Error> {
+fn class_statement(&mut self, i: &mut TokenIterator, t0: &Token)
+-> ResultAST
+{
     i.index+=1;
     let id = self.atom(i)?;
     let name = if id.symbol_type == SymbolType::Identifier {
@@ -1254,7 +1268,7 @@ fn class_statement(&mut self, i: &mut TokenIterator, t0: &Token) -> Result<Rc<AS
 }
 
 fn arguments_list(&mut self, i: &mut TokenIterator, t0: &Token, terminator: Symbol)
--> Result<Rc<AST>,Error>
+-> ResultAST
 {
     let mut v: Vec<Rc<AST>> = Vec::new();
     let mut selfarg = false;
@@ -1330,7 +1344,7 @@ fn arguments_list(&mut self, i: &mut TokenIterator, t0: &Token, terminator: Symb
 }
 
 fn concise_function_literal(&mut self, i: &mut TokenIterator, t0: &Token)
-    -> Result<Rc<AST>,Error>
+-> ResultAST
 {
     let args = self.arguments_list(i,t0,Symbol::Vline)?;
     let x = self.expression(i)?;
@@ -1341,7 +1355,7 @@ fn concise_function_literal(&mut self, i: &mut TokenIterator, t0: &Token)
 }
 
 fn function_body(&mut self, i: &mut TokenIterator, coroutine: bool)
--> Result<Rc<AST>,Error>
+-> ResultAST
 {
     let statement = self.statement;
     self.statement = true;
@@ -1380,7 +1394,7 @@ fn coroutine_info(&mut self, i: &mut TokenIterator)
 }
 
 fn function_literal(&mut self, i: &mut TokenIterator, t0: &Token)
--> Result<Rc<AST>,Error>
+-> ResultAST
 {
     let (info,coroutine) = self.coroutine_info(i)?;
     let p = i.next_token(self)?;
@@ -1409,7 +1423,7 @@ fn function_literal(&mut self, i: &mut TokenIterator, t0: &Token)
 }
 
 fn function_statement(&mut self, i: &mut TokenIterator, t0: &Token)
--> Result<Rc<AST>,Error>
+-> ResultAST
 {
     let (info,coroutine) = self.coroutine_info(i)?;
     let p = i.next_token(self)?;
@@ -1442,7 +1456,7 @@ fn function_statement(&mut self, i: &mut TokenIterator, t0: &Token)
 
 
 fn application(&mut self, i: &mut TokenIterator, f: Rc<AST>, terminal: Symbol)
-    -> Result<Rc<AST>,Error>
+-> ResultAST
 {
     let mut v: Vec<Rc<AST>> = Vec::new();
     let mut v_named: Vec<Rc<AST>> = Vec::new();
@@ -1514,7 +1528,7 @@ fn application(&mut self, i: &mut TokenIterator, f: Rc<AST>, terminal: Symbol)
         value: value, info: self_argument, s: None, a: Some(v.into_boxed_slice())}));
 }
 
-fn block(&mut self, i: &mut TokenIterator, t0: &Token) -> Result<Rc<AST>,Error> {
+fn block(&mut self, i: &mut TokenIterator, t0: &Token) -> ResultAST {
     let statement = self.statement;
     self.statement = true;
     self.function_nesting+=1;
@@ -1542,7 +1556,7 @@ fn block(&mut self, i: &mut TokenIterator, t0: &Token) -> Result<Rc<AST>,Error> 
     return Ok(apply(t0.line,t0.col,Box::new([y])));
 }
 
-fn atom(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error> {
+fn atom(&mut self, i: &mut TokenIterator) -> ResultAST {
     let p = i.next_token(self)?;
     let t = &p[i.index];
     let y;
@@ -1626,9 +1640,7 @@ fn atom(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error> {
     return Ok(y);
 }
 
-fn application_term(&mut self, i: &mut TokenIterator)
-    -> Result<Rc<AST>,Error>
-{
+fn application_term(&mut self, i: &mut TokenIterator) -> ResultAST {
     let mut x = self.atom(i)?;
     loop{
         let p = i.next_token_optional(self)?;
@@ -1681,7 +1693,7 @@ fn application_term(&mut self, i: &mut TokenIterator)
     }
 }
 
-fn power(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
+fn power(&mut self, i: &mut TokenIterator) -> ResultAST {
     let x = self.application_term(i)?;
     let p = i.next_token_optional(self)?;
     let t = &p[i.index];
@@ -1694,7 +1706,7 @@ fn power(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
     }
 }
 
-fn signed_expression(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
+fn signed_expression(&mut self, i: &mut TokenIterator) -> ResultAST {
     let p = i.next_token(self)?;
     let t = &p[i.index];
     if t.value==Symbol::Minus || t.value==Symbol::Tilde || t.value==Symbol::Ast
@@ -1715,7 +1727,7 @@ fn signed_expression(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
     }
 }
 
-fn multiplication(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
+fn multiplication(&mut self, i: &mut TokenIterator) -> ResultAST {
     let mut y = self.signed_expression(i)?;
     let p = i.next_token_optional(self)?;
     let t = &p[i.index];
@@ -1744,7 +1756,7 @@ fn multiplication(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
     }
 }
 
-fn addition(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
+fn addition(&mut self, i: &mut TokenIterator) -> ResultAST {
     let mut y = self.multiplication(i)?;
     let p = i.next_token_optional(self)?;
     let t = &p[i.index];
@@ -1769,7 +1781,7 @@ fn addition(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
     }
 }
 
-fn shift(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
+fn shift(&mut self, i: &mut TokenIterator) -> ResultAST {
     let x = self.addition(i)?;
     let p = i.next_token_optional(self)?;
     let t = &p[i.index];
@@ -1782,7 +1794,7 @@ fn shift(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
     }
 }
 
-fn intersection(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
+fn intersection(&mut self, i: &mut TokenIterator) -> ResultAST {
     let mut y = self.shift(i)?;
     let p = i.next_token_optional(self)?;
     let t = &p[i.index];
@@ -1807,7 +1819,7 @@ fn intersection(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
     }
 }
 
-fn union(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
+fn union(&mut self, i: &mut TokenIterator) -> ResultAST {
     let mut y = self.intersection(i)?;
     let p = i.next_token_optional(self)?;
     let t = &p[i.index];
@@ -1832,7 +1844,7 @@ fn union(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
     }
 }
 
-fn range(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
+fn range(&mut self, i: &mut TokenIterator) -> ResultAST {
     let x = self.union(i)?;
     let p = i.next_token_optional(self)?;
     let t = &p[i.index];
@@ -1864,7 +1876,7 @@ fn range(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
     }
 }
 
-fn comparison(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
+fn comparison(&mut self, i: &mut TokenIterator) -> ResultAST {
     let x = self.range(i)?;
     let p = i.next_token_optional(self)?;
     let t = &p[i.index];
@@ -1880,7 +1892,7 @@ fn comparison(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
     }
 }
 
-fn eq_expression(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
+fn eq_expression(&mut self, i: &mut TokenIterator) -> ResultAST {
     let x = self.comparison(i)?;
     let p = i.next_token_optional(self)?;
     let t = &p[i.index];
@@ -1898,7 +1910,7 @@ fn eq_expression(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
     }
 }
 
-fn negation(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
+fn negation(&mut self, i: &mut TokenIterator) -> ResultAST {
     let p = i.next_token(self)?;
     let t = &p[i.index];
     if t.value==Symbol::Not {
@@ -1910,7 +1922,7 @@ fn negation(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
     }
 }
 
-fn conjunction(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
+fn conjunction(&mut self, i: &mut TokenIterator) -> ResultAST {
     let mut x = self.negation(i)?;
     let p = i.next_token_optional(self)?;
     let t = &p[i.index];
@@ -1933,7 +1945,7 @@ fn conjunction(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
     }
 }
 
-fn disjunction(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
+fn disjunction(&mut self, i: &mut TokenIterator) -> ResultAST {
     let mut x = self.conjunction(i)?;
     let p = i.next_token_optional(self)?;
     let t = &p[i.index];
@@ -1965,7 +1977,7 @@ fn disjunction(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
 }
 
 fn rec_for_if(&mut self, i: &mut TokenIterator, mut expr: Rc<AST>)
--> Result<Rc<AST>,Error>
+-> ResultAST
 {
     let p = i.next_any_token(self)?;
     let t = &p[i.index];
@@ -1999,7 +2011,7 @@ fn rec_for_if(&mut self, i: &mut TokenIterator, mut expr: Rc<AST>)
 }
 
 fn for_expression(&mut self, i: &mut TokenIterator, mut expr: Rc<AST>)
--> Result<Rc<AST>,Error>
+-> ResultAST
 {
     expr = unary_node(expr.line,expr.col,
         SymbolType::Keyword,Symbol::Yield,expr);
@@ -2014,7 +2026,7 @@ fn for_expression(&mut self, i: &mut TokenIterator, mut expr: Rc<AST>)
     return Ok(expr);
 }
 
-fn if_expression(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error> {
+fn if_expression(&mut self, i: &mut TokenIterator) -> ResultAST {
     let x = self.disjunction(i)?;
     let p = i.next_token_optional(self)?;
     let t = &p[i.index];
@@ -2041,11 +2053,13 @@ fn if_expression(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error> {
     }
 }
 
-fn expression(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
+fn expression(&mut self, i: &mut TokenIterator) -> ResultAST {
     return self.if_expression(i);
 }
 
-fn comma_expression(&mut self, i: &mut TokenIterator, value: Symbol) -> Result<Rc<AST>,Error>{
+fn comma_expression(&mut self, i: &mut TokenIterator, value: Symbol)
+-> ResultAST
+{
     let x = self.expression(i)?;
     let p = i.next_token_optional(self)?;
     let t = &p[i.index];
@@ -2071,7 +2085,7 @@ fn comma_expression(&mut self, i: &mut TokenIterator, value: Symbol) -> Result<R
     }
 }
 
-fn assignment(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
+fn assignment(&mut self, i: &mut TokenIterator) -> ResultAST {
     let x = self.comma_expression(i,Symbol::List)?;
     let p = i.next_token_optional(self)?;
     let t = &p[i.index];
@@ -2092,7 +2106,7 @@ fn assignment(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
     }
 }
 
-fn while_statement(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
+fn while_statement(&mut self, i: &mut TokenIterator) -> ResultAST {
     let condition = self.expression(i)?;
     let p = i.next_any_token(self)?;
     let t = &p[i.index];
@@ -2106,7 +2120,9 @@ fn while_statement(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error>{
         value: Symbol::While, info: Info::None, s: None, a: Some(Box::new([condition,body]))}));
 }
 
-fn comma_list(&mut self, i: &mut TokenIterator, t0: &Token, first: Rc<AST>) -> Result<Rc<AST>,Error> {
+fn comma_list(&mut self, i: &mut TokenIterator, t0: &Token, first: Rc<AST>)
+-> ResultAST
+{
     i.index+=1;
     let mut v: Vec<Rc<AST>> = Vec::new();
     v.push(first);
@@ -2125,7 +2141,7 @@ fn comma_list(&mut self, i: &mut TokenIterator, t0: &Token, first: Rc<AST>) -> R
         value: Symbol::List, info: Info::None, s: None, a: Some(v.into_boxed_slice())}));
 }
 
-fn for_statement(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error> {
+fn for_statement(&mut self, i: &mut TokenIterator) -> ResultAST {
     let mut variable = self.atom(i)?;
     let p = i.next_token(self)?;
     let t = &p[i.index];
@@ -2151,7 +2167,9 @@ fn for_statement(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error> {
         value: Symbol::For, info: Info::None, s: None, a: Some(Box::new([variable,a,body]))}));
 }
 
-fn if_statement(&mut self, i: &mut TokenIterator, t0: &Token) -> Result<Rc<AST>,Error>{
+fn if_statement(&mut self, i: &mut TokenIterator, t0: &Token)
+-> ResultAST
+{
     let mut v: Vec<Rc<AST>> = Vec::new();
     let condition = self.expression(i)?;
     let p = i.next_any_token(self)?;
@@ -2198,7 +2216,9 @@ fn if_statement(&mut self, i: &mut TokenIterator, t0: &Token) -> Result<Rc<AST>,
         value: Symbol::If, info: Info::None, s: None, a: Some(v.into_boxed_slice())}));
 }
 
-fn end_of(&mut self, i: &mut TokenIterator, symbol: Symbol) -> Result<(),Error>{
+fn end_of(&mut self, i: &mut TokenIterator, symbol: Symbol)
+-> Result<(),Error>
+{
     let p = i.next_token_optional(self)?;
     let t = &p[i.index];
     if t.value == Symbol::Of {
@@ -2216,9 +2236,8 @@ fn end_of(&mut self, i: &mut TokenIterator, symbol: Symbol) -> Result<(),Error>{
     return Ok(());
 }
 
-fn try_catch_statement(
-    &mut self, i: &mut TokenIterator, t0: &Token
-) -> Result<Rc<AST>,Error>
+fn try_catch_statement(&mut self, i: &mut TokenIterator, t0: &Token)
+-> ResultAST
 {
     let mut v: Vec<Rc<AST>> = Vec::new();
     let block = self.statements(i,Value::None)?;
@@ -2263,9 +2282,9 @@ fn try_catch_statement(
         value: Symbol::Try, info: Info::None, s: None, a: Some(v.into_boxed_slice())}));  
 }
 
-fn return_statement(&mut self, i: &mut TokenIterator, t0: &Token, symbol: Symbol
-)
-    -> Result<Rc<AST>,Error>
+fn return_statement(&mut self, i: &mut TokenIterator,
+    t0: &Token, symbol: Symbol
+) -> ResultAST
 {
     let p = i.next_any_token(self)?;
     let t = &p[i.index];
@@ -2279,13 +2298,15 @@ fn return_statement(&mut self, i: &mut TokenIterator, t0: &Token, symbol: Symbol
     }
 }
 
-fn raise_statement(&mut self, i: &mut TokenIterator, t0: &Token) -> Result<Rc<AST>,Error>{
+fn raise_statement(&mut self, i: &mut TokenIterator, t0: &Token)
+-> ResultAST
+{
     let x = self.comma_expression(i,Symbol::List)?;
     return Ok(Rc::new(AST{line: t0.line, col: t0.col, symbol_type: SymbolType::Keyword,
         value: Symbol::Raise, info: Info::None, s: None, a: Some(Box::new([x]))}));
 }
 
-fn identifier(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error> {
+fn identifier(&mut self, i: &mut TokenIterator) -> ResultAST {
     let p = i.next_token(self)?;
     let t = &p[i.index];
     let s = if t.token_type == SymbolType::Identifier {
@@ -2298,7 +2319,8 @@ fn identifier(&mut self, i: &mut TokenIterator) -> Result<Rc<AST>,Error> {
 
 fn qualification_assignment(&mut self, id: &str, module: Rc<AST>,
     property: &str, line: usize, col: usize
-) -> Rc<AST> {
+) -> Rc<AST>
+{
     let id = identifier(id,line,col);
     let property = string(property.to_string(),line,col);
     let dot = binary_operator(line,col,Symbol::Dot,module,property);
@@ -2377,7 +2399,7 @@ fn qualification(&mut self, v: &mut Vec<Rc<AST>>, id: Rc<AST>,
 }
 
 fn use_path(&mut self, i: &mut TokenIterator, t0: &Token)
-    -> Result<(Rc<AST>,Option<Rc<AST>>),Error>
+-> Result<(Rc<AST>,Option<Rc<AST>>),Error>
 {
     let mut buffer = match t0.item {
         Item::String(ref s) => s.to_string(),
@@ -2409,7 +2431,7 @@ fn use_path(&mut self, i: &mut TokenIterator, t0: &Token)
 }
 
 fn use_statement(&mut self, i: &mut TokenIterator, t0: &Token)
-    -> Result<Rc<AST>,Error>
+-> ResultAST
 {
     let mut v: Vec<Rc<AST>> = Vec::new();
     loop{
@@ -2507,7 +2529,7 @@ fn use_statement(&mut self, i: &mut TokenIterator, t0: &Token)
 }
 
 fn global_statement(&mut self, i: &mut TokenIterator, t0: &Token)
-    -> Result<Rc<AST>,Error>
+-> ResultAST
 {
     let mut v: Vec<Rc<AST>> = Vec::new();
     loop{
@@ -2526,7 +2548,7 @@ fn global_statement(&mut self, i: &mut TokenIterator, t0: &Token)
 }
 
 fn assert_statement(&mut self, i: &mut TokenIterator, t0: &Token)
-    -> Result<Rc<AST>,Error>
+-> ResultAST
 {
     let condition = self.expression(i)?;
     let p = i.next_any_token(self)?;
@@ -2545,7 +2567,7 @@ fn assert_statement(&mut self, i: &mut TokenIterator, t0: &Token)
 }
 
 fn statements(&mut self, i: &mut TokenIterator, last_value: Value)
-    -> Result<Rc<AST>,Error>
+-> ResultAST
 {
     let mut v: Vec<Rc<AST>> = Vec::new();
     let p0 = i.next_token_optional(self)?;
@@ -2707,7 +2729,7 @@ fn statements(&mut self, i: &mut TokenIterator, last_value: Value)
     }
 }
 
-fn ast(&mut self, i: &mut TokenIterator, value: Value) -> Result<Rc<AST>,Error>{
+fn ast(&mut self, i: &mut TokenIterator, value: Value) -> ResultAST {
     let y = self.statements(i,value)?;
     let p = i.next_any_token(self)?;
     let t = &p[i.index];
@@ -2766,7 +2788,7 @@ fn compile_map(&mut self, bv: &mut Vec<u32>,
 // ae (end)
 
 fn compile_if(&mut self, v: &mut Vec<u32>, t: &Rc<AST>, is_op: bool)
-    -> Result<(),Error>
+-> Result<(),Error>
 {
     let a = ast_argv(t);
     let mut jumps: Vec<usize> = Vec::new();
@@ -2803,7 +2825,7 @@ fn compile_if(&mut self, v: &mut Vec<u32>, t: &Rc<AST>, is_op: bool)
 // (1) c JPZ[2] b JMP[1] (2)
 
 fn compile_while(&mut self, v: &mut Vec<u32>, t: &Rc<AST>)
-    -> Result<(),Error>
+-> Result<(),Error>
 {
     let index1 = v.len();
     let mut index2 = 0;
@@ -2855,7 +2877,7 @@ fn compile_while(&mut self, v: &mut Vec<u32>, t: &Rc<AST>)
 // into one byte code instruction called NEXT.
 
 fn compile_for(&mut self, bv: &mut Vec<u32>, t: &Rc<AST>)
-    -> Result<(),Error>
+-> Result<(),Error>
 {
     let a = ast_argv(t);
     let iter = apply(t.line,t.col,Box::new([
@@ -2893,7 +2915,7 @@ fn compile_for(&mut self, bv: &mut Vec<u32>, t: &Rc<AST>)
 }
 
 fn compile_try_catch(&mut self, bv: &mut Vec<u32>, t: &Rc<AST>)
-    -> Result<(),Error>
+-> Result<(),Error>
 {
     push_bc(bv,bc::OP,t.line,t.col);
     push_bc(bv,bc::TRY,t.line,t.col);
@@ -2973,7 +2995,7 @@ fn compile_app_unpack(&mut self, bv: &mut Vec<u32>, a: &[Rc<AST>],
 }
 
 fn compile_app(&mut self, v: &mut Vec<u32>, t: &Rc<AST>)
-    -> Result<(),Error>
+-> Result<(),Error>
 {
     let a = ast_argv(t);
     let self_argument = match t.info {
@@ -3020,7 +3042,7 @@ fn compile_app(&mut self, v: &mut Vec<u32>, t: &Rc<AST>)
 }
 
 fn compile_fn(&mut self, bv: &mut Vec<u32>, t: &Rc<AST>)
-    -> Result<(),Error>
+-> Result<(),Error>
 {
     let a = ast_argv(t);
     let mut bv2: Vec<u32> = Vec::new();
@@ -3155,7 +3177,7 @@ fn offsets(&self, bv: &mut Vec<u32>, offset: i32){
 }
 
 fn string_literal(&mut self, s: &str, line: usize, col: usize)
-    -> Result<String,Error>
+-> Result<String,Error>
 {
     let mut y = String::new();
     let mut escape = false;
@@ -3211,7 +3233,7 @@ fn string_literal(&mut self, s: &str, line: usize, col: usize)
 }
 
 fn compile_default_argument(&mut self, bv: &mut Vec<u32>, t: &Rc<AST>)
-    -> Result<(),Error>
+-> Result<(),Error>
 {
     let a = ast_argv(t);
     let null = atomic_literal(t.line,t.col,Symbol::Null);
@@ -3223,7 +3245,7 @@ fn compile_default_argument(&mut self, bv: &mut Vec<u32>, t: &Rc<AST>)
 }
 
 fn arguments(&mut self, bv: &mut Vec<u32>, t: &AST, selfarg: bool)
-    -> Result<(),Error>
+-> Result<(),Error>
 {
     let a = ast_argv(t);
 
@@ -3268,7 +3290,7 @@ fn arguments(&mut self, bv: &mut Vec<u32>, t: &AST, selfarg: bool)
 }
 
 fn compile_variable(&mut self, bv: &mut Vec<u32>, t: &AST)
-    -> Result<(),Error>
+-> Result<(),Error>
 {
     let key = match t.s {Some(ref x) => x, None => unreachable!()};
     match self.vtab.index_type(key) {
@@ -3361,7 +3383,8 @@ fn compile_assignment(&mut self, bv: &mut Vec<u32>, t: &AST,
 
 fn compile_compound_assignment(
     &mut self, bv: &mut Vec<u32>, t: &AST
-) -> Result<(),Error> {
+) -> Result<(),Error>
+{
     let a = ast_argv(t);
     if a[0].symbol_type == SymbolType::Identifier {
         let value = match t.value {
@@ -3474,7 +3497,7 @@ fn global_declaration(&mut self, a: &[Rc<AST>]) -> Result<(),Error> {
 }
 
 fn compile_unpack(&mut self, bv: &mut Vec<u32>, t: &AST)
-    -> Result<(),Error>
+-> Result<(),Error>
 {
     let a = ast_argv(t);
     for (i,x) in a.iter().enumerate() {
@@ -3487,7 +3510,7 @@ fn compile_unpack(&mut self, bv: &mut Vec<u32>, t: &AST)
 }
 
 fn compile_left_hand_side(&mut self, bv: &mut Vec<u32>, t: &AST)
-    -> Result<(),Error>
+-> Result<(),Error>
 {
     if t.symbol_type == SymbolType::Identifier {
         self.compile_assignment(bv,&t,t.line,t.col)?;
@@ -3542,7 +3565,7 @@ fn compile_left_hand_side(&mut self, bv: &mut Vec<u32>, t: &AST)
 }
 
 fn compile_string(&mut self, bv: &mut Vec<u32>, t: &AST)
-    -> Result<(),Error>
+-> Result<(),Error>
 {
     let s = match t.s {Some(ref x) => x, None => unreachable!()};
     let key = self.string_literal(s,t.line,t.col)?;
@@ -3553,7 +3576,7 @@ fn compile_string(&mut self, bv: &mut Vec<u32>, t: &AST)
 }
 
 fn compile_long(&mut self, bv: &mut Vec<u32>, t: &AST)
-    -> Result<(),Error>
+-> Result<(),Error>
 {
     let s = match t.s {Some(ref x) => x, None => unreachable!()};
     let key = self.string_literal(s,t.line,t.col)?;
@@ -4243,10 +4266,7 @@ fn compile_token_vector(v: Vec<Token>, mode_cmd: bool, value: Value,
         mode_cmd: mode_cmd,
         syntax_nesting: 0, parens: 0, statement: !mode_cmd,
         history: history, file: id,
-        pool: Pool{
-            stab: HashMap::new(),
-            stab_index: 0, data: Vec::new()
-        },
+        pool: Pool::new(),
         bv_blocks: Vec::new(),
         fn_indices: Vec::new(), vtab: VarTab::new(None),
         function_nesting: 0, jmp_stack: Vec::new(),
@@ -4267,9 +4287,8 @@ fn compile_token_vector(v: Vec<Token>, mode_cmd: bool, value: Value,
     // print_asm_listing(&bv);
     // print_data(&compilation.pool.data);
     let m = Rc::new(Module{
-        // program: bv,
         program: Rc::from(bv),
-        data: compilation.pool.data,
+        data: compilation.pool.into_data(),
         rte: rte.clone(),
         gtab: rte.gtab.clone(),
         id: id.to_string()

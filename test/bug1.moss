@@ -17,7 +17,7 @@ function ack(m, n)
    end
 end
 
-function main
+function main()
    print(ack(4,3))
 end
 
