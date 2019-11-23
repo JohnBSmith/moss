@@ -1,11 +1,59 @@
 
+begin
+public linear_regression, regression
+
+use math: sqrt
+
+class LinearRegression = {
+   function string()
+      return """\
+table LinearRegression{{
+  center = [mx,my],
+  mx = {mx:f4},
+  my = {my:f4},
+  rxy = {rxy:f4},
+
+  f = |x| a*x+b,
+  a = {a:f4},
+  b = {b:f4}
+}}\
+""" % record(self)
+   end
+}
+
+function mean(a)
+   return a.sum()/len(a)
+end
+
+function linear_regression(points)
+   vx,vy = list(zip(*points))
+
+   mx = mean(vx)
+   my = mean(vy)
+
+   sx = vx.sum(|x| (x-mx)^2)
+   sy = vy.sum(|y| (y-my)^2)
+   sxy = points.sum(|[x,y]| (x-mx)*(y-my))
+
+   ax = sxy/sx; bx = my-ax*mx
+   ay = sxy/sy; by = mx-ay*my
+
+   return table LinearRegression{
+      rxy = sxy/sqrt(sx*sy),
+      center = [mx,my],
+      mx = mx, my = my,
+      a = ax, b = bx,
+      f = |x| ax*x+bx
+   }
+end
+
 function regression(argm = {})
    use math.la: vector, matrix
    use math.la.inversion: solve
    class Regression = {
        function string()
-          ["table Regression{\n\s\s\dcoeff\d: ", str(self.coeff), 
-          ",\n\s\s\df\d: |x| coeff.enum().sum(|[k,a]| a*x^k)","\n}"].join()
+          ["table Regression{\n\s\scoeff = ", str(self.coeff), 
+          ",\n\s\sf = |x| coeff.enum().sum(|[k,a]| a*x^k)","\n}"].join()
        end
    }
    {degree=1} = argm
@@ -20,4 +68,6 @@ function regression(argm = {})
           coeff = a,
           f = fn f|x| range.sum(|k| a[k]*x^k) end}
    end
+end
+
 end
