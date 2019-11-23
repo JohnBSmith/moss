@@ -137,16 +137,14 @@ pub enum EnumError{
 }
 type Error = Box<EnumError>;
 
-pub fn print_syntax_error(e: &SyntaxError){
-    println!("Line {}, col {} ({}):",e.line,e.col,e.file);
-    println!("Syntax error: {}",e.s);
+pub fn format_syntax_error(e: &SyntaxError) -> String {
+    format!("Line {}, col {} ({}):\nSyntax error: {}",
+        e.line,e.col,e.file,e.s)
 }
 
-pub fn print_error(e: &Error){
+pub fn format_error(e: &Error) -> String {
     match **e {
-        EnumError::Syntax(ref e) => {
-            print_syntax_error(e);
-        }
+        EnumError::Syntax(ref e) =>  format_syntax_error(e)
     }
 }
 

@@ -41,8 +41,12 @@ function inspect(m)
 end
 
 index = [
+   "container/deque",
+   "copylib",
+   "fs/path",
    "fs/tree",
    "functional",
+   "hash",
    "itertools",
    "math",
    "math/cf",
@@ -58,9 +62,12 @@ index = [
    "math/rational",
    "math/sf",
    "math/sf/ei",
+   "math/statistics/reg",
    "plotlib",
    "plotlib/color",
    "ser/json",
+   "string/split",
+   "string/syntax",
    "svg/plotlib",
    "sys/stackless"
 ]

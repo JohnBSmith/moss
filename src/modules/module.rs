@@ -116,8 +116,8 @@ pub fn compile_file(rte: &Rc<RTE>, id: &str) {
     let history = &mut History::new();
     match compile(&s,id,false,Value::Optional,history,rte) {
         Ok(module) => save_module(&module),
-        Err(e) => crate::compiler::print_error(&e)
-    }
+        Err(e) => println!("{}",crate::compiler::format_error(&e))
+    };
 }
 
 fn load_module(rte: &Rc<RTE>, f: &mut File, id: &str)

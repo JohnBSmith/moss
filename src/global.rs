@@ -203,7 +203,7 @@ fn eval(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult{
     match argv[0] {
         Object::String(ref s) => {
             let s = s.to_string();
-            return match env.eval_string(&s,"",gtab,Value::Optional) {
+            return match env.eval_string(&s,"eval",gtab,Value::Optional) {
                 Ok(x) => {Ok(x)},
                 Err(e) => Err(e)
             }

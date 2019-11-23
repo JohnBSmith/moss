@@ -4708,9 +4708,10 @@ pub fn eval_string(&mut self, s: &str, id: &str, gtab: Rc<RefCell<Map>>,
         Ok(module) => {
             return eval(self,module,gtab,false);
         },
-        Err(e) => compiler::print_error(&e)
+        Err(e) => {
+            return self.std_exception(&compiler::format_error(&e));
+        }
     }
-    return Ok(Object::Null);
 }
 
 pub fn command_line_session(&mut self, gtab: Rc<RefCell<Map>>){
@@ -4746,7 +4747,7 @@ pub fn command_line_session(&mut self, gtab: Rc<RefCell<Map>>){
                 }
             },
             Err(e) => {
-                compiler::print_error(&e);
+                println!("{}",compiler::format_error(&e));
             }
         }
     }
