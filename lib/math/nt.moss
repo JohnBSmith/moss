@@ -33,9 +33,7 @@ begin
    end
 
    prime_tab = (2..).filter(isprime_trial_division).list(10)
-   TooLarge = table ValueError{
-      value = "Value error in isprime(n): n is too large."
-   }
+   class TooLarge: ValueError = {}
 
    function witness(a,d,n,r)
       if pow(a,d,n)==1
@@ -84,7 +82,8 @@ begin
       elif n < 3317044064679887385961981
          b = b6
       else
-         raise TooLarge
+         raise table TooLarge{text =
+            "Value error in isprime(n): n is too large.\nNote: n = {}." % [n]}
       end
       return b.all(|a| witness(a,d,n,r))
    end

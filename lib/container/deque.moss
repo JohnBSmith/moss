@@ -1,5 +1,5 @@
 
-class EmptyDeque = {string = || "Error: empty deque"}
+class EmptyDeque: Exception = {string = || "Error: empty deque"}
 
 class Deque: Iterable = {
    function empty()

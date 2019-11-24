@@ -9,6 +9,8 @@ public Format, format, clear
 _print_ = print
 _put_ = put
 
+class FmtError: Exception = {}
+
 function apply_format(fmt)
    if "color" in fmt
       put("\x{1b}[38;2;{};{};{}m"%fmt["color"])
@@ -47,8 +49,9 @@ end
 
 function check_color_spec(t)
    if not(t: List and len(t)==3 and t.all(u8))
-      raise ["Error: color must be a list [r,g,b]\s",
-             "where r,g,b in 0..255."].join()
+      raise table FmtError{
+         text = ["Error: color must be a list [r,g,b]\s",
+            "where r,g,b in 0..255."].join()}
    end
 end
 

@@ -3,6 +3,8 @@ space = ord["\s\t\n"]
 ordP = ord('P')
 ord5 = ord('5')
 
+class LoadError: Exception = {}
+
 function advance_space(a,i)
    while a[i] in space do i+=1 end
    return i
@@ -19,7 +21,7 @@ end
 
 function load_img_data(a)
    if a[0]!=ordP or a[1]!=ord5
-      raise "Error: not a PGM"
+      raise table LoadError{text="Error: not a PGM"}
    end
    i = advance_space(a,2)
    i,w = read_int(a,i)

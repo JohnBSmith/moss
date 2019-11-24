@@ -22,6 +22,7 @@
 <li><a href="#uniq">Unique</a>
 <li><a href="#multiple-dispatch">Multiple dispatch</a>
 <li><a href="#call-stack-size">Call stack size</a>
+<li><a href="#deep-breaking">Deep breaking</a>
 </ol>
 </div>
 
@@ -249,6 +250,43 @@ in case the recursion involves higher order functions built-in
 in the interpreter. To circumvent this, there is a module called
 <code>sys.stackless</code>. Loading this module replaces
 the built-in higher order functions with Moss code.
+
+<h2 id="deep-breaking">Deep breaking</h2>
+
+<p>Sometimes one wants the control flow to break out of a loop from
+within a function call or early return from within multiple function
+calls. This can be accomplished by throwing an object that will be
+recognized by a surrounding try-catch block.
+
+<pre class="moss indent">
+class Break = {}
+deep_break = table Break{}
+
+try
+   (1..10).each(fn|x|
+      print(x)
+      if x==4 then raise deep_break end
+   end)
+catch e if e is deep_break
+end
+</pre>
+
+<p>Deep breaking is similar to throwing exceptions, but as deep
+breaking is regular control flow, no traceback will be generated.
+However, tracebacks can be turned on for debugging:
+
+<pre class="moss indent">
+debug = true
+class Break: (Exception if debug) = {}
+</pre>
+
+<p>Deep breaking can transport values:
+<pre class="moss indent">
+deep_break.value = value
+raise deep_break
+</pre>
+
+
 
 </body>
 </html>

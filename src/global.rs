@@ -1190,6 +1190,9 @@ pub fn init_rte(rte: &RTE){
     let type_long = rte.type_long.clone();
     gtab.insert("Long", Object::Interface(type_long));
 
+    let type_exception = rte.type_exception.clone();
+    gtab.insert("Exception", Object::Interface(type_exception));
+
     let type_type_error = rte.type_type_error.clone();
     gtab.insert("TypeError", Object::Interface(type_type_error));
 

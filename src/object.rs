@@ -199,13 +199,22 @@ impl Exception {
         t.map.borrow_mut().insert("text", CharString::new_object_str(s));
         Box::new(Exception{
             value: Object::Interface(Rc::new(t)),
-            traceback: None, spot: None
+            traceback: Some(List::new()), spot: None
         })
     }
 
-    pub fn raise(x: Object) -> Box<Exception> {
+    pub fn raise(rte: &RTE, x: Object) -> Box<Exception> {
+        let traceback = if let Some(t) = downcast::<Table>(&x) {
+            if t.is_instance_of(&rte.exception_obj,rte) {
+                Some(List::new())
+            }else{
+                None
+            }
+        }else{
+            None
+        };
         Box::new(Exception{
-            value: x, traceback: None, spot: None
+            value: x, spot: None, traceback
         })
     }
 
@@ -214,26 +223,18 @@ impl Exception {
     }
 
     pub fn push_clm(&mut self, line: usize, col: usize, module: &str, fid: &str) {
-        let s = CharString::new_object_str(&format!(
-            "{}, {}:{}:{}",fid,module,line,col
-        ));
         if let Some(ref mut a) = self.traceback {
+            let s = CharString::new_object_str(&format!(
+                "{}, {}:{}:{}",fid,module,line,col
+            ));
             a.v.push(s);
-        }else{
-            let mut a = List::new();
-            a.v.push(s);
-            self.traceback = Some(a);
         }
     }
 
     pub fn traceback_push(&mut self, fid: &str) {
-        let s = CharString::new_object_str(fid);
         if let Some(ref mut a) = self.traceback {
+            let s = CharString::new_object_str(fid);
             a.v.push(s);
-        }else{
-            let mut a = List::new();
-            a.v.push(s);
-            self.traceback = Some(a);
         }
     }
 }

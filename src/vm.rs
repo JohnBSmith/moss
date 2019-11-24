@@ -3368,11 +3368,12 @@ pub struct RTE{
     pub type_function: Rc<Class>,
     pub type_range: Rc<Class>,
     pub type_iterable: Rc<Class>,
-    pub type_std_exception: Rc<Class>,
+    pub type_exception: Rc<Class>,
     pub type_type_error: Rc<Class>,
     pub type_value_error: Rc<Class>,
     pub type_index_error: Rc<Class>,
     pub type_type: Rc<Class>,
+    pub exception_obj: Object,
     pub unimplemented_class: Rc<Class>,
     pub unimplemented: Rc<Table>,
     pub argv: RefCell<Option<Rc<RefCell<List>>>>,
@@ -3429,6 +3430,9 @@ impl RTE{
         let char_table: Vec<Object> = (0..128)
             .map(|i| Object::from(i as u8 as char))
             .collect();
+            
+        let exception = Class::new("Exeption",null);
+        let exception_obj = Object::Interface(exception.clone());
 
         return Rc::new(RTE{
             type_bool: Class::new("Bool",null),
@@ -3442,11 +3446,12 @@ impl RTE{
             type_range: Class::new("Range",null),
             type_iterable: Class::new("Iterable",null),
             type_long: Class::new("Long",null),
-            type_std_exception: Class::new("Exception",null),
-            type_type_error: Class::new("TypeError",null),
-            type_value_error: Class::new("ValueError",null),
-            type_index_error: Class::new("IndexError",null),
+            type_exception: exception,
+            type_type_error: Class::new("TypeError",&exception_obj),
+            type_value_error: Class::new("ValueError",&exception_obj),
+            type_index_error: Class::new("IndexError",&exception_obj),
             type_type: type_type.clone(),
+            exception_obj: exception_obj,
             unimplemented: Table::new(Object::Null),
             unimplemented_class: Class::new("Unimplemented",null),
             argv: RefCell::new(None),
@@ -4200,7 +4205,7 @@ fn vm_loop(
       },
       bc::RAISE => {
           sp-=1;
-          exception = Err(Exception::raise(
+          exception = Err(Exception::raise(&env.rte,
               stack[sp].take()
           ));
           break;
@@ -4515,7 +4520,7 @@ impl EnvPart{
     }
 
     pub fn std_exception_plain(&self, s: &str) -> Box<Exception> {
-        Exception::new(s,Object::Interface(self.rte.type_std_exception.clone()))
+        Exception::new(s,Object::Interface(self.rte.type_exception.clone()))
     }
 
     pub fn type_error_plain(&self, s: &str) -> Box<Exception> {
@@ -4531,7 +4536,7 @@ impl EnvPart{
     }
 
     pub fn argc_error_plain(&self, argc: usize, min: u32, max: u32, id: &str) -> Box<Exception> {
-        let t = Object::Interface(self.rte.type_std_exception.clone());
+        let t = Object::Interface(self.rte.type_exception.clone());
         if min==max {
             if min==0 {
                 Exception::new(&format!("Error in {}: expected no argument, but got {}.",id,argc),t)

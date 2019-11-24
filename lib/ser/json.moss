@@ -40,8 +40,11 @@ json_repr_tab = {
    "\b": "\b\b"
 }
 
+class SyntaxError: Exception = {}
+
 function syntax_error(line,col,s)
-   raise "Line {}, col {}\nSyntax error: {}"%[line+1,col+1,s]
+   raise table SyntaxError{
+      text = "Line {}, col {}\nSyntax error: {}"%[line+1,col+1,s]}
 end
 
 function encode_escape(s)
@@ -104,8 +107,9 @@ function scan(s)
             end
             a.push([T,value,line,hcol])
          else
-            raise ("Line {}, col {}\nSyntax error:\s"+
-               "unexpected identifier '{}'.")%[line+1,col+1,w]
+            raise table SyntaxError{
+               text = ("Line {}, col {}\nSyntax error:\s"+
+                  "unexpected identifier '{}'.")%[line+1,col+1,w]}
          end
       elif c in "{}[]"
          a.push([Bracket,c,line,col])
@@ -138,8 +142,9 @@ function scan(s)
          i+=1; col+=1
          negate = not negate
       else
-         raise ("Line {}, col {}\nSyntax error:\s"+
-            "unexpected character '{}'.")%[line+1,col+1,c]
+         raise table SyntaxError{
+            text = ("Line {}, col {}\nSyntax error:\s"+
+               "unexpected character '{}'.")%[line+1,col+1,c]}
       end
    end
    return a

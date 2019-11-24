@@ -27,7 +27,7 @@
 is thrown an then catched.
 
 <pre class="moss indent">
-class E = {}
+class E: Exception = {}
 
 try
    raise table E{text = "Some message"}
@@ -61,7 +61,7 @@ will be clipped off.
 The following program demonstrates the behavior.
 
 <pre class="moss indent">
-class E = {}
+class E: Exception = {}
 
 class Duck = {
    function drop()

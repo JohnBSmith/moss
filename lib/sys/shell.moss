@@ -7,7 +7,7 @@ use regex: re
 
 space = re("{_}")
 
-ShException = table(Type,"ShException"){}
+class ShException: Exception = {}
 
 function cmd(command,argv=null)
    if argv is null

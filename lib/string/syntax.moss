@@ -4,7 +4,7 @@ public parser, left, simplify, SyntaxError
 
 use regex: re
 
-class SyntaxError = {}
+class SyntaxError: Exception = {}
 class Symbol = {}
 class Number = {}
 class Identifier = {}
