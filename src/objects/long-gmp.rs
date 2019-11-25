@@ -1,6 +1,6 @@
 
 use std::os::raw::{c_int, c_ulong, c_long, c_void, c_char, c_double};
-use std::mem::uninitialized;
+use std::mem::MaybeUninit;
 use std::ptr::null;
 use std::rc::Rc;
 use std::any::Any;
@@ -80,17 +80,17 @@ impl Drop for Mpz {
 impl Mpz {
     fn new() -> Mpz {
         unsafe {
-            let mut mpz = uninitialized();
-            __gmpz_init_set_si(&mut mpz, 0);
-            Mpz {mpz: mpz}
+            let mut mpz = MaybeUninit::<mpz_struct>::uninit();
+            __gmpz_init_set_si(mpz.as_mut_ptr(), 0);
+            Mpz {mpz: mpz.assume_init()}
         }
     }
 
     fn from_int(i: c_long) -> Mpz {
         unsafe {
-            let mut mpz = uninitialized();
-            __gmpz_init_set_si(&mut mpz, i);
-            Mpz {mpz: mpz}
+            let mut mpz = MaybeUninit::<mpz_struct>::uninit();
+            __gmpz_init_set_si(mpz.as_mut_ptr(), i);
+            Mpz {mpz: mpz.assume_init()}
         }
     }
 

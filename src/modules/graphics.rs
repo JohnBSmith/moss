@@ -478,23 +478,24 @@ fn scancode_to_key(x: SDL_Scancode) -> &'static str {
 
 fn get_key() -> Object {
     unsafe{
-        let mut event: SDL_Event = mem::uninitialized();
-        while SDL_PollEvent(&mut event)!=0 {
-            if event.event_type == SDL_KEYDOWN {
-                let key = event.key.keysym.sym as u32;
+        let mut event_data = mem::MaybeUninit::<SDL_Event>::uninit();
+        let event = event_data.as_mut_ptr();
+        while SDL_PollEvent(event)!=0 {
+            if (*event).event_type == SDL_KEYDOWN {
+                let key = (*event).key.keysym.sym as u32;
                 if 32<key && key<256 {
                     return Object::from(key as u8 as char);
                 }else{
-                    return Object::from(scancode_to_key(event.key.keysym.scancode));
+                    return Object::from(scancode_to_key((*event).key.keysym.scancode));
                 }
-            }else if event.event_type == SDL_KEYUP {
-                let key = event.key.keysym.sym as u32;
+            }else if (*event).event_type == SDL_KEYUP {
+                let key = (*event).key.keysym.sym as u32;
                 if 32<key && key<256 {
                     return CharString::new_object(vec!['-',key as u8 as char]);
                 }else{
                     let mut v: Vec<char> = Vec::with_capacity(8);
                     v.push('-');
-                    for c in scancode_to_key(event.key.keysym.scancode).chars() {
+                    for c in scancode_to_key((*event).key.keysym.scancode).chars() {
                         v.push(c);
                     }
                     return CharString::new_object(v);
@@ -507,12 +508,13 @@ fn get_key() -> Object {
 
 fn get_scancode() -> Object {
     unsafe{
-        let mut event: SDL_Event = mem::uninitialized();
-        while SDL_PollEvent(&mut event)!=0 {
-            if event.event_type == SDL_KEYDOWN {
-                return Object::Int(event.key.keysym.scancode as i32);
-            }else if event.event_type == SDL_KEYUP {
-                return Object::Int(event.key.keysym.scancode as i32+1000);
+        let mut event_data = mem::MaybeUninit::<SDL_Event>::uninit();
+        let event = event_data.as_mut_ptr();
+        while SDL_PollEvent(event)!=0 {
+            if (*event).event_type == SDL_KEYDOWN {
+                return Object::Int((*event).key.keysym.scancode as i32);
+            }else if (*event).event_type == SDL_KEYUP {
+                return Object::Int((*event).key.keysym.scancode as i32+1000);
             }
         }
         return Object::Null;

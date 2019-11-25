@@ -1,5 +1,10 @@
 
-// Linear algebra
+// Linear algebra with arrays of arbritary dimension, i.e. coordinate
+// tensors of arbitrary order.
+
+// This module implements polymorphic arrays, which means that the
+// elements can be of any data type. Those arrays are slower,
+// trading speed for more versatility.
 
 use std::rc::Rc;
 use std::cell::RefCell;
@@ -17,6 +22,7 @@ use crate::vm::{
 };
 use crate::complex::Complex64;
 
+#[derive(Clone)]
 struct ShapeStride{
     shape: usize,
     stride: isize
@@ -43,6 +49,11 @@ impl Array {
                 ShapeStride{shape: n, stride: 1}
             ]),
             n: 2, base: 0, data: Rc::new(RefCell::new(a)),
+        })
+    }
+    fn array(s: Box<[ShapeStride]>, data: Vec<Object>) -> Rc<Array> {
+        Rc::new(Array{n: s.len(), base: 0, s,
+            data: Rc::new(RefCell::new(data))
         })
     }
 }
@@ -103,7 +114,7 @@ impl Interface for Array {
             s.push_str("\n)");
             return Ok(s);
         }else{
-            panic!();
+            return array_to_string(env,&self);
         }
     }
     fn get(self: Rc<Self>, key: &Object, env: &mut Env) -> FnResult {
@@ -132,8 +143,6 @@ impl Interface for Array {
                         return Ok(Object::Interface(copy(&self)));
                     }else if v[0..4] == ['d','i','a','g'] {
                         return diag_slice(env,&self);
-                    }else if v[0..4] == ['l','i','s','t'] {
-                        return Ok(List::new_object(list(&self)));
                     }
                 },
                 5 => {
@@ -208,6 +217,21 @@ impl Interface for Array {
             }else{
                 return env.index_error("Index error in a[...]: shape does not fit.");     
             }
+        }else if self.n == indices.len() {
+            let mut index = self.base as isize;
+            for (k,i) in indices.iter().enumerate() {
+                let s = &self.s[k];
+                let i = match i {
+                    Object::Int(i) => (*i) as isize,
+                    i => return env.type_error1("Type error in a[..., i, ...]: i is not an integer.","i",i)
+                };
+                if 0<=i && i<(s.shape as isize) {
+                    index += i*s.stride;
+                }else{
+                    return env.index_error("Index error in a[..., i, ...]: i is out of bounds.");
+                }
+            }
+            return Ok(self.data.borrow()[index as usize].clone());
         }else{
             return env.index_error("Index error in a[...]: shape does not fit.");
         }
@@ -387,6 +411,48 @@ impl Interface for Array {
     }
 }
 
+fn fill_space(buffer: &mut String, k: usize) {
+    buffer.push_str(&" ".repeat(k));
+}
+
+fn array_to_string_rec(env: &mut Env,
+    buffer: &mut String, a: &Array, data: &[Object],
+    depth: usize, base: isize,
+) -> Result<(),Box<Exception>>
+{
+    let ShapeStride{shape,stride} = a.s[depth];
+    let mut first = true;
+    fill_space(buffer,depth*2);
+    buffer.push_str("[");
+    if depth+1 < a.n {buffer.push('\n');}
+    if depth+1 == a.n {
+        for i in 0..shape {
+            if first {first = false} else {buffer.push_str(", ");}
+            let x = &data[(base+(i as isize)*stride) as usize];
+            buffer.push_str(&x.repr(env)?);
+        }
+    }else{
+        for i in 0..shape {
+            if first {first = false} else {buffer.push_str(",\n");}
+            let index = base+(i as isize)*stride;
+            array_to_string_rec(env,buffer,a,data,depth+1,index)?;
+        }
+    }
+    if depth+1 < a.n {buffer.push('\n'); fill_space(buffer,depth*2);}
+    buffer.push_str("]");
+    return Ok(());
+}
+
+fn array_to_string(env: &mut Env, a: &Array) -> Result<String,Box<Exception>> {
+    let mut buffer = String::new();
+    buffer.push_str(&format!("array({},",a.n));
+    let data = a.data.borrow();
+    let base = a.base as isize;
+    array_to_string_rec(env,&mut buffer,a,&data,0,base)?;
+    buffer.push_str(")");
+    return Ok(buffer);
+}
+
 fn compare(env: &mut Env, a: &Array, b: &Array,
     rs: &str,
     relation: fn(&mut Env, &Object, &Object)->FnResult
@@ -492,6 +558,32 @@ fn matrix_power(env: &mut Env, a: &Array, mut n: u32, size: usize)
     return Ok(y);
 }
 
+fn shape_prod(a: &Array) -> usize {
+    let mut p = 1;
+    for t in a.s.iter() {p *= t.shape;}
+    return p;
+}
+
+fn map_unary_operator_rec(env: &mut Env, buffer: &mut Vec<Object>,
+    a: &Array, base: isize, data: &[Object],
+    depth: usize, operator: &dyn Fn(&mut Env,&Object) -> FnResult
+) -> Result<(),Box<Exception>>
+{
+    let ShapeStride{shape, stride} = a.s[depth];
+    if depth+1 == a.n {
+        for i in 0..shape {
+            let x = &data[(base+(i as isize)*stride) as usize];
+            buffer.push(operator(env,x)?);
+        }
+    }else{
+        for i in 0..shape {
+            let index = base+(i as isize)*stride;
+            map_unary_operator_rec(env,buffer,a,index,data,depth+1,operator)?;
+        }
+    }
+    return Ok(());
+}
+
 fn map_unary_operator(a: &Array,
     operator: &dyn Fn(&mut Env,&Object) -> FnResult,
     _operator_symbol: char, env: &mut Env
@@ -525,8 +617,43 @@ fn map_unary_operator(a: &Array,
         }
         return Ok(Object::Interface(Array::matrix(m,n,v)));
     }else{
-        panic!();
+        let mut buffer: Vec<Object> = Vec::with_capacity(shape_prod(a));
+        let data = &a.data.borrow();
+        let base = a.base as isize;
+        map_unary_operator_rec(env,&mut buffer,a,base,data,0,operator)?;
+        let mut s = a.s.clone();
+        setup_strides(&mut s);
+        return Ok(Object::Interface(Array::array(s,buffer)));
     }
+}
+
+fn map_binary_operator_rec(env: &mut Env, buffer: &mut Vec<Object>,
+    a: &Array, abase: isize, adata: &[Object],
+    b: &Array, bbase: isize, bdata: &[Object],
+    depth: usize, operator: fn(&mut Env,&Object,&Object)->FnResult
+) -> Result<(),Box<Exception>>
+{
+    let ShapeStride{shape: ashape, stride: astride} = a.s[depth];
+    let ShapeStride{shape: _, stride: bstride} = b.s[depth];
+    if depth+1 == a.n {
+        for i in 0..ashape {
+            let x = &adata[(abase+(i as isize)*astride) as usize];
+            let y = &bdata[(bbase+(i as isize)*bstride) as usize];
+            buffer.push(operator(env,x,y)?);
+        }
+    }else{
+        for i in 0..ashape {
+            let aindex = abase+(i as isize)*astride;
+            let bindex = bbase+(i as isize)*bstride;
+            map_binary_operator_rec(env,buffer,a,aindex,adata,b,bindex,bdata,depth+1,operator)?;
+        }
+    }
+    return Ok(());
+}
+
+fn shape_compare(a: &Array, b: &Array) -> bool {
+    if a.s.len() != b.s.len() {return false;}
+    return a.s.iter().zip(b.s.iter()).all(|t| t.0.shape == t.1.shape);
 }
 
 fn map_binary_operator(a: &Array, b: &Object,
@@ -606,10 +733,52 @@ fn map_binary_operator(a: &Array, b: &Object,
             }
             return Ok(Object::Interface(Array::matrix(m,n,v)));
         }else{
-            panic!();
+            return env.type_error(&format!(
+                "Type error in A{}B: B is not an Array.",
+                operator_symbol
+            ));
         }
     }else{
-        panic!();
+        if let Some(b) = downcast::<Array>(b) {
+            if !shape_compare(a,b) {
+                return env.type_error(&format!(
+                    "Type error in A{}B: A is not of the same shape as B.",
+                    operator_symbol
+                ));            
+            }
+            let mut buffer: Vec<Object> = Vec::with_capacity(shape_prod(a));
+            let adata = &a.data.borrow();
+            let bdata = &b.data.borrow();
+            let abase = a.base as isize;
+            let bbase = b.base as isize;
+            map_binary_operator_rec(env,&mut buffer,a,abase,adata,b,bbase,bdata,0,operator)?;
+            let mut s = a.s.clone();
+            setup_strides(&mut s);
+            return Ok(Object::Interface(Array::array(s,buffer)));
+        }else{
+            return env.type_error(&format!(
+                "Type error in A{}B: B is not an Array.",
+                operator_symbol
+            ));
+        }
+    }
+}
+
+fn map_plain_rec(buffer: &mut Vec<Object>,
+    a: &Array, base: isize, data: &[Object],
+    depth: usize, f: fn(&Object)->Object
+) {
+    let ShapeStride{shape, stride} = a.s[depth];
+    if depth+1 == a.n {
+        for i in 0..shape {
+            let x = &data[(base+(i as isize)*stride) as usize];
+            buffer.push(f(x));
+        }
+    }else{
+        for i in 0..shape {
+            let index = base+(i as isize)*stride;
+            map_plain_rec(buffer,a,index,data,depth+1,f);
+        }
     }
 }
 
@@ -641,8 +810,34 @@ fn map_plain(a: &Array, f: fn(&Object)->Object) -> Rc<Array> {
         }
         return Array::matrix(m,n,v);
     }else{
-        panic!();
+        let mut buffer: Vec<Object> = Vec::with_capacity(shape_prod(a));
+        let data = &a.data.borrow();
+        let base = a.base as isize;
+        map_plain_rec(&mut buffer,a,base,data,0,f);
+        let mut s = a.s.clone();
+        setup_strides(&mut s);
+        return Array::array(s,buffer);
     }
+}
+
+fn array_map_rec(env: &mut Env, buffer: &mut Vec<Object>,
+    a: &Array, base: isize, data: &[Object],
+    depth: usize, f: &Object
+) -> Result<(),Box<Exception>>
+{
+    let ShapeStride{shape, stride} = a.s[depth];
+    if depth+1 == a.n {
+        for i in 0..shape {
+            let x = data[(base+(i as isize)*stride) as usize].clone();
+            buffer.push(env.call(f,&Object::Null,&[x])?);
+        }
+    }else{
+        for i in 0..shape {
+            let index = base+(i as isize)*stride;
+            array_map_rec(env,buffer,a,index,data,depth+1,f)?;
+        }
+    }
+    return Ok(());
 }
 
 fn array_map(env: &mut Env, a: &Array, f: &Object) -> FnResult {
@@ -675,7 +870,13 @@ fn array_map(env: &mut Env, a: &Array, f: &Object) -> FnResult {
         }
         return Ok(Object::Interface(Array::matrix(m,n,v)));
     }else{
-        panic!();
+        let mut buffer: Vec<Object> = Vec::with_capacity(shape_prod(a));
+        let data = &a.data.borrow();
+        let base = a.base as isize;
+        array_map_rec(env,&mut buffer,a,base,data,0,f)?;
+        let mut s = a.s.clone();
+        setup_strides(&mut s);
+        return Ok(Object::Interface(Array::array(s,buffer)));
     }
 }
 
@@ -683,11 +884,22 @@ fn map(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         1 => {}, n => return env.argc_error(n,1,1,"map")
     }
-    if let Some(a) = downcast::<Array>(pself) {
-        return array_map(env,a,&argv[0]);
+    return if let Some(a) = downcast::<Array>(pself) {
+        array_map(env,a,&argv[0])
     }else{
-        panic!();
+        env.type_error("Type error in a.list(): a is not an array.")
+    };
+}
+
+fn array_list(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+    match argv.len() {
+        0 => {}, n => return env.argc_error(n,0,0,"map")
     }
+    return if let Some(a) = downcast::<Array>(pself) {
+        Ok(List::new_object(list(a)))
+    }else{
+        env.type_error("Type error in a.list(): a is not an array.")
+    };
 }
 
 fn copy(a: &Array) -> Rc<Array> {
@@ -764,6 +976,26 @@ fn list(a: &Array) -> Vec<Object> {
             v.push(x.clone());
         }
         return v;
+    }else if a.n==2 {
+        let m = a.s[0].shape;
+        let n = a.s[1].shape;
+        let istride = a.s[0].stride;
+        let jstride = a.s[1].stride;
+
+        let base = a.base as isize;
+        let data = a.data.borrow();
+
+        let mut buf: Vec<Object> = Vec::with_capacity(m);
+        for i in 0..m {
+            let jbase = base+i as isize*istride;
+            let mut v: Vec<Object> = Vec::with_capacity(n);
+            for j in 0..n {
+                let x = &data[(jbase+j as isize*jstride) as usize];
+                v.push(x.clone());
+            }
+            buf.push(Object::from(v));
+        }
+        return buf;
     }else{
         panic!();
     }
@@ -943,6 +1175,51 @@ fn matrix(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     return env.type_error("Type error in matrix(*args): expected args of type List.");
 }
 
+fn parse_list_tree(buffer: &mut Vec<Object>, depth: usize,
+    dim: usize, shape: &mut [ShapeStride], a: &Object
+) {
+    let a = match a {
+        Object::List(value) => value,
+        _ => panic!()
+    };
+    let a = &a.borrow().v;
+    if shape[depth].shape==0 {
+        shape[depth].shape = a.len();
+    }else if shape[depth].shape != a.len() {
+        panic!();
+    }
+    if depth+1<dim {
+       for x in a {
+           parse_list_tree(buffer,depth+1,dim,shape,x);
+       }
+    }else{
+       for x in a {
+           buffer.push(x.clone());
+       }
+    }
+}
+
+fn setup_strides(shape: &mut [ShapeStride]) {
+    let mut m: isize = 1;
+    for s in shape.iter_mut().rev() {
+        s.stride = m;
+        m = m*(s.shape as isize);
+    }
+}
+
+fn array_from(dim: usize, a: &Object) -> FnResult {
+    let mut shape: Box<[ShapeStride]> = vec![
+        ShapeStride{shape: 0, stride: 0}; dim
+    ].into_boxed_slice();
+    let mut buffer: Vec<Object> = Vec::new();
+    parse_list_tree(&mut buffer,0,dim,&mut shape,a);
+    setup_strides(&mut shape);
+    return Ok(Object::Interface(Rc::new(Array{
+        n: dim, base: 0, s: shape,
+        data: Rc::new(RefCell::new(buffer))
+    })));
+}
+
 fn array(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         2 => {}, argc => return env.argc_error(argc,2,2,"array")
@@ -951,15 +1228,16 @@ fn array(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
         Object::Int(x) => x as usize,
         _ => return env.type_error("Type error in array(n,a): n is not an integer.")
     };
-    if n==1 {
-        let y = crate::global::list(env,&argv[1])?;
-        if let Object::List(a) = y {
+    let list_obj = crate::global::list(env,&argv[1])?;
+    if false && n==1 {
+         if let Object::List(a) = list_obj {
             return Ok(Object::Interface(Array::vector(a.borrow().v.clone())));
         }else{
-            panic!();
+           return env.type_error("Type error in array(n,a): a is not a list");
         }
     }else{
-        return env.std_exception("Dimension not supported.");
+        return array_from(n,&list_obj);
+        // return env.std_exception("Dimension not supported.");
     }
 }
 
@@ -1064,6 +1342,7 @@ pub fn load_math_la(env: &mut Env) -> Object
     {
         let mut m = type_array.map.borrow_mut();
         m.insert_fn_plain("map",map,1,1);
+        m.insert_fn_plain("list",array_list,1,1);
     }
     interface_types_set(env.rte(),interface_index::POLY_ARRAY,type_array.clone());
 

@@ -117,7 +117,7 @@ use math.la: unit, vector, matrix
 
 # The Jacobian matrix is the transposed gradient
 function Jacobian(F,p)
-   return matrix(*nabla(F,p).list.map(|v| v.list)).T
+   return matrix(*nabla(F,p).list().map(|v| v.list())).T
 end
 
 
@@ -125,7 +125,7 @@ end
 function Jacobian(F,p)
    n = p.shape[0]
    E = list(0..n-1).map(|k| unit(n,k))
-   return matrix(*E.map(|e| diffv(e,F,p).list)).T
+   return matrix(*E.map(|e| diffv(e,F,p).list())).T
 end
 
 
