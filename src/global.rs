@@ -13,7 +13,7 @@ use crate::vm::{
 use crate::object::{
     Object, Table, Map, List, CharString,
     FnResult, Function, EnumFunction, Info,
-    VARIADIC, new_module, downcast
+    VARIADIC, float, new_module, downcast
 };
 use crate::rand::Rand;
 use crate::iterable::{iter,cycle};
@@ -78,7 +78,7 @@ fn float_to_string(env: &Env, x: &Object, fmt: &Object, precision: &Object) -> F
         _ => return env.type_error("Type error in str(x,fmt,precision): fmt is not a string.")
     };
     let x = match *x {
-        Object::Int(n) => n as f64,
+        Object::Int(n) => float(n),
         Object::Float(f) => f,
         _ => return env.type_error("Type error in str(x,fmt,precision): x should be of type Float or Int.")
     };
@@ -435,14 +435,14 @@ fn ftype(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
 
 fn float_range_to_list(env: &mut Env, r: &Range) -> FnResult {
     let a = match r.a {
-        Object::Int(x) => x as f64,
+        Object::Int(x) => float(x),
         Object::Float(x) => x,
         _ => return env.type_error1(
             "Type error in list(a..b): a is not of type Float.",
             "a",&r.a)
     };
     let b = match r.b {
-        Object::Int(x) => x as f64,
+        Object::Int(x) => float(x),
         Object::Float(x) => x,
         _ => return env.type_error1(
             "Type error in list(a..b): b is not of type Float.",
@@ -451,7 +451,7 @@ fn float_range_to_list(env: &mut Env, r: &Range) -> FnResult {
     };
     let d = match r.step {
         Object::Null => 1.0,
-        Object::Int(x) => x as f64,
+        Object::Int(x) => float(x),
         Object::Float(x) => x,
         _ => return env.type_error1(
             "Type error in list(a..b: d): d is not of type Float.",
@@ -464,7 +464,7 @@ fn float_range_to_list(env: &mut Env, r: &Range) -> FnResult {
 
     let mut v: Vec<Object> = Vec::with_capacity(n);
     for k in 0..n {
-        v.push(Object::Float(a+k as f64*d));
+        v.push(Object::Float(a+float(k)*d));
     }
     return Ok(List::new_object(v));
 }
@@ -745,12 +745,12 @@ fn fint(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
         "x", &argv[0])
 }
 
-fn float(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
+fn to_float(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         1 => {}, n => return env.argc_error(n,1,1,"float")
     }
     match argv[0] {
-        Object::Int(n) => return Ok(Object::Float(n as f64)),
+        Object::Int(n) => return Ok(Object::Float(float(n))),
         Object::Float(x) => return Ok(Object::Float(x)),
         Object::Complex(z) => return Ok(Object::Float(
             if z.im==0.0 {z.re} else {NAN}
@@ -1115,7 +1115,7 @@ pub fn init_rte(rte: &RTE){
     gtab.insert_fn_plain("put",put,0,VARIADIC);
     gtab.insert_fn_plain("str",fstr,1,1);
     gtab.insert_fn_plain("int",fint,1,1);
-    gtab.insert_fn_plain("float",float,1,1);
+    gtab.insert_fn_plain("float",to_float,1,1);
     gtab.insert_fn_plain("repr",repr,1,1);
     gtab.insert_fn_plain("hex",hex,1,1);
     gtab.insert_fn_plain("bin",bin,1,1);

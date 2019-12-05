@@ -473,6 +473,36 @@ pub fn downcast<T: 'static>(x: &Object) -> Option<&T> {
     }
 }
 
+pub trait ApproxFrom<T> {
+    fn approx_from(x: T) -> Self;
+}
+
+impl ApproxFrom<i32> for f64 {
+    #[inline]
+    fn approx_from(x: i32) -> Self {f64::from(x)}
+}
+impl ApproxFrom<u32> for f64 {
+    #[inline]
+    fn approx_from(x: u32) -> Self {f64::from(x)}
+}
+impl ApproxFrom<i64> for f64 {
+    #[inline]
+    fn approx_from(x: i64) -> Self {x as f64}
+}
+impl ApproxFrom<u64> for f64 {
+    #[inline]
+    fn approx_from(x: u64) -> Self {x as f64}
+}
+impl ApproxFrom<usize> for f64 {
+    #[inline]
+    fn approx_from(x: usize) -> Self {x as f64}
+}
+
+#[inline]
+pub fn float<T>(x: T) -> f64 where f64: ApproxFrom<T> {
+    f64::approx_from(x)
+}
+
 impl<'a> From<&'a str> for Object {
     fn from(x: &str) -> Object {
         return CharString::new_object_str(x);
@@ -493,13 +523,13 @@ impl From<bool> for Object {
 
 impl From<u8> for Object {
     fn from(x: u8) -> Object {
-        return Object::Int(x as i32);
+        return Object::Int(i32::from(x));
     }
 }
 
 impl From<u16> for Object {
     fn from(x: u16) -> Object {
-        return Object::Int(x as i32);
+        return Object::Int(i32::from(x));
     }
 }
 

@@ -12,7 +12,7 @@ use std::fmt::Write;
 use crate::object::{
     Object, Map, List, Function, EnumFunction, StandardFn,
     FnResult, OperatorResult, Exception, CharString,
-    VARIADIC, Downcast, TypeName, downcast, ptr_eq_plain
+    VARIADIC, Downcast, TypeName, downcast, ptr_eq_plain, float
 };
 use crate::{string,list,function,global,module};
 use crate::complex::Complex64;
@@ -249,14 +249,14 @@ impl PartialEq for Object{
             Object::Int(x) => {
                 return match *b {
                     Object::Int(y) => x==y,
-                    Object::Float(y) => (x as f64)==y,
-                    Object::Complex(y) => (x as f64)==y.re && y.im==0.0,
+                    Object::Float(y) => float(x)==y,
+                    Object::Complex(y) => float(x)==y.re && y.im==0.0,
                     _ => {break 'r;}
                 };
             },
             Object::Float(x) => {
                 return match *b {
-                    Object::Int(y) => x==(y as f64),
+                    Object::Int(y) => x==float(y),
                     Object::Float(y) => x==y,
                     Object::Complex(y) => x==y.re && y.im==0.0,
                     _ => {break 'r;}
@@ -264,7 +264,7 @@ impl PartialEq for Object{
             },
             Object::Complex(x) => {
                 return match *b {
-                    Object::Int(y) => x.re==(y as f64) && x.im==0.0,
+                    Object::Int(y) => x.re==float(y) && x.im==0.0,
                     Object::Float(y) => x.re==y && x.im==0.0,
                     Object::Complex(y) => x==y,
                     _ => {break 'r;}
@@ -730,11 +730,11 @@ fn operator_add(env: &mut EnvPart, sp: usize, stack: &mut [Object])
                     return Ok(());
                 },
                 Object::Float(y) => {
-                    stack[sp-2] = Object::Float(x as f64+y);
+                    stack[sp-2] = Object::Float(float(x)+y);
                     return Ok(());
                 },
                 Object::Complex(y) => {
-                    stack[sp-2] = Object::Complex(x as f64+y);
+                    stack[sp-2] = Object::Complex(float(x)+y);
                     return Ok(());
                 },
                 _ => {break 'r;}
@@ -743,7 +743,7 @@ fn operator_add(env: &mut EnvPart, sp: usize, stack: &mut [Object])
         Object::Float(x) => {
             match stack[sp-1] {
                 Object::Int(y) => {
-                    stack[sp-2] = Object::Float(x+(y as f64));
+                    stack[sp-2] = Object::Float(x+float(y));
                     return Ok(());
                 },
                 Object::Float(y) => {
@@ -760,7 +760,7 @@ fn operator_add(env: &mut EnvPart, sp: usize, stack: &mut [Object])
         Object::Complex(x) => {
             match stack[sp-1] {
                 Object::Int(y) => {
-                    stack[sp-2] = Object::Complex(x+y as f64);
+                    stack[sp-2] = Object::Complex(x+float(y));
                     return Ok(());
                 },
                 Object::Float(y) => {
@@ -867,11 +867,11 @@ fn operator_sub(env: &mut EnvPart, sp: usize, stack: &mut [Object])
                     Ok(())
                 },
                 Object::Float(y) => {
-                    stack[sp-2] = Object::Float(x as f64-y);
+                    stack[sp-2] = Object::Float(float(x)-y);
                     Ok(())
                 },
                 Object::Complex(y) => {
-                    stack[sp-2] = Object::Complex(x as f64-y);
+                    stack[sp-2] = Object::Complex(float(x)-y);
                     Ok(())
                 },
                 _ => {break 'r;}
@@ -880,7 +880,7 @@ fn operator_sub(env: &mut EnvPart, sp: usize, stack: &mut [Object])
         Object::Float(x) => {
             return match stack[sp-1] {
                 Object::Int(y) => {
-                    stack[sp-2] = Object::Float(x-(y as f64));
+                    stack[sp-2] = Object::Float(x-float(y));
                     Ok(())
                 },
                 Object::Float(y) => {
@@ -897,7 +897,7 @@ fn operator_sub(env: &mut EnvPart, sp: usize, stack: &mut [Object])
         Object::Complex(x) => {
             return match stack[sp-1] {
                 Object::Int(y) => {
-                    stack[sp-2] = Object::Complex(x-y as f64);
+                    stack[sp-2] = Object::Complex(x-float(y));
                     Ok(())
                 },
                 Object::Float(y) => {
@@ -965,7 +965,7 @@ fn operator_sub(env: &mut EnvPart, sp: usize, stack: &mut [Object])
                     }
                 },
                 Err(e) => Err(e)
-            }      
+            }
         },
         a => {
             let x = stack[sp-2].clone();
@@ -1005,11 +1005,11 @@ fn operator_mul(env: &mut EnvPart, sp: usize, stack: &mut [Object])
                     Ok(())
                 },
                 Object::Float(y) => {
-                    stack[sp-2] = Object::Float((x as f64)*y);
+                    stack[sp-2] = Object::Float(float(x)*y);
                     Ok(())
                 },
                 Object::Complex(y) => {
-                    stack[sp-2] = Object::Complex(x as f64*y);
+                    stack[sp-2] = Object::Complex(float(x)*y);
                     Ok(())
                 },
                 Object::String(_) => {
@@ -1024,7 +1024,7 @@ fn operator_mul(env: &mut EnvPart, sp: usize, stack: &mut [Object])
         Object::Float(x) => {
             return match stack[sp-1] {
                 Object::Int(y) => {
-                    stack[sp-2] = Object::Float(x*(y as f64));
+                    stack[sp-2] = Object::Float(x*float(y));
                     Ok(())
                 },
                 Object::Float(y) => {
@@ -1041,7 +1041,7 @@ fn operator_mul(env: &mut EnvPart, sp: usize, stack: &mut [Object])
         Object::Complex(x) => {
             return match stack[sp-1] {
                 Object::Int(y) => {
-                    stack[sp-2] = Object::Complex(y as f64*x);
+                    stack[sp-2] = Object::Complex(float(y)*x);
                     Ok(())
                 },
                 Object::Float(y) => {
@@ -1168,15 +1168,15 @@ fn operator_div(env: &mut EnvPart, sp: usize, stack: &mut [Object])
         Object::Int(x) => {
             return match stack[sp-1] {
                 Object::Int(y) => {
-                    stack[sp-2] = Object::Float((x as f64 )/(y as f64));
+                    stack[sp-2] = Object::Float(float(x)/float(y));
                     Ok(())
                 },
                 Object::Float(y) => {
-                    stack[sp-2] = Object::Float((x as f64)/y);
+                    stack[sp-2] = Object::Float(float(x)/y);
                     Ok(())
                 },
                 Object::Complex(y) => {
-                    stack[sp-2] = Object::Complex(x as f64/y);
+                    stack[sp-2] = Object::Complex(float(x)/y);
                     Ok(())
                 },
                 _ => {break 'r;}
@@ -1185,7 +1185,7 @@ fn operator_div(env: &mut EnvPart, sp: usize, stack: &mut [Object])
         Object::Float(x) => {
             return match stack[sp-1] {
                 Object::Int(y) => {
-                    stack[sp-2] = Object::Float(x/(y as f64));
+                    stack[sp-2] = Object::Float(x/float(y));
                     Ok(())
                 },
                 Object::Float(y) => {
@@ -1202,7 +1202,7 @@ fn operator_div(env: &mut EnvPart, sp: usize, stack: &mut [Object])
         Object::Complex(x) => {
             return match stack[sp-1] {
                 Object::Int(y) => {
-                    stack[sp-2] = Object::Complex(x/y as f64);
+                    stack[sp-2] = Object::Complex(x/float(y));
                     Ok(())
                 },
                 Object::Float(y) => {
@@ -1432,7 +1432,7 @@ fn operator_mod(env: &mut EnvPart, sp: usize, stack: &mut [Object])
         },
         Object::Float(x) => {
             let m = match stack[sp-1] {
-                Object::Int(y) => {y as f64},
+                Object::Int(y) => {float(y)},
                 Object::Float(y) => {y},
                 _ => {break 'r;}
             };
@@ -1507,7 +1507,7 @@ fn operator_pow(env: &mut EnvPart, sp: usize, stack: &mut [Object])
             return match stack[sp-1] {
                 Object::Int(y) => {
                     if y<0 {
-                        stack[sp-2] = Object::Float((x as f64).powf(y as f64));
+                        stack[sp-2] = Object::Float(float(x).powf(float(y)));
                     }else{
                         stack[sp-2] = match checked_pow(x,y as u32) {
                             Some(z) => Object::Int(z),
@@ -1522,16 +1522,17 @@ fn operator_pow(env: &mut EnvPart, sp: usize, stack: &mut [Object])
                     Ok(())
                 },
                 Object::Float(y) => {
-                    let z = (x as f64).powf(y);
+                    let z = float(x).powf(y);
                     if z.is_nan() {
-                        stack[sp-2] = Object::Complex(Complex64{re: x as f64, im: 0.0}.powf(y));
+                        stack[sp-2] = Object::Complex(
+                            Complex64{re: float(x), im: 0.0}.powf(y));
                     }else{
                         stack[sp-2] = Object::Float(z);
                     }
                     Ok(())
                 },
                 Object::Complex(y) => {
-                    stack[sp-2] = Object::Complex(y.expf(x as f64));
+                    stack[sp-2] = Object::Complex(y.expf(float(x)));
                     Ok(())
                 },
                 _ => {break 'r;}
@@ -1562,7 +1563,7 @@ fn operator_pow(env: &mut EnvPart, sp: usize, stack: &mut [Object])
         Object::Complex(x) => {
             return match stack[sp-1] {
                 Object::Int(y) => {
-                    stack[sp-2] = Object::Complex(x.powf(y as f64));
+                    stack[sp-2] = Object::Complex(x.powf(float(y)));
                     Ok(())
                 },
                 Object::Float(y) => {
@@ -1753,11 +1754,11 @@ fn operator_eq(env: &mut EnvPart, sp: usize, stack: &mut [Object])
                     Ok(())
                 },
                 Object::Float(y) => {
-                    stack[sp-2] = Object::Bool((x as f64)==y);
+                    stack[sp-2] = Object::Bool(float(x)==y);
                     Ok(())
                 },
                 Object::Complex(y) => {
-                    stack[sp-2] = Object::Bool((x as f64)==y.re && y.im==0.0);
+                    stack[sp-2] = Object::Bool(float(x)==y.re && y.im==0.0);
                     Ok(())
                 },
                 _ => {break 'r;}
@@ -1766,7 +1767,7 @@ fn operator_eq(env: &mut EnvPart, sp: usize, stack: &mut [Object])
         Object::Float(x) => {
             return match stack[sp-1] {
                 Object::Int(y) => {
-                    stack[sp-2] = Object::Bool(x==(y as f64));
+                    stack[sp-2] = Object::Bool(x==float(y));
                     Ok(())
                 },
                 Object::Float(y) => {
@@ -1884,7 +1885,7 @@ fn operator_lt(env: &mut EnvPart, sp: usize, stack: &mut [Object])
                     Ok(())
                 },
                 Object::Float(y) => {
-                    stack[sp-2] = Object::Bool((x as f64)<y);
+                    stack[sp-2] = Object::Bool(float(x)<y);
                     Ok(())
                 },
                 _ => {break 'r;}
@@ -1893,7 +1894,7 @@ fn operator_lt(env: &mut EnvPart, sp: usize, stack: &mut [Object])
         Object::Float(x) => {
             return match stack[sp-1] {
                 Object::Int(y) => {
-                    stack[sp-2] = Object::Bool(x<(y as f64));
+                    stack[sp-2] = Object::Bool(x<float(y));
                     Ok(())
                 },
                 Object::Float(y) => {
@@ -1983,7 +1984,7 @@ fn operator_gt(env: &mut EnvPart, sp: usize, stack: &mut [Object])
                     Ok(())
                 },
                 Object::Float(y) => {
-                    stack[sp-2] = Object::Bool((x as f64)>y);
+                    stack[sp-2] = Object::Bool(float(x)>y);
                     Ok(())
                 },
                 _ => {break 'r;}
@@ -1992,7 +1993,7 @@ fn operator_gt(env: &mut EnvPart, sp: usize, stack: &mut [Object])
         Object::Float(x) => {
             return match stack[sp-1] {
                 Object::Int(y) => {
-                    stack[sp-2] = Object::Bool(x>(y as f64));
+                    stack[sp-2] = Object::Bool(x>float(y));
                     Ok(())
                 },
                 Object::Float(y) => {
@@ -2082,7 +2083,7 @@ fn operator_le(env: &mut EnvPart, sp: usize, stack: &mut [Object])
                     Ok(())
                 },
                 Object::Float(y) => {
-                    stack[sp-2] = Object::Bool((x as f64)<=y);
+                    stack[sp-2] = Object::Bool(float(x)<=y);
                     Ok(())
                 },
                 _ => {break 'r;}
@@ -2091,7 +2092,7 @@ fn operator_le(env: &mut EnvPart, sp: usize, stack: &mut [Object])
         Object::Float(x) => {
             return match stack[sp-1] {
                 Object::Int(y) => {
-                    stack[sp-2] = Object::Bool(x<=(y as f64));
+                    stack[sp-2] = Object::Bool(x<=float(y));
                     Ok(())
                 },
                 Object::Float(y) => {
@@ -2181,7 +2182,7 @@ fn operator_ge(env: &mut EnvPart, sp: usize, stack: &mut [Object])
                     Ok(())
                 },
                 Object::Float(y) => {
-                    stack[sp-2] = Object::Bool((x as f64)>=y);
+                    stack[sp-2] = Object::Bool(float(x)>=y);
                     Ok(())
                 },
                 _ => {break 'r;}
@@ -2190,7 +2191,7 @@ fn operator_ge(env: &mut EnvPart, sp: usize, stack: &mut [Object])
         Object::Float(x) => {
             return match stack[sp-1] {
                 Object::Int(y) => {
-                    stack[sp-2] = Object::Bool(x>=(y as f64));
+                    stack[sp-2] = Object::Bool(x>=float(y));
                     Ok(())
                 },
                 Object::Float(y) => {

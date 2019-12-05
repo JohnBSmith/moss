@@ -30,6 +30,10 @@
 === Linear algebra ===
 * polymorphic arrays
   * array to list
+  * tensor product
+  * tensor contraction
+  * pointwise operations
+  * variadic map
 * homogeneous arrays
   * BLAS compatible interface
   * inv, det by Gaussian elimination

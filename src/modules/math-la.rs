@@ -12,7 +12,7 @@ use std::any::Any;
 
 use crate::object::{
     Object, FnResult, List, Interface,
-    Exception, new_module, downcast, VARIADIC,
+    Exception, float, new_module, downcast, VARIADIC,
     ptr_eq_plain
 };
 use crate::class::Class;
@@ -956,7 +956,7 @@ fn abs(env: &mut Env, a: &Array) -> FnResult {
             sum = op_add(env,&sum,&p)?;
         }
         return match sum {
-            Object::Int(x) => Ok(Object::Float((x as f64).sqrt())),
+            Object::Int(x) => Ok(Object::Float(float(x).sqrt())),
             Object::Float(x) => Ok(Object::Float(x.sqrt())),
             _ => env.type_error("Type error in sqrt(v.abs).")
         };

@@ -7,7 +7,7 @@ use std::any::Any;
 
 use crate::object::{
     Object, FnResult, Interface, Exception,
-    downcast, ptr_eq_plain
+    float, downcast, ptr_eq_plain
 };
 use crate::vm::{Env, RTE};
 
@@ -466,7 +466,7 @@ impl Interface for Long {
     fn div(self: Rc<Self>, b: &Object, _env: &mut Env) -> FnResult {
         let a = Mpz::as_f64(&self.value);
         match *b {
-            Object::Int(b) => return Ok(Object::Float(a/(b as f64))),
+            Object::Int(b) => return Ok(Object::Float(a/float(b))),
             Object::Float(b) => return Ok(Object::Float(a/b)),
             _ => {}
         }
@@ -480,7 +480,7 @@ impl Interface for Long {
     fn rdiv(self: Rc<Self>, a: &Object, env: &mut Env) -> FnResult {
         let b = Mpz::as_f64(&self.value);
         return match *a {
-            Object::Int(a) => Ok(Object::Float((a as f64)/b)),
+            Object::Int(a) => Ok(Object::Float(float(a)/b)),
             Object::Float(a) => Ok(Object::Float(a/b)),
             ref x => env.type_error1("Type error in x/y: cannot divide x by y: Long.","x",x)
         };

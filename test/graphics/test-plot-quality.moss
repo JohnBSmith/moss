@@ -31,3 +31,9 @@ begin
    sleep(4)
 end
 
+begin
+   s = system()
+   s.plot(|x| 1/sin(1000/x))
+   s.flush()
+   sleep(4)
+end

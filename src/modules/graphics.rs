@@ -25,7 +25,7 @@ use std::cell::RefCell;
 
 use crate::object::{
     Object, Interface, Function, FnResult, Map, Table, CharString,
-    new_module, downcast
+    new_module, downcast, float
 };
 use crate::vm::Env;
 use crate::data::Bytes;
@@ -124,7 +124,7 @@ impl MutableCanvas {
             window, rdr, texture, buffer,
             width: w as u32, height: h as u32,
             px: w as i32/2, py: h as i32/2,
-            wx: 0.5*w as f64, wy: 0.5*w as f64,
+            wx: 0.5*float(w), wy: 0.5*float(w),
             color: Color{r: 0xa0, g: 0xa0, b: 0xa0, a: 255}
         };
     }
@@ -268,7 +268,7 @@ impl MutableCanvas {
             for yj in -2..3 {
                 let px = ix.wrapping_add(xi);
                 let py = iy.wrapping_add(yj);
-                let d = (px as f64-rx).hypot(py as f64-ry);
+                let d = (float(px)-rx).hypot(float(py)-ry);
                 let a = fade(d);
                 let px = self.px.wrapping_add(px) as u32;
                 let py = self.py.wrapping_sub(py) as u32;
@@ -286,7 +286,7 @@ impl MutableCanvas {
             for yj in -1..2 {
                 let px = ix.wrapping_add(xi);
                 let py = iy.wrapping_add(yj);
-                let d = (px as f64-rx).hypot(py as f64-ry);
+                let d = (float(px)-rx).hypot(float(py)-ry);
                 let a = fade_needle(d);
                 let px = self.px.wrapping_add(px) as u32;
                 let py = self.py.wrapping_sub(py) as u32;
@@ -314,7 +314,7 @@ impl MutableCanvas {
         let radius_wx = radius_wx+0.2;
         for xi in -r..r+1 {
             for yj in -r..r+1 {
-                if (xi as f64).hypot(yj as f64) < radius_wx {
+                if float(xi).hypot(float(yj)) < radius_wx {
                     let px = self.px.wrapping_add(xi).wrapping_add(ix) as u32;
                     let py = self.py.wrapping_sub(yj).wrapping_sub(iy) as u32;
                     self.pset(px,py);
@@ -634,12 +634,12 @@ fn canvas_point(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
         2 => {}, n => return env.argc_error(n,2,2,"point")
     }
     let x = match argv[0] {
-        Object::Int(x) => x as f64,
+        Object::Int(x) => float(x),
         Object::Float(x) => x,
         ref x => return type_error_int_float(env,"c.point(x,y)","x",x)
     };
     let y = match argv[1] {
-        Object::Int(y) => y as f64,
+        Object::Int(y) => float(y),
         Object::Float(y) => y,
         ref y => return type_error_int_float(env,"c.point(x,y)","y",y)
     };
@@ -657,12 +657,12 @@ fn canvas_needle(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
         2 => {}, n => return env.argc_error(n,2,2,"needle")
     }
     let x = match argv[0] {
-        Object::Int(x) => x as f64,
+        Object::Int(x) => float(x),
         Object::Float(x) => x,
         ref x => return type_error_int_float(env,"c.needle(x,y)","x",x)
     };
     let y = match argv[1] {
-        Object::Int(y) => y as f64,
+        Object::Int(y) => float(y),
         Object::Float(y) => y,
         ref y => return type_error_int_float(env,"c.needle(x,y)","y",y)
     };
@@ -680,17 +680,17 @@ fn canvas_circle(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
         3 => {}, n => return env.argc_error(n,3,3,"circle")
     }
     let x = match argv[0] {
-        Object::Int(x) => x as f64,
+        Object::Int(x) => float(x),
         Object::Float(x) => x,
         ref x => return type_error_int_float(env,"c.circle(x,y,r)","x",x)
     };
     let y = match argv[1] {
-        Object::Int(y) => y as f64,
+        Object::Int(y) => float(y),
         Object::Float(y) => y,
         ref y => return type_error_int_float(env,"c.circle(x,y,r)","y",y)
     };
     let r = match argv[2] {
-        Object::Int(y) => y as f64,
+        Object::Int(y) => float(y),
         Object::Float(y) => y,
         ref y => return type_error_int_float(env,"c.circle(x,y,r)","r",y)
     };
@@ -708,17 +708,17 @@ fn canvas_disc(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
         3 => {}, n => return env.argc_error(n,3,3,"disc")
     }
     let x = match argv[0] {
-        Object::Int(x) => x as f64,
+        Object::Int(x) => float(x),
         Object::Float(x) => x,
         ref x => return type_error_int_float(env,"c.disc(x,y,r)","x",x)
     };
     let y = match argv[1] {
-        Object::Int(y) => y as f64,
+        Object::Int(y) => float(y),
         Object::Float(y) => y,
         ref y => return type_error_int_float(env,"c.disc(x,y,r)","y",y)
     };
     let r = match argv[2] {
-        Object::Int(y) => y as f64,
+        Object::Int(y) => float(y),
         Object::Float(y) => y,
         ref y => return type_error_int_float(env,"c.disc(x,y,r)","r",y)
     };
@@ -736,17 +736,17 @@ fn canvas_box(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
         3 => {}, n => return env.argc_error(n,3,3,"box")
     }
     let x = match argv[0] {
-        Object::Int(x) => x as f64,
+        Object::Int(x) => float(x),
         Object::Float(x) => x,
         ref x => return type_error_int_float(env,"c.box(x,y,r)","x",x)
     };
     let y = match argv[1] {
-        Object::Int(y) => y as f64,
+        Object::Int(y) => float(y),
         Object::Float(y) => y,
         ref y => return type_error_int_float(env,"c.box(x,y,r)","y",y)
     };
     let r = match argv[2] {
-        Object::Int(y) => y as f64,
+        Object::Int(y) => float(y),
         Object::Float(y) => y,
         ref y => return type_error_int_float(env,"c.box(x,y,r)","r",y)
     };
@@ -763,24 +763,24 @@ fn canvas_rgb(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     let a = match argv.len() {
         3 => None,
         4 => match argv[3] {
-            Object::Int(a) => Some(a as f64),
+            Object::Int(a) => Some(float(a)),
             Object::Float(a) => Some(a),
             ref a => return type_error_int_float(env,"c.rgb(r,g,b,a)","a",a)
         },
         n => return env.argc_error(n,3,4,"rgb")
     };
     let r = match argv[0] {
-        Object::Int(r) => r as f64,
+        Object::Int(r) => float(r),
         Object::Float(r) => r,
         ref r => return type_error_int_float(env,"c.rgb(r,g,b)","r",r)
     };
     let g = match argv[1] {
-        Object::Int(g) => g as f64,
+        Object::Int(g) => float(g),
         Object::Float(g) => g,
         ref g => return type_error_int_float(env,"c.rgb(r,g,b)","g",g)
     };
     let b = match argv[2] {
-        Object::Int(b) => b as f64,
+        Object::Int(b) => float(b),
         Object::Float(b) => b,
         ref b => return type_error_int_float(env,"c.rgb(r,g,b)","b",b)
     };
@@ -797,24 +797,24 @@ fn canvas_hsl(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     let a = match argv.len() {
         3 => None,
         4 => match argv[3] {
-            Object::Int(a) => Some(a as f64),
+            Object::Int(a) => Some(float(a)),
             Object::Float(a) => Some(a),
             ref a => return type_error_int_float(env,"c.hsl(h,s,l,a)","a",a)
         },
         n => return env.argc_error(n,3,4,"hsl")
     };
     let h = match argv[0] {
-        Object::Int(x) => x as f64,
+        Object::Int(x) => float(x),
         Object::Float(x) => x,
         ref x => return type_error_int_float(env,"c.hsl(h,s,l)","h",x)
     };
     let s = match argv[1] {
-        Object::Int(x) => x as f64,
+        Object::Int(x) => float(x),
         Object::Float(x) => x,
         ref x => return type_error_int_float(env,"c.hsl(h,s,l)","s",x)
     };
     let l = match argv[2] {
-        Object::Int(x) => x as f64,
+        Object::Int(x) => float(x),
         Object::Float(x) => x,
         ref x => return type_error_int_float(env,"c.hsl(h,s,l)","l",x)
     };
@@ -832,17 +832,17 @@ fn canvas_clear(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
         3 => {}, n => return env.argc_error(n,3,3,"clear")
     }
     let r = match argv[0] {
-        Object::Int(r) => r as f64,
+        Object::Int(r) => float(r),
         Object::Float(r) => r,
         ref r => return type_error_int_float(env,"c.clear(r,g,b)","r",r)
     };
     let g = match argv[1] {
-        Object::Int(g) => g as f64,
+        Object::Int(g) => float(g),
         Object::Float(g) => g,
         ref g => return type_error_int_float(env,"c.clear(r,g,b)","g",g)
     };
     let b = match argv[2] {
-        Object::Int(b) => b as f64,
+        Object::Int(b) => float(b),
         Object::Float(b) => b,
         ref b => return type_error_int_float(env,"c.clear(r,g,b)","b",b)
     };
@@ -893,7 +893,7 @@ fn graphics_sleep(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
         1 => {}, n => return env.argc_error(n,1,1,"sleep")
     }
     let t = match argv[0] {
-        Object::Int(x) => x.max(0) as f64,
+        Object::Int(x) => float(x.max(0)),
         Object::Float(x) => x.max(0.0),
         ref x => return type_error_int_float(env,"sleep(x)","x",x)
     };
@@ -907,19 +907,19 @@ fn canvas_scale(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
         2 => {}, n => return env.argc_error(n,2,2,"scale")
     }
     let x = match argv[0] {
-        Object::Int(x) => x as f64,
+        Object::Int(x) => float(x),
         Object::Float(x) => x,
         ref x => return type_error_int_float(env,"canvas.scale(x,y)","x",x)
     };
     let y = match argv[1] {
-        Object::Int(y) => y as f64,
+        Object::Int(y) => float(y),
         Object::Float(y) => y,
         ref y => return type_error_int_float(env,"cancas.scale(x,y)","y",y)
     };
     if let Some(canvas) = downcast::<Canvas>(pself) {
         let mut canvas = canvas.canvas.borrow_mut();
-        canvas.wx = x*0.5*canvas.width as f64;
-        canvas.wy = y*0.5*canvas.width as f64;
+        canvas.wx = x*0.5*float(canvas.width);
+        canvas.wy = y*0.5*float(canvas.width);
         Ok(Object::Null)
     }else{
         type_error_canvas(env,"canvas.scale(x,y)","canvas")

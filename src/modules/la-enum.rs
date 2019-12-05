@@ -12,7 +12,7 @@ use std::fmt::Write;
 use complex::c64;
 use object::{
   Object, List, Exception, Table, FnResult, Interface,
-  VARIADIC, new_module, downcast
+  VARIADIC, float, new_module, downcast
 };
 use vm::{Env,interface_types_set,interface_index};
 
@@ -128,7 +128,7 @@ impl Interface for Array {
     }
     fn rmul(&self, a: &Object, env: &mut Env) -> FnResult {
         let r = match *a {
-            Object::Int(x) => x as f64,
+            Object::Int(x) => float(x),
             Object::Float(x) => x,
             _ => return env.type_error(
                 "Type error in r*v: r has to be of type Int or Float.")
@@ -417,7 +417,7 @@ fn vector_from_list(env: &mut Env, a: &[Object]) -> FnResult {
     let mut v: Vec<f64> = Vec::with_capacity(a.len());
     for x in a {
         let x = match *x {
-            Object::Int(x) => x as f64,
+            Object::Int(x) => float(x),
             Object::Float(x) => x,
             _ => return env.type_error(
                 "Type error in vector(*a): expected all a[k] of type Int or Float.")
@@ -456,7 +456,7 @@ fn matrix_from_lists(env: &mut Env, argv: &[Object]) -> FnResult {
         }
         for x in data {
             let x = match *x {
-                Object::Int(x) => x as f64,
+                Object::Int(x) => float(x),
                 Object::Float(x) => x,
                 _ => return env.type_error(
                     "Type error in matrix(*a): expected all a[i][j] of type Int or Float.")

@@ -57,7 +57,7 @@ impl Rand{
     }
 
     pub fn rand_float(&mut self) -> f64 {
-        (self.rand_u32() as f64)*2.3283064365386963E-10
+        f64::from(self.rand_u32())*2.3283064365386963E-10
     }
 }
 

@@ -161,7 +161,7 @@ fn apply_fmt(env: &mut Env, buffer: &mut String,
         },
         FmtType::Float(ref float) => {
             let x = match *x {
-                Object::Int(n) => n as f64,
+                Object::Int(n) => crate::object::float(n),
                 Object::Float(x) => x,
                 _ => {
                     return match env.type_error("Type error in format: expected a float.") {

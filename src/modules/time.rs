@@ -3,7 +3,7 @@ use std::time::{Duration,Instant};
 use std::thread::sleep;
 use std::rc::Rc;
 use crate::math::type_error_int_float;
-use crate::object::{Env,Object,Function,FnResult,new_module};
+use crate::object::{Env,Object,Function,FnResult,float,new_module};
 
 fn time_clock(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
@@ -14,8 +14,8 @@ fn time_clock(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     -> FnResult
     {
         let elapsed = clock.elapsed();
-        let s = elapsed.as_secs() as f64;
-        let us = elapsed.subsec_micros() as f64;
+        let s = float(elapsed.as_secs());
+        let us = float(elapsed.subsec_micros());
         return Ok(Object::Float(s+0.000001*us));
     });
     return Ok(Function::mutable(f,0,0));

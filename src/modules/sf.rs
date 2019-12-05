@@ -14,7 +14,7 @@ use std::f64::NAN;
 use std::f64::consts::{PI};
 use std::rc::Rc;
 
-use crate::object::{Object, FnResult, new_module};
+use crate::object::{Object, FnResult, float, new_module};
 use crate::vm::Env;
 use crate::math::{gamma, lgamma, sgngamma, cgamma};
 use crate::complex::c64;
@@ -119,17 +119,17 @@ fn eiPi(phi: f64, n: f64, m: f64) -> f64 {
     return s*RF(c*c,1.0-mss,1.0)+1.0/3.0*nss*s*RJ(c*c,1.0-mss,1.0,1.0-nss);
 }
 
-fn legendre_rec(n: i32, m: i32,x: f64) -> f64{
+fn legendre_rec(n: i32, m: i32, x: f64) -> f64{
     if n==m {
-        return SQRT_PI/gamma(0.5-n as f64)*(2.0*(1.0-x*x).sqrt()).powi(n);
+        return SQRT_PI/gamma(0.5-float(n))*(2.0*(1.0-x*x).sqrt()).powi(n);
     }else if n-1==m {
-        return x*(2*n-1) as f64*legendre_rec(m,m,x);
+        return x*float(2*n-1)*legendre_rec(m,m,x);
     }else{
         let mut a = legendre_rec(m,m,x);
         let mut b = legendre_rec(m+1,m,x);
-        let mf = m as f64;
+        let mf = float(m);
         for k in m+2..n+1 {
-            let k = k as f64;
+            let k = float(k);
             let h = ((2.0*k-1.0)*x*b-(k-1.0+mf)*a)/(k-mf);
             a=b; b=h;
         }
@@ -155,7 +155,7 @@ fn hermite(n: i32, x: f64) -> f64 {
         let mut a = 1.0;
         let mut b = 2.0*x;
         for k in 1..n {
-            let h = 2.0*x*b-2.0*k as f64*a;
+            let h = 2.0*x*b-2.0*float(k)*a;
             a = b; b = h;
         }
         return b;
@@ -194,7 +194,7 @@ fn upper_gamma_cf(s: f64, z: f64, n: u32) -> f64 {
   let mut x = 0.0;
   let mut k = n;
   while k != 0 {
-      let kf = k as f64;
+      let kf = float(k);
       x = kf*(s-kf)/(2.0*kf+1.0+z-s+x);
       k-=1;
   }
@@ -207,7 +207,7 @@ fn lower_gamma_series(s: f64, z: f64, n: u32) -> f64 {
   let mut k: u32 = 1;
   while k<=n {
       y+=p;
-      p = p*z/(s+k as f64);
+      p = p*z/(s+float(k));
       k+=1;
   }
   return y*(-z).exp();
@@ -233,9 +233,9 @@ fn lower_gamma(s: f64, z: f64) -> f64 {
 fn hurwitz_zeta(s: f64, a: f64) -> f64 {
     let mut y = 0.0;
     let N = 18;
-    let Npa = N as f64+a;
+    let Npa = float(N)+a;
     for k in 0..N {
-        y += (k as f64+a).powf(-s);
+        y += (float(k)+a).powf(-s);
     }
     let s2 = s*(s+1.0)*(s+2.0);
     let s4 = s2*(s+3.0)*(s+4.0);
@@ -263,9 +263,9 @@ fn czeta_em(s: c64) -> c64 {
     let N = 18;
     let mut y = c64{re: 1.0, im: 0.0};
     for k in 2..N {
-        y = y+(-s).expf(k as f64);
+        y = y+(-s).expf(float(k));
     }
-    let Nf = N as f64;
+    let Nf = float(N);
     let s2 = s*(s+1.0)*(s+2.0);
     let s4 = s2*(s+3.0)*(s+4.0);
     let s6 = s4*(s+5.0)*(s+6.0);
@@ -309,7 +309,7 @@ fn sf_K(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
         1 => {}, n => return env.argc_error(n,1,1,"K")
     }
     let m = match argv[0] {
-        Object::Int(m) => m as f64,
+        Object::Int(m) => float(m),
         Object::Float(m) => m,
         ref m => return type_error_int_float(env,"K(m)","m",m)
     };
@@ -320,7 +320,7 @@ fn sf_E(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         1 => {
             let m = match argv[0] {
-                Object::Int(m) => m as f64,
+                Object::Int(m) => float(m),
                 Object::Float(m) => m,
                 ref m => return type_error_int_float(env,"E(m)","m",m)
             };
@@ -328,12 +328,12 @@ fn sf_E(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
         },
         2 => {
             let phi = match argv[0] {
-                Object::Int(x) => x as f64,
+                Object::Int(x) => float(x),
                 Object::Float(x) => x,
                 ref x => return type_error_int_float(env,"E(phi,m)","phi",x)
             };
             let m = match argv[1] {
-                Object::Int(m) => m as f64,
+                Object::Int(m) => float(m),
                 Object::Float(m) => m,
                 ref m => return type_error_int_float(env,"E(phi,m)","m",m)
             };
@@ -347,12 +347,12 @@ fn sf_F(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         2 => {
             let phi = match argv[0] {
-                Object::Int(x) => x as f64,
+                Object::Int(x) => float(x),
                 Object::Float(x) => x,
                 ref x => return type_error_int_float(env,"F(phi,m)","phi",x)
             };
             let m = match argv[1] {
-                Object::Int(m) => m as f64,
+                Object::Int(m) => float(m),
                 Object::Float(m) => m,
                 ref m => return type_error_int_float(env,"F(phi,m)","m",m)
             };
@@ -367,17 +367,17 @@ fn sf_Pi(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
         3 => {}, n => return env.argc_error(n,3,3,"Pi")
     }
     let x = match argv[0] {
-        Object::Int(x) => x as f64,
+        Object::Int(x) => float(x),
         Object::Float(x) => x,
         ref x => return type_error_int_float(env,"RF(phi,n,m)","phi",x)
     };
     let y = match argv[1] {
-        Object::Int(y) => y as f64,
+        Object::Int(y) => float(y),
         Object::Float(y) => y,
         ref y => return type_error_int_float(env,"RF(phi,n,m)","n",y)
     };
     let z = match argv[2] {
-        Object::Int(z) => z as f64,
+        Object::Int(z) => float(z),
         Object::Float(z) => z,
         ref z => return type_error_int_float(env,"RF(phi,n,m)","m",z)
     };
@@ -389,17 +389,17 @@ fn sf_RF(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
         3 => {}, n => return env.argc_error(n,3,3,"RF")
     }
     let x = match argv[0] {
-        Object::Int(x) => x as f64,
+        Object::Int(x) => float(x),
         Object::Float(x) => x,
         ref x => return type_error_int_float(env,"RF(x,y,z)","x",x)
     };
     let y = match argv[1] {
-        Object::Int(y) => y as f64,
+        Object::Int(y) => float(y),
         Object::Float(y) => y,
         ref y => return type_error_int_float(env,"RF(x,y,z)","y",y)
     };
     let z = match argv[2] {
-        Object::Int(z) => z as f64,
+        Object::Int(z) => float(z),
         Object::Float(z) => z,
         ref z => return type_error_int_float(env,"RF(x,y,z)","z",z)
     };
@@ -411,12 +411,12 @@ fn sf_RC(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
         2 => {}, n => return env.argc_error(n,2,2,"RC")
     }
     let x = match argv[0] {
-        Object::Int(x) => x as f64,
+        Object::Int(x) => float(x),
         Object::Float(x) => x,
         ref x => return type_error_int_float(env,"RC(x,y)","x",x)
     };
     let y = match argv[1] {
-        Object::Int(y) => y as f64,
+        Object::Int(y) => float(y),
         Object::Float(y) => y,
         ref y => return type_error_int_float(env,"RC(x,y)","y",y)
     };
@@ -428,22 +428,22 @@ fn sf_RJ(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
         4 => {}, n => return env.argc_error(n,4,4,"RJ")
     }
     let x = match argv[0] {
-        Object::Int(x) => x as f64,
+        Object::Int(x) => float(x),
         Object::Float(x) => x,
         ref x => return type_error_int_float(env,"RJ(x,y,z,p)","x",x)
     };
     let y = match argv[1] {
-        Object::Int(y) => y as f64,
+        Object::Int(y) => float(y),
         Object::Float(y) => y,
         ref y => return type_error_int_float(env,"RJ(x,y,z,p)","y",y)
     };
     let z = match argv[2] {
-        Object::Int(z) => z as f64,
+        Object::Int(z) => float(z),
         Object::Float(z) => z,
         ref z => return type_error_int_float(env,"RJ(x,y,z,p)","z",z)
     };
     let p = match argv[3] {
-        Object::Int(p) => p as f64,
+        Object::Int(p) => float(p),
         Object::Float(p) => p,
         ref p => return type_error_int_float(env,"RJ(x,y,z,p)","p",p)
     };
@@ -455,17 +455,17 @@ fn sf_RD(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
         3 => {}, n => return env.argc_error(n,3,3,"RD")
     }
     let x = match argv[0] {
-        Object::Int(x) => x as f64,
+        Object::Int(x) => float(x),
         Object::Float(x) => x,
         ref x => return type_error_int_float(env,"RD(x,y,z)","x",x)
     };
     let y = match argv[1] {
-        Object::Int(y) => y as f64,
+        Object::Int(y) => float(y),
         Object::Float(y) => y,
         ref y => return type_error_int_float(env,"RD(x,y,z)","y",y)
     };
     let z = match argv[2] {
-        Object::Int(z) => z as f64,
+        Object::Int(z) => float(z),
         Object::Float(z) => z,
         ref z => return type_error_int_float(env,"RD(x,y,z)","z",z)
     };
@@ -485,7 +485,7 @@ fn sf_PP(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
         ref x => return type_error_int_float(env,"PP(n,m,x)","m",x)
     };
     let x = match argv[2] {
-        Object::Int(x) => x as f64,
+        Object::Int(x) => float(x),
         Object::Float(x) => x,
         ref x => return type_error_int_float(env,"PP(n,m,x)","x",x)
     };
@@ -501,7 +501,7 @@ fn sf_PH(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
         ref x => return type_error_int_float(env,"PH(n,x)","n",x)
     };
     let x = match argv[1] {
-        Object::Int(x) => x as f64,
+        Object::Int(x) => float(x),
         Object::Float(x) => x,
         ref x => return type_error_int_float(env,"PH(n,x)","x",x)
     };
@@ -517,7 +517,7 @@ fn sf_PT(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
         ref x => return type_error_int_float(env,"PT(n,x)","n",x)
     };
     let x = match argv[1] {
-        Object::Int(x) => x as f64,
+        Object::Int(x) => float(x),
         Object::Float(x) => x,
         ref x => return type_error_int_float(env,"PT(n,x)","x",x)
     };
@@ -533,7 +533,7 @@ fn sf_PU(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
         ref x => return type_error_int_float(env,"PU(n,x)","n",x)
     };
     let x = match argv[1] {
-        Object::Int(x) => x as f64,
+        Object::Int(x) => float(x),
         Object::Float(x) => x,
         ref x => return type_error_int_float(env,"PU(n,x)","x",x)
     };
@@ -545,12 +545,12 @@ fn sf_gamma(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
         2 => {}, n => return env.argc_error(n,2,2,"gamma")
     }
     let s = match argv[0] {
-        Object::Int(x) => x as f64,
+        Object::Int(x) => float(x),
         Object::Float(x) => x,
         ref x => return type_error_int_float(env,"gamma(s,x)","s",x)
     };
     let x = match argv[1] {
-        Object::Int(x) => x as f64,
+        Object::Int(x) => float(x),
         Object::Float(x) => x,
         ref x => return type_error_int_float(env,"gamma(s,x)","x",x)
     };
@@ -562,12 +562,12 @@ fn sf_Gamma(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
         2 => {}, n => return env.argc_error(n,2,2,"Gamma")
     }
     let s = match argv[0] {
-        Object::Int(x) => x as f64,
+        Object::Int(x) => float(x),
         Object::Float(x) => x,
         ref x => return type_error_int_float(env,"Gamma(s,x)","s",x)
     };
     let x = match argv[1] {
-        Object::Int(x) => x as f64,
+        Object::Int(x) => float(x),
         Object::Float(x) => x,
         ref x => return type_error_int_float(env,"Gamma(s,x)","x",x)
     };
@@ -579,7 +579,7 @@ fn sf_zeta(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
         1 => {}, n => return env.argc_error(n,1,1,"zeta")
     }
     let x = match argv[0] {
-        Object::Int(x) => x as f64,
+        Object::Int(x) => float(x),
         Object::Float(x) => x,
         Object::Complex(z) => {
             return Ok(Object::Complex(czeta(z)));
@@ -594,7 +594,7 @@ fn sf_B(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
         1 => {}, n => return env.argc_error(n,1,1,"B")
     }
     let x = match argv[0] {
-        Object::Int(x) => x as f64,
+        Object::Int(x) => float(x),
         Object::Float(x) => x,
         ref x => return type_error_int_float(env,"B(x)","x",x)
     };
@@ -606,12 +606,12 @@ fn sf_Beta(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
         2 => {}, n => return env.argc_error(n,2,2,"Beta")
     }
     let x = match argv[0] {
-        Object::Int(x) => x as f64,
+        Object::Int(x) => float(x),
         Object::Float(x) => x,
         ref x => return type_error_int_float(env,"Beta(x,y)","x",x)
     };
     let y = match argv[1] {
-        Object::Int(x) => x as f64,
+        Object::Int(x) => float(x),
         Object::Float(x) => x,
         ref x => return type_error_int_float(env,"Beta(x,y)","y",x)
     };

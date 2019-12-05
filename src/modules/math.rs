@@ -3,7 +3,7 @@ use std::f64::consts::{PI,E,LOG10_E};
 use std::rc::Rc;
 
 use crate::complex::c64;
-use crate::object::{Object, FnResult, new_module};
+use crate::object::{Object, FnResult, new_module, float};
 use crate::vm::Env;
 
 const SQRT_2PI: f64 = 2.5066282746310002;
@@ -128,7 +128,7 @@ fn floor(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     }
     match argv[0] {
         Object::Int(x) => {
-            Ok(Object::Float((x as f64).floor()))
+            Ok(Object::Float(float(x).floor()))
         },
         Object::Float(x) => {
             Ok(Object::Float(x.floor()))
@@ -143,7 +143,7 @@ fn ceil(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     }
     match argv[0] {
         Object::Int(x) => {
-            Ok(Object::Float((x as f64).ceil()))
+            Ok(Object::Float(float(x).ceil()))
         },
         Object::Float(x) => {
             Ok(Object::Float(x.ceil()))
@@ -157,7 +157,7 @@ fn trunc(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
         1 => {}, n => return env.argc_error(n,1,1,"trunc")
     }
     let x = match argv[0] {
-        Object::Int(x) => x as f64,
+        Object::Int(x) => float(x),
         Object::Float(x) => x,
         ref x => return type_error_int_float(env,"trunc",x)
     };
@@ -173,7 +173,7 @@ fn sqrt(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
             Ok(Object::Float(x.sqrt()))
         },
         Object::Int(x) => {
-            Ok(Object::Float((x as f64).sqrt()))
+            Ok(Object::Float(float(x).sqrt()))
         },
         ref x => type_error_int_float(env,"sqrt",x)
     }
@@ -185,7 +185,7 @@ fn exp(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     }
     match argv[0] {
         Object::Int(x) => {
-            Ok(Object::Float((x as f64).exp()))
+            Ok(Object::Float(float(x).exp()))
         },
         Object::Float(x) => {
             Ok(Object::Float(x.exp()))
@@ -203,7 +203,7 @@ fn ln(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     }
     match argv[0] {
         Object::Int(x) => {
-            Ok(Object::Float((x as f64).ln()))
+            Ok(Object::Float(float(x).ln()))
         },
         Object::Float(x) => {
             Ok(Object::Float(x.ln()))
@@ -218,7 +218,7 @@ fn lg(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     }
     match argv[0] {
         Object::Int(x) => {
-            Ok(Object::Float(LOG10_E*(x as f64).ln()))
+            Ok(Object::Float(LOG10_E*float(x).ln()))
         },
         Object::Float(x) => {
             Ok(Object::Float(LOG10_E*x.ln()))
@@ -234,7 +234,7 @@ fn sin(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     }
     match argv[0] {
         Object::Int(x) => {
-            Ok(Object::Float((x as f64).sin()))
+            Ok(Object::Float(float(x).sin()))
         },
         Object::Float(x) => {
             Ok(Object::Float(x.sin()))
@@ -252,7 +252,7 @@ fn cos(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     }
     match argv[0] {
         Object::Int(x) => {
-            Ok(Object::Float((x as f64).cos()))
+            Ok(Object::Float(float(x).cos()))
         },
         Object::Float(x) => {
             Ok(Object::Float(x.cos()))
@@ -270,7 +270,7 @@ fn tan(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     }
     match argv[0] {
         Object::Int(x) => {
-            Ok(Object::Float((x as f64).tan()))
+            Ok(Object::Float(float(x).tan()))
         },
         Object::Float(x) => {
             Ok(Object::Float(x.tan()))
@@ -288,7 +288,7 @@ fn sinh(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     }
     match argv[0] {
         Object::Int(x) => {
-            Ok(Object::Float((x as f64).sinh()))
+            Ok(Object::Float(float(x).sinh()))
         },
         Object::Float(x) => {
             Ok(Object::Float(x.sinh()))
@@ -306,7 +306,7 @@ fn cosh(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     }
     match argv[0] {
         Object::Int(x) => {
-            Ok(Object::Float((x as f64).cosh()))
+            Ok(Object::Float(float(x).cosh()))
         },
         Object::Float(x) => {
             Ok(Object::Float(x.cosh()))
@@ -324,7 +324,7 @@ fn tanh(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     }
     match argv[0] {
         Object::Int(x) => {
-            Ok(Object::Float((x as f64).tanh()))
+            Ok(Object::Float(float(x).tanh()))
         },
         Object::Float(x) => {
             Ok(Object::Float(x.tanh()))
@@ -342,7 +342,7 @@ fn asin(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     }
     match argv[0] {
         Object::Int(x) => {
-            Ok(Object::Float((x as f64).asin()))
+            Ok(Object::Float(float(x).asin()))
         },
         Object::Float(x) => {
             Ok(Object::Float(x.asin()))
@@ -357,7 +357,7 @@ fn acos(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     }
     match argv[0] {
         Object::Int(x) => {
-            Ok(Object::Float((x as f64).acos()))
+            Ok(Object::Float(float(x).acos()))
         },
         Object::Float(x) => {
             Ok(Object::Float(x.acos()))
@@ -372,7 +372,7 @@ fn atan(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     }
     match argv[0] {
         Object::Int(x) => {
-            Ok(Object::Float((x as f64).atan()))
+            Ok(Object::Float(float(x).atan()))
         },
         Object::Float(x) => {
             Ok(Object::Float(x.atan()))
@@ -387,7 +387,7 @@ fn asinh(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     }
     match argv[0] {
         Object::Int(x) => {
-            Ok(Object::Float((x as f64).asinh()))
+            Ok(Object::Float(float(x).asinh()))
         },
         Object::Float(x) => {
             Ok(Object::Float(x.asinh()))
@@ -402,7 +402,7 @@ fn acosh(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     }
     match argv[0] {
         Object::Int(x) => {
-            Ok(Object::Float((x as f64).acosh()))
+            Ok(Object::Float(float(x).acosh()))
         },
         Object::Float(x) => {
             Ok(Object::Float(x.acosh()))
@@ -417,7 +417,7 @@ fn atanh(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     }
     match argv[0] {
         Object::Int(x) => {
-            Ok(Object::Float((x as f64).atanh()))
+            Ok(Object::Float(float(x).atanh()))
         },
         Object::Float(x) => {
             Ok(Object::Float(x.atanh()))
@@ -432,7 +432,7 @@ fn math_gamma(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     }
     match argv[0] {
         Object::Int(x) => {
-            Ok(Object::Float(gamma(x as f64)))
+            Ok(Object::Float(gamma(float(x))))
         },
         Object::Float(x) => {
             Ok(Object::Float(gamma(x)))
@@ -449,7 +449,7 @@ fn math_lgamma(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
         1 => {}, n => return env.argc_error(n,1,1,"lgamma")
     }
     let x = match argv[0] {
-        Object::Int(x) => x as f64,
+        Object::Int(x) => float(x),
         Object::Float(x) => x,
         ref x => return type_error_int_float(env,"lgamma",x)
     };
@@ -461,7 +461,7 @@ fn math_sgngamma(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
         1 => {}, n => return env.argc_error(n,1,1,"sgngamma")
     }
     let x = match argv[0] {
-        Object::Int(x) => x as f64,
+        Object::Int(x) => float(x),
         Object::Float(x) => x,
         ref x => return type_error_int_float(env,"sgngamma",x)
     };
@@ -479,7 +479,7 @@ fn hypot(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
                     Ok(Object::Float(x.hypot(y)))
                 },
                 Object::Int(y) => {
-                    Ok(Object::Float(x.hypot(y as f64)))
+                    Ok(Object::Float(x.hypot(float(y))))
                 },
                 _ => env.type_error("Type error in hypot(x,y): y is not a float.")
             }
@@ -487,10 +487,10 @@ fn hypot(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
         Object::Int(x) => {
             match argv[1] {
                 Object::Float(y) => {
-                    Ok(Object::Float((x as f64).hypot(y)))
+                    Ok(Object::Float(float(x).hypot(y)))
                 },
                 Object::Int(y) => {
-                    Ok(Object::Float((x as f64).hypot(y as f64)))
+                    Ok(Object::Float(float(x).hypot(float(y))))
                 },
                 _ => env.type_error("Type error in hypot(x,y): y is not a float.")
             }
@@ -510,7 +510,7 @@ fn atan2(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
                     Ok(Object::Float(y.atan2(x)))
                 },
                 Object::Int(x) => {
-                    Ok(Object::Float(y.atan2(x as f64)))
+                    Ok(Object::Float(y.atan2(float(x))))
                 },
                 _ => env.type_error("Type error in atan2(y,x): x is not a float.")
             }
@@ -518,10 +518,10 @@ fn atan2(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
         Object::Int(y) => {
             match argv[1] {
                 Object::Float(x) => {
-                    Ok(Object::Float((y as f64).atan2(x)))
+                    Ok(Object::Float(float(y).atan2(x)))
                 },
                 Object::Int(x) => {
-                    Ok(Object::Float((y as f64).atan2(x as f64)))
+                    Ok(Object::Float(float(y).atan2(float(x))))
                 },
                 _ => env.type_error("Type error in atan2(y,x): x is not a float.")
             }
@@ -539,7 +539,7 @@ fn math_erf(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
             Ok(Object::Float(erf(x)))
         },
         Object::Int(x) => {
-            Ok(Object::Float(erf(x as f64)))
+            Ok(Object::Float(erf(float(x))))
         },
         ref x => type_error_int_float(env,"erf",x)
     }
@@ -664,9 +664,9 @@ fn csqrt(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
         },
         Object::Int(x) => {
             if x<0 {
-                Ok(Object::Complex(c64{re: x as f64, im: 0.0}.sqrt()))
+                Ok(Object::Complex(c64{re: float(x), im: 0.0}.sqrt()))
             }else{
-                Ok(Object::Float((x as f64).sqrt()))
+                Ok(Object::Float(float(x).sqrt()))
             }
         },
         ref x => type_error_int_float_complex(env,"sqrt",x)
@@ -679,7 +679,7 @@ fn cln(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     }
     match argv[0] {
         Object::Int(x) => {
-            Ok(Object::Complex(c64{re: x as f64, im: 0.0}.ln()))
+            Ok(Object::Complex(c64{re: float(x), im: 0.0}.ln()))
         },
         Object::Float(x) => {
             Ok(Object::Complex(c64{re: x, im: 0.0}.ln()))
@@ -697,7 +697,7 @@ fn casin(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     }
     match argv[0] {
         Object::Int(x) => {
-            Ok(Object::Complex(c64{re: x as f64, im: 0.0}.asin()))
+            Ok(Object::Complex(c64{re: float(x), im: 0.0}.asin()))
         },
         Object::Float(x) => {
             Ok(Object::Complex(c64{re: x, im: 0.0}.asin()))
@@ -715,7 +715,7 @@ fn cacos(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     }
     match argv[0] {
         Object::Int(x) => {
-            Ok(Object::Complex(c64{re: x as f64, im: 0.0}.acos()))
+            Ok(Object::Complex(c64{re: float(x), im: 0.0}.acos()))
         },
         Object::Float(x) => {
             Ok(Object::Complex(c64{re: x, im: 0.0}.acos()))
@@ -733,7 +733,7 @@ fn catan(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     }
     match argv[0] {
         Object::Int(x) => {
-            Ok(Object::Complex(c64{re: x as f64, im: 0.0}.atan()))
+            Ok(Object::Complex(c64{re: float(x), im: 0.0}.atan()))
         },
         Object::Float(x) => {
             Ok(Object::Complex(c64{re: x, im: 0.0}.atan()))
@@ -751,7 +751,7 @@ fn casinh(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     }
     match argv[0] {
         Object::Int(x) => {
-            Ok(Object::Complex(c64{re: x as f64, im: 0.0}.asinh()))
+            Ok(Object::Complex(c64{re: float(x), im: 0.0}.asinh()))
         },
         Object::Float(x) => {
             Ok(Object::Complex(c64{re: x, im: 0.0}.asinh()))
@@ -769,7 +769,7 @@ fn cacosh(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     }
     match argv[0] {
         Object::Int(x) => {
-            Ok(Object::Complex(c64{re: x as f64, im: 0.0}.acosh()))
+            Ok(Object::Complex(c64{re: float(x), im: 0.0}.acosh()))
         },
         Object::Float(x) => {
             Ok(Object::Complex(c64{re: x, im: 0.0}.acosh()))
@@ -787,7 +787,7 @@ fn catanh(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     }
     match argv[0] {
         Object::Int(x) => {
-            Ok(Object::Complex(c64{re: x as f64, im: 0.0}.atanh()))
+            Ok(Object::Complex(c64{re: float(x), im: 0.0}.atanh()))
         },
         Object::Float(x) => {
             Ok(Object::Complex(c64{re: x, im: 0.0}.atanh()))

@@ -5,7 +5,7 @@ use std::char;
 
 use crate::object::{
     Object, Env, Interface, FnResult, Exception,
-    CharString, downcast, ptr_eq_plain
+    CharString, float, downcast, ptr_eq_plain
 };
 use crate::vm::{RTE,object_to_string};
 use crate::iterable::{new_iterator, int_range_iterator};
@@ -147,14 +147,14 @@ impl Interface for Range {
 
 fn float_range_iterator(env: &mut Env, r: &Range) -> FnResult {
     let a = match r.a {
-        Object::Int(x) => x as f64,
+        Object::Int(x) => float(x),
         Object::Float(x) => x,
         _ => return env.type_error1(
             "Type error in iter(a..b): a is not of type Float.",
             "a",&r.a)
     };
     let b = match r.b {
-        Object::Int(x) => x as f64,
+        Object::Int(x) => float(x),
         Object::Float(x) => x,
         _ => return env.type_error1(
             "Type error in iter(a..b): b is not of type Float.",
@@ -162,7 +162,7 @@ fn float_range_iterator(env: &mut Env, r: &Range) -> FnResult {
     };
     let d = match r.step {
         Object::Null => 1.0,
-        Object::Int(x) => x as f64,
+        Object::Int(x) => float(x),
         Object::Float(x) => x,
         _ => return env.type_error1(
             "Type error in iter(a..b: d): d is not of type Float.",
@@ -170,12 +170,12 @@ fn float_range_iterator(env: &mut Env, r: &Range) -> FnResult {
     };
 
     let q = (b-a)/d;
-    let n = if q<0.0 {0} else {(q+0.001) as usize+1};
-    let mut k = 0;
+    let n = if q<0.0 {0} else {(q+0.001) as u32+1};
+    let mut k: u32 = 0;
 
     let f = Box::new(move |_env: &mut Env, _pself: &Object, _argv: &[Object]| -> FnResult {
         return Ok(if k<n {
-            let y = a+k as f64*d;
+            let y = a+float(k)*d;
             k+=1;
             Object::Float(y)
         }else{
@@ -187,7 +187,7 @@ fn float_range_iterator(env: &mut Env, r: &Range) -> FnResult {
 
 fn char_range_iterator(env: &mut Env, r: &Range) -> FnResult {
     let mut a = if let Object::String(ref s) = r.a {
-        if s.data.len()==1 {s.data[0] as u32} else {
+        if s.data.len()==1 {u32::from(s.data[0])} else {
             return env.value_error("
             Value error in iter(a..b): a is not a string of size 1.")
         }
@@ -195,7 +195,7 @@ fn char_range_iterator(env: &mut Env, r: &Range) -> FnResult {
         unreachable!()
     };
     let b = if let Object::String(ref s) = r.b {
-        if s.data.len()==1 {s.data[0] as u32} else {
+        if s.data.len()==1 {u32::from(s.data[0])} else {
             return env.value_error(
             "Value error in iter(a..b): b is not a string of size 1.")
         }

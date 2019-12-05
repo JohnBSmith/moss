@@ -13,7 +13,7 @@ use std::ops::{Add,Sub,Mul,AddAssign};
 use crate::complex::c64;
 use crate::object::{
     Object, List, Exception, FnResult, Interface,
-    VARIADIC, new_module, downcast
+    VARIADIC, float, new_module, downcast
 };
 use crate::vm::{Env,interface_types_set,interface_index};
 use crate::class::Class;
@@ -94,7 +94,7 @@ impl Interface for Array<f64> {
     }
     fn rmul(self: Rc<Self>, a: &Object, env: &mut Env) -> FnResult {
         let r = match *a {
-            Object::Int(x) => x as f64,
+            Object::Int(x) => float(x),
             Object::Float(x) => x,
             _ => return env.type_error(
                 "Type error in r*v: r has to be of type Int or Float.")
@@ -132,7 +132,7 @@ impl Interface for Array<c64> {
     }
     fn rmul(self: Rc<Self>, a: &Object, env: &mut Env) -> FnResult {
         let r = match *a {
-            Object::Int(x) => c64{re: x as f64, im: 0.0},
+            Object::Int(x) => c64{re: float(x), im: 0.0},
             Object::Float(x) => c64{re: x, im: 0.0},
             Object::Complex(x) => x,
             _ => return env.type_error(
@@ -504,7 +504,7 @@ fn vector_from_list_c64(env: &mut Env, a: &[Object]) -> FnResult {
     let mut v: Vec<c64> = Vec::with_capacity(a.len());
     for x in a {
         let x = match *x {
-            Object::Int(x) => c64{re: x as f64, im: 0.0},
+            Object::Int(x) => c64{re: float(x), im: 0.0},
             Object::Float(x) => c64{re: x, im: 0.0},
             Object::Complex(x) => x,
             _ => return env.type_error(
@@ -524,7 +524,7 @@ fn vector_from_list(env: &mut Env, a: &[Object]) -> FnResult {
     let mut v: Vec<f64> = Vec::with_capacity(a.len());
     for x in a {
         let x = match *x {
-            Object::Int(x) => x as f64,
+            Object::Int(x) => float(x),
             Object::Float(x) => x,
             _ => return env.type_error(
                 "Type error in vector(*a): expected all a[k] of type Int or Float.")
@@ -551,7 +551,7 @@ fn matrix_from_lists_c64(m: usize, n: usize,
         }
         for x in data {
             let x = match *x {
-                Object::Int(x) => c64{re: x as f64, im: 0.0},
+                Object::Int(x) => c64{re: float(x), im: 0.0},
                 Object::Float(x) => c64{re: x, im: 0.0},
                 Object::Complex(x) => x,
                 _ => return env.type_error(
@@ -595,7 +595,7 @@ fn matrix_from_lists(env: &mut Env, argv: &[Object]) -> FnResult {
         }
         for x in data {
             let x = match *x {
-                Object::Int(x) => x as f64,
+                Object::Int(x) => float(x),
                 Object::Float(x) => x,
                 _ => return env.type_error(
                     "Type error in matrix(*a): expected all a[i][j] of type Int or Float.")

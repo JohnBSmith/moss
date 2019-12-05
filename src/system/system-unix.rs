@@ -10,15 +10,15 @@ use termios::{
 };
 
 const STDIN_FILENO: i32 = 0;
-const TAB: i32 = 9;
-const NEWLINE: i32 = 10;
-const ESC: i32 = 27;
-const ARROW: i32 = 91;
-const UP: i32 = 65;
-const DOWN: i32 = 66;
-const LEFT: i32 = 68;
-const RIGHT: i32 = 67;
-const BACKSPACE: i32 = 127;
+const TAB: u8 = 9;
+const NEWLINE: u8 = 10;
+const ESC: u8 = 27;
+const ARROW: u8 = 91;
+const UP: u8 = 65;
+const DOWN: u8 = 66;
+const LEFT: u8 = 68;
+const RIGHT: u8 = 67;
+const BACKSPACE: u8 = 127;
 
 use crate::object::{Object,List};
 
@@ -75,8 +75,9 @@ impl History{
     }
 }
 
-fn getchar() -> i32 {
-    unsafe{libc::getchar()}
+fn getchar() -> u8 {
+    let c = unsafe{libc::getchar()};
+    return if c<0 {b'?'} else {c as u8};
 }
 
 fn flush() {
@@ -100,15 +101,14 @@ fn print_prompt_flush(prompt: &str, a: &[char]) {
 }
 
 fn number_of_bytes(c: u8) -> usize {
-    let x=c;
-    let mut i: i32 =7;
-    while i>=0 && x>>i&1 == 1 {
-        i-=1;
+    let mut i: usize = 0;
+    while i<=7 && c>>(7-i)&1 == 1 {
+        i+=1;
     }
-    return 7-i as usize;
+    return i;
 }
 
-fn number_of_lines(cols: usize, prompt: &str, a: &[char]) -> usize{
+fn number_of_lines(cols: usize, prompt: &str, a: &[char]) -> usize {
     let n = prompt.len()+a.len();
     return if n==0 {1} else {(n-1)/cols+1};
 }
@@ -121,25 +121,25 @@ fn clear_input(lines: usize){
     }
 }
 
-fn complete_u32_char(c: i32) -> char {
+fn complete_u32_char(c: u8) -> char {
     if c>127 {
         let mut buffer: [u8;8] = [0,0,0,0,0,0,0,0];
-        let bytes = number_of_bytes(c as u8);
+        let bytes = number_of_bytes(c);
         match bytes {
             2 => {
-                buffer[0]=c as u8;
-                buffer[1]=getchar() as u8;
+                buffer[0] = c;
+                buffer[1] = getchar();
             },
             3 => {
-                buffer[0]=c as u8;
-                buffer[1]=getchar() as u8;
-                buffer[2]=getchar() as u8;
+                buffer[0] = c;
+                buffer[1] = getchar();
+                buffer[2] = getchar();
             },
             4 => {
-                buffer[0]=c as u8;
-                buffer[1]=getchar() as u8;
-                buffer[2]=getchar() as u8;
-                buffer[3]=getchar() as u8;          
+                buffer[0] = c;
+                buffer[1] = getchar();
+                buffer[2] = getchar();
+                buffer[3] = getchar();
             },
             _ => panic!()
         };
@@ -150,7 +150,7 @@ fn complete_u32_char(c: i32) -> char {
             Some(x) => x, None => '?'
         };
     }else{
-        return c as u8 as char;
+        return char::from(c);
     }
 }
 

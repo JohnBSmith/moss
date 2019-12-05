@@ -6,7 +6,7 @@ use std::cmp::Ordering;
 use crate::object::{
     Object, List, CharString,
     FnResult, Function, EnumFunction,
-    MutableFn, Exception, downcast
+    MutableFn, Exception, float, downcast
 };
 use crate::vm::{Env, op_add, op_mul, op_lt, op_le};
 use crate::global::list;
@@ -487,13 +487,13 @@ fn compare(a: &Object, b: &Object) -> Ordering {
         Object::Int(x) => {
             match *b {
                 Object::Int(y) => x.cmp(&y),
-                Object::Float(y) => cmp_float(x as f64,y),
+                Object::Float(y) => cmp_float(float(x),y),
                 _ => Ordering::Less
             }
         },
         Object::Float(x) => {
             match *b {
-                Object::Int(y) => cmp_float(x,y as f64),
+                Object::Int(y) => cmp_float(x,float(y)),
                 Object::Float(y) => cmp_float(x,y),
                 _ => Ordering::Less
             }
