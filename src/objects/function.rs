@@ -11,8 +11,8 @@ use crate::range::Range;
 use crate::class::Class;
 
 fn orbit(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
-    if argv.len()!=1 {
-        return env.argc_error(argv.len(),1,1,"orbit");
+    match argv.len() {
+        1 => {}, n => return env.argc_error(n,1,1,"orbit")
     }
     let mut x = argv[0].clone();
     let f = pself.clone();
@@ -27,8 +27,8 @@ fn orbit(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
 }
 
 fn argc(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
-    if argv.len()!=0 {
-        return env.argc_error(argv.len(),0,0,"argc");
+    match argv.len() {
+        0 => {}, n => return env.argc_error(n,0,0,"argc")
     }
     if let Object::Function(ref f) = *pself {
         if f.argc == VARIADIC {

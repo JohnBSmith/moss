@@ -88,18 +88,14 @@ fn istable(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         1 => {}, n => return env.argc_error(n,1,1,"istable")
     }
-    return Ok(Object::Bool(match downcast::<Table>(&argv[0]) {
-        Some(_) => true, None => false
-    }));
+    return Ok(Object::Bool(downcast::<Table>(&argv[0]).is_some()));
 }
 
 fn isclass(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         1 => {}, n => return env.argc_error(n,1,1,"isclass")
     }
-    return Ok(Object::Bool(match downcast::<Class>(&argv[0]) {
-        Some(_) => true, None => false
-    }));
+    return Ok(Object::Bool(downcast::<Class>(&argv[0]).is_some()));
 }
 
 struct Id{

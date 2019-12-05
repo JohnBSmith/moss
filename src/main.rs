@@ -3,7 +3,7 @@ use std::env;
 use moss::object::{Object,Map};
 use moss::CompilerExtra;
 
-const HELP: &'static str = r#"
+const HELP: &str = r#"
 Usage: moss [options] [file [arguments]]
 
 Options:
@@ -30,7 +30,7 @@ Options:
 "#;
 
 fn is_option(s: &str) -> bool {
-    s.len()>0 && &s[0..1]=="-"
+    !s.is_empty() && &s[0..1]=="-"
 }
 
 struct IFile{
@@ -93,7 +93,7 @@ impl Info{
                     info.ifile.push(IFile{s: s[1..].to_string(), e: false});
                 }
             }else if ifile {
-                info.ifile.push(IFile{s: s, e: cmd});
+                info.ifile.push(IFile{s, e: cmd});
                 ifile = false;
                 cmd = false;
             }else if cmd {
@@ -138,7 +138,7 @@ fn main(){
         }
     }
     if let Some(ref id) = info.argv.first() {
-        if id.len()==0 {
+        if id.is_empty() {
             env.command_line_session(gtab);
         }else if info.compile {
             moss::module::compile_file(&i.rte,id);

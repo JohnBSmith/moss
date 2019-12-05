@@ -120,7 +120,7 @@ impl Interface for Bytes {
     }
 }
 
-fn index_range(a: &Vec<u8>, r: &Range, env: &mut Env) -> FnResult {
+fn index_range(a: &[u8], r: &Range, env: &mut Env) -> FnResult {
     let len = a.len();
     let i = match r.a {
         Object::Int(value) => {

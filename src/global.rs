@@ -289,7 +289,7 @@ fn load_file(env: &mut Env, id: &str) -> FnResult {
         eval_module(env,module.map.clone(),&mut f,id)
     }else{
         let mut s = String::new();
-        if let Err(_) = f.read_to_string(&mut s) {
+        if f.read_to_string(&mut s).is_err() {
             return env.std_exception(&format!(
                 "Error in load: could not read file '{}.moss'.",id));
         }

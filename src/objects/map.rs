@@ -22,8 +22,8 @@ pub fn map_extend(m: &mut Map, m2: &Map) {
 }
 
 fn update(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
-    if argv.len()!=1 {
-        return env.argc_error(argv.len(),1,1,"update");
+    match argv.len() {
+        1 => {}, n => return env.argc_error(n,1,1,"update")
     }
     match *pself {
         Object::Map(ref m) => {
@@ -44,8 +44,8 @@ fn update(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
 }
 
 fn extend(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
-    if argv.len()!=1 {
-        return env.argc_error(argv.len(),1,1,"extend");
+    match argv.len() {
+        1 => {}, n => return env.argc_error(n,1,1,"extend")
     }
     match *pself {
         Object::Map(ref m) => {
@@ -66,8 +66,8 @@ fn extend(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
 }
 
 fn values(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
-    if argv.len()!=0 {
-        return env.argc_error(argv.len(),0,0,"values");
+    match argv.len() {
+        0 => {}, n => return env.argc_error(n,0,0,"values")
     }
     if let Object::Map(ref m) = *pself {
         let mut index: usize = 0;
@@ -87,12 +87,12 @@ fn values(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
 }
 
 fn items(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
-    if argv.len()!=0 {
-        return env.argc_error(argv.len(),0,0,"items");
+    match argv.len() {
+        0 => {}, n => return env.argc_error(n,0,0,"items")
     }
     if let Object::Map(ref m) = *pself {
         let mut index: usize = 0;
-        let ref m = m.borrow().m;
+        let m = &m.borrow().m;
         let mut keys: Vec<Object> = Vec::with_capacity(m.len());
         let mut values: Vec<Object> = Vec::with_capacity(m.len()); 
         for (key,value) in m.iter() {
@@ -115,8 +115,8 @@ fn items(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
 }
 
 fn clear(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
-    if argv.len()!=0 {
-        return env.argc_error(argv.len(),0,0,"clear");
+    match argv.len() {
+        0 => {}, n => return env.argc_error(n,0,0,"clear")
     }
     match *pself {
         Object::Map(ref m) => {
@@ -132,8 +132,8 @@ fn clear(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
 }
 
 fn remove(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
-    if argv.len()!=1 {
-        return env.argc_error(argv.len(),1,1,"remove");
+    match argv.len() {
+        1 => {}, n => return env.argc_error(n,1,1,"remove")
     }
     match *pself {
         Object::Map(ref m) => {
@@ -168,7 +168,7 @@ fn add(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
 
 pub fn subseteq(a: &Map, b: &Map) -> bool {
     let bm = &b.m;
-    for (key,_value) in &a.m {
+    for key in a.m.keys() {
         if !bm.contains_key(key) {return false;} 
     }
     return true;

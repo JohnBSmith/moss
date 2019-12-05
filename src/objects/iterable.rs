@@ -102,11 +102,11 @@ fn cycle_iterable(env: &mut Env, x: &Object) -> FnResult {
     let f = Box::new(move |env: &mut Env, _pself: &Object, _argv: &[Object]| -> FnResult {
         let v = &a.borrow().v;
         if k<v.len() {k+=1;} else {k=1;}
-        if v.len()==0 {
-            return env.value_error("Value error in iterator from cycle(a): a is empty.");
+        return if v.is_empty() {
+            env.value_error("Value error in iterator from cycle(a): a is empty.")
         }else{
-            return Ok(v[k-1].clone());
-        }
+            Ok(v[k-1].clone())
+        };
     });
     return Ok(new_iterator(f));
 }
@@ -184,8 +184,8 @@ pub fn to_list(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
 }
 
 fn map(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
-    if argv.len()!=1 {
-        return env.argc_error(argv.len(),1,1,"map");
+    match argv.len() {
+        1 => {}, n => return env.argc_error(n,1,1,"map")
     }
     let i = iter(env,pself)?;
     let f = argv[0].clone();
@@ -204,8 +204,8 @@ fn map(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
 }
 
 fn filter(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
-    if argv.len()!=1 {
-        return env.argc_error(argv.len(),1,1,"filter");
+    match argv.len() {
+        1 => {}, n => return env.argc_error(n,1,1,"filter")
     }
     let i = iter(env,pself)?;
     let f = argv[0].clone();
@@ -232,25 +232,24 @@ fn filter(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
 }
 
 fn each(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
-    let i = &iter(env,pself)?;
-    if argv.len() == 1 {
-        loop{
-            let y = env.call(i,&Object::Null,&[])?;
-            if y.is_empty() {
-                break;
-            }else{
-                env.call(&argv[0],&Object::Null,&[y])?;
-            }
-        }
-        return Ok(Object::Null);
-    }else{
-        return env.argc_error(argv.len(),1,1,"each");
+    match argv.len() {
+        1 => {}, n => return env.argc_error(n,1,1,"each")
     }
+    let i = &iter(env,pself)?;
+    loop{
+        let y = env.call(i,&Object::Null,&[])?;
+        if y.is_empty() {
+            break;
+        }else{
+            env.call(&argv[0],&Object::Null,&[y])?;
+        }
+    }
+    return Ok(Object::Null);
 }
 
 fn any(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
-    if argv.len()!=1 {
-        return env.argc_error(argv.len(),1,1,"any");  
+    match argv.len() {
+        1 => {}, n => return env.argc_error(n,1,1,"any")
     }
     let i = &iter(env,pself)?;
     let p = &argv[0];
@@ -272,8 +271,8 @@ fn any(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
 }
 
 fn all(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
-    if argv.len()!=1 {
-        return env.argc_error(argv.len(),1,1,"all");  
+    match argv.len() {
+        1 => {}, n => return env.argc_error(n,1,1,"all")
     }
     let i = &iter(env,pself)?;
     let p = &argv[0];
@@ -333,7 +332,7 @@ fn count(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     return Ok(Object::Int(k));
 }
 
-fn chunks(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
+fn chunks(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     let n = match argv.len() {
         1 => {
             match argv[0] {
@@ -356,7 +355,7 @@ fn chunks(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
             if y.is_empty() {empty = true; break;}
             v.push(y);
         }
-        if v.len()==0 {
+        if v.is_empty() {
             Ok(Object::empty())
         }else{
             Ok(List::new_object(v))
@@ -526,14 +525,14 @@ fn sort_by(env: &mut Env, a: &mut [Object], fcmp: &Object) -> Option<FnResult> {
         let value = match env.call(fcmp,&Object::Null,&[x.clone(),y.clone()]) {
             Ok(value) => value,
             Err(e) => {
-                if let None = err {err = Some(Err(e));}
+                if err.is_none() {err = Some(Err(e));}
                 Object::Null
             }
         };
         let value = match value {
             Object::Bool(value) => value,
             _ => {
-                if let None = err {
+                if err.is_none() {
                     err = Some(env.type_error(
                         "Type error in a.sort(null,cmp): return value of cmp is not of type Bool."));
                 }
@@ -558,14 +557,14 @@ fn sort_by_key_by(env: &mut Env, a: &mut [(Object,Object)], fcmp: &Object) -> Op
         let value = match env.call(fcmp,&Object::Null,&[tx.1.clone(),ty.1.clone()]) {
             Ok(value) => value,
             Err(e) => {
-                if let None = err {err = Some(Err(e));}
+                if err.is_none() {err = Some(Err(e));}
                 Object::Null
             }
         };
         let value = match value {
             Object::Bool(value) => value,
             _ => {
-                if let None = err {
+                if err.is_none() {
                     err = Some(env.type_error(
                         "Type error in a.sort(null,cmp): return value of cmp is not of type Bool."));
                 }

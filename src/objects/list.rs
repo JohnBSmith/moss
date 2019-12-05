@@ -81,7 +81,7 @@ fn pop(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
                     if a.frozen {
                         return env.value_error("Value error in a.pop(): a is frozen.");
                     }
-                    if argv.len()>0 {
+                    if !argv.is_empty() {
                         return pop_at_index(env,&mut a.v,&argv[0]);
                     }else{
                         match a.v.pop() {
@@ -138,9 +138,9 @@ fn insert(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
     }
 }
 
-fn size(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
-    if argv.len() != 0 {
-        return env.argc_error(argv.len(),0,0,"size");
+fn size(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+    match argv.len() {
+        0 => {}, n => return env.argc_error(n,0,0,"size")
     }
     match *pself {
         Object::List(ref a) => {
@@ -192,9 +192,9 @@ fn filter(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
 
 fn new_shuffle() -> MutableFn {
     let mut rng = Rand::new(0);
-    return Box::new(move |env: &mut Env, pself: &Object, argv: &[Object]| -> FnResult{
-        if argv.len() != 0 {
-            return env.argc_error(argv.len(),0,0,"shuffle");
+    return Box::new(move |env: &mut Env, pself: &Object, argv: &[Object]| -> FnResult {
+        match argv.len() {
+            0 => {}, n => return env.argc_error(n,0,0,"shuffle")
         }
         match *pself {
             Object::List(ref a) => {
@@ -386,7 +386,7 @@ pub fn cartesian_product(a: &List, b: &List) -> Object {
     return List::new_object(v);
 }
 
-pub fn cartesian_power(v: &Vec<Object>, n: i32) -> Object {
+pub fn cartesian_power(v: &[Object], n: i32) -> Object {
     let n = if n<0 {0} else {n as u32};
     let m = v.len();
     let len = m.pow(n);
@@ -414,11 +414,11 @@ pub fn cartesian_power(v: &Vec<Object>, n: i32) -> Object {
                 }
             }
         }
-        count = count*m;
-        k = k/m;
+        count *= m;
+        k /= m;
     }
     return List::new_object(
-        y.into_iter().map(|v| List::new_object(v)).collect()
+        y.into_iter().map(List::new_object).collect()
     );
 }
 
@@ -426,11 +426,11 @@ fn rotate(a: &mut [Object], n: i32) {
     let m = a.len();
     if n>=0 {
         let mut n = n as usize;
-        if n>=m {n = n%m;}
+        if n>=m {n %= m;}
         a.rotate_right(n);
     }else {
         let mut n = (-n) as usize;
-        if n>=m {n = n%m;}
+        if n>=m {n %= m;}
         a.rotate_left(n);
     }
 }

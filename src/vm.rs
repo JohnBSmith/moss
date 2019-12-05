@@ -224,7 +224,7 @@ fn print_stack(a: &[Object]){
     let mut first = true;
     for x in a {
         if first {first = false;} else {s.push_str(", ");}
-        s.push_str(&format!("{}",x.to_repr()));
+        s.push_str(&x.to_repr().to_string());
     }
     s.push_str("]");
     println!("stack: {}",s);
@@ -415,9 +415,7 @@ fn is_digit(c: char) -> bool {
 fn float_to_string_explicit(x: f64) -> String {
     let mut s = if x==0.0 {
         "0".to_string()
-    }else if x.abs()>1E14 {
-        format!("{:e}",x)
-    }else if x.abs()<0.0001 {
+    }else if x.abs()>1E14 || x.abs()<0.0001 {
         format!("{:e}",x)
     }else{
         format!("{}",x)
@@ -579,7 +577,7 @@ pub fn object_to_repr(env: &mut Env, x: &Object)
 
 fn function_id_to_string(f: &Function) -> String {
     match f.id {
-        Object::Null => format!("function"),
+        Object::Null => "function".to_string(),
         Object::Int(x) => {
             let line = (x as u32) & 0xffff;
             let col = (x as u32)>>16;
@@ -4378,7 +4376,7 @@ pub fn eval(env: &mut Env,
         }
     }
 
-    let ref mut stack = env.stack;
+    let stack = &mut env.stack;
     let sp = env.sp;
 
     let y = if command_line {
@@ -4733,7 +4731,7 @@ pub fn command_line_session(&mut self, gtab: Rc<RefCell<Map>>){
             Err(error) => {println!("Error: {}", error);},
         };
         if input=="quit" {break}
-        else if input.starts_with("/") {
+        else if input.starts_with('/') {
             if input=="/q" {
                 break;
             }else if input=="/c" {

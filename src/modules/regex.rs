@@ -74,7 +74,7 @@ impl TokenIterator{
 }
 
 struct CharIterator<'a>{
-    v: &'a Vec<char>,
+    v: &'a [char],
     index: usize
 }
 
@@ -88,7 +88,7 @@ impl<'a> CharIterator<'a> {
     }
 }
 
-fn scan(s: &Vec<char>) -> Vec<Token> {
+fn scan(s: &[char]) -> Vec<Token> {
     let mut i: usize = 0;
     let mut line: usize = 0;
     let mut col: usize = 0;
@@ -285,30 +285,26 @@ fn regex_chain(i: &mut TokenIterator) -> Result<RegexSymbol,String> {
 fn or_operation(i: &mut TokenIterator) -> Result<RegexSymbol,String> {
     let mut v: Vec<RegexSymbol> = Vec::new();
     v.push(regex_chain(i)?);
-    loop{
-        if let Some(c) = i.get() {
-            if c == '|' {
-                i.index+=1;
-                v.push(regex_chain(i)?);
-            }else{
-                break;
-            }
+    while let Some(c) = i.get() {
+        if c == '|' {
+            i.index+=1;
+            v.push(regex_chain(i)?);
         }else{
             break;
         }
     }
-    if v.len()==1 {
-        return Ok(match v.pop() {Some(x) => x, None => unreachable!()});
+    return Ok(if v.len()==1 {
+        match v.pop() {Some(x) => x, None => unreachable!()}
     }else{
-        return Ok(RegexSymbol::Or(v.into_boxed_slice()));
-    }
+        RegexSymbol::Or(v.into_boxed_slice())
+    });
 }
 
 fn regex(i: &mut TokenIterator) -> Result<RegexSymbol,String> {
     return or_operation(i);
 }
 
-fn compile(s: &Vec<char>) -> Result<RegexSymbol,String> {
+fn compile(s: &[char]) -> Result<RegexSymbol,String> {
     let v = scan(s);
     let mut i = TokenIterator{v: v, index: 0};
     return regex(&mut i);
@@ -327,7 +323,7 @@ fn symbol_match(regex: &RegexSymbol, i: &mut CharIterator,
             }
         },
         RegexSymbol::Dot => {
-            if let Some(_) = i.get() {
+            if i.get().is_some() {
                 i.index+=1;
                 return true;
             }else{
@@ -343,7 +339,7 @@ fn symbol_match(regex: &RegexSymbol, i: &mut CharIterator,
         RegexSymbol::Group(ref r) => {
             let j = i.index;
             if symbol_match(r,i,groups) {
-                if let &mut Some(ref mut groups) = groups {
+                if let Some(ref mut groups) = *groups {
                     let x = CharString::new_object(i.v[j..i.index].to_vec());
                     groups.push(x);
                 }
@@ -416,7 +412,7 @@ fn symbol_match(regex: &RegexSymbol, i: &mut CharIterator,
             }  
         },
         RegexSymbol::Complement(ref compl) => {
-            if let Some(_) = i.get() {
+            if i.get().is_some() {
                 let index = i.index+1;
                 if symbol_match(compl,i,groups) {
                     i.index = index;
@@ -432,13 +428,13 @@ fn symbol_match(regex: &RegexSymbol, i: &mut CharIterator,
     }
 }
 
-fn re_match(regex: &RegexSymbol, s: &Vec<char>) -> bool {
+fn re_match(regex: &RegexSymbol, s: &[char]) -> bool {
     let mut i = CharIterator{index: 0, v: s};
     let y = symbol_match(regex,&mut i,&mut None);
     return y && i.index == i.v.len();
 }
 
-fn re_groups(regex: &RegexSymbol, s: &Vec<char>) -> Object {
+fn re_groups(regex: &RegexSymbol, s: &[char]) -> Object {
     let mut groups: Option<Vec<Object>> = Some(Vec::new());
     let mut i = CharIterator{index: 0, v: s};
     let y = symbol_match(regex,&mut i,&mut groups);
@@ -450,7 +446,7 @@ fn re_groups(regex: &RegexSymbol, s: &Vec<char>) -> Object {
 }
 
 
-fn re_list(regex: &RegexSymbol, s: &Vec<char>) -> Object {
+fn re_list(regex: &RegexSymbol, s: &[char]) -> Object {
     let n = s.len();
     let mut i = 0;
     let mut j = CharIterator{index: 0, v: s};
@@ -468,7 +464,7 @@ fn re_list(regex: &RegexSymbol, s: &Vec<char>) -> Object {
     return List::new_object(a);
 }
 
-fn re_split(regex: &RegexSymbol, s: &Vec<char>) -> Object {
+fn re_split(regex: &RegexSymbol, s: &[char]) -> Object {
     let n = s.len();
     let mut i = 0;
     let mut j = CharIterator{index: 0, v: s};
@@ -490,7 +486,7 @@ fn re_split(regex: &RegexSymbol, s: &Vec<char>) -> Object {
     return List::new_object(a);
 }
 
-fn re_replace(regex: &RegexSymbol, s: &Vec<char>,
+fn re_replace(regex: &RegexSymbol, s: &[char],
     env: &mut Env, f: &Object
 ) -> FnResult
 {

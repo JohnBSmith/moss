@@ -516,7 +516,7 @@ fn vector_from_list_c64(env: &mut Env, a: &[Object]) -> FnResult {
 }
 
 fn vector_from_list(env: &mut Env, a: &[Object]) -> FnResult {
-    if a.len()!=0 {
+    if !a.is_empty() {
         if let Object::Complex(_) = a[0] {
             return vector_from_list_c64(env,a);
         }

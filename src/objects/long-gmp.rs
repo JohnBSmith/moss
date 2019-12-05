@@ -319,7 +319,7 @@ impl Long {
                 Long::object_from_string(&s.data)
             },
             Object::Interface(ref x) => {
-                if let Some(_) = x.as_any().downcast_ref::<Long>() {
+                if x.as_any().downcast_ref::<Long>().is_some() {
                     Ok(Object::Interface(x.clone()))
                 }else{
                     Err(())

@@ -66,7 +66,7 @@ fn load_object(bv: &[u8], index: usize) -> (usize,Object) {
     let a: Vec<u8> = Vec::from(&bv[i..i+size]);
     let s = match String::from_utf8(a) {
         Ok(value) => value,
-        Err(_) => panic!("Could not load binary module: invalid Unicode.")
+        _ => panic!("Could not load binary module: invalid Unicode.")
     };
     return (i+size,Object::from(&s[..]));
 }

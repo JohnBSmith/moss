@@ -251,7 +251,7 @@ pub fn u32string_format(env: &mut Env, s: &CharString, a: &Object)
                     ) {
                         i+=1;
                     }
-                    let key = CharString::new_object(v[j..i].iter().cloned().collect());
+                    let key = CharString::new_object(v[j..i].to_vec());
                     x = get_key(env,&a,&key)?;
                 }else if i<n && v[i].is_digit(10) {
                     let mut j: usize = v[i] as usize-'0' as usize;

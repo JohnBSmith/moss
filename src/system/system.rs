@@ -48,7 +48,7 @@ pub fn read_file(id: &str) -> Result<String,String> {
         Err(_) => return Err(format!("Error in read: could not open file '{}'.",id))
     };
     let mut s = String::new();
-    if let Err(_) = f.read_to_string(&mut s) {
+    if f.read_to_string(&mut s).is_err() {
         return Err(format!("Error in read: could not read file '{}'.",id));
     }
     return Ok(s);
@@ -57,7 +57,7 @@ pub fn read_file(id: &str) -> Result<String,String> {
 pub fn library_path() -> String {
     let mut path = match std::env::var("HOME") {
         Ok(s) => PathBuf::from(s),
-        Err(_) => panic!()
+        _ => panic!()
     };
     path.push(".moss/");
     return String::from(path.to_str().unwrap());

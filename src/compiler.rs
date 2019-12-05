@@ -89,7 +89,7 @@ struct KeywordsElement {
     v: &'static Symbol
 }
 
-static KEYWORDS: &'static [KeywordsElement] = &[
+static KEYWORDS: &[KeywordsElement] = &[
       KeywordsElement{s: "assert",  t: &SymbolType::Keyword, v: &Symbol::Assert},
       KeywordsElement{s: "and",     t: &SymbolType::Operator,v: &Symbol::And},
       KeywordsElement{s: "begin",   t: &SymbolType::Keyword, v: &Symbol::Begin},
@@ -153,7 +153,7 @@ fn compiler_error() -> !{
     unreachable!("compiler error");
 }
 
-fn is_keyword(id: &String) -> Option<&'static KeywordsElement> {
+fn is_keyword(id: &str) -> Option<&'static KeywordsElement> {
     let n: usize = KEYWORDS.len();
     for i in 0..n {
         if KEYWORDS[i].s==id  {return Some(&KEYWORDS[i]);}
@@ -417,7 +417,7 @@ pub fn scan(s: &str, line_start: usize, file: &str, new_line_start: bool)
                 },
                 '.' => {
                     if i+1<n && a[i+1]=='.' {
-                        if v.len()>0 && v[v.len()-1].value==Symbol::BLeft {
+                        if !v.is_empty() && v[v.len()-1].value==Symbol::BLeft {
                             v.push(Token{token_type: SymbolType::Keyword,
                                 value: Symbol::Null, line: line, col: col,
                                 item: Item::None});
@@ -719,7 +719,7 @@ fn print_ast(t: &AST, indent: usize){
 fn scan_line(line_start: usize, h: &mut system::History, new_line_start: bool) -> Result<Vec<Token>,Error>{
     let input = match system::getline_history("| ",h) {
         Ok(x) => x,
-        Err(_) => panic!()
+        _ => panic!()
     };
     h.append(&input);
     return scan(&input,line_start,"command line",new_line_start);
@@ -3181,8 +3181,7 @@ fn string_literal(&mut self, s: &str, line: usize, col: usize)
     let mut escape = false;
     let mut skip = false;
     let mut i = s.chars();
-    loop{
-        let c = match i.next() {Some(c) => c, None => break};
+    while let Some(c) = i.next() {
         if escape {
             if skip {
                 if c==' ' || c=='\n' || c=='\t' {
@@ -3768,7 +3767,7 @@ fn compile_ast(&mut self, bv: &mut Vec<u32>, t: &Rc<AST>)
             push_bc(bv,bc::POP,t.line,t.col);
         }else if value == Symbol::Return {
             let a = ast_argv(t);
-            if a.len()==0 {
+            if a.is_empty() {
                 push_bc(bv,bc::NULL,t.line,t.col);
             }else{
                 self.compile_ast(bv,&a[0])?;
@@ -3815,7 +3814,7 @@ fn compile_ast(&mut self, bv: &mut Vec<u32>, t: &Rc<AST>)
                 ));
             }
             let a = ast_argv(t);
-            if a.len()==0 {
+            if a.is_empty() {
                 push_bc(bv,bc::NULL,t.line,t.col);
             }else{
                 self.compile_ast(bv,&a[0])?;
@@ -3877,7 +3876,7 @@ fn unicode_literal(i: &mut Chars) -> Result<char,String> {
     return Ok(match char::from_u32(x) {Some(x) => x, None => '?'});
 }
 
-fn ast_argv(t: &AST) -> &Box<[Rc<AST>]>{
+fn ast_argv(t: &AST) -> &[Rc<AST>] {
     match t.a {Some(ref x) => x, None => unreachable!()}
 }
 
@@ -4196,7 +4195,7 @@ fn print_data(a: &[Object]){
     for i in 0..a.len() {
         println!("[{}]: {}",i,a[i].to_repr());
     }
-    if a.len()==0 {
+    if a.is_empty() {
         println!("empty\n");
     }else{
         println!();

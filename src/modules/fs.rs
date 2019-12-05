@@ -38,7 +38,7 @@ fn open(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
         2 => {
             match argv[1] {
                 Object::String(ref s) => {
-                    if s.data == &['w'] {'w'} else {'r'}
+                    if s.data == ['w'] {'w'} else {'r'}
                 },
                 ref x => return env.type_error1(
                     "Type error in open(path,mode): mode is not a string.","mode",x)
@@ -205,7 +205,7 @@ fn change_dir(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
         _ => return env.type_error("Type error in cd(path): path is not a string.")
     };
     let path = Path::new(&dir_id);
-    if let Err(_) = ::std::env::set_current_dir(&path) {
+    if std::env::set_current_dir(&path).is_err() {
         return env.std_exception(&format!(
             "Error: could not change to directory '{}'.",dir_id));
     }else{
@@ -217,7 +217,7 @@ fn working_dir(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         0 => {}, n => return env.argc_error(n,0,0,"wd")
     }
-    let path = match ::std::env::current_dir() {
+    let path = match std::env::current_dir() {
         Ok(path) => path,
         Err(_) => return env.std_exception(
             "Error in wd(): could not determine the working directory.")

@@ -95,12 +95,10 @@ impl Interface for Class {
         return Ok(Object::Null);
     }
     fn eq_plain(&self, b: &Object) -> bool {
-        match downcast::<Class>(b) {Some(_) => true, None => false}
+        downcast::<Class>(b).is_some()
     }
     fn eq(self: Rc<Self>, b: &Object, _env: &mut Env) -> FnResult {
-        Ok(Object::Bool(match downcast::<Class>(b) {
-            Some(_) => true, None => false
-        }))
+        Ok(Object::Bool(downcast::<Class>(b).is_some()))
     }
 }
 

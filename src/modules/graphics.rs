@@ -96,8 +96,9 @@ struct MutableCanvas {
 
 impl MutableCanvas {
     fn new(id: &str, w: usize, h: usize) -> MutableCanvas {
+        let name = CString::new(id).unwrap();
         let window = unsafe{
-            SDL_CreateWindow(CString::new(id).unwrap().as_ptr(),
+            SDL_CreateWindow(name.as_ptr(),
                 SDL_WINDOWPOS_CENTERED as c_int, SDL_WINDOWPOS_CENTERED as c_int, 
                 w as c_int, h as c_int, SDL_WINDOW_SHOWN)
         };

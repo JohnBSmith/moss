@@ -102,7 +102,7 @@ pub enum Info {
 }
 
 impl Info {
-    pub fn to_string(&self) -> String {
+    pub fn to_string(self) -> String {
         match self {
             Info::Empty => String::from("empty"),
             Info::Unimplemented => String::from("unimplemented")

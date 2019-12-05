@@ -292,7 +292,7 @@ pub fn init_search_paths() -> List {
     a.push(Object::from("./"));
     let mut path = match var("HOME") {
         Ok(s) => PathBuf::from(s),
-        Err(_) => panic!()
+        _ => panic!()
     };
     path.push(".moss/");
     match path.as_path().to_str() {

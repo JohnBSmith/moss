@@ -14,9 +14,7 @@ pub type c64 = Complex64;
 fn float_to_string(x: f64) -> String {
     if x==0.0 {
         "0".to_string()
-    }else if x.abs()>1E14 {
-        format!("{:e}",x)
-    }else if x.abs()<0.0001 {
+    }else if x.abs()>1E14 || x.abs()<0.0001 {
         format!("{:e}",x)
     }else{
         format!("{}",x)

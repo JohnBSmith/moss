@@ -1,5 +1,4 @@
 
-
 pub const STACK_SIZE: usize = 4000;
 pub const FRAME_STACK_SIZE: usize = 200;
 
@@ -206,8 +205,8 @@ impl Interpreter{
 
 pub fn new_list_str(a: &[String]) -> Rc<RefCell<List>> {
     let mut v: Vec<Object> = Vec::with_capacity(a.len());
-    for i in 0..a.len() {
-        v.push(CharString::new_object_str(&a[i]));
+    for x in a {
+        v.push(CharString::new_object_str(x));
     }
     return Rc::new(RefCell::new(List{v: v, frozen: false}));
 }

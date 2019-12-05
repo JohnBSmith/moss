@@ -633,8 +633,8 @@ fn map_binary_operator_rec(env: &mut Env, buffer: &mut Vec<Object>,
     depth: usize, operator: fn(&mut Env,&Object,&Object)->FnResult
 ) -> Result<(),Box<Exception>>
 {
-    let ShapeStride{shape: ashape, stride: astride} = a.s[depth];
-    let ShapeStride{shape: _, stride: bstride} = b.s[depth];
+    let ShapeStride{stride: astride, shape: ashape} = a.s[depth];
+    let ShapeStride{stride: bstride, ..} = b.s[depth];
     if depth+1 == a.n {
         for i in 0..ashape {
             let x = &adata[(abase+(i as isize)*astride) as usize];
@@ -1229,7 +1229,7 @@ fn array(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
         _ => return env.type_error("Type error in array(n,a): n is not an integer.")
     };
     let list_obj = crate::global::list(env,&argv[1])?;
-    if false && n==1 {
+    if n==1 {
          if let Object::List(a) = list_obj {
             return Ok(Object::Interface(Array::vector(a.borrow().v.clone())));
         }else{
@@ -1237,7 +1237,6 @@ fn array(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
         }
     }else{
         return array_from(n,&list_obj);
-        // return env.std_exception("Dimension not supported.");
     }
 }
 
