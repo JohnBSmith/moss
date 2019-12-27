@@ -28,7 +28,7 @@ pub enum Symbol {
     Lt, Le, Gt, Ge, Eq, Ne, Cond, Index, Range,
     PLeft, PRight, BLeft, BRight, CLeft, CRight, Assignment, To,
     List, Application, Block, Statement, Unit,
-    Assert, And, Begin, Break, Catch, Continue, Do, Elif, Else,
+    As, Assert, And, Begin, Break, Catch, Continue, Do, Elif, Else,
     End, False, For, Fn, Function, Global, Goto, Label, Let,
     If, In, Is, Mut, Not, Null, Of, Or, Public, Raise, Return,
     Table, Then, True, Try, Use, While, Yield
@@ -37,6 +37,11 @@ pub enum Symbol {
 #[derive(Debug)]
 pub enum Item {
     None, Int(i32), Id(String), String(String)
+}
+
+#[derive(Copy,Clone,PartialEq)]
+pub enum Value{
+    None, Optional, Null
 }
 
 pub struct Token {
@@ -69,6 +74,7 @@ struct KeywordsElement {
 }
 
 static KEYWORDS: &'static [KeywordsElement] = &[
+      KeywordsElement{s: "as",      v: &Symbol::As},
       KeywordsElement{s: "assert",  v: &Symbol::Assert},
       KeywordsElement{s: "and",     v: &Symbol::And},
       KeywordsElement{s: "begin",   v: &Symbol::Begin},
@@ -151,6 +157,7 @@ impl std::fmt::Display for Symbol {
             Symbol::Block => write!(f,"Block"),
             Symbol::Statement => write!(f,"Statement"),
             Symbol::Unit  => write!(f,"Unit"),
+            Symbol::As    => write!(f,"as"),
             Symbol::Assert=> write!(f,"assert"),
             Symbol::And   => write!(f,"and"),
             Symbol::Begin => write!(f,"begin"),
@@ -422,6 +429,7 @@ pub struct FnHeader {
     pub argv: Vec<Argument>,
     pub id: Option<String>,
     pub ret_type: Rc<AST>,
+    pub type_variables: Option<Rc<AST>>,
     pub symbol_table_index: Cell<usize>
 }
 
@@ -439,21 +447,31 @@ pub struct AST {
 }
 
 impl AST {
-    fn node(line: usize, col: usize, value: Symbol,
+    pub fn node(line: usize, col: usize, value: Symbol,
         info: Info, a: Option<Box<[Rc<AST>]>>
     ) -> Rc<AST>
     {
         Rc::new(AST{line,col,value,info,a})
     }
 
-    fn operator(line: usize, col: usize, value: Symbol, a: Box<[Rc<AST>]>
+    pub fn operator(line: usize, col: usize, value: Symbol, a: Box<[Rc<AST>]>
     ) -> Rc<AST>
     {
         Rc::new(AST{line,col,value,info: Info::None, a: Some(a)})
     }
     
-    fn symbol(line: usize, col: usize, value: Symbol) -> Rc<AST> {
+    pub fn symbol(line: usize, col: usize, value: Symbol) -> Rc<AST> {
         Rc::new(AST{line,col,value,info: Info::None, a: None})
+    }
+
+    pub fn apply(line: usize, col: usize, a: Box<[Rc<AST>]>) -> Rc<AST> {
+        Rc::new(AST{line,col,value: Symbol::Application,
+            info: Info::None, a: Some(a)})
+    }
+    
+    pub fn identifier(id: &str, line: usize, col: usize) -> Rc<AST> {
+        Rc::new(AST{line,col,value: Symbol::Item,
+            info: Info::Id(id.into()), a: None})
     }
 
     pub fn argv(&self) -> &[Rc<AST>] {
@@ -522,31 +540,50 @@ struct Parser{}
 
 impl Parser {
 
-fn lambda_expression(&mut self, t0: &Token, i: &TokenIterator)
--> Result<Rc<AST>,Error>
+fn lambda_formal_argument_list(&mut self, i: &TokenIterator)
+-> Result<Vec<Argument>,Error>
 {
-    let mut argv: Vec<Rc<AST>> = Vec::new();
+    let mut argv: Vec<Argument> = Vec::new();
+    let t = i.get();
+    if t.value == Symbol::Vert {
+        i.advance();
+        return Ok(argv);
+    }
     loop{
-        let x = self.atom(i)?;
-        argv.push(x);
+        let id = self.identifier_raw(i)?;
+        let t = i.get();
+        if t.value == Symbol::Colon {
+            i.advance();
+            let ty = self.type_expression(i)?;
+            argv.push(Argument{id, ty});
+        }else{
+            let ty = AST::symbol(t.line,t.col,Symbol::None);
+            argv.push(Argument{id, ty});
+        }
         let t = i.get();
         if t.value == Symbol::Vert {
             i.advance();
             break;
-        }else if t.value == Symbol::Comma {
-            i.advance();
-        }else{
-            return Err(syntax_error(t.line,t.col,
-                String::from("expected ',' or '|'.")
-            ));
         }
+        self.expect(i,Symbol::Comma)?;
     }
-    let arg_list = AST::node(t0.line, t0.col, Symbol::List,
-        Info::None, Some(argv.into_boxed_slice())
-    );
-    let x = self.expression(i)?;
-    return Ok(AST::node(t0.line, t0.col, Symbol::Fn,
-        Info::None, Some(Box::new([arg_list,x]))
+    return Ok(argv);
+}
+
+fn lambda_expression(&mut self, t0: &Token, i: &TokenIterator)
+-> Result<Rc<AST>,Error>
+{
+    let argv = self.lambda_formal_argument_list(i)?;
+    let body_expression = self.expression(i)?;
+
+    let ret_type = AST::symbol(t0.line,t0.col,Symbol::None);
+    let header = Box::new(FnHeader{
+        argv, id: Some(format!("{}:{}",t0.line,t0.col)),
+        ret_type, type_variables: None,
+        symbol_table_index: Cell::new(SYMBOL_TABLE_DANGLING)
+    });
+    return Ok(AST::node(t0.line, t0.col, Symbol::Function,
+        Info::FnHeader(header), Some(Box::new([body_expression]))
     ));
 }
 
@@ -674,20 +711,35 @@ fn argument_list(&mut self, i: &TokenIterator,
 fn application(&mut self, i: &TokenIterator)
 -> Result<Rc<AST>,Error>
 {
-    let x = self.atom(i)?;
-    let t = i.get();
-    if t.value == Symbol::PLeft {
-        i.advance();
-        let argv = self.argument_list(i,vec![x],Symbol::PRight)?;
-        return Ok(AST::node(t.line, t.col, Symbol::Application,
-            Info::None, Some(argv.into_boxed_slice())
-        ));
-    }else if t.value == Symbol::BLeft {
-        i.advance();
-        let argv = self.argument_list(i,vec![x],Symbol::BRight)?;
-        return Ok(AST::node(t.line, t.col, Symbol::Index,
-            Info::None, Some(argv.into_boxed_slice())
-        ));
+    let mut x = self.atom(i)?;
+    loop{
+        let t = i.get();
+        if t.value == Symbol::PLeft {
+            i.advance();
+            let argv = self.argument_list(i,vec![x],Symbol::PRight)?;
+            x = AST::node(t.line, t.col, Symbol::Application,
+                Info::None, Some(argv.into_boxed_slice())
+            );
+        }else if t.value == Symbol::BLeft {
+            i.advance();
+            let argv = self.argument_list(i,vec![x],Symbol::BRight)?;
+            x = AST::node(t.line, t.col, Symbol::Index,
+                Info::None, Some(argv.into_boxed_slice())
+            );
+        }else if t.value == Symbol::Dot {
+            i.advance();
+            let t = i.get();
+            let y = if let Item::Id(id) = &t.item {
+                i.advance();
+                AST::node(t.line,t.col,Symbol::Item,
+                    Info::String(id.to_string()),None)
+            }else{
+                self.atom(i)?
+            };
+            x = AST::operator(t.line,t.col,Symbol::Dot,Box::new([x,y]));
+        }else{
+            break;
+        }
     }
     return Ok(x);
 }
@@ -730,6 +782,10 @@ fn multiplication(&mut self, i: &TokenIterator)
         {
             i.advance();
             let y = self.negation(i)?;
+            x = AST::operator(t.line,t.col,t.value,Box::new([x,y]));
+        }else if t.value == Symbol::As {
+            i.advance();
+            let y = self.type_expression(i)?;
             x = AST::operator(t.line,t.col,t.value,Box::new([x,y]));
         }else{
             return Ok(x);
@@ -910,8 +966,8 @@ fn formal_argument_list(&mut self, i: &TokenIterator)
         let id = self.identifier_raw(i)?;
         self.expect(i,Symbol::Colon)?;
         let ty = self.type_expression(i)?;
-        let t = i.get();
         argv.push(Argument{id, ty});
+        let t = i.get();
         if t.value == Symbol::PRight {
             i.advance();
             break;
@@ -921,18 +977,46 @@ fn formal_argument_list(&mut self, i: &TokenIterator)
     return Ok(argv);
 }
 
+fn type_variables(&mut self, t0: &Token, i: &TokenIterator)
+-> Result<Rc<AST>,Error>
+{
+    let mut a: Vec<Rc<AST>> = Vec::new();
+    loop{
+        let x = self.type_atom(i)?;
+        a.push(x);
+        let t = i.get();
+        if t.value == Symbol::Comma {
+            i.advance();
+        }else if t.value == Symbol::BRight {
+            i.advance();
+            break;
+        }else{
+            return Err(syntax_error(t.line,t.col,
+                "expected ',' or ']'.".into()
+            ));        
+        }
+    }
+    return Ok(AST::node(t0.line, t0.col, Symbol::List,
+        Info::None, Some(a.into_boxed_slice())
+    ));
+}
+
 fn function_statement(&mut self, t0: &Token, i: &TokenIterator)
 -> Result<Rc<AST>,Error>
 {
     i.advance();
     let id = self.identifier_raw(i)?;
     let t = i.get();
-    let argv = if t.value == Symbol::Colon || t.value == Symbol::Semicolon {
-        Vec::<Argument>::new()
+    let type_variables = if t.value == Symbol::BLeft {
+        i.advance();
+        Some(self.type_variables(t,i)?)
     }else{
-        self.expect(i,Symbol::PLeft)?;
-        self.formal_argument_list(i)?
+        None
     };
+    
+    self.expect(i,Symbol::PLeft)?;
+    let argv = self.formal_argument_list(i)?;
+
     let t = i.get();
     let ret_type = if t.value == Symbol::Colon {
         i.advance();
@@ -941,10 +1025,11 @@ fn function_statement(&mut self, t0: &Token, i: &TokenIterator)
         AST::symbol(t.line,t.col,Symbol::Unit)
     };
     self.expect(i,Symbol::Semicolon)?;
-    let block = self.statements(i)?;
+    let block = self.statements(i,Value::Null)?;
     self.expect(i,Symbol::End)?;
 
-    let header = Box::new(FnHeader{argv, id: Some(id.clone()), ret_type,
+    let header = Box::new(FnHeader{
+        argv, id: Some(id.clone()), ret_type, type_variables,
         symbol_table_index: Cell::new(SYMBOL_TABLE_DANGLING)
     });
     let fun = AST::node(t0.line, t0.col,
@@ -981,7 +1066,7 @@ fn if_statement(&mut self, t0: &Token, i: &TokenIterator)
         ));
     }
     i.advance();
-    let x = self.statements(i)?;
+    let x = self.statements(i,Value::None)?;
     v.push(x);
     loop{
         let t = i.get();
@@ -990,7 +1075,7 @@ fn if_statement(&mut self, t0: &Token, i: &TokenIterator)
             break;
         }else if t.value == Symbol::Else {
             i.advance();
-            let x = self.statements(i)?;
+            let x = self.statements(i,Value::None)?;
             v.push(x);
             let t = i.get();
             if t.value != Symbol::End {
@@ -1011,7 +1096,7 @@ fn if_statement(&mut self, t0: &Token, i: &TokenIterator)
                 ));
             }
             i.advance();
-            let x = self.statements(i)?;
+            let x = self.statements(i,Value::None)?;
             v.push(x);
         }else{
             return Err(syntax_error(t.line,t.col,
@@ -1036,7 +1121,7 @@ fn while_statement(&mut self, t0: &Token, i: &TokenIterator)
         ));
     }
     i.advance();
-    let body = self.statements(i)?;
+    let body = self.statements(i,Value::None)?;
     let t = i.get();
     if t.value != Symbol::End {
         return Err(syntax_error(t.line,t.col,
@@ -1049,7 +1134,22 @@ fn while_statement(&mut self, t0: &Token, i: &TokenIterator)
     ));
 }
 
-fn statements(&mut self, i: &TokenIterator)
+fn for_statement(&mut self, t0: &Token, i: &TokenIterator)
+-> Result<Rc<AST>,Error>
+{
+    i.advance();
+    let lhs = self.expression(i)?;
+    self.expect(i,Symbol::In)?;
+    let range = self.expression(i)?;
+    self.expect(i,Symbol::Do)?;
+    let body = self.statements(i,Value::None)?;
+    self.expect(i,Symbol::End)?;
+    return Ok(AST::node(t0.line,t0.col,Symbol::For,Info::None,
+        Some(Box::new([lhs,range,body]))
+    ));
+}
+
+fn statements(&mut self, i: &TokenIterator, ret: Value)
 -> Result<Rc<AST>,Error>
 {
     let mut a: Vec<Rc<AST>> = Vec::new();
@@ -1103,6 +1203,9 @@ fn statements(&mut self, i: &TokenIterator)
         }else if value == Symbol::While {
             let x = self.while_statement(t,i)?;
             a.push(x);
+        }else if value == Symbol::For {
+            let x = self.for_statement(t,i)?;
+            a.push(x);
         }else if value == Symbol::Function {
             let x = self.function_statement(t,i)?;
             a.push(x);
@@ -1119,6 +1222,9 @@ fn statements(&mut self, i: &TokenIterator)
             a.push(x);
             self.expect(i,Symbol::Semicolon)?;
         }
+    }
+    if ret == Value::Null {
+        a.push(AST::symbol(t0.line,t0.col,Symbol::Null));
     }
     return Ok(AST::node(t0.line, t0.col, Symbol::Block,
         Info::None, Some(a.into_boxed_slice())
@@ -1227,7 +1333,7 @@ pub fn parse(s: &str) -> Result<Rc<AST>,Error> {
     // println!("{:?}\n",v);
     let i = TokenIterator::new(&v);
     let mut parser = Parser{};
-    let x = parser.statements(&i)?;
+    let x = parser.statements(&i,Value::None)?;
     // println!("{}",x);
     return Ok(x);
 }

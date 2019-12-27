@@ -55,7 +55,7 @@ fn asm_listing(a: &[u32]) -> String {
             bc::FNSELF => {s.push_str("function self\n"); i+=BCSIZE;},
             bc::ADD => {s.push_str("add\n"); i+=BCSIZE;},
             bc::SUB => {s.push_str("sub\n"); i+=BCSIZE;},
-            bc::MUL => {s.push_str("mpy\n"); i+=BCSIZE;},
+            bc::MUL => {s.push_str("mul\n"); i+=BCSIZE;},
             bc::DIV => {s.push_str("div\n"); i+=BCSIZE;},
             bc::IDIV => {s.push_str("idiv\n"); i+=BCSIZE;},
             bc::MOD => {s.push_str("mod\n"); i+=BCSIZE;},

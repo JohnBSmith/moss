@@ -11,7 +11,7 @@ mod system;
 mod debug;
 
 use parser::{parse,Error};
-use typing::{TypeChecker,Env};
+use typing::{TypeChecker,TypeTable};
 use generator::generate;
 use system::save;
 
@@ -28,9 +28,9 @@ fn compile(s: &str, file: &str) -> Result<(),()> {
             return Err(());
         }
     };
-    let env = Env::new();
-    let mut checker = TypeChecker::new(&env);
-    match checker.type_check(&env,&t) {
+    let tab = TypeTable::new();
+    let mut checker = TypeChecker::new(&tab);
+    match checker.type_check(&t) {
         Ok(()) => {},
         Err(e) => {
             e.print();

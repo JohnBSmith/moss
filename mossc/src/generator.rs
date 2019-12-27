@@ -5,7 +5,7 @@ use std::rc::Rc;
 use std::collections::HashMap;
 use std::mem::replace;
 use parser::{AST, Symbol, Info};
-use typing::{SymbolTable,VariableKind};
+use typing::{SymbolTable,VariableKind,Type};
 
 // byte code size
 // byte code+argument size
@@ -117,6 +117,11 @@ fn write_i32(a: &mut [u32], x: i32){
     a[0] = x as u32;
 }
 
+pub struct JmpInfo{
+    start: usize,
+    breaks: Vec<usize>
+}
+
 pub struct Pool{
     stab: HashMap<Rc<str>,usize>,
     stab_index: usize,
@@ -140,7 +145,10 @@ struct Generator {
     pool: Pool,
     symbol_table: SymbolTable,
     bv_blocks: Vec<u32>,
-    fn_indices: Vec<usize>
+    fn_indices: Vec<usize>,
+    for_nesting: usize,
+    jmp_stack: Vec<JmpInfo>,
+    global_context: bool
 }
 
 impl Generator {
@@ -173,7 +181,7 @@ fn compile_identifier(&mut self, bv: &mut Vec<u32>, t: &AST, id: &str) {
             }
         }
     }else{
-        unreachable!();
+        unreachable!("{}:{}: {}",t.line+1,t.col+1,id);
     }
 }
 
@@ -256,24 +264,25 @@ fn store(&mut self, bv: &mut Vec<u32>, t: &AST, key: &str) {
             }
         }
     }else{
-        unreachable!();
+        unreachable!("Line {}, col {}: {}",t.line,t.col,key);
     }
+}
+
+fn compile_left_hand_side(&mut self, bv: &mut Vec<u32>, t: &AST) {
+    let key = match t.info {Info::Id(ref value)=>value, _ => panic!()};
+    self.store(bv,t,key);
 }
 
 fn compile_let_statement(&mut self, bv: &mut Vec<u32>, t: &AST) {
     let a = t.argv();
-    let key = match a[0].info {Info::Id(ref value)=>value, _ => panic!()};
-
     self.compile_node(bv,&a[2]);
-    self.store(bv,t,key);
+    self.compile_left_hand_side(bv,&a[0]);
 }
 
 fn compile_assignment(&mut self, bv: &mut Vec<u32>, t: &AST) {
     let a = t.argv();
-    let key = match a[0].info {Info::Id(ref value)=>value, _ => panic!()};
-
     self.compile_node(bv,&a[1]);
-    self.store(bv,t,key);
+    self.compile_left_hand_side(bv,&a[0]);
 }
 
 fn compile_list_literal(&mut self, bv: &mut Vec<u32>, t: &AST) {
@@ -329,7 +338,6 @@ fn compile_fn(&mut self, bv: &mut Vec<u32>, t: &AST) {
 
     // Add an additional return statement that will be reached
     // in case the control flow reaches the end of the function.
-    push_bc(&mut bv2, bc::NULL, t.line, t.col);
     push_bc(&mut bv2, bc::RET, t.line, t.col);
 
     // Closure bindings, unimplemented.
@@ -400,7 +408,7 @@ fn compile_return(&mut self, bv: &mut Vec<u32>, t: &AST) {
 fn compile_while(&mut self, bv: &mut Vec<u32>, t: &AST) {
     let index1 = bv.len();
     let mut index2 = 0;
-    // self.jmp_stack.push(JmpInfo{start: index1, breaks: Vec::new()});
+    self.jmp_stack.push(JmpInfo{start: index1, breaks: Vec::new()});
     let a = t.argv();
     let condition = a[0].value != Symbol::True;
     
@@ -421,7 +429,6 @@ fn compile_while(&mut self, bv: &mut Vec<u32>, t: &AST) {
         write_i32(&mut bv[index2..index2+1],(BCSIZE+len) as i32-index2 as i32);
     }
 
-    /*
     let info = match self.jmp_stack.pop() {
         Some(info) => info, None => unreachable!()
     };
@@ -429,7 +436,60 @@ fn compile_while(&mut self, bv: &mut Vec<u32>, t: &AST) {
     for index in info.breaks {
         write_i32(&mut bv[index..index+1],(BCSIZE+len) as i32-index as i32);
     }
-    */
+}
+
+// for x in a
+//   print(x)
+// end
+//
+// is translated into:
+//
+// _it_ = iter(a)
+// while true
+//   x = NEXT(_it_).BREAK_IF_EMPTY()
+//   print(x)
+// end
+//
+// These pseudo-functions NEXT and BREAK_IF_EMPTY are bundled
+// into one byte code instruction called NEXT.
+
+fn compile_for(&mut self, bv: &mut Vec<u32>, t: &AST) {
+    let a = t.argv();
+    let iter = AST::apply(t.line,t.col,Box::new([
+        AST::identifier("iter",t.line,t.col),
+        a[1].clone()
+    ]));
+    let id = format!("_it{}_",self.for_nesting);
+    let it = AST::identifier(&id,t.line,t.col);
+    self.symbol_table.variable_binding(self.global_context,false,id,
+        Type::None);
+    let assignment = AST::operator(t.line,t.col,Symbol::Assignment,
+        Box::new([it.clone(),iter])
+    );
+    self.compile_node(bv,&assignment);
+
+    let start = bv.len();
+    self.jmp_stack.push(JmpInfo{start: start, breaks: Vec::new()});
+
+    self.compile_node(bv,&it);
+    push_bc(bv,bc::NEXT,it.line,it.col);
+    let n = self.jmp_stack.len();
+    self.jmp_stack[n-1].breaks.push(bv.len());
+    push_i32(bv,0xcafe);
+    self.compile_left_hand_side(bv,&a[0]);
+
+    self.compile_node(bv,&a[2]);
+    push_bc(bv,bc::JMP,t.line,t.col);
+    let len = bv.len();
+    push_i32(bv,(BCSIZE+start) as i32-len as i32);
+
+    let info = match self.jmp_stack.pop() {
+        Some(info) => info, None => unreachable!()
+    };
+    let len = bv.len();
+    for index in info.breaks {
+        write_i32(&mut bv[index..index+1],(BCSIZE+len) as i32-index as i32);
+    }
 }
 
 fn compile_conditional(&mut self, bv: &mut Vec<u32>, t: &AST, is_op: bool) {
@@ -586,6 +646,9 @@ fn compile_node(&mut self, bv: &mut Vec<u32>, t: &AST) {
         Symbol::While => {
             self.compile_while(bv,t);
         },
+        Symbol::For => {
+            self.compile_for(bv,t);
+        },
         Symbol::Range => {
             self.compile_operator(bv,t,bc::RANGE);
         },
@@ -593,6 +656,10 @@ fn compile_node(&mut self, bv: &mut Vec<u32>, t: &AST) {
             self.compile_binary_operator(bv,t,bc::GET_INDEX);
             let a = t.argv();
             push_u32(bv,(a.len()-1) as u32);
+        },
+        Symbol::As => {
+            let a = t.argv();
+            self.compile_node(bv,&a[0]);
         },
         _ => unimplemented!("{}",t.value)
     }
@@ -612,7 +679,10 @@ pub fn generate(t: &AST, stab: SymbolTable) -> CodeObject {
         pool,
         symbol_table: stab,
         bv_blocks: Vec::new(),
-        fn_indices: Vec::new()
+        fn_indices: Vec::new(),
+        jmp_stack: Vec::new(),
+        for_nesting: 0,
+        global_context: true
     };
     gen.compile_node(&mut bv,t);
     push_bc(&mut bv,bc::HALT,0,0);
