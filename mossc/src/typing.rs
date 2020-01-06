@@ -101,6 +101,7 @@ impl SymbolTable {
         let mut variables: HashMap<String,VariableInfo> = HashMap::new();
         let type_of_print = Type::Fn(Rc::new(FnType{
             argc_min: 0, argc_max: VARIADIC,
+            arg_self: Type::Atomic(tab.type_unit.clone()),
             arg: vec![Type::Atomic(tab.type_object.clone())],
             ret: Type::Atomic(tab.type_unit.clone())
         }));
@@ -109,6 +110,7 @@ impl SymbolTable {
         let type_var: Rc<str> = Rc::from("T");
         let type_of_len = Type::Fn(Rc::new(FnType{
             argc_min: 1, argc_max: 1,
+            arg_self: Type::Atomic(tab.type_unit.clone()),
             arg: vec![Type::App(Rc::new(vec![
                 Type::Atomic(tab.type_list.clone()),
                 Type::Atomic(type_var.clone())
@@ -121,6 +123,7 @@ impl SymbolTable {
         let type_var: Rc<str> = Rc::from("T");
         let type_of_str = Type::Fn(Rc::new(FnType{
             argc_min: 1, argc_max: 1,
+            arg_self: Type::Atomic(tab.type_unit.clone()),
             arg: vec![Type::Atomic(type_var.clone())],
             ret: Type::Atomic(tab.type_string.clone())
         }));
@@ -130,6 +133,7 @@ impl SymbolTable {
         let type_var: Rc<str> = Rc::from("T");
         let type_of_list_push = Type::Fn(Rc::new(FnType{
             argc_min: 2, argc_max: 2,
+            arg_self: Type::Atomic(tab.type_unit.clone()),
             arg: vec![
                 Type::App(Rc::new(vec![
                     Type::Atomic(tab.type_list.clone()),
@@ -144,6 +148,7 @@ impl SymbolTable {
 
         let type_of_list = Type::Fn(Rc::new(FnType{
             argc_min: 1, argc_max: 1,
+            arg_self: Type::Atomic(tab.type_unit.clone()),
             arg: vec![Type::App(Rc::new(vec![
                 Type::Atomic(tab.type_range.clone()),
                 Type::Atomic(tab.type_int.clone()),
@@ -159,6 +164,7 @@ impl SymbolTable {
 
         let type_of_iter = Type::Fn(Rc::new(FnType{
             argc_min: 0, argc_max: VARIADIC,
+            arg_self: Type::Atomic(tab.type_unit.clone()),
             arg: vec![Type::Atomic(tab.type_object.clone())],
             ret: Type::Atomic(tab.type_object.clone())
         }));
@@ -229,6 +235,7 @@ const VARIADIC: usize = ::std::usize::MAX;
 pub struct FnType {
     pub argc_min: usize,
     pub argc_max: usize,
+    pub arg_self: Type,
     pub arg: Vec<Type>,
     pub ret: Type
 }
@@ -545,12 +552,13 @@ impl Substitution {
                 Type::App(Rc::new(app.iter().map(|x|
                     self.apply(x)).collect::<Vec<Type>>()))
             },
-            Type::Fn(fn_type) => {
+            Type::Fn(typ) => {
                 Type::Fn(Rc::new(FnType{
-                    argc_min: fn_type.argc_min,
-                    argc_max: fn_type.argc_max,
-                    arg: fn_type.arg.iter().map(|x| self.apply(x)).collect(),
-                    ret: self.apply(&fn_type.ret)
+                    argc_min: typ.argc_min,
+                    argc_max: typ.argc_max,
+                    arg_self: self.apply(&typ.arg_self),
+                    arg: typ.arg.iter().map(|x| self.apply(x)).collect(),
+                    ret: self.apply(&typ.ret)
                 }))
             },
             Type::Poly(poly_type) => {
@@ -562,18 +570,6 @@ impl Substitution {
         }
     }
 }
-
-/*
-pub struct TypeVariable {
-    pub id: Rc<str>,
-    pub class: Type
-}
-
-pub struct PolyType {
-    pub variables: Vec<TypeVariable>,
-    pub scheme: Type
-}
-*/
 
 impl std::fmt::Display for Substitution {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -646,7 +642,7 @@ fn type_from_signature(&mut self, env: &Env, t: &AST)
         return Ok(self.new_uniq_anonymous_type_var(t));
     }else if let Info::Id(id) = &t.info {
         if let Some(ty) = env.get(id) {
-            return Ok(Type::Var(ty));
+            return Ok(Type::Atomic(ty));
         }
         return Ok(match &id[..] {
             "Unit" => Type::Atomic(self.tab.type_unit.clone()),
@@ -692,7 +688,7 @@ fn type_from_signature(&mut self, env: &Env, t: &AST)
         let ret = self.type_from_signature(env,&a[n-1])?;
         return Ok(Type::Fn(Rc::new(FnType {
             argc_min: n-1, argc_max: n-1,
-            arg, ret
+            arg, ret, arg_self: Type::Atomic(self.tab.type_unit.clone())
         })));
     }else if t.value == Symbol::Unit {
         return Ok(Type::Atomic(self.tab.type_unit.clone()));
@@ -976,6 +972,7 @@ fn unify_fn(&mut self, env: &Env, f1: &FnType, f2: &FnType)
             f1.arg.len(), f2.arg.len()
         ));
     }
+    self.unify(env,&f1.arg_self,&f2.arg_self)?;
     for i in 0..f1.arg.len() {
         self.unify(env,&f1.arg[i],&f2.arg[i])?;
     }
@@ -1052,13 +1049,13 @@ fn instantiate_rec(&self, typ: &Type,
 ) -> Type {
     match typ {
         Type::None => Type::None,
-        Type::Atomic(ty) => Type::Atomic(ty.clone()),
-        Type::Var(tv) => {
-            match mapping.get(tv) {
-                Some(ty) => Type::Var(ty.clone()),
-                None => Type::Var(tv.clone())
-            }
+        Type::Atomic(typ) => {
+            match mapping.get(typ) {
+                Some(id) => Type::Var(id.clone()),
+                None =>  Type::Atomic(typ.clone())
+            }           
         },
+        Type::Var(tv) => Type::Var(tv.clone()),
         Type::App(app) => {
             let a: Vec<Type> = app.iter()
                 .map(|x| self.instantiate_rec(x,mapping))
@@ -1073,14 +1070,12 @@ fn instantiate_rec(&self, typ: &Type,
                 argc_min: typ.argc_min,
                 argc_max: typ.argc_max,
                 arg: a,
+                arg_self: self.instantiate_rec(&typ.arg_self,mapping),
                 ret: self.instantiate_rec(&typ.ret,mapping)
             }))
         },
-        Type::Poly(typ) => {
-            Type::Poly(Rc::new(PolyType{
-                variables: typ.variables.clone(),
-                scheme: self.instantiate_rec(&typ.scheme,mapping)
-            }))
+        Type::Poly(_) => {
+            unreachable!()
         }
     }
 }
@@ -1097,18 +1092,7 @@ fn type_check_application(&mut self, env: &Env, t: &AST)
     let a = t.argv();
     let argv = &a[1..];
     let argc = argv.len();
-    // let mut subs = Substitution::new();
     let fn_type = self.type_check_node(env,&a[0])?;
-
-    /*
-    let (sig,_poly,env) = match &fn_type {
-        Type::Poly(poly) => {
-            let env = Environment::from_sig(env,&poly.variables);
-            (&poly.scheme,Some(&poly.variables),env)
-        },
-        ty => (ty,None,env.clone())
-    };
-    */
 
     let sig = match &fn_type {
         Type::Poly(poly) => self.instantiate_poly_type(poly),
@@ -1138,12 +1122,6 @@ fn type_check_application(&mut self, env: &Env, t: &AST)
                 }
             }
         }
-        /*
-        if poly.is_some() {
-            todo!();
-            // return Ok(subs.apply(&sig.ret));
-        }else{
-        */
         return Ok(sig.ret.clone());
     }else if sig.is_atomic(&self.tab.type_object) {
         for i in 0..argc {
@@ -1202,7 +1180,8 @@ fn type_check_function(&mut self, env_rec: &Env, t: &AST)
     let mut ftype = Type::Fn(Rc::new(FnType{
         argc_min: header.argv.len(),
         argc_max: header.argv.len(),
-        arg, ret: ret.clone()
+        arg, ret: ret.clone(),
+        arg_self: Type::Atomic(self.tab.type_unit.clone())
     }));
     if let Type::None = ret {
         // pass
