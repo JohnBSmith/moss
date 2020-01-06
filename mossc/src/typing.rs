@@ -239,8 +239,16 @@ pub struct TypeVariable {
 }
 
 pub struct PolyType {
-    pub variables: Vec<TypeVariable>,
+    pub variables: Rc<Vec<TypeVariable>>,
     pub scheme: Type
+}
+impl PolyType {
+    fn contains(&self, id: &Rc<str>) -> bool {
+        for tv in &*self.variables {
+            if Rc::ptr_eq(&tv.id,id) {return true;}
+        }
+        return false;
+    }
 }
 
 #[derive(Clone)]
@@ -267,7 +275,7 @@ impl Type {
     }
     fn poly1(type_var: Rc<str>, scheme: Type) -> Type {
         Type::Poly(Rc::new(PolyType{
-            variables: vec![TypeVariable{id: type_var.clone(), class: Type::None}],
+            variables: Rc::new(vec![TypeVariable{id: type_var.clone(), class: Type::None}]),
             scheme
         }))
     }
@@ -278,13 +286,24 @@ impl Type {
             false
         }
     }
+    fn contains_var(&self) -> bool {
+        match self {
+            Type::None | Type::Atomic(_) => false,
+            Type::Var(_) => true,
+            Type::App(app) => app.iter().any(|x| x.contains_var()),
+            Type::Fn(typ) =>
+                typ.ret.contains_var() ||
+                typ.arg.iter().any(|x| x.contains_var()),
+            Type::Poly(_) => true
+        }
+    }
 }
 
 impl std::fmt::Display for PolyType {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f,"forall[")?;
         let mut first = true;
-        for tv in &self.variables {
+        for tv in &*self.variables {
             if first {first = false;} else {write!(f,", ")?;}
             write!(f,"{}",tv.id)?;
         }
@@ -509,17 +528,17 @@ impl Substitution {
                 Type::Atomic(typ.clone())
             },
             Type::Var(tv) => {
-                let mut id = TypeId(tv.clone());
-                loop{
-                    let ty = match self.map.get(&id) {
-                        Some(subs) => subs.clone(),
-                        None => return Type::Var(id.0)
-                    };
-                    if let Type::Var(tv) = ty {
-                        id = TypeId(tv.clone());
-                    }else{
-                        return ty;
-                    }
+                let id = TypeId(tv.clone());
+                let subs = match self.map.get(&id) {
+                    Some(value) => value,
+                    None => return Type::Var(id.0)
+                };
+                if let Type::Atomic(typ) = subs {
+                    return Type::Atomic(typ.clone());
+                }else if subs.contains_var() {
+                    return self.apply(subs);
+                }else{
+                    return subs.clone();
                 }
             },
             Type::App(app) => {
@@ -534,8 +553,11 @@ impl Substitution {
                     ret: self.apply(&fn_type.ret)
                 }))
             },
-            Type::Poly(_poly_type) => {
-                todo!();                
+            Type::Poly(poly_type) => {
+                Type::Poly(Rc::new(PolyType{
+                    variables: poly_type.variables.clone(),
+                    scheme: self.apply(&poly_type.scheme)
+                }))
             }
         }
     }
@@ -894,7 +916,9 @@ fn type_check_assignment(&mut self, env: &Env, t: &AST)
         let ty = variable_info.ty.clone();
         match self.unify(env,&ty_expr,&ty) {
             Ok(()) => {},
-            Err(err) => return Err(type_error(t.line,t.col,err))
+            Err(err) => return Err(type_error(t.line,t.col,
+                format!("in assignment:{}",err)
+            ))
         }
     }else{
         return Err(undefined_symbol(t.line,t.col,id));
@@ -961,10 +985,12 @@ fn unify_fn(&mut self, env: &Env, f1: &FnType, f2: &FnType)
 fn unify_var(&mut self, env: &Env, tv: &Rc<str>, t2: &Type)
 -> Result<(),String>
 {
+    // println!("{} = {}",tv,t2);
     if let Some(t1) = self.subs.map.get(&TypeId(tv.clone())) {
         let t1 = t1.clone();
         return self.unify(env,&t1,t2);
     }else if let Type::Var(tv2) = t2 {
+        if Rc::ptr_eq(tv,tv2) {return Ok(());}
         if let Some(t2) = self.subs.map.get(&TypeId(tv2.clone())) {
             let t2 = t2.clone();
             return self.unify_var(env,tv,&t2);
@@ -1021,6 +1047,50 @@ fn unify(&mut self, env: &Env, t1: &Type, t2: &Type)
     return Err(type_mismatch(t1,t2));
 }
 
+fn instantiate_rec(&self, typ: &Type,
+    mapping: &HashMap<Rc<str>,Rc<str>>
+) -> Type {
+    match typ {
+        Type::None => Type::None,
+        Type::Atomic(ty) => Type::Atomic(ty.clone()),
+        Type::Var(tv) => {
+            match mapping.get(tv) {
+                Some(ty) => Type::Var(ty.clone()),
+                None => Type::Var(tv.clone())
+            }
+        },
+        Type::App(app) => {
+            let a: Vec<Type> = app.iter()
+                .map(|x| self.instantiate_rec(x,mapping))
+                .collect();
+            Type::App(Rc::new(a))
+        },
+        Type::Fn(typ) => {
+            let a: Vec<Type> = typ.arg.iter()
+                .map(|x| self.instantiate_rec(x,mapping))
+                .collect();
+            Type::Fn(Rc::new(FnType{
+                argc_min: typ.argc_min,
+                argc_max: typ.argc_max,
+                arg: a,
+                ret: self.instantiate_rec(&typ.ret,mapping)
+            }))
+        },
+        Type::Poly(typ) => {
+            Type::Poly(Rc::new(PolyType{
+                variables: typ.variables.clone(),
+                scheme: self.instantiate_rec(&typ.scheme,mapping)
+            }))
+        }
+    }
+}
+
+fn instantiate_poly_type(&self, poly: &PolyType) -> Type {
+    let mapping: HashMap<Rc<str>,Rc<str>> = poly.variables.iter()
+        .map(|x| (x.id.clone(),Rc::from(&*x.id))).collect();
+    self.instantiate_rec(&poly.scheme,&mapping)
+}
+
 fn type_check_application(&mut self, env: &Env, t: &AST)
 -> Result<Type,SemanticError>
 {
@@ -1029,13 +1099,22 @@ fn type_check_application(&mut self, env: &Env, t: &AST)
     let argc = argv.len();
     // let mut subs = Substitution::new();
     let fn_type = self.type_check_node(env,&a[0])?;
-    let (sig,poly,env) = match &fn_type {
+
+    /*
+    let (sig,_poly,env) = match &fn_type {
         Type::Poly(poly) => {
             let env = Environment::from_sig(env,&poly.variables);
             (&poly.scheme,Some(&poly.variables),env)
         },
         ty => (ty,None,env.clone())
     };
+    */
+
+    let sig = match &fn_type {
+        Type::Poly(poly) => self.instantiate_poly_type(poly),
+        typ => typ.clone()
+    };
+
     if let Type::Fn(ref sig) = sig {
         if argc<sig.argc_min || argc>sig.argc_max {
             let id = match a[0].info {Info::Id(ref s)=>s, _ => panic!()};
@@ -1047,6 +1126,9 @@ fn type_check_application(&mut self, env: &Env, t: &AST)
         for i in 0..argc {
             let ty = self.type_check_node(&env,&argv[i])?;
             let j = if i<sig.arg.len() {i} else {sig.arg.len()-1};
+            if sig.arg[j].is_atomic(&self.tab.type_object) {
+                continue;
+            }
             match self.unify(&env,&sig.arg[j],&ty) {
                 Ok(()) => {},
                 Err(text) => {
@@ -1056,12 +1138,13 @@ fn type_check_application(&mut self, env: &Env, t: &AST)
                 }
             }
         }
+        /*
         if poly.is_some() {
             todo!();
             // return Ok(subs.apply(&sig.ret));
         }else{
-            return Ok(sig.ret.clone());
-        }
+        */
+        return Ok(sig.ret.clone());
     }else if sig.is_atomic(&self.tab.type_object) {
         for i in 0..argc {
             let _ty = self.type_check_node(&env,&argv[i])?;        
@@ -1172,7 +1255,7 @@ fn type_check_function(&mut self, env_rec: &Env, t: &AST)
 
     if let Some(sig) = sig {
         return Ok(Type::Poly(Rc::new(PolyType{
-            variables: sig, scheme: ftype
+            variables: Rc::new(sig), scheme: ftype
         })));
     }else{
         return Ok(ftype);
