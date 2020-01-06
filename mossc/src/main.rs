@@ -37,6 +37,10 @@ fn compile(s: &str, file: &str) -> Result<(),()> {
             return Err(());
         }
     }
+    println!("{}",checker.string(&t));
+    println!("{}",checker.subs_as_string());
+    checker.apply_types();
+    println!("{}",checker.string(&t));
     let code = generate(&t,checker.symbol_table);
     // println!("{}",code);
     save(&code,file);

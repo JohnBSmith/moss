@@ -4,6 +4,7 @@
 use std::rc::Rc;
 use std::cell::Cell;
 use std::fmt::Write;
+use crate::typing::Type;
 
 pub struct Error {
     pub line: usize,
@@ -290,7 +291,7 @@ pub fn scan(s: &str) -> Result<Vec<Token>,Error> {
                 '/' => {
                     if i+1<n && a[i+1]=='*' {
                         while i+1<n && (a[i]!='*' || a[i+1]!='/') {
-                            if a[i]=='\n' {line+=1; col=0;}
+                            if a[i]=='\n' {col=0; line+=1;}
                             else {col+=1;}
                             i+=1;
                         }
@@ -380,13 +381,13 @@ pub fn scan(s: &str) -> Result<Vec<Token>,Error> {
                 },
                 '#' => {
                     while i<n && a[i]!='\n' {i+=1;}
-                    i+=1; col=0;
+                    i+=1; col=0; line+=1;
                 },
                 '"' => {
                     i+=1; col+=1;
                     let j = i;
                     while i<n && a[i]!='"' {
-                        if a[i]=='\n' {line+=1; col=0;}
+                        if a[i]=='\n' {col=0; line+=1;}
                         else {col+=1;}
                         i+=1;
                     }
@@ -438,11 +439,21 @@ pub enum Info {
     String(String), FnHeader(Box<FnHeader>),
 }
 
+pub struct TypeRef {
+    pub index: Cell<usize>
+}
+impl TypeRef {
+    fn none() -> Self {
+        Self{index: Cell::new(0)}
+    }
+}
+
 pub struct AST {
     pub line: usize,
     pub col: usize,
     pub value: Symbol,
     pub info: Info,
+    pub typ: TypeRef,
     pub a: Option<Box<[Rc<AST>]>>
 }
 
@@ -451,27 +462,27 @@ impl AST {
         info: Info, a: Option<Box<[Rc<AST>]>>
     ) -> Rc<AST>
     {
-        Rc::new(AST{line,col,value,info,a})
+        Rc::new(AST{line,col,value,info,a, typ: TypeRef::none()})
     }
 
     pub fn operator(line: usize, col: usize, value: Symbol, a: Box<[Rc<AST>]>
     ) -> Rc<AST>
     {
-        Rc::new(AST{line,col,value,info: Info::None, a: Some(a)})
+        Rc::new(AST{line,col,value,info: Info::None, a: Some(a), typ: TypeRef::none()})
     }
     
     pub fn symbol(line: usize, col: usize, value: Symbol) -> Rc<AST> {
-        Rc::new(AST{line,col,value,info: Info::None, a: None})
+        Rc::new(AST{line,col,value,info: Info::None, a: None, typ: TypeRef::none()})
     }
 
     pub fn apply(line: usize, col: usize, a: Box<[Rc<AST>]>) -> Rc<AST> {
         Rc::new(AST{line,col,value: Symbol::Application,
-            info: Info::None, a: Some(a)})
+            info: Info::None, a: Some(a), typ: TypeRef::none()})
     }
     
     pub fn identifier(id: &str, line: usize, col: usize) -> Rc<AST> {
         Rc::new(AST{line,col,value: Symbol::Item,
-            info: Info::Id(id.into()), a: None})
+            info: Info::Id(id.into()), a: None, typ: TypeRef::none()})
     }
 
     pub fn argv(&self) -> &[Rc<AST>] {
@@ -481,6 +492,12 @@ impl AST {
             unreachable!();
         }
     }
+
+    pub fn string(&self,types: &Vec<Type>) -> String {
+        let mut buffer = String::new();
+        ast_to_string(&mut buffer,self,INDENT_START,Some(types));
+        return buffer;
+    }
 }
 
 pub struct Argument {
@@ -488,29 +505,39 @@ pub struct Argument {
     pub ty: Rc<AST>
 }
 
+const INDENT_START: usize = 4;
 const INDENT_SHIFT: usize = 4;
 
-fn ast_to_string(buffer: &mut String, t: &AST, indent: usize) {
+fn ast_to_string(buffer: &mut String, t: &AST, indent: usize,
+    types: Option<&Vec<Type>>
+) {
     write!(buffer,"{: <1$}","",indent).ok();
     if t.value == Symbol::Item {
         match t.info {
             Info::Id(ref id) => {
-                write!(buffer,"Id({})\n",id).ok();
+                write!(buffer,"Id({})",id).ok();
             },
             Info::String(ref s) => {
-                write!(buffer,"\"{}\"\n",s).ok();
+                write!(buffer,"\"{}\"",s).ok();
             },
             Info::Int(ref x) => {
-                write!(buffer,"{}\n",x).ok();
+                write!(buffer,"{}",x).ok();
             },
             _ => unreachable!()
         }
     }else{
-        write!(buffer,"{}\n",t.value).ok();
+        write!(buffer,"{}",t.value).ok();
     }
+    if let Some(types) = types {
+        let index = t.typ.index.get();
+        if index != 0 {
+            write!(buffer,": {}",&types[index]).ok();
+        }
+    }
+    write!(buffer,"\n").ok();
     if let Some(a) = &t.a {
         for x in a.iter() {
-            ast_to_string(buffer,x,indent+INDENT_SHIFT);
+            ast_to_string(buffer,x,indent+INDENT_SHIFT,types);
         }
     }
 }
@@ -518,11 +545,10 @@ fn ast_to_string(buffer: &mut String, t: &AST, indent: usize) {
 impl std::fmt::Display for AST {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         let mut buffer = String::new();
-        ast_to_string(&mut buffer,self,INDENT_SHIFT);
+        ast_to_string(&mut buffer,self,INDENT_START,None);
         return write!(f,"{}",buffer);
     }
 }
-
 
 fn expect_string(x: &Item) -> String {
     match x {Item::String(s) => s.clone(), _ => unreachable!()}
