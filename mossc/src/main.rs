@@ -20,7 +20,8 @@ fn print_error(e: &Error, file: &str) {
     println!("{}",e.text);
 }
 
-fn compile(s: &str, file: &str) -> Result<(),()> {
+fn compile(s: &str, file: &str, info: &CmdInfo) -> Result<(),()> {
+    let debug_mode = info.debug_mode;
     let t = match parse(s) {
         Ok(t) => t,
         Err(e) => {
@@ -28,6 +29,10 @@ fn compile(s: &str, file: &str) -> Result<(),()> {
             return Err(());
         }
     };
+    if debug_mode {
+        println!("{}",&t);
+    }
+
     let tab = TypeTable::new();
     let mut checker = TypeChecker::new(&tab);
     match checker.type_check(&t) {
@@ -37,12 +42,18 @@ fn compile(s: &str, file: &str) -> Result<(),()> {
             return Err(());
         }
     }
-    println!("{}",checker.string(&t));
-    println!("{}",checker.subs_as_string());
+    if debug_mode {
+        println!("{}",checker.string(&t));
+        println!("{}",checker.subs_as_string());
+    }
     checker.apply_types();
-    println!("{}",checker.string(&t));
+    if debug_mode {
+        println!("{}",checker.string(&t));
+    }
     let code = generate(&t,checker.symbol_table);
-    // println!("{}",code);
+    if debug_mode {
+        println!("{}",code);
+    }
     save(&code,file);
     return Ok(());
 }
@@ -55,17 +66,26 @@ fn read_file(path: &str) -> Result<String,std::io::Error> {
     return Ok(s);
 }
 
+fn is_option(arg: &str) -> bool {
+    !arg.is_empty() && &arg[0..1]=="-"
+}
+
 struct CmdInfo {
-    id: Option<String>
+    id: Option<String>,
+    debug_mode: bool
 }
 
 impl CmdInfo {
     pub fn new() -> Self {
-        let mut info = CmdInfo{id: None};
+        let mut info = CmdInfo{id: None, debug_mode: false};
         let mut first = true;
-        for s in env::args() {
+        for arg in env::args() {
             if first {first = false; continue;}
-            info.id = Some(String::from(s));
+            if is_option(&arg) {
+                if arg == "-d" {info.debug_mode = true;}
+            }else{
+                info.id = Some(arg);
+            }
         }
         return info;
     }
@@ -77,7 +97,7 @@ Usage: mossc file
 
 fn main_result() -> Result<(),()> {
     let info = CmdInfo::new();
-    if let Some(id) = info.id {
+    if let Some(id) = &info.id {
         let path = format!("{}.moss",id);
         let s = match read_file(&path) {
             Ok(s) => s,
@@ -86,7 +106,7 @@ fn main_result() -> Result<(),()> {
                 return Err(());
             }
         };
-        compile(&s,&id)?;
+        compile(&s,&id,&info)?;
     }else{
         println!("{}",HELP_MESSAGE);
         return Err(());

@@ -508,10 +508,14 @@ pub struct Argument {
 const INDENT_START: usize = 4;
 const INDENT_SHIFT: usize = 4;
 
+fn write_indent(buffer: &mut String, indent: usize) {
+    write!(buffer,"{: <1$}","",indent).ok();
+}
+
 fn ast_to_string(buffer: &mut String, t: &AST, indent: usize,
     types: Option<&Vec<Type>>
 ) {
-    write!(buffer,"{: <1$}","",indent).ok();
+    write_indent(buffer,indent);
     if t.value == Symbol::Item {
         match t.info {
             Info::Id(ref id) => {
@@ -527,6 +531,16 @@ fn ast_to_string(buffer: &mut String, t: &AST, indent: usize,
         }
     }else{
         write!(buffer,"{}",t.value).ok();
+    }
+    if t.value == Symbol::Function {
+        if let Info::FnHeader(info) = &t.info {
+            write!(buffer,"(\n").ok();
+            for arg in &info.argv {
+                ast_to_string(buffer,&arg.ty,indent+INDENT_SHIFT,types);
+            }
+            write_indent(buffer,indent);
+            write!(buffer,")").ok();
+        }
     }
     if let Some(types) = types {
         let index = t.typ.index.get();
@@ -893,15 +907,29 @@ fn eq_expression(&mut self, i: &TokenIterator)
     }
 }
 
+
+fn logical_negation(&mut self, i: &TokenIterator)
+-> Result<Rc<AST>,Error>
+{
+    let t = i.get();
+    if t.value == Symbol::Not {
+        i.advance();
+        let x = self.eq_expression(i)?;
+        return Ok(AST::operator(t.line,t.col,Symbol::Not,Box::new([x])));
+    }else{
+        return self.eq_expression(i);
+    }
+}
+
 fn conjunction(&mut self, i: &TokenIterator)
 -> Result<Rc<AST>,Error>
 {
-    let mut x = self.eq_expression(i)?;
+    let mut x = self.logical_negation(i)?;
     loop{
         let t = i.get();
         if t.value == Symbol::And {
             i.advance();
-            let y = self.eq_expression(i)?;
+            let y = self.logical_negation(i)?;
             x = AST::operator(t.line,t.col,t.value,Box::new([x,y]));
         }else{
             return Ok(x);

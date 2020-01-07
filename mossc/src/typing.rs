@@ -69,7 +69,8 @@ impl TypeTable {
 
 #[derive(Debug)]
 pub enum VariableKind {
-    Global, Local(usize), Argument(usize), FnSelf
+    Global, Local(usize), Context(usize),
+    Argument(usize), FnSelf
 }
 
 pub struct VariableInfo {
@@ -86,9 +87,37 @@ impl VariableInfo {
 
 pub struct SymbolTableNode {
     pub context: Option<usize>,
-    pub variables: HashMap<String,VariableInfo>,
-    pub local_count_max: usize,
-    pub local_count: usize
+    pub variables: Vec<(String,VariableInfo)>,
+    pub local_count: usize,
+    pub context_count: usize
+}
+
+impl SymbolTableNode {
+    pub fn count_context(&self) -> usize {
+        self.context_count
+    }
+    pub fn get(&self, id: &str) -> Option<&VariableInfo> {
+        for (s,info) in &self.variables {
+            if s==id {return Some(info);}
+        }
+        return None;
+    }
+    pub fn get_index(&self, id: &str) -> Option<usize> {
+        for (index,(s,_)) in self.variables.iter().enumerate() {
+            if s==id {return Some(index);}
+        }
+        return None;
+    }
+    pub fn contains(&self, id: &str) -> bool {
+        return self.get(id).is_some();
+    }
+    pub fn push_context(&mut self, id: &str, typ: Type) {
+        self.variables.push((id.into(),VariableInfo{
+            mutable: true, ty: typ,
+            kind: VariableKind::Context(self.context_count),
+        }));
+        self.context_count +=1;
+    }
 }
 
 pub struct SymbolTable {
@@ -98,14 +127,12 @@ pub struct SymbolTable {
 
 impl SymbolTable {
     pub fn new(tab: &TypeTable) -> Self {
-        let mut variables: HashMap<String,VariableInfo> = HashMap::new();
         let type_of_print = Type::Fn(Rc::new(FnType{
             argc_min: 0, argc_max: VARIADIC,
             arg_self: Type::Atomic(tab.type_unit.clone()),
             arg: vec![Type::Atomic(tab.type_object.clone())],
             ret: Type::Atomic(tab.type_unit.clone())
         }));
-        variables.insert("print".into(),VariableInfo::global(type_of_print));
 
         let type_var: Rc<str> = Rc::from("T");
         let type_of_len = Type::Fn(Rc::new(FnType{
@@ -118,7 +145,6 @@ impl SymbolTable {
             ret: Type::Atomic(tab.type_int.clone())
         }));
         let type_of_len = Type::poly1(type_var,type_of_len);
-        variables.insert("len".into(),VariableInfo::global(type_of_len));
 
         let type_var: Rc<str> = Rc::from("T");
         let type_of_str = Type::Fn(Rc::new(FnType{
@@ -128,7 +154,6 @@ impl SymbolTable {
             ret: Type::Atomic(tab.type_string.clone())
         }));
         let type_of_str = Type::poly1(type_var,type_of_str);
-        variables.insert("str".into(),VariableInfo::global(type_of_str));
         
         let type_var: Rc<str> = Rc::from("T");
         let type_of_list_push = Type::Fn(Rc::new(FnType{
@@ -144,7 +169,6 @@ impl SymbolTable {
             ret: Type::Atomic(tab.type_unit.clone())
         }));
         let type_of_list_push = Type::poly1(type_var,type_of_list_push);
-        variables.insert("list_push".into(),VariableInfo::global(type_of_list_push));
 
         let type_of_list = Type::Fn(Rc::new(FnType{
             argc_min: 1, argc_max: 1,
@@ -160,7 +184,6 @@ impl SymbolTable {
                 Type::Atomic(tab.type_int.clone())
             ]))
         }));
-        variables.insert("list".into(),VariableInfo::global(type_of_list));
 
         let type_of_iter = Type::Fn(Rc::new(FnType{
             argc_min: 0, argc_max: VARIADIC,
@@ -168,38 +191,75 @@ impl SymbolTable {
             arg: vec![Type::Atomic(tab.type_object.clone())],
             ret: Type::Atomic(tab.type_object.clone())
         }));
-        variables.insert("iter".into(),VariableInfo::global(type_of_iter));
+
+        let variables: Vec<(String,VariableInfo)> = vec![
+            ("print".into(),VariableInfo::global(type_of_print)),
+            ("len".into(),VariableInfo::global(type_of_len)),
+            ("str".into(),VariableInfo::global(type_of_str)),
+            ("list_push".into(),VariableInfo::global(type_of_list_push)),
+            ("list".into(),VariableInfo::global(type_of_list)),
+            ("iter".into(),VariableInfo::global(type_of_iter))
+        ];
 
         let node = SymbolTableNode{
             context: None, variables,
-            local_count: 0, local_count_max: 0
+            local_count: 0, context_count: 0
         };
         let table = SymbolTable{
             index: 0, list: vec![node]
         };
         return table;
     }
-    pub fn get(&self, key: &str) -> Option<&VariableInfo> {
-        let mut node = &self.list[self.index];
-        loop{
-            if let Some(value) = node.variables.get(key) {
-                return Some(value);
-            }else if let Some(context) = node.context {
-                node = &self.list[context];
+
+    fn get_rec(&mut self, index: usize, key: &str) -> Option<(usize,usize)> {
+        let node = &mut self.list[index];
+        if let Some(i) = node.get_index(key) {
+            return Some((index,i));
+        }else if let Some(context) = node.context {
+            if let Some(t) = self.get_rec(context,key) {
+                let info = &self.list[t.0].variables[t.1].1;
+                if let VariableKind::Global = info.kind {
+                    return Some(t);
+                }
+                let typ = info.ty.clone();
+                let node = &mut self.list[index];
+                node.push_context(key,typ);
+                return Some((index,node.variables.len()-1));
             }else{
                 return None;
             }
+        }else{
+            return None;
         }
     }
-    pub fn local_count_max(&self) -> usize {
+    
+    pub fn get(&mut self, key: &str) -> Option<&VariableInfo> {
         let index = self.index;
-        return self.list[index].local_count_max;
+        return match self.get_rec(index,key) {
+            Some(t) => Some(&self.list[t.0].variables[t.1].1),
+            None => None
+        };
+    }
+    pub fn node(&self) -> &SymbolTableNode {
+        &self.list[self.index]
+    }
+    pub fn context_node(&self) -> Option<&SymbolTableNode> {
+        let node = &self.list[self.index];
+        if let Some(context) = node.context {
+            return Some(&self.list[context]);
+        }else{
+            return None;
+        }
+    }
+    pub fn local_count(&self) -> usize {
+        let index = self.index;
+        return self.list[index].local_count;
     }
     fn print(&self){
         println!("index: {}",self.index);
         for (i,x) in self.list.iter().enumerate() {
             print!("[{}] ",i);
-            for id in x.variables.keys() {
+            for (id,_) in &x.variables {
                 print!("{}, ",id);
             }
             println!();
@@ -212,25 +272,22 @@ impl SymbolTable {
     ) {
         let index = self.index;
         let node = &mut self.list[index];
-        if node.variables.contains_key(&id) {
+        if node.contains(&id) {
             panic!();
         }
         let kind = if global {
             VariableKind::Global
         }else{
             node.local_count+=1;
-            if node.local_count > node.local_count_max {
-                node.local_count_max = node.local_count;
-            }
             VariableKind::Local(node.local_count-1)
         };
-        node.variables.insert(id,VariableInfo{
+        node.variables.push((id,VariableInfo{
             mutable, ty: typ, kind
-        });
+        }));
     }
 }
 
-const VARIADIC: usize = ::std::usize::MAX;
+const VARIADIC: usize = std::usize::MAX;
 
 pub struct FnType {
     pub argc_min: usize,
@@ -679,15 +736,21 @@ fn type_from_signature(&mut self, env: &Env, t: &AST)
         }
     }else if t.value == Symbol::Fn {
         let a = t.argv();
-        let n = a.len();
-        let mut arg: Vec<Type> = Vec::with_capacity(n);
-        for x in &a[..n-1] {
-            let ty = self.type_from_signature(env,x)?;
-            arg.push(ty);
-        }
-        let ret = self.type_from_signature(env,&a[n-1])?;
+        let arg = if a[0].value == Symbol::List {
+            let list = a[0].argv();
+            let mut arg: Vec<Type> = Vec::with_capacity(list.len());
+            for x in list {
+                let ty = self.type_from_signature(env,x)?;
+                arg.push(ty);
+            }
+            arg
+        }else{
+            vec![self.type_from_signature(env,&a[0])?]
+        };
+        let n = arg.len();
+        let ret = self.type_from_signature(env,&a[1])?;
         return Ok(Type::Fn(Rc::new(FnType {
-            argc_min: n-1, argc_max: n-1,
+            argc_min: n, argc_max: n,
             arg, ret, arg_self: Type::Atomic(self.tab.type_unit.clone())
         })));
     }else if t.value == Symbol::Unit {
@@ -837,6 +900,19 @@ fn type_check_logical_operator(&mut self, env: &Env, t: &AST)
     return Ok(ty_bool);
 }
 
+fn type_check_not(&mut self, env: &Env, t: &AST)
+-> Result<Type,SemanticError>
+{
+    let a = t.argv();
+    let typ = self.type_check_node(env,&a[0])?;
+    let typ_bool = Type::Atomic(self.tab.type_bool.clone());
+    match self.unify(env,&typ,&typ_bool) {
+        Ok(()) => {},
+        Err(err) => return Err(type_error(t.line,t.col,err))
+    }
+    return Ok(typ_bool);
+}
+
 fn type_check_if_expression(&mut self, env: &Env, t: &AST)
 -> Result<Type,SemanticError>
 {
@@ -903,7 +979,7 @@ fn type_check_assignment(&mut self, env: &Env, t: &AST)
 
     let index = self.symbol_table.index;
     let node = &mut self.symbol_table.list[index];
-    if let Some(variable_info) = node.variables.get(&id) {
+    if let Some(variable_info) = node.get(&id) {
         if !variable_info.mutable {
             return Err(error(t.line,t.col,
                 format!("variable '{}' is immutable.",id)
@@ -1086,6 +1162,19 @@ fn instantiate_poly_type(&self, poly: &PolyType) -> Type {
     self.instantiate_rec(&poly.scheme,&mapping)
 }
 
+fn fn_type_from_app(&mut self, t: &AST, argc: usize) -> (Type,Type) {
+    let args: Vec<Type> = (0..argc)
+        .map(|_| self.new_uniq_anonymous_type_var(t)).collect();
+    let ret = self.new_uniq_anonymous_type_var(t);
+    let typ = Type::Fn(Rc::new(FnType{
+        argc_min: argc, argc_max: argc,
+        arg: args,
+        arg_self: Type::Atomic(self.tab.type_unit.clone()),
+        ret: ret.clone() 
+    }));
+    return (typ,ret);
+}
+
 fn type_check_application(&mut self, env: &Env, t: &AST)
 -> Result<Type,SemanticError>
 {
@@ -1108,12 +1197,12 @@ fn type_check_application(&mut self, env: &Env, t: &AST)
             ));
         }
         for i in 0..argc {
-            let ty = self.type_check_node(&env,&argv[i])?;
+            let ty = self.type_check_node(env,&argv[i])?;
             let j = if i<sig.arg.len() {i} else {sig.arg.len()-1};
             if sig.arg[j].is_atomic(&self.tab.type_object) {
                 continue;
             }
-            match self.unify(&env,&sig.arg[j],&ty) {
+            match self.unify(env,&sig.arg[j],&ty) {
                 Ok(()) => {},
                 Err(text) => {
                     return Err(type_error(t.line,t.col,
@@ -1125,10 +1214,16 @@ fn type_check_application(&mut self, env: &Env, t: &AST)
         return Ok(sig.ret.clone());
     }else if sig.is_atomic(&self.tab.type_object) {
         for i in 0..argc {
-            let _ty = self.type_check_node(&env,&argv[i])?;        
+            let _ty = self.type_check_node(env,&argv[i])?;        
         }
         return Ok(Type::Atomic(self.tab.type_object.clone()));
-    };
+    }else if let Type::Var(tv) = sig {
+        let (typ,ret) = self.fn_type_from_app(t,argc);
+        return match self.unify_var(env,&tv,&typ) {
+            Ok(()) => Ok(ret),
+            Err(err) => Err(type_error(t.line,t.col,err))
+        };
+    }
     return Err(type_error(t.line,t.col,
         format!("cannot apply a value of type {}.",fn_type)
     ));
@@ -1155,7 +1250,7 @@ fn type_check_function(&mut self, env_rec: &Env, t: &AST)
         _ => unreachable!()
     };
 
-    let mut variables: HashMap<String,VariableInfo> = HashMap::new();
+    let mut variables: Vec<(String,VariableInfo)> = Vec::new();
 
     let (env,sig) = if let Some(type_variables) = &header.type_variables {
         let sig = self.poly_sig(type_variables);
@@ -1171,10 +1266,10 @@ fn type_check_function(&mut self, env_rec: &Env, t: &AST)
     for i in 0..argv.len() {
         let ty = self.type_from_signature(&env,&argv[i].ty)?;
         arg.push(ty.clone());
-        variables.insert(argv[i].id.clone(),VariableInfo{
+        variables.push((argv[i].id.clone(),VariableInfo{
             mutable: false, ty,
             kind: VariableKind::Argument(i+1)
-        });
+        }));
     }
 
     let mut ftype = Type::Fn(Rc::new(FnType{
@@ -1187,10 +1282,10 @@ fn type_check_function(&mut self, env_rec: &Env, t: &AST)
         // pass
     }else{
         if let Some(ref id) = header.id {
-            variables.insert(id.clone(),VariableInfo{
+            variables.push((id.clone(),VariableInfo{
                 mutable: false, ty: ftype.clone(),
                 kind: VariableKind::FnSelf
-            });
+            }));
         }
     };
 
@@ -1199,7 +1294,7 @@ fn type_check_function(&mut self, env_rec: &Env, t: &AST)
     self.symbol_table.list.push(SymbolTableNode{
         variables,
         context: Some(context),
-        local_count: 0, local_count_max: 0
+        local_count: 0, context_count: 0
     });
 
     let body = &t.argv()[0];
@@ -1379,6 +1474,9 @@ fn type_check_node_plain(&mut self, env: &Env, t: &AST)
         },
         Symbol::And | Symbol::Or => {
             return self.type_check_logical_operator(env,t);
+        },
+        Symbol::Not => {
+            return self.type_check_not(env,t);
         },
         Symbol::Cond => {
             return self.type_check_if_expression(env,t);

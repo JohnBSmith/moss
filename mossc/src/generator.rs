@@ -176,6 +176,10 @@ fn compile_identifier(&mut self, bv: &mut Vec<u32>, t: &AST, id: &str) {
                 push_bc(bv,bc::LOAD_ARG,t.line,t.col);
                 push_u32(bv,index as u32);
             },
+            VariableKind::Context(index) => {
+                push_bc(bv,bc::LOAD_CONTEXT,t.line,t.col);
+                push_u32(bv,index as u32);
+            },
             VariableKind::FnSelf => {
                 push_bc(bv,bc::FNSELF,t.line,t.col);
             }
@@ -259,6 +263,10 @@ fn store(&mut self, bv: &mut Vec<u32>, t: &AST, key: &str) {
                 push_bc(bv,bc::STORE_ARG,t.line,t.col);
                 push_u32(bv,index as u32);
             },
+            VariableKind::Context(index) => {
+                push_bc(bv,bc::STORE_CONTEXT,t.line,t.col);
+                push_u32(bv,index as u32);
+            },
             VariableKind::FnSelf => {
                 panic!();
             }
@@ -296,6 +304,50 @@ fn compile_list_literal(&mut self, bv: &mut Vec<u32>, t: &AST) {
     push_u32(bv,a.len() as u32);
 }
 
+fn closure(&mut self, bv: &mut Vec<u32>, t: &AST) {
+    let symbol_table_node = self.symbol_table.node();
+    let context_node = self.symbol_table.context_node();
+    let context = match context_node {
+        Some(ref context) => context,
+        None => unreachable!()
+    };
+    for (id,info) in &symbol_table_node.variables {
+        if let VariableKind::Context(_) = info.kind {
+            if let Some(info) = context.get(id) {
+                match info.kind {
+                    VariableKind::Local(index) => {
+                        push_bc(bv,bc::LOAD_LOCAL,t.line,t.col);
+                        push_u32(bv,index as u32);
+                    },
+                    VariableKind::Argument(index) => {
+                        push_bc(bv,bc::LOAD_ARG,t.line,t.col);
+                        push_u32(bv,index as u32);
+                    },
+                    VariableKind::Context(index) => {
+                        push_bc(bv,bc::LOAD_CONTEXT,t.line,t.col);
+                        push_u32(bv,index as u32);
+                    },
+                    VariableKind::FnSelf => {
+                        push_bc(bv,bc::FNSELF,t.line,t.col);
+                    },
+                    VariableKind::Global => {
+                        // rare case:
+                        // fn|| global k; fn*|| k=0 end end
+                        let index = self.pool.get_index(&id);
+                        push_bc(bv,bc::LOAD,t.line,t.col);
+                        push_u32(bv,index as u32);
+                    }
+                }
+            }else{
+                println!("Error in closure: id '{}' not in context.",id);
+                unreachable!();
+            }
+        }
+    }
+    push_bc(bv,bc::LIST,t.line,t.col);
+    push_u32(bv,symbol_table_node.count_context() as u32);
+}
+
 fn compile_fn(&mut self, bv: &mut Vec<u32>, t: &AST) {
     let header = match t.info {
         Info::FnHeader(ref value) => value, _ => unreachable!()
@@ -312,7 +364,7 @@ fn compile_fn(&mut self, bv: &mut Vec<u32>, t: &AST) {
 
     // Move self.fn_indices beside to allow nested functions.
     let fn_indices = replace(&mut self.fn_indices,Vec::new());
-    // let jmp_stack = replace(&mut self.jmp_stack,Vec::new());
+    let jmp_stack = replace(&mut self.jmp_stack,Vec::new());
 
     // Every function has its own table of variables.
     let stab_index = self.symbol_table.index;
@@ -323,7 +375,7 @@ fn compile_fn(&mut self, bv: &mut Vec<u32>, t: &AST) {
     // Compile the function body.
     self.compile_node(&mut bv2,body);
 
-    let var_count = self.symbol_table.local_count_max();
+    let var_count = self.symbol_table.local_count();
 
     // Shift the start adresses of nested functions
     // by the now known offset and turn them into
@@ -334,16 +386,20 @@ fn compile_fn(&mut self, bv: &mut Vec<u32>, t: &AST) {
 
     // Restore self.fn_indices.
     replace(&mut self.fn_indices,fn_indices);
-    // self.jmp_stack = jmp_stack;
+    self.jmp_stack = jmp_stack;
 
     // Add an additional return statement that will be reached
     // in case the control flow reaches the end of the function.
     push_bc(&mut bv2, bc::RET, t.line, t.col);
 
-    // Closure bindings, unimplemented.
-    push_bc(bv, bc::NULL, t.line, t.col);
+    // Closure bindings.
+    if self.symbol_table.node().count_context()>0 {
+        self.closure(bv,t);
+    }else{
+        push_bc(bv, bc::NULL, t.line, t.col);
+    }
 
-    // Restore.
+    // Restore symbol table.
     self.symbol_table.index = stab_index;
 
     // The name of the function.
@@ -630,6 +686,9 @@ fn compile_node(&mut self, bv: &mut Vec<u32>, t: &AST) {
         },
         Symbol::Ne => {
             self.compile_binary_operator(bv,t,bc::NE);
+        },
+        Symbol::Not => {
+            self.compile_operator(bv,t,bc::NOT);
         },
         Symbol::And => {
             self.compile_operator_and(bv,t);
