@@ -101,6 +101,9 @@ impl TypeTable {
             arg, ret
         }))
     }
+    fn list(&self, el: Type) -> Type {
+        Type::App(Rc::new(vec![self.type_list(),el]))
+    }
 }
 
 #[derive(Debug)]
@@ -170,10 +173,9 @@ impl SymbolTable {
 
         let type_var: Rc<str> = Rc::from("T");
         let type_of_len = tab.fn_type(1,1,
-            vec![Type::App(Rc::new(vec![
-                tab.type_list(),
+            vec![Type::app(vec![tab.type_list(),
                 Type::Atom(type_var.clone())
-            ]))],
+            ])],
             tab.type_int()
         );
         let type_of_len = Type::poly1(type_var,type_of_len);
@@ -186,16 +188,14 @@ impl SymbolTable {
         let type_of_str = Type::poly1(type_var,type_of_str);
 
         let type_of_list = tab.fn_type(1,1,
-            vec![Type::App(Rc::new(vec![
-                tab.type_range(),
+            vec![Type::app(vec![tab.type_range(),
                 tab.type_int(),
                 tab.type_int(),
                 tab.type_unit()
-            ]))],
-            Type::App(Rc::new(vec![
-                tab.type_list(),
+            ])],
+            Type::app(vec![tab.type_list(),
                 tab.type_int()
-            ]))
+            ])
         );
 
         let type_of_iter = tab.fn_type(1,1,
@@ -336,19 +336,20 @@ impl Type {
     fn is_app(&self, id: &Rc<str>) -> Option<&[Type]> {
         if let Type::App(a) = self {
             if let Type::Atom(f) = &a[0] {
-                if Rc::ptr_eq(f,id) {
-                    return Some(&a[1..]);
-                }
+                if Rc::ptr_eq(f,id) {return Some(&a[1..]);}
             }
         }
         return None;
     }
-    fn list(tab: &TypeTable, el: Type) -> Type {
-        return Type::App(Rc::new(vec![tab.type_list(),el]));
+    pub fn app(a: Vec<Type>) -> Type {
+        Type::App(Rc::new(a))
     }
     fn poly1(type_var: Rc<str>, scheme: Type) -> Type {
         Type::Poly(Rc::new(PolyType{
-            variables: Rc::new(vec![TypeVariable{id: type_var.clone(), class: Type::None}]),
+            variables: Rc::new(vec![TypeVariable{
+                id: type_var.clone(),
+                class: Type::None
+            }]),
             scheme
         }))
     }
@@ -615,8 +616,8 @@ impl Substitution {
                 }
             },
             Type::App(app) => {
-                Type::App(Rc::new(app.iter().map(|x|
-                    self.apply(x)).collect::<Vec<Type>>()))
+                Type::app(app.iter().map(|x|
+                    self.apply(x)).collect::<Vec<Type>>())
             },
             Type::Fn(typ) => {
                 Type::Fn(Rc::new(FnType{
@@ -728,7 +729,7 @@ fn type_from_signature(&mut self, env: &Env, t: &AST)
         if let Info::Id(id) = &a[0].info {
             if id=="List" {
                 let parameter = self.type_from_signature(env,&a[1])?;
-                return Ok(Type::list(&self.tab,parameter));
+                return Ok(self.tab.list(parameter));
             }else if id=="Tuple" {
                 let mut v: Vec<Type> = Vec::with_capacity(a.len());
                 v.push(Type::Atom(self.tab.type_tuple.clone()));
@@ -736,7 +737,7 @@ fn type_from_signature(&mut self, env: &Env, t: &AST)
                     let parameter = self.type_from_signature(env,x)?;
                     v.push(parameter);
                 }
-                return Ok(Type::App(Rc::new(v)));
+                return Ok(Type::app(v));
             }else{
                 panic!();
             }
@@ -805,7 +806,7 @@ fn type_check_range(&mut self, env: &Env, t: &AST)
     let tb = self.type_check_node(env,&a[1])?;
     let td = self.type_check_node(env,&a[2])?;
     let range = self.tab.type_range();
-    return Ok(Type::App(Rc::new(vec![range,ta,tb,td])));
+    return Ok(Type::app(vec![range,ta,tb,td]));
 }
 
 fn index_homogeneous(&mut self, t: &AST, ty_index: &Type, ty: Type)
@@ -820,7 +821,7 @@ fn index_homogeneous(&mut self, t: &AST, ty_index: &Type, ty: Type)
                 if is_atomic_type(&a[1],&tab.type_int) ||
                    is_atomic_type(&a[1],&tab.type_unit)
                 {
-                    return Ok(Type::list(tab,ty));
+                    return Ok(tab.list(ty));
                 }
             }
         }
@@ -1024,10 +1025,10 @@ fn type_check_list(&mut self, env: &Env, t: &AST)
 {
     let a = t.argv();
     if a.is_empty() {
-        return Ok(Type::App(Rc::new(vec![
+        return Ok(Type::app(vec![
             self.tab.type_list(),
             self.new_uniq_anonymous_type_var(t)
-        ])));
+        ]));
     }
     let ty0 = self.type_check_node(env,&a[0])?;
     for (k,x) in (&a[1..]).iter().enumerate() {
@@ -1039,7 +1040,7 @@ fn type_check_list(&mut self, env: &Env, t: &AST)
             ))
         }
     }
-    return Ok(Type::list(&self.tab,ty0));
+    return Ok(self.tab.list(ty0));
 }
 
 fn unify_fn(&mut self, env: &Env, f1: &FnType, f2: &FnType)
@@ -1142,7 +1143,7 @@ fn instantiate_rec(&self, typ: &Type,
             let a: Vec<Type> = app.iter()
                 .map(|x| self.instantiate_rec(x,mapping))
                 .collect();
-            Type::App(Rc::new(a))
+            Type::app(a)
         },
         Type::Fn(typ) => {
             let a: Vec<Type> = typ.arg.iter()
