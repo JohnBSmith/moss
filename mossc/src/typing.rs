@@ -55,15 +55,51 @@ impl TypeTable {
     pub fn new() -> Rc<Self> {
         Rc::new(TypeTable {
             type_unit: Rc::from("Unit"),
+            type_bool: Rc::from("Bool"),
             type_int: Rc::from("Int"),
             type_float: Rc::from("Float"),
-            type_bool: Rc::from("Bool"),
             type_string: Rc::from("String"),
             type_object: Rc::from("Object"),
             type_list: Rc::from("List"),
             type_tuple: Rc::from("Tuple"),
             type_range: Rc::from("Range")
         })
+    }
+    pub fn type_unit(&self) -> Type {
+        Type::Atom(self.type_unit.clone())
+    }
+    pub fn type_bool(&self) -> Type {
+        Type::Atom(self.type_bool.clone())
+    }
+    pub fn type_int(&self) -> Type {
+        Type::Atom(self.type_int.clone())
+    }
+    pub fn type_float(&self) -> Type {
+        Type::Atom(self.type_float.clone())
+    }
+    pub fn type_string(&self) -> Type {
+        Type::Atom(self.type_string.clone())
+    }
+    pub fn type_object(&self) -> Type {
+        Type::Atom(self.type_object.clone())
+    }
+    pub fn type_list(&self) -> Type {
+        Type::Atom(self.type_list.clone())
+    }
+    pub fn type_tuple(&self) -> Type {
+        Type::Atom(self.type_tuple.clone())
+    }
+    pub fn type_range(&self) -> Type {
+        Type::Atom(self.type_range.clone())
+    }
+    pub fn fn_type(&self, argc_min: usize, argc_max: usize,
+        arg: Vec<Type>, ret: Type
+    ) -> Type {
+        Type::Fn(Rc::new(FnType{
+            argc_min, argc_max,
+            arg_self: self.type_unit(),
+            arg, ret
+        }))
     }
 }
 
@@ -127,76 +163,50 @@ pub struct SymbolTable {
 
 impl SymbolTable {
     pub fn new(tab: &TypeTable) -> Self {
-        let type_of_print = Type::Fn(Rc::new(FnType{
-            argc_min: 0, argc_max: VARIADIC,
-            arg_self: Type::Atomic(tab.type_unit.clone()),
-            arg: vec![Type::Atomic(tab.type_object.clone())],
-            ret: Type::Atomic(tab.type_unit.clone())
-        }));
+        let type_of_print = tab.fn_type(0,VARIADIC,
+            vec![tab.type_object()],
+            tab.type_unit()
+        );
 
         let type_var: Rc<str> = Rc::from("T");
-        let type_of_len = Type::Fn(Rc::new(FnType{
-            argc_min: 1, argc_max: 1,
-            arg_self: Type::Atomic(tab.type_unit.clone()),
-            arg: vec![Type::App(Rc::new(vec![
-                Type::Atomic(tab.type_list.clone()),
-                Type::Atomic(type_var.clone())
+        let type_of_len = tab.fn_type(1,1,
+            vec![Type::App(Rc::new(vec![
+                tab.type_list(),
+                Type::Atom(type_var.clone())
             ]))],
-            ret: Type::Atomic(tab.type_int.clone())
-        }));
+            tab.type_int()
+        );
         let type_of_len = Type::poly1(type_var,type_of_len);
 
         let type_var: Rc<str> = Rc::from("T");
-        let type_of_str = Type::Fn(Rc::new(FnType{
-            argc_min: 1, argc_max: 1,
-            arg_self: Type::Atomic(tab.type_unit.clone()),
-            arg: vec![Type::Atomic(type_var.clone())],
-            ret: Type::Atomic(tab.type_string.clone())
-        }));
+        let type_of_str = tab.fn_type(1,1,
+            vec![Type::Atom(type_var.clone())],
+            tab.type_string()
+        );
         let type_of_str = Type::poly1(type_var,type_of_str);
-        
-        let type_var: Rc<str> = Rc::from("T");
-        let type_of_list_push = Type::Fn(Rc::new(FnType{
-            argc_min: 2, argc_max: 2,
-            arg_self: Type::Atomic(tab.type_unit.clone()),
-            arg: vec![
-                Type::App(Rc::new(vec![
-                    Type::Atomic(tab.type_list.clone()),
-                    Type::Atomic(type_var.clone())
-                ])),
-                Type::Atomic(type_var.clone())
-            ],
-            ret: Type::Atomic(tab.type_unit.clone())
-        }));
-        let type_of_list_push = Type::poly1(type_var,type_of_list_push);
 
-        let type_of_list = Type::Fn(Rc::new(FnType{
-            argc_min: 1, argc_max: 1,
-            arg_self: Type::Atomic(tab.type_unit.clone()),
-            arg: vec![Type::App(Rc::new(vec![
-                Type::Atomic(tab.type_range.clone()),
-                Type::Atomic(tab.type_int.clone()),
-                Type::Atomic(tab.type_int.clone()),
-                Type::Atomic(tab.type_unit.clone())
+        let type_of_list = tab.fn_type(1,1,
+            vec![Type::App(Rc::new(vec![
+                tab.type_range(),
+                tab.type_int(),
+                tab.type_int(),
+                tab.type_unit()
             ]))],
-            ret: Type::App(Rc::new(vec![
-                Type::Atomic(tab.type_list.clone()),
-                Type::Atomic(tab.type_int.clone())
+            Type::App(Rc::new(vec![
+                tab.type_list(),
+                tab.type_int()
             ]))
-        }));
+        );
 
-        let type_of_iter = Type::Fn(Rc::new(FnType{
-            argc_min: 0, argc_max: VARIADIC,
-            arg_self: Type::Atomic(tab.type_unit.clone()),
-            arg: vec![Type::Atomic(tab.type_object.clone())],
-            ret: Type::Atomic(tab.type_object.clone())
-        }));
+        let type_of_iter = tab.fn_type(1,1,
+            vec![tab.type_object()],
+            tab.type_object()
+        );
 
         let variables: Vec<(String,VariableInfo)> = vec![
             ("print".into(),VariableInfo::global(type_of_print)),
             ("len".into(),VariableInfo::global(type_of_len)),
             ("str".into(),VariableInfo::global(type_of_str)),
-            ("list_push".into(),VariableInfo::global(type_of_list_push)),
             ("list".into(),VariableInfo::global(type_of_list)),
             ("iter".into(),VariableInfo::global(type_of_iter))
         ];
@@ -317,7 +327,7 @@ impl PolyType {
 
 #[derive(Clone)]
 pub enum Type {
-    None, Atomic(Rc<str>), Var(Rc<str>),
+    None, Atom(Rc<str>), Var(Rc<str>),
     App(Rc<Vec<Type>>), Fn(Rc<FnType>),
     Poly(Rc<PolyType>)
 }
@@ -325,7 +335,7 @@ pub enum Type {
 impl Type {
     fn is_app(&self, id: &Rc<str>) -> Option<&[Type]> {
         if let Type::App(a) = self {
-            if let Type::Atomic(f) = &a[0] {
+            if let Type::Atom(f) = &a[0] {
                 if Rc::ptr_eq(f,id) {
                     return Some(&a[1..]);
                 }
@@ -333,9 +343,8 @@ impl Type {
         }
         return None;
     }
-    fn list(env: &TypeTable, el: Type) -> Type {
-        let list_type = Type::Atomic(env.type_list.clone());
-        return Type::App(Rc::new(vec![list_type,el]));
+    fn list(tab: &TypeTable, el: Type) -> Type {
+        return Type::App(Rc::new(vec![tab.type_list(),el]));
     }
     fn poly1(type_var: Rc<str>, scheme: Type) -> Type {
         Type::Poly(Rc::new(PolyType{
@@ -344,7 +353,7 @@ impl Type {
         }))
     }
     fn is_atomic(&self, typ_id: &Rc<str>) -> bool {
-        if let Type::Atomic(typ) = self {
+        if let Type::Atom(typ) = self {
             Rc::ptr_eq(typ,typ_id)
         }else{
             false
@@ -352,7 +361,7 @@ impl Type {
     }
     fn contains_var(&self) -> bool {
         match self {
-            Type::None | Type::Atomic(_) => false,
+            Type::None | Type::Atom(_) => false,
             Type::Var(_) => true,
             Type::App(app) => app.iter().any(|x| x.contains_var()),
             Type::Fn(typ) =>
@@ -379,7 +388,7 @@ impl std::fmt::Display for PolyType {
 impl std::fmt::Display for Type {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            Type::Atomic(s) => write!(f,"{}",s),
+            Type::Atom(s) => write!(f,"{}",s),
             Type::Var(s) => write!(f,"{}",s),
             Type::App(v) => {
                 write!(f,"{}[",v[0])?;
@@ -514,9 +523,9 @@ fn compare_fn_types(f1: &FnType, f2: &FnType) -> TypeCmp {
 fn compare_types(t1: &Type, t2: &Type) -> TypeCmp {
     match t1 {
         Type::None => TypeCmp::None,
-        Type::Atomic(t1) => {
+        Type::Atom(t1) => {
             match t2 {
-                Type::Atomic(t2) => TypeCmp::from(t1==t2),
+                Type::Atom(t2) => TypeCmp::from(t1==t2),
                 Type::None => TypeCmp::None,
                 Type::App(_) => TypeCmp::False,
                 Type::Fn(_) => TypeCmp::False,
@@ -526,7 +535,7 @@ fn compare_types(t1: &Type, t2: &Type) -> TypeCmp {
         Type::App(ref p1) => {
             match t2 {
                 Type::None => TypeCmp::None,
-                Type::Atomic(_) => TypeCmp::False,
+                Type::Atom(_) => TypeCmp::False,
                 Type::App(ref p2) => compare_app_types(p1,p2),
                 Type::Fn(_) => TypeCmp::False,
                 _ => panic!()
@@ -557,7 +566,7 @@ fn is_homogeneous(a: &[Type]) -> bool {
 }
 
 fn is_atomic_type(ty: &Type, id: &Rc<str>) -> bool {
-    if let Type::Atomic(ty) = ty {
+    if let Type::Atom(ty) = ty {
         return Rc::ptr_eq(ty,id);
     }
     return false;
@@ -588,8 +597,8 @@ impl Substitution {
     fn apply(&self, typ: &Type) -> Type {
         match typ {
             Type::None => Type::None,
-            Type::Atomic(typ) => {
-                Type::Atomic(typ.clone())
+            Type::Atom(typ) => {
+                Type::Atom(typ.clone())
             },
             Type::Var(tv) => {
                 let id = TypeId(tv.clone());
@@ -597,8 +606,8 @@ impl Substitution {
                     Some(value) => value,
                     None => return Type::Var(id.0)
                 };
-                if let Type::Atomic(typ) = subs {
-                    return Type::Atomic(typ.clone());
+                if let Type::Atom(typ) = subs {
+                    return Type::Atom(typ.clone());
                 }else if subs.contains_var() {
                     return self.apply(subs);
                 }else{
@@ -699,15 +708,15 @@ fn type_from_signature(&mut self, env: &Env, t: &AST)
         return Ok(self.new_uniq_anonymous_type_var(t));
     }else if let Info::Id(id) = &t.info {
         if let Some(ty) = env.get(id) {
-            return Ok(Type::Atomic(ty));
+            return Ok(Type::Atom(ty));
         }
         return Ok(match &id[..] {
-            "Unit" => Type::Atomic(self.tab.type_unit.clone()),
-            "Bool" => Type::Atomic(self.tab.type_bool.clone()),
-            "Int" => Type::Atomic(self.tab.type_int.clone()),
-            "Float" => Type::Atomic(self.tab.type_float.clone()),
-            "String" => Type::Atomic(self.tab.type_string.clone()),
-            "Object" => Type::Atomic(self.tab.type_object.clone()),
+            "Unit" => self.tab.type_unit(),
+            "Bool" => self.tab.type_bool(),
+            "Int" => self.tab.type_int(),
+            "Float" => self.tab.type_float(),
+            "String" => self.tab.type_string(),
+            "Object" => self.tab.type_object(),
             id => {
                 return Err(type_error(t.line,t.col,format!(
                     "Unknown type: {}.", id
@@ -719,10 +728,10 @@ fn type_from_signature(&mut self, env: &Env, t: &AST)
         if let Info::Id(id) = &a[0].info {
             if id=="List" {
                 let parameter = self.type_from_signature(env,&a[1])?;
-                return Ok(Type::App(Rc::new(vec![Type::Atomic(self.tab.type_list.clone()),parameter])));
+                return Ok(Type::list(&self.tab,parameter));
             }else if id=="Tuple" {
                 let mut v: Vec<Type> = Vec::with_capacity(a.len());
-                v.push(Type::Atomic(self.tab.type_tuple.clone()));
+                v.push(Type::Atom(self.tab.type_tuple.clone()));
                 for x in &a[1..] {
                     let parameter = self.type_from_signature(env,x)?;
                     v.push(parameter);
@@ -751,10 +760,10 @@ fn type_from_signature(&mut self, env: &Env, t: &AST)
         let ret = self.type_from_signature(env,&a[1])?;
         return Ok(Type::Fn(Rc::new(FnType {
             argc_min: n, argc_max: n,
-            arg, ret, arg_self: Type::Atomic(self.tab.type_unit.clone())
+            arg, ret, arg_self: self.tab.type_unit()
         })));
     }else if t.value == Symbol::Unit {
-        return Ok(Type::Atomic(self.tab.type_unit.clone()));
+        return Ok(self.tab.type_unit());
     }else{
         unimplemented!("{}",t.value);
     }
@@ -795,7 +804,7 @@ fn type_check_range(&mut self, env: &Env, t: &AST)
     let ta = self.type_check_node(env,&a[0])?;
     let tb = self.type_check_node(env,&a[1])?;
     let td = self.type_check_node(env,&a[2])?;
-    let range = Type::Atomic(self.tab.type_range.clone());
+    let range = self.tab.type_range();
     return Ok(Type::App(Rc::new(vec![range,ta,tb,td])));
 }
 
@@ -865,7 +874,7 @@ fn type_check_comparison(&mut self, env: &Env, t: &AST)
         )));
     }
     return match self.unify(env,&type1,&type2) {
-        Ok(()) => Ok(Type::Atomic(self.tab.type_bool.clone())),
+        Ok(()) => Ok(self.tab.type_bool()),
         Err(err) => Err(type_error(t.line,t.col,err))
     };
 }
@@ -877,7 +886,7 @@ fn type_check_eq(&mut self, env: &Env, t: &AST)
     let type1 = self.type_check_node(env,&a[0])?;
     let type2 = self.type_check_node(env,&a[1])?;
     return match self.unify(env,&type1,&type2) {
-        Ok(()) => Ok(Type::Atomic(self.tab.type_bool.clone())),
+        Ok(()) => Ok(self.tab.type_bool()),
         Err(err) => Err(type_error(t.line,t.col,err))
     };
 }
@@ -888,16 +897,16 @@ fn type_check_logical_operator(&mut self, env: &Env, t: &AST)
     let a = t.argv();
     let type1 = self.type_check_node(env,&a[0])?;
     let type2 = self.type_check_node(env,&a[1])?;
-    let ty_bool = Type::Atomic(self.tab.type_bool.clone());
-    match self.unify(env,&type1,&ty_bool) {
+    let type_bool = self.tab.type_bool();
+    match self.unify(env,&type1,&type_bool) {
         Ok(()) => {},
         Err(err) => return Err(type_error(t.line,t.col,err))
     }
-    match self.unify(env,&type2,&ty_bool) {
+    match self.unify(env,&type2,&type_bool) {
         Ok(()) => {},
         Err(err) => return Err(type_error(t.line,t.col,err))
     }
-    return Ok(ty_bool);
+    return Ok(type_bool);
 }
 
 fn type_check_not(&mut self, env: &Env, t: &AST)
@@ -905,7 +914,7 @@ fn type_check_not(&mut self, env: &Env, t: &AST)
 {
     let a = t.argv();
     let typ = self.type_check_node(env,&a[0])?;
-    let typ_bool = Type::Atomic(self.tab.type_bool.clone());
+    let typ_bool = self.tab.type_bool();
     match self.unify(env,&typ,&typ_bool) {
         Ok(()) => {},
         Err(err) => return Err(type_error(t.line,t.col,err))
@@ -920,8 +929,8 @@ fn type_check_if_expression(&mut self, env: &Env, t: &AST)
     let type0 = self.type_check_node(env,&a[0])?;
     let type1 = self.type_check_node(env,&a[1])?;
     let type2 = self.type_check_node(env,&a[2])?;
-    let ty_bool = Type::Atomic(self.tab.type_bool.clone());
-    match self.unify(env,&type0,&ty_bool) {
+    let type_bool = self.tab.type_bool();
+    match self.unify(env,&type0,&type_bool) {
         Ok(()) => {},
         Err(err) => return Err(type_error(t.line,t.col,err))
     }
@@ -938,7 +947,7 @@ fn type_check_block(&mut self, env: &Env, t: &AST)
     let a = t.argv();
     let n = a.len();
     if n==0 {
-        return Ok(Type::Atomic(self.tab.type_unit.clone()));
+        return Ok(self.tab.type_unit());
     }
     for i in 0..n-1 {
         let _ = self.type_check_node(env,&a[i])?;
@@ -967,7 +976,7 @@ fn type_check_let(&mut self, env: &Env, t: &AST)
     let global = self.global_context;
     self.symbol_table.variable_binding(global,mutable,id,ty_of_id);
 
-    return Ok(Type::Atomic(self.tab.type_unit.clone()));
+    return Ok(self.tab.type_unit());
 }
 
 fn type_check_assignment(&mut self, env: &Env, t: &AST)
@@ -1016,7 +1025,7 @@ fn type_check_list(&mut self, env: &Env, t: &AST)
     let a = t.argv();
     if a.is_empty() {
         return Ok(Type::App(Rc::new(vec![
-            Type::Atomic(self.tab.type_list.clone()),
+            self.tab.type_list(),
             self.new_uniq_anonymous_type_var(t)
         ])));
     }
@@ -1030,10 +1039,7 @@ fn type_check_list(&mut self, env: &Env, t: &AST)
             ))
         }
     }
-    return Ok(Type::App(Rc::new(vec![
-        Type::Atomic(self.tab.type_list.clone()),
-        ty0
-    ])));
+    return Ok(Type::list(&self.tab,ty0));
 }
 
 fn unify_fn(&mut self, env: &Env, f1: &FnType, f2: &FnType)
@@ -1083,8 +1089,8 @@ fn unify(&mut self, env: &Env, t1: &Type, t2: &Type)
         return self.unify_var(env,tv2,t1);
     }
     match t1 {
-        Type::Atomic(t1) => {
-            if let Type::Atomic(t2) = t2 {
+        Type::Atom(t1) => {
+            if let Type::Atom(t2) = t2 {
                 if Rc::ptr_eq(t1,t2) {return Ok(());}
             }
             if let Some(t1) = self.subs.map.get(&TypeId(t1.clone())) {
@@ -1125,10 +1131,10 @@ fn instantiate_rec(&self, typ: &Type,
 ) -> Type {
     match typ {
         Type::None => Type::None,
-        Type::Atomic(typ) => {
+        Type::Atom(typ) => {
             match mapping.get(typ) {
                 Some(id) => Type::Var(id.clone()),
-                None =>  Type::Atomic(typ.clone())
+                None =>  Type::Atom(typ.clone())
             }           
         },
         Type::Var(tv) => Type::Var(tv.clone()),
@@ -1166,12 +1172,7 @@ fn fn_type_from_app(&mut self, t: &AST, argc: usize) -> (Type,Type) {
     let args: Vec<Type> = (0..argc)
         .map(|_| self.new_uniq_anonymous_type_var(t)).collect();
     let ret = self.new_uniq_anonymous_type_var(t);
-    let typ = Type::Fn(Rc::new(FnType{
-        argc_min: argc, argc_max: argc,
-        arg: args,
-        arg_self: Type::Atomic(self.tab.type_unit.clone()),
-        ret: ret.clone() 
-    }));
+    let typ = self.tab.fn_type(argc,argc,args,ret.clone());
     return (typ,ret);
 }
 
@@ -1216,7 +1217,7 @@ fn type_check_application(&mut self, env: &Env, t: &AST)
         for i in 0..argc {
             let _ty = self.type_check_node(env,&argv[i])?;        
         }
-        return Ok(Type::Atomic(self.tab.type_object.clone()));
+        return Ok(self.tab.type_object());
     }else if let Type::Var(tv) = sig {
         let (typ,ret) = self.fn_type_from_app(t,argc);
         return match self.unify_var(env,&tv,&typ) {
@@ -1272,12 +1273,10 @@ fn type_check_function(&mut self, env_rec: &Env, t: &AST)
         }));
     }
 
-    let mut ftype = Type::Fn(Rc::new(FnType{
-        argc_min: header.argv.len(),
-        argc_max: header.argv.len(),
-        arg, ret: ret.clone(),
-        arg_self: Type::Atomic(self.tab.type_unit.clone())
-    }));
+    let argv_len = header.argv.len();
+    let mut ftype = self.tab.fn_type(argv_len,argv_len,
+        arg, ret.clone()
+    );
     if let Type::None = ret {
         // pass
     }else{
@@ -1344,7 +1343,7 @@ fn type_check_return(&mut self, env: &Env, t: &AST)
     if let Some(ty) = self.ret_stack.last() {
         let ty = ty.clone();
         return match self.unify(env,&ty_ret,&ty) {
-            Ok(()) => Ok(Type::Atomic(self.tab.type_unit.clone())),
+            Ok(()) => Ok(self.tab.type_unit()),
             Err(err) => Err(type_error(t.line,t.col,err))
         };
     }else{
@@ -1359,9 +1358,9 @@ fn type_check_if_statement(&mut self, env: &Env, t: &AST)
     let n = a.len();
     let mut i = 0;
     while i+1<n {
-        let ty_cond = self.type_check_node(env,&a[i])?;
-        let ty_bool = Type::Atomic(self.tab.type_bool.clone());
-        match self.unify(env,&ty_cond,&ty_bool) {
+        let type_cond = self.type_check_node(env,&a[i])?;
+        let type_bool = self.tab.type_bool();
+        match self.unify(env,&type_cond,&type_bool) {
             Ok(()) => {},
             Err(err) => {
                 return Err(type_error(t.line,t.col,err));
@@ -1373,23 +1372,23 @@ fn type_check_if_statement(&mut self, env: &Env, t: &AST)
     if n%2 != 0 {
         self.type_check_node(env,&a[n-1])?;
     }
-    return Ok(Type::Atomic(self.tab.type_unit.clone()));
+    return Ok(self.tab.type_unit());
 }
 
 fn type_check_while_statement(&mut self, env: &Env, t: &AST)
 -> Result<Type,SemanticError>
 {
     let a = t.argv();
-    let ty_cond = self.type_check_node(env,&a[0])?;
-    let ty_bool = Type::Atomic(self.tab.type_bool.clone());
-    match self.unify(env,&ty_cond,&ty_bool) {
+    let type_cond = self.type_check_node(env,&a[0])?;
+    let type_bool = self.tab.type_bool();
+    match self.unify(env,&type_cond,&type_bool) {
         Ok(()) => {},
         Err(err) => {
             return Err(type_error(t.line,t.col,err));
         }
     }
     self.type_check_node(env,&a[1])?;
-    return Ok(Type::Atomic(self.tab.type_unit.clone()));
+    return Ok(self.tab.type_unit());
 }
 
 fn iter_element(&self, iterable: &Type) -> Type {
@@ -1419,7 +1418,7 @@ fn type_check_for_statement(&mut self, env: &Env, t: &AST)
     let global = self.global_context;
     self.symbol_table.variable_binding(global,false,id,typ);
     self.type_check_node(env,&a[2])?;
-    return Ok(Type::Atomic(self.tab.type_unit.clone()));
+    return Ok(self.tab.type_unit());
 }
 
 fn type_check_dot(&mut self, env: &Env, t: &AST)
@@ -1428,7 +1427,7 @@ fn type_check_dot(&mut self, env: &Env, t: &AST)
     let a = t.argv();
     let typ = self.type_check_node(env,&a[0])?;
     if typ.is_atomic(&self.tab.type_object) {
-        return Ok(Type::Atomic(self.tab.type_object.clone()));
+        return Ok(self.tab.type_object());
     }else{
         let slot = match a[1].info {Info::String(ref s)=>s, _ => panic!()};
         return Err(type_error(t.line,t.col,format!(
@@ -1451,14 +1450,14 @@ fn type_check_node_plain(&mut self, env: &Env, t: &AST)
     match t.value {
         Symbol::Item => {
             return match t.info {
-                Info::Int(_) => Ok(Type::Atomic(self.tab.type_int.clone())),
-                Info::String(_) => Ok(Type::Atomic(self.tab.type_string.clone())),
+                Info::Int(_) => Ok(self.tab.type_int()),
+                Info::String(_) => Ok(self.tab.type_string()),
                 Info::Id(ref id) => self.type_check_variable(t,id),
                 _ => unimplemented!()
             };
         },
         Symbol::False | Symbol::True => {
-            return Ok(Type::Atomic(self.tab.type_bool.clone()));
+            return Ok(self.tab.type_bool());
         },
         Symbol::Plus | Symbol::Minus | Symbol::Ast | Symbol::Div |
         Symbol::Pow
@@ -1495,7 +1494,7 @@ fn type_check_node_plain(&mut self, env: &Env, t: &AST)
         },
         Symbol::Assignment => {
             self.type_check_assignment(env,t)?;
-            return Ok(Type::Atomic(self.tab.type_unit.clone()));
+            return Ok(self.tab.type_unit());
         },
         Symbol::List => {
             return self.type_check_list(env,t);
@@ -1520,10 +1519,10 @@ fn type_check_node_plain(&mut self, env: &Env, t: &AST)
         },
         Symbol::Statement => {
             self.type_check_node(env,&t.argv()[0])?;
-            return Ok(Type::Atomic(self.tab.type_unit.clone()));
+            return Ok(self.tab.type_unit());
         },
         Symbol::Null => {
-            return Ok(Type::Atomic(self.tab.type_unit.clone()));
+            return Ok(self.tab.type_unit());
         }
         Symbol::As => {
             let a = t.argv();
