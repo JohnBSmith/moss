@@ -991,16 +991,6 @@ fn assignment(&mut self, i: &TokenIterator)
     let left_hand_side = self.expression(i)?;
     let t = i.get();
     if t.value == Symbol::Assignment {
-        /*
-        match left_hand_side.info {
-            Info::Id(_) => {},
-            _ => {
-                return Err(syntax_error(t.line,t.col,
-                    "expected an identifier on the left hand side".into()
-                ));
-            }
-        }
-        */
         i.advance();
         let right_hand_side = self.expression(i)?;
         return Ok(AST::operator(t.line,t.col,Symbol::Assignment,
@@ -1047,7 +1037,15 @@ fn type_variables(&mut self, t0: &Token, i: &TokenIterator)
     let mut a: Vec<Rc<AST>> = Vec::new();
     loop{
         let x = self.type_atom(i)?;
-        a.push(x);
+        let t = i.get();
+        if t.value == Symbol::Colon {
+            i.advance();
+            let sig = self.trait_sig(i)?;
+            a.push(AST::operator(t.line,t.col,
+                Symbol::List,Box::new([x,sig])));
+        }else{
+            a.push(x);
+        }
         let t = i.get();
         if t.value == Symbol::Comma {
             i.advance();
@@ -1385,6 +1383,20 @@ fn type_expression(&mut self, i: &TokenIterator)
 -> Result<Rc<AST>,Error>
 {
     return self.type_fn(i);
+}
+
+fn trait_sig(&mut self, i: &TokenIterator)
+-> Result<Rc<AST>,Error>
+{
+    let t = i.get();
+    if let Item::Id(ref id) = t.item {
+        i.advance();
+        return Ok(AST::node(t.line,t.col,Symbol::Item,
+            Info::Id(id.clone()), None
+        ));
+    }else{
+        panic!();
+    }
 }
 
 // impl Parser

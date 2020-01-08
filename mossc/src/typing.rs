@@ -8,19 +8,19 @@ use parser::{AST, Symbol, Info};
 type Env = Rc<Environment>;
 struct Environment {
     env: Option<Env>,
-    map: HashMap<String,Rc<str>>
+    map: HashMap<String,TypeVariable>
 }
 impl Environment {
     fn from_sig(env: &Env, sig: &[TypeVariable]) -> Env {
-        let mut m: HashMap<String,Rc<str>> = HashMap::new();
+        let mut m: HashMap<String,TypeVariable> = HashMap::new();
         for tv in sig {
-            m.insert((&*tv.id).into(),tv.id.clone());
+            m.insert((&*tv.id).into(),tv.clone());
         }
         return Rc::new(Environment{env: Some(env.clone()), map: m});
     }
-    fn get(&self, id: &String) -> Option<Rc<str>> {
+    fn get(&self, id: &str) -> Option<&TypeVariable> {
         if let Some(value) = self.map.get(id) {
-            return Some(value.clone());
+            return Some(value);
         }else if let Some(env) = &self.env {
             return env.get(id);
         }else{
@@ -29,7 +29,7 @@ impl Environment {
     }
     fn contains(&self, ty0: &Rc<str>) -> bool {
         for ty in self.map.values() {
-            if Rc::ptr_eq(ty0,ty) {return true;}
+            if Rc::ptr_eq(ty0,&ty.id) {return true;}
         }
         if let Some(env) = &self.env {
             return env.contains(ty0);
@@ -103,6 +103,22 @@ impl TypeTable {
     }
     fn list_of(&self, el: Type) -> Type {
         Type::App(Rc::new(vec![self.type_list(),el]))
+    }
+}
+
+struct TraitTable{
+    map: HashMap<String,Rc<str>>,
+    trait_ord: Rc<str>,
+    trait_eq: Rc<str>
+}
+impl TraitTable {
+    fn new() -> Self {
+        let trait_ord: Rc<str> = Rc::from("Ord");
+        let trait_eq: Rc<str> = Rc::from("Eq");
+        let mut map = HashMap::new();
+        map.insert("Ord".into(),trait_ord.clone());
+        map.insert("Eq".into(),trait_eq.clone());
+        return Self{map,trait_ord,trait_eq};
     }
 }
 
@@ -313,9 +329,15 @@ pub struct FnType {
     pub ret: Type
 }
 
+#[derive(Clone)]
+pub enum Trait {
+    None, Atom(Rc<str>), Union(Rc<str>)
+}
+
+#[derive(Clone)]
 pub struct TypeVariable {
     pub id: Rc<str>,
-    pub class: Type
+    pub trait_sig: Trait
 }
 
 pub struct PolyType {
@@ -354,7 +376,7 @@ impl Type {
         Type::Poly(Rc::new(PolyType{
             variables: Rc::new(vec![TypeVariable{
                 id: type_var.clone(),
-                class: Type::None
+                trait_sig: Trait::None
             }]),
             scheme
         }))
@@ -660,6 +682,7 @@ pub struct TypeChecker {
     ret_stack: Vec<Type>,
     global_context: bool,
     tab: Rc<TypeTable>,
+    trait_tab: TraitTable,
     subs: Substitution,
     types: Vec<Type>,
     tv_counter: u32
@@ -669,11 +692,13 @@ impl TypeChecker {
 
 pub fn new(tab: &Rc<TypeTable>) -> Self {
     let symbol_table = SymbolTable::new(&tab);
+    let trait_tab = TraitTable::new();
     return TypeChecker{
         symbol_table,
         ret_stack: Vec::with_capacity(8),
         global_context: true,
         tab: tab.clone(),
+        trait_tab,
         subs: Substitution::new(),
         types: vec![Type::None],
         tv_counter: 0
@@ -714,8 +739,8 @@ fn type_from_signature(&mut self, env: &Env, t: &AST)
     if t.value == Symbol::None {
         return Ok(self.new_uniq_anonymous_type_var(t));
     }else if let Info::Id(id) = &t.info {
-        if let Some(ty) = env.get(id) {
-            return Ok(Type::Atom(ty));
+        if let Some(tv) = env.get(id) {
+            return Ok(Type::Atom(tv.id.clone()));
         }
         return Ok(match &id[..] {
             "Unit" => self.tab.type_unit(),
@@ -724,6 +749,7 @@ fn type_from_signature(&mut self, env: &Env, t: &AST)
             "Float" => self.tab.type_float(),
             "String" => self.tab.type_string(),
             "Object" => self.tab.type_object(),
+            "_" => self.new_uniq_anonymous_type_var(t),
             id => {
                 return Err(type_error(t.line,t.col,format!(
                     "Unknown type: {}.", id
@@ -865,6 +891,22 @@ fn type_check_operator_index(&mut self, env: &Env, t: &AST)
     )));
 }
 
+fn has_trait(&self, env: &Env, typ: &Type, id: &Rc<str>) -> bool {
+    if let Type::Atom(typ) = typ {
+        if let Some(tv) = env.get(typ) {
+            if let Trait::Atom(sig) = &tv.trait_sig {
+                Rc::ptr_eq(id,sig)
+            }else{
+                false
+            }
+        }else{
+            false
+        }
+    }else{
+        false
+    }
+}
+
 fn type_check_comparison(&mut self, env: &Env, t: &AST)
 -> Result<Type,SemanticError>
 {
@@ -876,9 +918,13 @@ fn type_check_comparison(&mut self, env: &Env, t: &AST)
        !type2.is_atomic(&self.tab.type_int) &&
        !type2.is_atomic(&self.tab.type_float)
     {
-        return Err(type_error(t.line,t.col,format!(
-            "x{}y is not defined for x: {}, y: {}.",t.value,type1,type2
-        )));
+        if !self.has_trait(env,&type1,&self.trait_tab.trait_ord) &&
+           !self.has_trait(env,&type2,&self.trait_tab.trait_ord)
+        {
+            return Err(type_error(t.line,t.col,format!(
+                "x{}y is not defined for x: {}, y: {}.",t.value,type1,type2
+            )));
+        }
     }
     return match self.unify(env,&type1,&type2) {
         Ok(()) => Ok(self.tab.type_bool()),
@@ -1255,15 +1301,35 @@ fn type_check_application(&mut self, env: &Env, t: &AST)
     ));
 }
 
+fn trait_sig(&self, t: &Rc<AST>) -> Trait {
+    if let Info::Id(id) = &t.info {
+        match self.trait_tab.map.get(id) {
+            Some(value) => Trait::Atom(value.clone()),
+            None => panic!("unknown trait '{}'",id)
+        }
+    }else{
+        unimplemented!();
+    }
+}
+
 fn poly_sig(&self, type_variables: &Rc<AST>) -> Vec<TypeVariable> {
     let mut v: Vec<TypeVariable> = Vec::new();
     let a = type_variables.argv();
     for x in a {
-        let id: Rc<str> = match &x.info {
-            Info::Id(id) => Rc::from(&id[..]),
+        let (id_node,trait_sig) = match x.value {
+            Symbol::Item => (x,Trait::None),
+            Symbol::List => {
+                let pair = x.argv();
+                let sig = self.trait_sig(&pair[1]);
+                (&pair[0],sig)
+            },
             _ => unreachable!()
         };
-        v.push(TypeVariable{id, class: Type::None});
+        let id: Rc<str> = match &id_node.info {
+            Info::Id(id) => Rc::from(&**id),
+            _ => unreachable!()
+        };
+        v.push(TypeVariable{id,trait_sig});
     }
     return v;
 } 
