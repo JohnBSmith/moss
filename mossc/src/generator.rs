@@ -147,11 +147,14 @@ struct Generator {
     bv_blocks: Vec<u32>,
     fn_indices: Vec<usize>,
     for_nesting: usize,
-    jmp_stack: Vec<JmpInfo>,
-    global_context: bool
+    jmp_stack: Vec<JmpInfo>
 }
 
 impl Generator {
+
+fn is_global_context(&self) -> bool {
+    self.symbol_table.index == 0
+}
 
 fn offsets(&self, bv: &mut Vec<u32>, offset: i32){
     for &index in &self.fn_indices {
@@ -277,8 +280,22 @@ fn store(&mut self, bv: &mut Vec<u32>, t: &AST, key: &str) {
 }
 
 fn compile_left_hand_side(&mut self, bv: &mut Vec<u32>, t: &AST) {
-    let key = match t.info {Info::Id(ref value)=>value, _ => panic!()};
-    self.store(bv,t,key);
+    if t.value == Symbol::Item {
+        let key = match t.info {
+            Info::Id(ref value)=>value,
+            _ => unreachable!()
+        };
+        self.store(bv,t,key);
+    }else if t.value == Symbol::Index {
+        let a = t.argv();
+        for x in a {
+            self.compile_node(bv,x);
+        }
+        push_bc(bv,bc::SET_INDEX,t.line,t.col);
+        push_u32(bv,(a.len()-1) as u32);
+    }else{
+        unreachable!();
+    }
 }
 
 fn compile_let_statement(&mut self, bv: &mut Vec<u32>, t: &AST) {
@@ -517,7 +534,7 @@ fn compile_for(&mut self, bv: &mut Vec<u32>, t: &AST) {
     ]));
     let id = format!("_it{}_",self.for_nesting);
     let it = AST::identifier(&id,t.line,t.col);
-    self.symbol_table.variable_binding(self.global_context,false,id,
+    self.symbol_table.variable_binding(self.is_global_context(),false,id,
         Type::None);
     let assignment = AST::operator(t.line,t.col,Symbol::Assignment,
         Box::new([it.clone(),iter])
@@ -666,6 +683,12 @@ fn compile_node(&mut self, bv: &mut Vec<u32>, t: &AST) {
         Symbol::Ast => {
             self.compile_binary_operator(bv,t,bc::MUL);
         },
+        Symbol::Div => {
+            self.compile_binary_operator(bv,t,bc::DIV);
+        },
+        Symbol::Idiv => {
+            self.compile_binary_operator(bv,t,bc::IDIV);
+        },
         Symbol::Pow => {
             self.compile_binary_operator(bv,t,bc::POW);
         },
@@ -740,8 +763,7 @@ pub fn generate(t: &AST, stab: SymbolTable) -> CodeObject {
         bv_blocks: Vec::new(),
         fn_indices: Vec::new(),
         jmp_stack: Vec::new(),
-        for_nesting: 0,
-        global_context: true
+        for_nesting: 0
     };
     gen.compile_node(&mut bv,t);
     push_bc(&mut bv,bc::HALT,0,0);

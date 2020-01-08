@@ -301,6 +301,9 @@ pub fn scan(s: &str) -> Result<Vec<Token>,Error> {
                             i+=1;
                         }
                         i+=2; col+=2;
+                    }else if i+1<n && a[i+1]=='/' {
+                        v.push(Token::symbol(line,col,Symbol::Idiv));
+                        i+=2; col+=2;
                     }else{
                         v.push(Token::symbol(line,col,Symbol::Div));
                         i+=1; col+=1;
@@ -988,6 +991,7 @@ fn assignment(&mut self, i: &TokenIterator)
     let left_hand_side = self.expression(i)?;
     let t = i.get();
     if t.value == Symbol::Assignment {
+        /*
         match left_hand_side.info {
             Info::Id(_) => {},
             _ => {
@@ -996,6 +1000,7 @@ fn assignment(&mut self, i: &TokenIterator)
                 ));
             }
         }
+        */
         i.advance();
         let right_hand_side = self.expression(i)?;
         return Ok(AST::operator(t.line,t.col,Symbol::Assignment,

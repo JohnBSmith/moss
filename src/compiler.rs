@@ -880,6 +880,9 @@ mod pool {
             return self.stab_index-1;
         }
         pub fn into_data(self) -> Vec<Object> {self.data}
+        
+        #[allow(dead_code)]
+        pub fn data(&self) -> &[Object] {&self.data}
     }
 }
 
@@ -4282,7 +4285,7 @@ fn compile_token_vector(v: Vec<Token>, mode_cmd: bool, value: Value,
     bv.append(&mut compilation.bv_blocks);
 
     // print_asm_listing(&bv);
-    // print_data(&compilation.pool.data);
+    // print_data(compilation.pool.data());
     let m = Rc::new(Module{
         program: Rc::from(bv),
         data: compilation.pool.into_data(),

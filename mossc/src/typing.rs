@@ -986,11 +986,29 @@ fn type_check_let(&mut self, env: &Env, t: &AST)
     return Ok(self.tab.type_unit());
 }
 
+fn type_check_index_assignment(&mut self, env: &Env, t: &AST)
+-> Result<(),SemanticError>
+{
+    let a = t.argv();
+    if a[0].value != Symbol::Index {
+        panic!();
+    }
+    let type1 = self.type_check_node(env,&a[0])?;
+    let type2 = self.type_check_node(env,&a[1])?;
+    return match self.unify(env,&type1,&type2) {
+        Ok(()) => Ok(()),
+        Err(err) => Err(type_error(t.line,t.col,err))
+    };
+}
+
 fn type_check_assignment(&mut self, env: &Env, t: &AST)
 -> Result<(),SemanticError>
 {
     let a = t.argv();
-    let id = match &a[0].info {Info::Id(id) => id.clone(), _ => unreachable!()};
+    let id = match &a[0].info {
+        Info::Id(id) => id.clone(),
+        _ => return self.type_check_index_assignment(env,t)
+    };
     let ty_expr = self.type_check_node(env,&a[1])?;
 
     let index = self.symbol_table.index;
@@ -1467,7 +1485,7 @@ fn type_check_node_plain(&mut self, env: &Env, t: &AST)
             return Ok(self.tab.type_bool());
         },
         Symbol::Plus | Symbol::Minus | Symbol::Ast | Symbol::Div |
-        Symbol::Pow
+        Symbol::Pow | Symbol::Idiv
         => {
             return self.type_check_binary_operator(env,t);
         },
