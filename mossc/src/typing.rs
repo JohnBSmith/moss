@@ -101,7 +101,7 @@ impl TypeTable {
             arg, ret
         }))
     }
-    fn list(&self, el: Type) -> Type {
+    fn list_of(&self, el: Type) -> Type {
         Type::App(Rc::new(vec![self.type_list(),el]))
     }
 }
@@ -113,14 +113,14 @@ pub enum VariableKind {
 }
 
 pub struct VariableInfo {
-    pub mutable: bool,
+    pub var: bool,
     pub kind: VariableKind,
     pub ty: Type
 }
 
 impl VariableInfo {
     fn global(ty: Type) -> Self {
-        VariableInfo{mutable: false, ty: ty, kind: VariableKind::Global}
+        VariableInfo{var: false, ty: ty, kind: VariableKind::Global}
     }
 }
 
@@ -152,7 +152,7 @@ impl SymbolTableNode {
     }
     pub fn push_context(&mut self, id: &str, typ: Type) {
         self.variables.push((id.into(),VariableInfo{
-            mutable: true, ty: typ,
+            var: true, ty: typ,
             kind: VariableKind::Context(self.context_count),
         }));
         self.context_count +=1;
@@ -173,19 +173,15 @@ impl SymbolTable {
 
         let type_var: Rc<str> = Rc::from("T");
         let type_of_len = tab.fn_type(1,1,
-            vec![Type::app(vec![tab.type_list(),
-                Type::Atom(type_var.clone())
-            ])],
+            vec![tab.list_of(Type::Atom(type_var.clone()))],
             tab.type_int()
         );
         let type_of_len = Type::poly1(type_var,type_of_len);
 
-        let type_var: Rc<str> = Rc::from("T");
         let type_of_str = tab.fn_type(1,1,
-            vec![Type::Atom(type_var.clone())],
+            vec![tab.type_object()],
             tab.type_string()
         );
-        let type_of_str = Type::poly1(type_var,type_of_str);
 
         let type_of_list = tab.fn_type(1,1,
             vec![Type::app(vec![tab.type_range(),
@@ -193,14 +189,22 @@ impl SymbolTable {
                 tab.type_int(),
                 tab.type_unit()
             ])],
-            Type::app(vec![tab.type_list(),
-                tab.type_int()
-            ])
+            tab.list_of(tab.type_int())
         );
 
         let type_of_iter = tab.fn_type(1,1,
             vec![tab.type_object()],
             tab.type_object()
+        );
+        
+        let type_of_input = tab.fn_type(0,1,
+            vec![tab.type_string()],
+            tab.type_string()
+        );
+        
+        let type_of_int = tab.fn_type(1,1,
+            vec![tab.type_string()],
+            tab.type_int()
         );
 
         let variables: Vec<(String,VariableInfo)> = vec![
@@ -208,7 +212,9 @@ impl SymbolTable {
             ("len".into(),VariableInfo::global(type_of_len)),
             ("str".into(),VariableInfo::global(type_of_str)),
             ("list".into(),VariableInfo::global(type_of_list)),
-            ("iter".into(),VariableInfo::global(type_of_iter))
+            ("iter".into(),VariableInfo::global(type_of_iter)),
+            ("input".into(),VariableInfo::global(type_of_input)),
+            ("int".into(),VariableInfo::global(type_of_int))
         ];
 
         let node = SymbolTableNode{
@@ -277,7 +283,7 @@ impl SymbolTable {
         println!();
     }
 
-    pub fn variable_binding(&mut self, global: bool, mutable: bool,
+    pub fn variable_binding(&mut self, global: bool, is_var: bool,
         id: String, typ: Type
     ) {
         let index = self.index;
@@ -292,7 +298,7 @@ impl SymbolTable {
             VariableKind::Local(node.local_count-1)
         };
         node.variables.push((id,VariableInfo{
-            mutable, ty: typ, kind
+            var: is_var, ty: typ, kind
         }));
     }
 }
@@ -729,7 +735,7 @@ fn type_from_signature(&mut self, env: &Env, t: &AST)
         if let Info::Id(id) = &a[0].info {
             if id=="List" {
                 let parameter = self.type_from_signature(env,&a[1])?;
-                return Ok(self.tab.list(parameter));
+                return Ok(self.tab.list_of(parameter));
             }else if id=="Tuple" {
                 let mut v: Vec<Type> = Vec::with_capacity(a.len());
                 v.push(Type::Atom(self.tab.type_tuple.clone()));
@@ -821,7 +827,7 @@ fn index_homogeneous(&mut self, t: &AST, ty_index: &Type, ty: Type)
                 if is_atomic_type(&a[1],&tab.type_int) ||
                    is_atomic_type(&a[1],&tab.type_unit)
                 {
-                    return Ok(tab.list(ty));
+                    return Ok(tab.list_of(ty));
                 }
             }
         }
@@ -960,7 +966,7 @@ fn type_check_block(&mut self, env: &Env, t: &AST)
 fn type_check_let(&mut self, env: &Env, t: &AST)
 -> Result<Type,SemanticError>
 {
-    let mutable = match t.info {Info::Mut => true, _ => false};
+    let is_var = match t.info {Info::Var => true, _ => false};
     let a = t.argv();
     let id = match &a[0].info {Info::Id(id) => id.clone(), _ => unreachable!()};
     let ty = self.type_from_signature_or_none(env,&a[1])?;
@@ -975,7 +981,7 @@ fn type_check_let(&mut self, env: &Env, t: &AST)
         }
     };
     let global = self.global_context;
-    self.symbol_table.variable_binding(global,mutable,id,ty_of_id);
+    self.symbol_table.variable_binding(global,is_var,id,ty_of_id);
 
     return Ok(self.tab.type_unit());
 }
@@ -990,9 +996,9 @@ fn type_check_assignment(&mut self, env: &Env, t: &AST)
     let index = self.symbol_table.index;
     let node = &mut self.symbol_table.list[index];
     if let Some(variable_info) = node.get(&id) {
-        if !variable_info.mutable {
+        if !variable_info.var {
             return Err(error(t.line,t.col,
-                format!("variable '{}' is immutable.",id)
+                format!("cannot assign twice to '{}'.",id)
             ));
         }
         let ty = variable_info.ty.clone();
@@ -1040,7 +1046,7 @@ fn type_check_list(&mut self, env: &Env, t: &AST)
             ))
         }
     }
-    return Ok(self.tab.list(ty0));
+    return Ok(self.tab.list_of(ty0));
 }
 
 fn unify_fn(&mut self, env: &Env, f1: &FnType, f2: &FnType)
@@ -1269,7 +1275,7 @@ fn type_check_function(&mut self, env_rec: &Env, t: &AST)
         let ty = self.type_from_signature(&env,&argv[i].ty)?;
         arg.push(ty.clone());
         variables.push((argv[i].id.clone(),VariableInfo{
-            mutable: false, ty,
+            var: false, ty,
             kind: VariableKind::Argument(i+1)
         }));
     }
@@ -1283,7 +1289,7 @@ fn type_check_function(&mut self, env_rec: &Env, t: &AST)
     }else{
         if let Some(ref id) = header.id {
             variables.push((id.clone(),VariableInfo{
-                mutable: false, ty: ftype.clone(),
+                var: false, ty: ftype.clone(),
                 kind: VariableKind::FnSelf
             }));
         }

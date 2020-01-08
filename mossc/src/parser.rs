@@ -31,8 +31,8 @@ pub enum Symbol {
     List, Application, Block, Statement, Unit,
     As, Assert, And, Begin, Break, Catch, Continue, Do, Elif, Else,
     End, False, For, Fn, Function, Global, Goto, Label, Let,
-    If, In, Is, Mut, Not, Null, Of, Or, Public, Raise, Return,
-    Table, Then, True, Try, Use, While, Yield
+    If, In, Is, Not, Null, Of, Or, Public, Raise, Return,
+    Table, Then, True, Try, Use, Var, While, Yield
 }
 
 #[derive(Debug)]
@@ -97,7 +97,6 @@ static KEYWORDS: &'static [KeywordsElement] = &[
       KeywordsElement{s: "if",      v: &Symbol::If},
       KeywordsElement{s: "in",      v: &Symbol::In},
       KeywordsElement{s: "is",      v: &Symbol::Is},
-      KeywordsElement{s: "mut",     v: &Symbol::Mut},
       KeywordsElement{s: "not",     v: &Symbol::Not},
       KeywordsElement{s: "null",    v: &Symbol::Null},
       KeywordsElement{s: "of",      v: &Symbol::Of},
@@ -110,6 +109,7 @@ static KEYWORDS: &'static [KeywordsElement] = &[
       KeywordsElement{s: "true",    v: &Symbol::True},
       KeywordsElement{s: "try",     v: &Symbol::Try},
       KeywordsElement{s: "use",     v: &Symbol::Use},
+      KeywordsElement{s: "var",     v: &Symbol::Var},
       KeywordsElement{s: "while",   v: &Symbol::While},
       KeywordsElement{s: "yield",   v: &Symbol::Yield}
 ];
@@ -180,7 +180,6 @@ impl std::fmt::Display for Symbol {
             Symbol::If    => write!(f,"if"),
             Symbol::In    => write!(f,"in"),
             Symbol::Is    => write!(f,"is"),
-            Symbol::Mut   => write!(f,"mut"),
             Symbol::Not   => write!(f,"not"),
             Symbol::Null  => write!(f,"null"),
             Symbol::Of    => write!(f,"of"),
@@ -193,6 +192,7 @@ impl std::fmt::Display for Symbol {
             Symbol::True  => write!(f,"true"),
             Symbol::Try   => write!(f,"try"),
             Symbol::Use   => write!(f,"use"),
+            Symbol::Var   => write!(f,"var"),
             Symbol::While => write!(f,"while"),
             Symbol::Yield => write!(f,"yield")
         }
@@ -269,8 +269,13 @@ pub fn scan(s: &str) -> Result<Vec<Token>,Error> {
                     }
                 },
                 ':' => {
-                    v.push(Token::symbol(line,col,Symbol::Colon));
-                    i+=1; col+=1;
+                    if i+1<n && a[i+1]=='=' {
+                        v.push(Token::symbol(line,col,Symbol::Assignment));
+                        i+=2; col+=2;
+                    }else{
+                        v.push(Token::symbol(line,col,Symbol::Colon));
+                        i+=1; col+=1;
+                    }
                 },
                 ';' => {
                     v.push(Token::symbol(line,col,Symbol::Semicolon));
@@ -435,7 +440,7 @@ pub struct FnHeader {
 }
 
 pub enum Info {
-    None, Mut, Int(i32), Id(String),
+    None, Var, Int(i32), Id(String),
     String(String), FnHeader(Box<FnHeader>),
 }
 
@@ -1213,14 +1218,12 @@ fn statements(&mut self, i: &TokenIterator, ret: Value)
         let line = t.line;
         let col = t.col;
         let value = t.value;
-        if value == Symbol::Let {
-            let mut mut_cond = Info::None;
+        if value == Symbol::Let || value == Symbol::Var {
+            let mut_cond = match value {
+                Symbol::Let => Info::None,
+                _ => Info::Var
+            };
             i.advance();
-            let t = i.get();
-            if t.value == Symbol::Mut {
-                mut_cond = Info::Mut;
-                i.advance();
-            }
             let id = self.atom(i)?;
 
             let t = i.get();
