@@ -152,7 +152,7 @@ impl std::fmt::Display for Symbol {
             Symbol::CLeft => write!(f,"{{"),
             Symbol::CRight=> write!(f,"}}"),
             Symbol::Assignment => write!(f,"="),
-            Symbol::To    => write!(f,"=>"),
+            Symbol::To    => write!(f,"->"),
             Symbol::List  => write!(f,"List"),
             Symbol::Application => write!(f,"Application"),
             Symbol::Block => write!(f,"Block"),
@@ -286,8 +286,13 @@ pub fn scan(s: &str) -> Result<Vec<Token>,Error> {
                     i+=1; col+=1;
                 },
                 '-' => {
-                    v.push(Token::symbol(line,col,Symbol::Minus));
-                    i+=1; col+=1;
+                    if i+1<n && a[i+1]=='>' {
+                        v.push(Token::symbol(line,col,Symbol::To));
+                        i+=2; col+=2;                        
+                    }else{
+                        v.push(Token::symbol(line,col,Symbol::Minus));
+                        i+=1; col+=1;
+                    }
                 },
                 '*' => {
                     v.push(Token::symbol(line,col,Symbol::Ast));
@@ -376,10 +381,7 @@ pub fn scan(s: &str) -> Result<Vec<Token>,Error> {
                     i+=1; col+=1;
                 },
                 '=' => {
-                    if i+1<n && a[i+1]=='>' {
-                        v.push(Token::symbol(line,col,Symbol::To));
-                        i+=2; col+=2;
-                    }else if i+1<n && a[i+1]=='=' {
+                    if i+1<n && a[i+1]=='=' {
                         v.push(Token::symbol(line,col,Symbol::Eq));
                         i+=2; col+=2;
                     }else{

@@ -5,7 +5,7 @@ use std::rc::Rc;
 use std::collections::HashMap;
 use std::mem::replace;
 use parser::{AST, Symbol, Info};
-use typing::{SymbolTable,VariableKind,Type};
+use typing::{symbol_table::SymbolTable,VariableKind,Type};
 
 // byte code size
 // byte code+argument size
@@ -328,7 +328,7 @@ fn closure(&mut self, bv: &mut Vec<u32>, t: &AST) {
         Some(ref context) => context,
         None => unreachable!()
     };
-    for (id,info) in &symbol_table_node.variables {
+    for (id,info) in symbol_table_node.variables() {
         if let VariableKind::Context(_) = info.kind {
             if let Some(info) = context.get(id) {
                 match info.kind {
