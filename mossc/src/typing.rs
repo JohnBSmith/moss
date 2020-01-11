@@ -107,6 +107,13 @@ impl TypeTable {
             arg, ret
         }))
     }
+    pub fn method_type(&self, argc_min: usize, argc_max: usize,
+        arg_self: Type, arg: Vec<Type>, ret: Type
+    ) -> Type {
+        Type::Fn(Rc::new(FnType{
+            argc_min, argc_max, arg_self, arg, ret
+        }))
+    }
     fn list_of(&self, el: Type) -> Type {
         Type::App(Rc::new(vec![self.type_list(),el]))
     }
@@ -125,6 +132,66 @@ impl TraitTable {
         map.insert("Ord".into(),trait_ord.clone());
         map.insert("Eq".into(),trait_eq.clone());
         return Self{map,trait_ord,trait_eq};
+    }
+}
+
+struct Class {
+    map: HashMap<String,Type>
+}
+
+struct ClassTable {
+    map: HashMap<Rc<str>,Class>
+}
+impl ClassTable {
+    fn new(tab: &TypeTable) -> Self {
+        let type_var: Rc<str> = Rc::from("T");
+        let type_of_push = tab.method_type(1,1,
+            tab.list_of(Type::Atom(type_var.clone())),
+            vec![Type::Atom(type_var.clone())],
+            tab.type_unit()
+        );
+        let type_of_push = Type::poly1(type_var,type_of_push);
+        
+        let tv1: Rc<str> = Rc::from("X");
+        let tv2: Rc<str> = Rc::from("Y");
+        let type_of_map = tab.method_type(1,1,
+            tab.list_of(Type::Atom(tv1.clone())),
+            vec![tab.fn_type(1,1,
+                vec![Type::Atom(tv1.clone())],
+                Type::Atom(tv2.clone())
+            )],
+            tab.list_of(Type::Atom(tv2.clone()))
+        );
+        let type_of_map = Type::poly2(tv1,tv2,type_of_map);
+
+        let tv: Rc<str> = Rc::from("T");
+        let type_of_filter = tab.method_type(1,1,
+            tab.list_of(Type::Atom(tv.clone())),
+            vec![tab.fn_type(1,1,
+                vec![Type::Atom(tv.clone())],
+                tab.type_bool()
+            )],
+            tab.list_of(Type::Atom(tv.clone()))
+        );
+        let type_of_filter = Type::poly1(tv,type_of_filter);
+
+        let tv: Rc<str> = Rc::from("T");
+        let type_of_shuffle = tab.method_type(0,0,
+            tab.list_of(Type::Atom(tv.clone())),
+            vec![],
+            tab.list_of(Type::Atom(tv.clone()))
+        );
+        let type_of_shuffle = Type::poly1(tv,type_of_shuffle);
+
+        let mut list_map = HashMap::new();
+        list_map.insert("push".to_string(),type_of_push);
+        list_map.insert("map".to_string(),type_of_map);
+        list_map.insert("filter".to_string(),type_of_filter);
+        list_map.insert("shuffle".to_string(),type_of_shuffle);
+
+        let mut class_map = HashMap::new();
+        class_map.insert(tab.type_list.clone(),Class{map: list_map});
+        return Self{map: class_map};
     }
 }
 
@@ -201,6 +268,20 @@ impl Type {
         Type::Poly(Rc::new(PolyType{
             variables: Rc::new(vec![TypeVariable{
                 id: type_var.clone(),
+                trait_sig: Trait::None
+            }]),
+            scheme
+        }))
+    }
+    fn poly2(type_var1: Rc<str>, type_var2: Rc<str>, scheme: Type)
+    -> Type
+    {
+        Type::Poly(Rc::new(PolyType{
+            variables: Rc::new(vec![TypeVariable{
+                id: type_var1.clone(),
+                trait_sig: Trait::None
+            }, TypeVariable{
+                id: type_var2.clone(),
                 trait_sig: Trait::None
             }]),
             scheme
@@ -508,6 +589,7 @@ pub struct TypeChecker {
     global_context: bool,
     tab: Rc<TypeTable>,
     trait_tab: TraitTable,
+    class_tab: ClassTable,
     subs: Substitution,
     types: Vec<Type>,
     tv_counter: u32
@@ -518,12 +600,13 @@ impl TypeChecker {
 pub fn new(tab: &Rc<TypeTable>) -> Self {
     let symbol_table = SymbolTable::new(&tab);
     let trait_tab = TraitTable::new();
+    let class_tab = ClassTable::new(&tab);
     return TypeChecker{
         symbol_table,
         ret_stack: Vec::with_capacity(8),
         global_context: true,
         tab: tab.clone(),
-        trait_tab,
+        trait_tab, class_tab,
         subs: Substitution::new(),
         types: vec![Type::None],
         tv_counter: 0
@@ -1338,15 +1421,32 @@ fn type_check_for_statement(&mut self, env: &Env, t: &AST)
     return Ok(self.tab.type_unit());
 }
 
+fn class(&self, typ: &Type) -> Option<&Class> {
+    let id = match typ {
+        Type::Atom(id) => id,
+        Type::App(app) => match &app[0] {
+            Type::Atom(id) => id,
+            _ => return None
+        },
+        _ => return None
+    };
+    return self.class_tab.map.get(id);
+}
+
 fn type_check_dot(&mut self, env: &Env, t: &AST)
 -> Result<Type,SemanticError>
 {
     let a = t.argv();
     let typ = self.type_check_node(env,&a[0])?;
+    let slot = match a[1].info {Info::String(ref s)=>s, _ => panic!()};
     if typ.is_atomic(&self.tab.type_object) {
         return Ok(self.tab.type_object());
     }else{
-        let slot = match a[1].info {Info::String(ref s)=>s, _ => panic!()};
+        if let Some(class) = self.class(&typ) {
+            if let Some(slot_type) = class.map.get(slot) {
+                return Ok(slot_type.clone());
+            }
+        }
         return Err(type_error(t.line,t.col,format!(
             "in x.{}:\n  type of x: {}",slot,typ
         )));
