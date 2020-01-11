@@ -689,6 +689,9 @@ fn compile_node(&mut self, bv: &mut Vec<u32>, t: &AST) {
         Symbol::Idiv => {
             self.compile_binary_operator(bv,t,bc::IDIV);
         },
+        Symbol::Mod => {
+            self.compile_binary_operator(bv,t,bc::MOD);
+        },
         Symbol::Pow => {
             self.compile_binary_operator(bv,t,bc::POW);
         },

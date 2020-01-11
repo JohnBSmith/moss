@@ -389,6 +389,15 @@ pub fn scan(s: &str) -> Result<Vec<Token>,Error> {
                         i+=1; col+=1;
                     }
                 },
+                '!' => {
+                    if i+1<n && a[i+1]=='=' {
+                        v.push(Token::symbol(line,col,Symbol::Ne));
+                        i+=2; col+=2;
+                    }else{
+                        return Err(scan_error(line,col,
+                            format!("Unexpected character: '{}'.",c)));                    
+                    }
+                },
                 '#' => {
                     while i<n && a[i]!='\n' {i+=1;}
                     i+=1; col=0; line+=1;
@@ -408,7 +417,8 @@ pub fn scan(s: &str) -> Result<Vec<Token>,Error> {
                     i+=1;
                 },
                 _ => {
-                    return Err(scan_error(line,col,format!("Unexpected character: '{}'.",c)));
+                    return Err(scan_error(line,col,
+                        format!("Unexpected character: '{}'.",c)));
                 }
             }
         }

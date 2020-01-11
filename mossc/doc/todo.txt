@@ -1,7 +1,11 @@
 
-How to type the power operation for integers? In general, the return
-value would have sum type Int+Float. Another option would be
-(Int,Nat)->Int. Another option would be (Int,Int)->Int with
-runtime check.
+# How to type the power operation for integers?
+In general, the return value would have sum type Int+Float. Another
+option would be (Int,Nat)->Int. Another option would be (Int,Int)->Int
+with runtime check.
   
 For the polynomial case, (Int,Nat)->Int would be fine.
+
+# How to type mutability?
+It could be solved with a type constructor and a subtype relation.
+

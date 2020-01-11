@@ -47,6 +47,13 @@ fn compile(s: &str, file: &str, info: &CmdInfo) -> Result<(),()> {
         println!("{}",checker.subs_as_string());
     }
     checker.apply_types();
+    match checker.check_constraints() {
+        Ok(()) => {},
+        Err(e) => {
+            e.print();
+            return Err(());
+        }
+    }
     if debug_mode {
         println!("{}",checker.string(&t));
     }

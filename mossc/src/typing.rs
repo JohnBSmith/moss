@@ -122,16 +122,29 @@ impl TypeTable {
 struct TraitTable{
     map: HashMap<String,Rc<str>>,
     trait_ord: Rc<str>,
-    trait_eq: Rc<str>
+    trait_eq: Rc<str>,
+    trait_add: Rc<str>,
+    trait_mod: Rc<str>,
+    add: Trait,
+    tmod: Trait
 }
 impl TraitTable {
     fn new() -> Self {
         let trait_ord: Rc<str> = Rc::from("Ord");
         let trait_eq: Rc<str> = Rc::from("Eq");
+        let trait_add: Rc<str> = Rc::from("Add");
+        let trait_mod: Rc<str> = Rc::from("Mod");
+        let add = Trait::Atom(trait_add.clone());
+        let tmod = Trait::Atom(trait_mod.clone());
         let mut map = HashMap::new();
         map.insert("Ord".into(),trait_ord.clone());
         map.insert("Eq".into(),trait_eq.clone());
-        return Self{map,trait_ord,trait_eq};
+        map.insert("Add".into(),trait_add.clone());
+        map.insert("Mod".into(),trait_mod.clone());
+        return Self{map,
+            trait_ord, trait_eq, trait_add, trait_mod,
+            add, tmod
+        };
     }
 }
 
@@ -176,6 +189,18 @@ impl ClassTable {
         let type_of_filter = Type::poly1(tv,type_of_filter);
 
         let tv: Rc<str> = Rc::from("T");
+        let type_of_all = tab.method_type(1,1,
+            tab.list_of(Type::Atom(tv.clone())),
+            vec![tab.fn_type(1,1,
+                vec![Type::Atom(tv.clone())],
+                tab.type_bool()
+            )],
+            tab.type_bool()
+        );
+        let type_of_all = Type::poly1(tv,type_of_all);
+        let type_of_any = type_of_all.clone();
+
+        let tv: Rc<str> = Rc::from("T");
         let type_of_shuffle = tab.method_type(0,0,
             tab.list_of(Type::Atom(tv.clone())),
             vec![],
@@ -188,6 +213,8 @@ impl ClassTable {
         list_map.insert("map".to_string(),type_of_map);
         list_map.insert("filter".to_string(),type_of_filter);
         list_map.insert("shuffle".to_string(),type_of_shuffle);
+        list_map.insert("all".to_string(),type_of_all);
+        list_map.insert("any".to_string(),type_of_any);
 
         let mut class_map = HashMap::new();
         class_map.insert(tab.type_list.clone(),Class{map: list_map});
@@ -224,6 +251,16 @@ pub struct FnType {
 #[derive(Clone)]
 pub enum Trait {
     None, Atom(Rc<str>), Union(Rc<str>)
+}
+
+impl std::fmt::Display for Trait {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Trait::None => write!(f,"_"),
+            Trait::Atom(s) => write!(f,"{}",s),
+            _ => todo!()
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -583,6 +620,11 @@ impl std::fmt::Display for Substitution {
     }
 }
 
+struct Constraint {
+    tv: Rc<str>,
+    trait_sig: Trait
+}
+
 pub struct TypeChecker {
     pub symbol_table: SymbolTable,
     ret_stack: Vec<Type>,
@@ -592,7 +634,8 @@ pub struct TypeChecker {
     class_tab: ClassTable,
     subs: Substitution,
     types: Vec<Type>,
-    tv_counter: u32
+    tv_counter: u32,
+    constraints: Vec<Constraint>
 }
 
 impl TypeChecker {
@@ -609,7 +652,8 @@ pub fn new(tab: &Rc<TypeTable>) -> Self {
         trait_tab, class_tab,
         subs: Substitution::new(),
         types: vec![Type::None],
-        tv_counter: 0
+        tv_counter: 0,
+        constraints: Vec::new()
     };
 }
 
@@ -710,6 +754,58 @@ fn type_from_signature(&mut self, env: &Env, t: &AST)
     }
 }
 
+fn type_check_add(&mut self, env: &Env, t: &AST,
+    type1: Type, type2: Type
+) -> Result<Type,SemanticError>
+{
+    if type1.is_atomic(&self.tab.type_string) ||
+       type1.is_app(&self.tab.type_list).is_some()
+    {
+        // pass
+    }else if let Type::Var(tv1) = &type1 {
+        self.constraints.push(Constraint{
+            tv: tv1.clone(),
+            trait_sig: Trait::Atom(self.trait_tab.trait_add.clone())
+        });
+    }else{
+        return Err(type_error(t.line,t.col,format!(
+            "x+y is not defined for x: {}, y: {}.",type1,type2
+        )));
+    }
+    self.unify_binary_operator(env,t,&type1,&type2)?;
+    return Ok(type1);
+}
+
+fn type_check_mod(&mut self, env: &Env, t: &AST,
+    type1: Type, type2: Type
+) -> Result<Type,SemanticError>
+{
+    if let Type::Var(tv1) = &type1 {
+        self.constraints.push(Constraint{
+            tv: tv1.clone(),
+            trait_sig: Trait::Atom(self.trait_tab.trait_mod.clone())
+        });
+    }else{
+        return Err(type_error(t.line,t.col,format!(
+            "x%y is not defined for x: {}, y: {}.",type1,type2
+        )));        
+    }
+    self.unify_binary_operator(env,t,&type1,&type2)?;
+    return Ok(type1);
+}
+
+fn unify_binary_operator(&mut self, env: &Env, t: &AST,
+    type1: &Type, type2: &Type
+) -> Result<(),SemanticError>
+{
+    match self.unify(env,type1,type2) {
+        Ok(()) => Ok(()),
+        Err(err) => return Err(type_error(t.line,t.col,
+            format!("in x{}y:{}\nNote:\n    x: {},\n    y: {}",
+                t.value,err,type1,type2)))
+    }
+}
+
 fn type_check_binary_operator(&mut self, env: &Env, t: &AST)
 -> Result<Type,SemanticError>
 {
@@ -721,23 +817,17 @@ fn type_check_binary_operator(&mut self, env: &Env, t: &AST)
        !type2.is_atomic(&self.tab.type_int) &&
        !type2.is_atomic(&self.tab.type_float)
     {
-        if t.value == Symbol::Plus && (
-            type1.is_atomic(&self.tab.type_string) ||
-            type1.is_app(&self.tab.type_list).is_some()
-        ) {
-            // pass
+        if t.value == Symbol::Plus {
+            return self.type_check_add(env,t,type1,type2);
+        }else if t.value == Symbol::Mod {
+            return self.type_check_mod(env,t,type1,type2);
         }else{
             return Err(type_error(t.line,t.col,format!(
                 "x{}y is not defined for x: {}, y: {}.",t.value,type1,type2
             )));
         }
     }
-    match self.unify(env,&type1,&type2) {
-        Ok(()) => {},
-        Err(err) => return Err(type_error(t.line,t.col,
-            format!("in x{}y:{}\nNote:\n    x: {},\n    y: {}",
-                t.value,err,&type1,&type2)))
-    }
+    self.unify_binary_operator(env,t,&type1,&type2)?;
     return Ok(type1);
 }
 
@@ -802,17 +892,36 @@ fn type_check_operator_index(&mut self, env: &Env, t: &AST)
     )));
 }
 
-fn has_trait(&self, env: &Env, typ: &Type, id: &Rc<str>) -> bool {
-    if let Type::Atom(typ) = typ {
-        if let Some(tv) = env.get(typ) {
-            if let Trait::Atom(sig) = &tv.trait_sig {
-                Rc::ptr_eq(id,sig)
-            }else{
-                false
-            }
+fn trait_is_subset(&self, a: &Trait, b: &Trait) -> bool {
+    if let Trait::Atom(a) = a {
+        if let Trait::Atom(b) = b {
+            Rc::ptr_eq(a,b)
         }else{
             false
         }
+    }else{
+        false
+    }    
+}
+
+fn poly_tv_has_trait(&self, env: &Env, typ: &Type, trait_sig: &Trait) -> bool {
+    if let Type::Atom(typ) = typ {
+        if let Some(tv) = env.get(typ) {
+            return self.trait_is_subset(trait_sig,&tv.trait_sig);
+        }else{
+            false
+        }
+    }else{
+        false
+    }
+}
+
+fn has_trait(&self, typ: &Type, trait_sig: &Trait) -> bool {
+    if typ.is_atomic(&self.tab.type_int) {
+        return self.trait_is_subset(trait_sig,&self.trait_tab.add) ||
+               self.trait_is_subset(trait_sig,&self.trait_tab.tmod);
+    }else if typ.is_atomic(&self.tab.type_string) {
+        return self.trait_is_subset(trait_sig,&self.trait_tab.add);
     }else{
         false
     }
@@ -829,8 +938,9 @@ fn type_check_comparison(&mut self, env: &Env, t: &AST)
        !type2.is_atomic(&self.tab.type_int) &&
        !type2.is_atomic(&self.tab.type_float)
     {
-        if !self.has_trait(env,&type1,&self.trait_tab.trait_ord) &&
-           !self.has_trait(env,&type2,&self.trait_tab.trait_ord)
+        let ord = Trait::Atom(self.trait_tab.trait_ord.clone());
+        if !self.poly_tv_has_trait(env,&type1,&ord) &&
+           !self.poly_tv_has_trait(env,&type2,&ord)
         {
             return Err(type_error(t.line,t.col,format!(
                 "x{}y is not defined for x: {}, y: {}.",t.value,type1,type2
@@ -1477,7 +1587,7 @@ fn type_check_node_plain(&mut self, env: &Env, t: &AST)
             return Ok(self.tab.type_bool());
         },
         Symbol::Plus | Symbol::Minus | Symbol::Ast | Symbol::Div |
-        Symbol::Pow | Symbol::Idiv
+        Symbol::Pow | Symbol::Idiv | Symbol::Mod
         => {
             return self.type_check_binary_operator(env,t);
         },
@@ -1558,6 +1668,20 @@ pub fn apply_types(&mut self) {
     for typ in &mut self.types {
         *typ = self.subs.apply(typ);
     }
+}
+
+pub fn check_constraints(&self) -> Result<(),SemanticError> {
+    for constraint in &self.constraints {
+        let typ = self.subs.apply(&Type::Var(constraint.tv.clone()));
+        let trait_sig = &constraint.trait_sig;
+        if !self.has_trait(&typ,trait_sig) {
+            return Err(type_error(0,0,format!(
+                "constraint not fulfilled: {} of trait {}",
+                typ, trait_sig
+            )));
+        }
+    }
+    return Ok(());
 }
 
 pub fn type_check(&mut self, t: &AST)
