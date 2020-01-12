@@ -1,6 +1,4 @@
 
-#![allow(dead_code)]
-
 use std::rc::Rc;
 use std::collections::HashMap;
 use parser::{AST, Symbol, Info};
@@ -33,12 +31,12 @@ impl Environment {
             return None;
         }
     }
-    fn contains(&self, ty0: &Rc<str>) -> bool {
+    fn _contains(&self, ty0: &Rc<str>) -> bool {
         for ty in self.map.values() {
             if Rc::ptr_eq(ty0,&ty.id) {return true;}
         }
         if let Some(env) = &self.env {
-            return env.contains(ty0);
+            return env._contains(ty0);
         }else{
             return false;
         }
@@ -92,7 +90,7 @@ impl TypeTable {
     pub fn type_list(&self) -> Type {
         Type::Atom(self.type_list.clone())
     }
-    pub fn type_tuple(&self) -> Type {
+    pub fn _type_tuple(&self) -> Type {
         Type::Atom(self.type_tuple.clone())
     }
     pub fn type_range(&self) -> Type {
@@ -122,6 +120,7 @@ impl TypeTable {
 struct TraitTable{
     map: HashMap<String,Rc<str>>,
     trait_ord: Rc<str>,
+    #[allow(dead_code)]
     trait_eq: Rc<str>,
     trait_add: Rc<str>,
     trait_mod: Rc<str>,
@@ -250,7 +249,7 @@ pub struct FnType {
 
 #[derive(Clone)]
 pub enum Trait {
-    None, Atom(Rc<str>), Union(Rc<str>)
+    None, Atom(Rc<str>), _Union(Rc<str>)
 }
 
 impl std::fmt::Display for Trait {
@@ -274,7 +273,7 @@ pub struct PolyType {
     pub scheme: Type
 }
 impl PolyType {
-    fn contains(&self, id: &Rc<str>) -> bool {
+    fn _contains(&self, id: &Rc<str>) -> bool {
         for tv in &*self.variables {
             if Rc::ptr_eq(&tv.id,id) {return true;}
         }
@@ -442,99 +441,6 @@ fn undefined_symbol(line: usize, col: usize, text: String) -> SemanticError {
 
 fn type_mismatch(expected: &Type, given: &Type) -> String {
     format!("\n    expected type {}\n    found    type {}",expected,given)
-}
-
-#[derive(PartialEq,Eq)]
-enum TypeCmp {
-    None, True, False
-}
-
-impl From<bool> for TypeCmp {
-    fn from(x: bool) -> Self {
-        if x {TypeCmp::True} else {TypeCmp::False}
-    }
-}
-
-fn compare_app_types(p1: &[Type], p2: &[Type]) -> TypeCmp {
-    if p1.len() != p2.len() {
-        return TypeCmp::False;
-    }
-    let mut value = TypeCmp::True;
-    for i in 0..p1.len() {
-        match compare_types(&p1[i],&p2[i]) {
-            TypeCmp::None => return TypeCmp::None,
-            TypeCmp::False => {value = TypeCmp::False},
-            TypeCmp::True => {/*pass*/}
-        }
-    }
-    return value;
-}
-
-fn compare_fn_types(f1: &FnType, f2: &FnType) -> TypeCmp {
-    match compare_types(&f1.ret,&f2.ret) {
-        TypeCmp::None => return TypeCmp::None,
-        TypeCmp::False => return TypeCmp::False,
-        TypeCmp::True => {/*pass*/}
-    }
-    if f1.arg.len() != f2.arg.len() ||
-       f1.argc_min != f2.argc_min ||
-       f1.argc_max != f2.argc_max
-    {
-        return TypeCmp::False;
-    }
-    for i in 0..f1.arg.len() {
-        match compare_types(&f1.arg[i],&f2.arg[i]) {
-            TypeCmp::None => return TypeCmp::None,
-            TypeCmp::False => return TypeCmp::False,
-            TypeCmp::True => {/*pass*/}
-        }        
-    }
-    return TypeCmp::True;
-}
-
-fn compare_types(t1: &Type, t2: &Type) -> TypeCmp {
-    match t1 {
-        Type::None => TypeCmp::None,
-        Type::Atom(t1) => {
-            match t2 {
-                Type::Atom(t2) => TypeCmp::from(t1==t2),
-                Type::None => TypeCmp::None,
-                Type::App(_) => TypeCmp::False,
-                Type::Fn(_) => TypeCmp::False,
-                _ => panic!()
-            }
-        },
-        Type::App(ref p1) => {
-            match t2 {
-                Type::None => TypeCmp::None,
-                Type::Atom(_) => TypeCmp::False,
-                Type::App(ref p2) => compare_app_types(p1,p2),
-                Type::Fn(_) => TypeCmp::False,
-                _ => panic!()
-            }
-        },
-        Type::Fn(ref f1) => {
-            if let Type::Fn(ref f2) = t2 {
-                compare_fn_types(f1,f2)
-            }else{
-                TypeCmp::False
-            }
-        },
-        _ => panic!()
-    }
-}
-
-fn is_homogeneous(a: &[Type]) -> bool {
-    if a.len()==0 {return true;}
-    let x = &a[0];
-    for y in &a[1..] {
-        match compare_types(x,y) {
-            TypeCmp::None => return false,
-            TypeCmp::False => return false,
-            TypeCmp::True => {}
-        }
-    }
-    return true;
 }
 
 fn is_atomic_type(ty: &Type, id: &Rc<str>) -> bool {
@@ -881,10 +787,8 @@ fn type_check_operator_index(&mut self, env: &Env, t: &AST)
 
     if let Some(a) = ty_seq.is_app(&self.tab.type_list) {
         return self.index_homogeneous(t,&ty_index,a[0].clone());
-    }else if let Some(a) = ty_seq.is_app(&self.tab.type_tuple) {
-        if is_homogeneous(a) {
-            return self.index_homogeneous(t,&ty_index,a[0].clone());
-        }
+    }else if let Some(_a) = ty_seq.is_app(&self.tab.type_tuple) {
+        todo!();
     }
 
     return Err(type_error(t.line,t.col,format!(

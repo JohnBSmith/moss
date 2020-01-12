@@ -158,6 +158,8 @@ impl SymbolTable {
         let index = self.index;
         return self.list[index].local_count;
     }
+
+    #[allow(dead_code)]
     pub fn print(&self){
         println!("index: {}",self.index);
         for (i,x) in self.list.iter().enumerate() {
