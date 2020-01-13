@@ -178,7 +178,7 @@ impl SymbolTable {
         let index = self.index;
         let node = &mut self.list[index];
         if node.contains(&id) {
-            panic!();
+            panic!("contains: {}",id);
         }
         let kind = if global {
             VariableKind::Global

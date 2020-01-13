@@ -9,3 +9,4 @@ For the polynomial case, (Int,Nat)->Int would be fine.
 # How to type mutability?
 It could be solved with a type constructor and a subtype relation.
 
+# Type check self argument of method call.
