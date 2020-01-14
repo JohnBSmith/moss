@@ -84,8 +84,8 @@ Maps with values absent can be considered as sets:
 they introduce problems. For example, '<code>==</code>' behaves
 differently if there are keys with <code>m[key]==0</code>.
 But it is clear that maps may be used as internal data
-structures of multisets. An alternative is, to simpliy monkey patch
-the neccessary operations into <code>Map</code>
+structures of multisets. An alternative is, to simply monkey patch
+the necessary operations into <code>Map</code>
 (<code>Map</code> is the data type of maps).
 
 <h3 data-date="20160930" id="assignment-to-application"
@@ -98,7 +98,7 @@ applications is added to the language.
 2. a.m(x1,...,xn)=y is equivalent to a.set_m(x1,...,xn,y)
 3. a.m(x) = y1,y2 the same as a.m(x)=[y1,y2]
      and therefore equivalent to a.set_m(x,[y1,y2])
-4. a.m1(),a.m2() = t is not possilbe (t=[y1,y2])
+4. a.m1(),a.m2() = t is not possible (t=[y1,y2])
 5. a[i]()=y is not possible
 </pre>
 <p>The point in (4) is that the language should be minimalistic
@@ -118,7 +118,7 @@ numbers. For example, one can get
 
 <pre>
 So we can have output of the form 000000000...some digit
-and (under other circuumstances)  999999999...some digit.
+and (under other circumstances)  999999999...some digit.
 This is because of printf("%.16g\n",x).
 
 In most cases one has engineering tasks and does not suffer
@@ -175,7 +175,7 @@ destruction of the interpreter that clears the gtabs.
 A small difficulty remains: If a module shall be unloaded properly
 <i>sooner</i> than at the ending of the main program,
 this destructor must be called explicitly.
-<li>The call stack is splitted in two parts: a frame stack and an
+<li>The call stack is split in two parts: a frame stack and an
 object stack. The frame stack is dynamic, but the object stack cannot
 be made greater during runtime. One could use a
 dynamic vector directly and indices instead
@@ -207,7 +207,7 @@ the overflow checks optional.
 capability-based security model, are much harder to achieve,
 because this security model is deeply connected to privateness
 and immutability of data. For file access, a model with
-sandbox directories seems to be, albeit less fine grainded,
+sandbox directories seems to be, albeit less fine grained,
 easier to achieve without loopholes.
 
 <h3 data-date="20161107" id="self"
@@ -250,8 +250,8 @@ m = eval(read("m.moss"))
 <p>Behavior is different, because <code>eval</code>
 returns a value rather than a module object. But the question that
 comes into mind is: should they be equivalent? In order to achieve
-that, in a module a module object should be returned explicitely rather
-than implicitely. This would also solve another problem: How to
+that, in a module a module object should be returned explicitly rather
+than implicitly. This would also solve another problem: How to
 state a module that consists only of a single class or a single
 function (e.g. to achieve advanced lazy loading and lazy
 evaluation)? The problem here is an oddly looking import statement:
@@ -276,7 +276,7 @@ a range. Not given arguments will be filled out with
 <pre class="moss indent">
 function f(x,y=expression)
 </pre>
-<p>is simply syntatic sugar for
+<p>is simply syntactic sugar for
 <pre class="moss indent">
 function f(x,y=null)
   if y is null then y=expression end
@@ -374,13 +374,13 @@ the curly brackets.
 <pre class="moss indent">
 begin ... end
 </pre>
-<p>is syntatic sugar for:
+<p>is syntactic sugar for:
 <pre class="moss indent">
 fn|| ... end()
 </pre>
 
 <p>Often we want to create a local variable, use it in one or
-more functions, and forget it afterwarts. Thus we want to have
+more functions, and forget it afterwards. Thus we want to have
 a <i>local scope</i>, so that the variable does not exist outside
 of this scope. In Moss I have used this ugly construction so far:
 <pre class="moss indent">
@@ -507,7 +507,7 @@ assert condition
 
 assert condition, text
 </pre>
-<p>It is implemented as syntatic sugar, because <code>text</code>
+<p>It is implemented as syntactic sugar, because <code>text</code>
 shall be lazily evaluated. So we have:
 <pre class="moss indent">
 if not condition
@@ -535,7 +535,7 @@ that is shown together with a stack trace.
 <p><b>Update</b>. Maybe it is a good idea to enable compilation
 of assert statements only in debug mode. Debug mode will be
 switched on by "<code>moss -d</code>". So, if something goes
-wrong and a long strack trace is returned, debug mode could be
+wrong and a long stack trace is returned, debug mode could be
 turned on to inspect the situation further.
 
 <h3 data-date="20171024" id="embedded-slicing-ability"
@@ -551,7 +551,7 @@ immutable data array and a <code>(pointer,len)</code> to a part of it.
 a flexible array last member. We would need a double allocation.
 At next, the data array has to contain a reference counter.
 Ideally the data array is a struct with a flexible array last member.
-Not to forget that the string object itself needs an independet
+Not to forget that the string object itself needs an independent
 reference counter.
 
 <p>This sounds more complicated. So what have we won? Now we can
@@ -572,7 +572,7 @@ to separate it from the standard behavior. A problem is again,
 that the data array needs an independent reference counter.
 
 <p>Alternatively, we could have a sum type (a tagged union)
-that chooses wether to point to data or to slice another array.
+that chooses whether to point to data or to slice another array.
 
 <p>So, what have we won? Let's take a look on some naive algorithms:
 <pre class="moss indent">
@@ -630,7 +630,7 @@ expression "<code>a.x</code>" is parsed into an AST
 <code>(dot a "x")</code>. But the compiler
 ever since the beginning was able to compile the more general
 AST <code>(dot a x)</code> where <code>a</code> and <code>x</code>
-are arbitray expressions. The recursive desecent may simply take an
+are arbitrary expressions. The recursive descent may simply take an
 atom after the dot. Thus I will introduce the general syntax
 "<code>a.(x)</code>". So, adding very few lines to the compiler allows
 us nice reflection with respect to the prototype chain. For clarity,
@@ -692,7 +692,7 @@ signature = (type, object_name, prototype)
 <img src="img/type-model.png" style="width: 320px">
 </div>
 
-<p>To make things easy, propterty access only searches the prototype
+<p>To make things easy, property access only searches the prototype
 chain. A complicated rule "one left then upwards" will not be used.
 
 <p>For object-to-string, the type name must be stored somewhere,
@@ -740,7 +740,7 @@ print("type: ", type(d))
 <h3 data-date="20180327" id="proper-lexical-scoping"
 >Proper lexical scoping</h3>
 
-<p>Not posssible in Moss so far is proper lexical scoping.
+<p>Not possible in Moss so far is proper lexical scoping.
 <i>Proper lexical scoping</i> is a closure capture of an external local
 variable from lexical scope by mutable reference. The local variable's
 lifetime is increased from <code>'scope</code> to
@@ -791,7 +791,7 @@ end
 
 <p>Now, the idea is to regard the situation as a move of
 <code>s</code> into <code>_t</code>. Thus also in outer scope,
-we need to replace every occurence of a captured variable
+we need to replace every occurrence of a captured variable
 by <code>_t[i]</code>. In this case, <code>print(s)</code>
 is replaced by <code>print(_t[0])</code>.
 
@@ -889,7 +889,7 @@ by <code>f(*a)</code>.
 <p>Surprisingly, the implementation patch
 was very short and took me only 30 min. I added the unary prefix operator
 "<code>*</code>" to the recursive descent at the same level
-as the unary perfix operators "<code>+ - ~</code>". Now in AST
+as the unary prefix operators "<code>+ - ~</code>". Now in AST
 compilation we match <code>splat</code> in these ASTs:
 <pre class="indent">
   (apply f (splat (list 1 2))),
@@ -1026,12 +1026,12 @@ time.
 <h3 data-date="20181115" id="destructors"
 >Destructors, getters, setters</h3>
 
-<p>So, implementing custom getters and setters is not very diffecult,
-as I have found. Basicly one provides a new class object from
+<p>So, implementing custom getters and setters is not very difficult,
+as I have found. Basically one provides a new class object from
 a class constructor, but this is an <code>Object::Interface</code>
 instead of an <code>Object::Table</code>. Let me explain,
 <code>Interface</code> is the residual enum variant that contains
-a dyn trait pointer, i.e. is the interface to all differnt kinds
+a dyn trait pointer, i.e. is the interface to all different kinds
 of objects, for example long integers, multidimensional arrays,
 file objects etc.
 
@@ -1165,7 +1165,7 @@ interpreter kernel smaller.
 >First class support for classes</h3>
 
 <p>So, with the introduction of classes, Moss has got a second
-slighly different object system. Now this system was made the
+slightly different object system. Now this system was made the
 primary object system, as I have found ordinary named types to be the
 most common pattern. The prototype based object system is just used
 very infrequently. Furthermore, the prototype system was unified with
@@ -1218,7 +1218,7 @@ Duck = class_constructor("Duck",null,{
 <h3 data-date="20191027" id="copy"
 >Deep copy moved out</h3>
 
-<p>The alogorithms for deep copy can become quite complicated.
+<p>The algorithms for deep copy can become quite complicated.
 For example, when there is a non-tree-like graph, the possibility of
 respecting the graph structure emerges. The operations in such
 algorithms are actually handled quite well in Moss. For these reasons
@@ -1247,8 +1247,103 @@ than 127. A remaining question is, whether Unicode should be the
 default mode or be enabled by a command-line option. The former is
 more convenient while the latter is safer.  As ASCII-only input
 in default mode would be a strong convenience regression, it seems
-better to me to allow Uniode in default mode. A bad stomach feeling
+better to me to allow Unicode in default mode. A bad stomach feeling
 remains.
+
+<h3 data-date="20200114" id="traits"
+>A complication with traits</h3>
+
+<p>So I set up a type system with general type inference and
+parametric polymorphism. One can already state such code:
+<pre class="moss indent">
+function map[X,Y](a: List[X], f: X-&gt;Y): List[Y]
+   let b = []
+   for x in a
+      b.push(f(x))
+   end
+   return b
+end
+
+let a = map(list(1..10), |x| 2*x)
+print(a)
+</pre>
+<p>Or this:
+<pre class="moss indent">
+let compose = |g,f| |x| g(f(x))
+let add = |x,y| x+y
+let h = compose(|x| add(x,1), |x| add(x,1))
+print(h(0))
+</pre>
+<p>The type inference algorithm deduces:
+<pre class="indent">
+compose: (Int-&gt;Int,Int-&gt;Int)-&gt;Int-&gt;Int
+add: (Int,Int)-&gt;Int
+h: Int-&gt;Int
+</pre>
+
+<p>One can also state <code>compose</code> in polymorphic fashion:
+<pre class="moss indent">
+function compose[X,Y,Z](g: Y-&gt;Z, f: X-&gt;Y): X-&gt;Z
+   return |x| g(f(x))
+end
+</pre>
+
+<p>Currently, there is no notion of mutability, because firstly this
+introduces a subtype relation and secondly I don't know whether it
+should become a first class feature of the type system or not. The
+type system and type checker will become more complex, one has to
+work out what the best algorithms would be.
+
+<p>Of course, reassignable variables are introduced with another
+syntax &ndash; <code>var</code> &ndash; instead of <code>let</code>.
+That's not the same as mutability, although both concepts are slightly
+intertwined in Rust.
+
+<p>Regarding parametric polymorphism with type variables restricted
+by traits, a further complication emerges. Let's have a look
+at this code:
+<pre class="moss indent">
+function pow[T: Mul+One](x: T, n: Int): T
+   var y = T.one
+   for k in 1..n
+      y = y*x
+   end
+   return y
+end
+
+print(pow(2,10))
+</pre>
+
+<p>Here, <code>pow</code> needs the type <code>T</code> at runtime,
+because it occurs explicitly in <code>T.one</code>. One could obtain
+it through <code>x</code>, but in general this is not feasible
+&mdash; for example, one cannot simply obtain the element type of
+list, because the list could be empty, and an empty list does
+not know its element type at runtime.
+
+<p>The best approach would be to give the type as an additional
+argument. The resulting code at runtime would be:
+
+<pre class="moss indent">
+# impl One for Int
+Int.one = 1
+
+function pow(x,n,T)
+   y = T.one
+   for k in 1..n
+      y = y*x
+   end
+   return y
+end
+
+print(pow(2,10,Int))
+</pre>
+
+<p>This means, the ABI of a polymorphic function type would depend
+one the standalone occurrence of the type. Thus one must take care,
+this information is not erased during unification. It would be
+easier if the type argument is given explicitly for every type
+variable restricted by a trait.
 
 
 </body>
