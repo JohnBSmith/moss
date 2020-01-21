@@ -684,15 +684,19 @@ fn parse_int(a: &[char]) -> Result<i32,ParseError> {
     let mut i = 0;
     if a[i]=='-' {i+=1; sgn = -1;}
     let mut y = 0;
+    let base: u32 = if i+1<n && a[i]=='0' {
+        match a[i+1] {'x' => 16, 'b' => 2, 'o' => 8, _ => 10}
+    } else {10};
+    if base != 10 {i+=2;}
     for x in &a[i..] {
-        match (*x).to_digit(10) {
+        match (*x).to_digit(base) {
             Some(digit) => {
-                match 10i32.checked_mul(y) {
-                    Some(value) => {y=value;},
+                match (base as i32).checked_mul(y) {
+                    Some(value) => {y = value;},
                     None => return Err(ParseError::Overflow)
                 }
                 match (y).checked_add(digit as i32) {
-                    Some(value) => {y=value;},
+                    Some(value) => {y = value;},
                     None => return Err(ParseError::Overflow)
                 }
             },
@@ -1071,6 +1075,9 @@ fn hex(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     }
     if let Object::Int(n) = argv[0] {
         let s: &str = &format!("0x{:x}",n);
+        Ok(Object::from(s))
+    }else if let Some(n) = downcast::<Long>(&argv[0]) {
+        let s: &str = &format!("0x{}",Long::to_hex(n));
         Ok(Object::from(s))
     }else if let Some(data) = downcast::<Bytes>(&argv[0]) {
         Ok(base16(&data.data.borrow()))

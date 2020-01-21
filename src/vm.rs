@@ -4253,7 +4253,7 @@ fn vm_loop(
           let index = load_u32(&a,ip+BCSIZE);
           stack[sp] = match Long::to_long(&module.data[index as usize]) {
               Ok(x) => x,
-              Err(()) => panic!("to_long")
+              Err(()) => unreachable!("to_long")
           };
           sp+=1;
           ip+=BCASIZE;

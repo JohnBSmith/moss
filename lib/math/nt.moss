@@ -15,24 +15,21 @@ function lcm(a,b=null)
 end
 
 begin
-   global isprime
+   public isprime
 
-   function isprime_trial_division(n)
-      if n<2
-         return false
-      else
-         k = 2
-         while k*k<=n
-            if n%k==0
-               return false
-            end
-            k+=1
-         end
-         return true
+   function isprime_trial_div(n)
+      if n<4 then return n>1 end
+      if n%2==0 or n%3==0 then return false end
+      i = 5; w = 2
+      while i*i<=n
+         if n%i==0 then return false end
+         i += w
+         w = 6-w
       end
+      return true
    end
 
-   prime_tab = (2..).filter(isprime_trial_division).list(10)
+   prime_tab = (2..).filter(isprime_trial_div).list(10)
    class TooLarge: ValueError = {}
 
    function witness(a,d,n,r)

@@ -88,6 +88,9 @@ impl Long {
         let x = BigInt::from(a);
         return Object::Interface(Rc::new(Long{value: x.pow(b)}));
     }
+    pub fn to_hex(&self) -> String {
+        format!("{:x}",self.value)
+    }
 }
 
 impl Interface for Long {

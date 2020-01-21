@@ -98,8 +98,11 @@ impl Mpz {
         unsafe{
             let mut mpz = Mpz::new();
             s.push('\x00');
+            let base = if s.len()>3 &&
+                (&s[0..2]=="0x" || &s[0..2]=="0b")
+                {0} else {10};
             let p = s.as_bytes().as_ptr() as *const c_char;
-            if __gmpz_set_str(&mut mpz.mpz, p, 10) == 0 {
+            if __gmpz_set_str(&mut mpz.mpz, p, base) == 0 {
                 return Ok(mpz);
             }else{
                 return Err(());
@@ -254,6 +257,18 @@ impl Mpz {
         }
     }
 
+    fn to_hex(&self) -> String {
+        unsafe{
+            let p = __gmpz_get_str(null::<i8>() as *mut i8, 16, &self.mpz);
+            let len = strlen(p);
+            let a: &[u8] = ::std::slice::from_raw_parts(p as *const u8,len);
+            let s = ::std::str::from_utf8(a).unwrap();
+            let y = s.to_string();
+            free(p as *mut c_void);
+            return y;
+        }
+    }
+
     fn cmp(&self, b: &Mpz) -> c_int {
         unsafe{__gmpz_cmp(&self.mpz, &b.mpz)}
     }
@@ -358,6 +373,9 @@ impl Long {
         let mut y = Mpz::new();
         y.pow_uint(&x,b.into());
         return Object::Interface(Rc::new(Long{value: y}));
+    }
+    pub fn to_hex(&self) -> String {
+        self.value.to_hex()
     }
 }
 

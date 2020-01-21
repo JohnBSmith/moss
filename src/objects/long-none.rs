@@ -10,6 +10,7 @@ impl Long {
     pub fn as_f64(&self) -> f64 {NAN}
     pub fn object_from_string(_a: &[char]) -> Result<Object,()> {Err(())}
     pub fn try_as_int(&self) -> Result<i32,()> {Err(())}
+    pub fn to_hex(&self) -> String {panic!()}
 }
 
 pub fn pow_mod(env: &mut Env, _a: &Object, _n: &Object, _m: &Object) -> FnResult {
