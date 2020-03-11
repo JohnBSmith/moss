@@ -22,7 +22,10 @@ pub fn new_iterator(f: MutableFn) -> Object {
 }
 
 pub fn int_range_iterator(mut a: i32, b: i32, d: i32) -> MutableFn {
-    Box::new(move |_env: &mut Env, _pself: &Object, _argv: &[Object]| -> FnResult {
+    Box::new(move |env: &mut Env, _pself: &Object, argv: &[Object]| -> FnResult {
+        match argv.len() {
+            0 => {}, n => return env.argc_error(n,0,0,"range iterator")
+        }
         return if a<=b {
             a+=d;
             Ok(Object::Int(a-d))
@@ -47,7 +50,10 @@ pub fn iter(env: &mut Env, x: &Object) -> FnResult {
         Object::List(ref a) => {
             let mut index: usize = 0;
             let a = a.clone();
-            let f = Box::new(move |_env: &mut Env, _pself: &Object, _argv: &[Object]| -> FnResult{
+            let f = Box::new(move |env: &mut Env, _pself: &Object, argv: &[Object]| -> FnResult {
+                match argv.len() {
+                    0 => {}, n => return env.argc_error(n,0,0,"list iterator")
+                }
                 let a = a.borrow();
                 if index == a.v.len() {
                     return Ok(Object::empty());
@@ -61,7 +67,10 @@ pub fn iter(env: &mut Env, x: &Object) -> FnResult {
         Object::Map(ref m) => {
             let mut index: usize = 0;
             let v: Vec<Object> = m.borrow().m.keys().cloned().collect();
-            let f = Box::new(move |_env: &mut Env, _pself: &Object, _argv: &[Object]| -> FnResult {
+            let f = Box::new(move |env: &mut Env, _pself: &Object, argv: &[Object]| -> FnResult {
+                match argv.len() {
+                    0 => {}, n => return env.argc_error(n,0,0,"map iterator")
+                }
                 if index == v.len() {
                     return Ok(Object::empty());
                 }else{
@@ -99,7 +108,10 @@ fn cycle_iterable(env: &mut Env, x: &Object) -> FnResult {
         _ => unreachable!()
     };
     let mut k: usize = 0;
-    let f = Box::new(move |env: &mut Env, _pself: &Object, _argv: &[Object]| -> FnResult {
+    let f = Box::new(move |env: &mut Env, _pself: &Object, argv: &[Object]| -> FnResult {
+        match argv.len() {
+            0 => {}, n => return env.argc_error(n,0,0,"cyclic iterator")
+        }
         let v = &a.borrow().v;
         if k<v.len() {k+=1;} else {k=1;}
         return if v.is_empty() {
@@ -189,13 +201,16 @@ fn map(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     }
     let i = iter(env,pself)?;
     let f = argv[0].clone();
-    let g = Box::new(move |env: &mut Env, _pself: &Object, _argv: &[Object]| -> FnResult {
+    let g = Box::new(move |env: &mut Env, _pself: &Object, argv: &[Object]| -> FnResult {
+        match argv.len() {
+            0 => {}, n => return env.argc_error(n,0,0,"iterator from Iterable.map")
+        }
         let x = env.call(&i,&Object::Null,&[])?;
         return if x.is_empty() {
             Ok(x)
         }else{
             let y = trace_err!(env.call(&f,&Object::Null,&[x]),
-                "iterator created by map"
+                "iterator from Iterable.map"
             );
             Ok(y)
         };
@@ -209,14 +224,17 @@ fn filter(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     }
     let i = iter(env,pself)?;
     let f = argv[0].clone();
-    let g = Box::new(move |env: &mut Env, _pself: &Object, _argv: &[Object]| -> FnResult {
+    let g = Box::new(move |env: &mut Env, _pself: &Object, argv: &[Object]| -> FnResult {
+        match argv.len() {
+            0 => {}, n => return env.argc_error(n,0,0,"iterator from Iterable.filter")
+        }
         loop{
             let x = env.call(&i,&Object::Null,&[])?;
             if x.is_empty() {
                 return Ok(x);
             }else{
                 let y = trace_err!(env.call(&f,&Object::Null,&[x.clone()]),
-                    "iterator created by filter"
+                    "iterator from Iterable.filter"
                 );
                 match y {
                     Object::Bool(u) => {
@@ -347,7 +365,10 @@ fn chunks(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     };
     let i = iter(env,pself)?;
     let mut empty = false;
-    let g = Box::new(move |env: &mut Env, _pself: &Object, _argv: &[Object]| -> FnResult {
+    let g = Box::new(move |env: &mut Env, _pself: &Object, argv: &[Object]| -> FnResult {
+        match argv.len() {
+            0 => {}, n => return env.argc_error(n,0,0,"iterator from Iterable.chunks")
+        }
         if empty {return Ok(Object::empty());}
         let mut v: Vec<Object> = Vec::with_capacity(n);
         for _ in 0..n {
@@ -660,7 +681,10 @@ fn until(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     }
     let i = iter(env,pself)?;
     let f = argv[0].clone();
-    let g = Box::new(move |env: &mut Env, _pself: &Object, _argv: &[Object]| -> FnResult {
+    let g = Box::new(move |env: &mut Env, _pself: &Object, argv: &[Object]| -> FnResult {
+        match argv.len() {
+            0 => {}, n => return env.argc_error(n,0,0,"iterator from Iterable.until")
+        }
         let x = env.call(&i,&Object::Null,&[])?;
         return if x.is_empty() {Ok(x)} else {
             let y = env.call(&f,&Object::Null,&[x.clone()])?;
@@ -689,7 +713,10 @@ fn enumerate(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
         n => return env.argc_error(n,0,1,"enum")
     };
     let i = iter(env,pself)?;
-    let g = Box::new(move |env: &mut Env, _pself: &Object, _argv: &[Object]| -> FnResult {
+    let g = Box::new(move |env: &mut Env, _pself: &Object, argv: &[Object]| -> FnResult {
+        match argv.len() {
+            0 => {}, n => return env.argc_error(n,0,0,"iterator from Iterable.enum")
+        }
         let x = env.call(&i,&Object::Null,&[])?;
         return if x.is_empty() {
             Ok(x)
@@ -714,7 +741,10 @@ fn take(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     };
     let mut k: i32 = 0;
     let i = iter(env,pself)?;
-    let g = Box::new(move |env: &mut Env, _pself: &Object, _argv: &[Object]| -> FnResult {
+    let g = Box::new(move |env: &mut Env, _pself: &Object, argv: &[Object]| -> FnResult {
+        match argv.len() {
+            0 => {}, n => return env.argc_error(n,0,0,"iterator from Iterable.take")
+        }
         let x = env.call(&i,&Object::Null,&[])?;
         return Ok(if x.is_empty() {x} else {
             if k<n {k+=1; x} else {Object::empty()}

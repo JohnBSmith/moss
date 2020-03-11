@@ -20,10 +20,21 @@
   thus be a breaking change.
 <li>The order of named arguments should not matter.
 <li>Named arguments and dictionaries should be unified.
+<li>Automatic partial application or automatic
+  currying should not exist, as this would disguise argument
+  count errors.
 <li>It should be ergonomic to use tables and dictionaries
   together with string formatting or string interpolation.
 <li>Private global variables should be possible.
 <li>Private class and object fields should be possible.
+<li>The syntax of nested expressions should mix different kinds of
+  brackets in order to increase readability. Moss does this quite well
+  with a mixture of parentheses, square brackets, braces and keywords.
+<li>There should be no index operation for iterators. This would
+  confuse iterators with arrays and thus lead to subtile bugs.
+<li>The function <code>len</code> should not be defined for
+  iterators. This would confuse iterators with arrays and thus
+  lead to subtile bugs.
 </ol>
 
 

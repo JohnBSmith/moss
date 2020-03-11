@@ -29,4 +29,9 @@ if callcc(f)!="fy"
    error("#1")
 end
 
+try
+   [x,y] = [0]
+catch e if e: ValueError
+   # pass
+end
 

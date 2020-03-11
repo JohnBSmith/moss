@@ -3092,7 +3092,12 @@ fn operator_get(env: &mut EnvPart,
     'clone: loop{
         stack[sp] = match stack[sp-1] {
             Object::List(ref a) => {
-                a.borrow().v[index as usize].clone()
+                match a.borrow().v.get(index as usize) {
+                    Some(value) => value.clone(),
+                    None => return Err(env.value_error_plain(
+                        "Value error in unpacking: out of upper bound."
+                    ))
+                }
             },
             _ => break 'clone
         };

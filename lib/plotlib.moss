@@ -761,8 +761,9 @@ function system(argm = {})
    assert scale[0]!=0 and scale[1]!=0
    wx = scale[0]*10/fscale
    wy = scale[1]*10/fscale
-   ax = (1-96/w)/0.9*alignx_tab[align[0]]
-   ay = (1-64/h)/0.9*aligny_tab[align[1]]*h/w
+   ax,ay = align
+   ax = ax if not ax: String else (1-96/w)/0.9*alignx_tab[ax]
+   ay = ay if not ay: String else (1-64/h)/0.9*aligny_tab[ay]*h/w
    if dark
       bg = [0,0.02,0.06]
       csys = [0.3,0.3,0.3]
