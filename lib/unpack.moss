@@ -13,7 +13,7 @@ class Drain = {
 }
 
 function drain(m)
-   return table Drain{m = m}
+   return table Drain{m = m} if m: Map else m.argm
 end
 
 function assert_empty(m)
@@ -21,4 +21,10 @@ function assert_empty(m)
       raise table ValueError{
          text = "Value error: unexpected named arguments:\n\s\s{}."%[m]}
    end
+end
+
+class Sloppy = {len = || 0}
+
+function sloppy(m)
+   return table Sloppy{argm=m}
 end

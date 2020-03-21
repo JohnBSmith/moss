@@ -32,6 +32,9 @@
   with a mixture of parentheses, square brackets, braces and keywords.
 <li>There should be no index operation for iterators. This would
   confuse iterators with arrays and thus lead to subtile bugs.
+<li>The syntax <code>f[a]</code> for functions means, iterators
+  need to check the number of given arguments, as iterators coincide
+  with functions with no arguments.
 <li>The function <code>len</code> should not be defined for
   iterators. This would confuse iterators with arrays and thus
   lead to subtile bugs.
