@@ -5,6 +5,9 @@
 # trim: no whitespace
 # nan: allow NaN and Infinity
 
+begin
+public load, dump
+
 use math: isnan, isinf
 
 Bracket = object()
@@ -175,6 +178,26 @@ function atom(x)
    end
 end
 
+rec = table{}
+
+function expression(i)
+   x = get_token(i)
+   if x[0] is Bracket
+      if x[1]=='['
+         i[0]+=1
+         return rec.list_literal(i)
+      elif x[1]=='{'
+         i[0]+=1
+         return rec.map_literal(i)
+      end
+   else
+      i[0]+=1
+      return atom(x)
+   end
+end
+
+
+
 function list_literal(i)
    a = []
    x = get_token(i)
@@ -229,21 +252,8 @@ function map_literal(i)
   return d
 end
 
-function expression(i)
-   x = get_token(i)
-   if x[0] is Bracket
-      if x[1]=='['
-         i[0]+=1
-         return list_literal(i)
-      elif x[1]=='{'
-         i[0]+=1
-         return map_literal(i)
-      end
-   else
-      i[0]+=1
-      return atom(x)
-   end
-end
+rec.list_literal = list_literal
+rec.map_literal = map_literal
 
 function load(s)
    a = scan(s)
@@ -399,5 +409,4 @@ function dump(x,*argv)
    return a.join()
 end
 
-
-
+end

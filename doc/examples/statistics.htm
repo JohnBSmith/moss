@@ -58,7 +58,7 @@ function stat(a)
    return table Stat{mean = m, sigma = sigma(a,m)}
 end
 
-s = stat(rand(1..6).list(10000))
+s = stat(rng(1..6).list(10000))
 
 print(s)
 </pre>
@@ -112,8 +112,8 @@ function linear_regression(a)
    }
 end
 
-rng = rand()
-a = list(-2..2: 0.1).map(|x| [x,x+2*rng()])
+rand = rng()
+a = list(-2..2: 0.1).map(|x| [x,x+2*rand()])
 r = linear_regression(a)
 
 print(r)
@@ -185,9 +185,9 @@ use math.na: inv
 
 
 # Inverse transform sampling
-function rand_cdf(F)
-   rng = rand()
-   return || inv(F,rng(),-100,100)
+function rng_cdf(F)
+   rand = rng()
+   return || inv(F,rand(),-100,100)
 end
 
 
@@ -208,7 +208,7 @@ end
 Phi = norm(mu=0,sigma=1)
 
 
-X = rand_cdf(Phi)
+X = rng_cdf(Phi)
 F1 = cdf(X.list(10))
 F2 = cdf(X.list(100))
 

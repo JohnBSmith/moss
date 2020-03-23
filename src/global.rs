@@ -594,7 +594,7 @@ fn copy(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     }
 }
 
-fn rand_float(env: &mut Env) -> FnResult {
+fn rng_float(env: &mut Env) -> FnResult {
     let seed = env.rte().seed_rng.borrow_mut().rand_u32();
     let mut rng = Rand::new(seed);
     let f = Box::new(move |_: &mut Env, _: &Object, _: &[Object]| -> FnResult {
@@ -603,17 +603,17 @@ fn rand_float(env: &mut Env) -> FnResult {
     return Ok(Function::mutable(f,0,0));
 }
 
-fn rand_range(env: &mut Env, r: &Range) -> FnResult {
+fn rng_range(env: &mut Env, r: &Range) -> FnResult {
     let a = match r.a {
         Object::Int(x)=>x,
         _ => return env.type_error1(
-            "Type error in rand(a..b): a is not an integer.",
+            "Type error in rng(a..b): a is not an integer.",
             "a",&r.a)
     };
     let b = match r.b {
         Object::Int(x)=>x,
         _ => return env.type_error1(
-            "Type error in rand(a..b): b is not an integer.",
+            "Type error in rng(a..b): b is not an integer.",
             "b",&r.b)
     };
     let seed = env.rte().seed_rng.borrow_mut().rand_u32();
@@ -624,10 +624,10 @@ fn rand_range(env: &mut Env, r: &Range) -> FnResult {
     return Ok(Function::mutable(f,0,0));
 }
 
-fn rand_list(env: &mut Env, a: Rc<RefCell<List>>) -> FnResult {
+fn rng_list(env: &mut Env, a: Rc<RefCell<List>>) -> FnResult {
     let len = a.borrow_mut().v.len();
     let n = if len>0 {(len-1) as i32} else {
-        return env.value_error("Value error in rand(a): size(a)==0.");
+        return env.value_error("Value error in rng(a): size(a)==0.");
     };
     let seed = env.rte().seed_rng.borrow_mut().rand_u32();
     let mut rng = Rand::new(seed);
@@ -638,21 +638,21 @@ fn rand_list(env: &mut Env, a: Rc<RefCell<List>>) -> FnResult {
     return Ok(Function::mutable(f,0,0));    
 }
 
-fn frand(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
+fn rng(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
-        0 => rand_float(env),
+        0 => rng_float(env),
         1 => {
             if let Some(r) = downcast::<Range>(&argv[0]) {
-                return rand_range(env,r);
+                return rng_range(env,r);
             }else if let Object::List(ref a) = argv[0] {
-                return rand_list(env,a.clone());
+                return rng_list(env,a.clone());
             }
             return env.type_error1(
-                "Type error in rand(r): r is not a range.",
+                "Type error in rng(r): r is not a range.",
                 "r", &argv[0]
             );
         },
-        n => env.argc_error(n,0,1,"rand")
+        n => env.argc_error(n,0,1,"rng")
     }
 }
 
@@ -1141,7 +1141,7 @@ pub fn init_rte(rte: &RTE){
     gtab.insert_fn_plain("list",flist,1,1);
     gtab.insert_fn_plain("set",set,1,1);
     gtab.insert_fn_plain("copy",copy,1,1);
-    gtab.insert_fn_plain("rand",frand,1,1);
+    gtab.insert_fn_plain("rng",rng,1,1);
     gtab.insert_fn_plain("gtab",fgtab,0,0);
     gtab.insert_fn_plain("const",fconst,1,1);
     gtab.insert_fn_plain("read",read,1,1);

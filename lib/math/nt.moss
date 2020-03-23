@@ -91,18 +91,13 @@ begin
       elif n%2==0 or n<2
          return false
       end
-      r = 0
-      d = n-1
+      r = 0; d = n-1
       while d%2==0
          r+=1; d = d//2
       end
-      if n: Int
-         rng = rand(2..n-2)
-      else
-         rng = rand(2..100000)
-      end
+      rand = rng(2..(n-2 if n: Int else 100000))
       for k in 1..m
-         a = rng()
+         a = rand()
          if not witness(a,d,n,r)
             return false
          end

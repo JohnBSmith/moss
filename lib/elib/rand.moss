@@ -10,7 +10,7 @@ begin
 end
 
 begin
-   public rand_normal
+   public rng_normal
 
    use math: pi, sqrt, ln
    a = 0.147
@@ -22,10 +22,10 @@ begin
       return sgn(x)*sqrt(sqrt(t^2-y/a)-t)
    end
 
-   function rand_normal(mu,sigma)
+   function rng_normal(mu,sigma)
       a = sqrt(2*sigma^2)
-      rng = rand()
-      return || mu+a*inv_erf(2*rng()-1)
+      rand = rng()
+      return || mu+a*inv_erf(2*rand()-1)
    end
 end
 

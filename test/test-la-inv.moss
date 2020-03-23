@@ -10,14 +10,14 @@ function error(A)
    exit(1)
 end
 
-function random_matrix(m,n,rng)
-   return matrix(*rng.chunks(n).list(m))
+function random_matrix(m,n,rand)
+   return matrix(*rand.chunks(n).list(m))
 end
 
 function check(n,N,a,b)
    E = scalar(n,1,0)
    for k in 1..N
-      A = random_matrix(n,n,rand(a..b)).map(rat)
+      A = random_matrix(n,n,rng(a..b)).map(rat)
       # print(A)
       if det(A)!=0
          if A*inv(A)!=E

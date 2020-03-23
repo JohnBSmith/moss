@@ -34,7 +34,7 @@ function game(argm={})
     f0 = |count| 1 if count==3 else 0,
     f1 = |count| 1 if count in 2..3 else 0,
     count = neighbourhood([-1,0,1]*[-1,1]+[[-1,0],[1,0]]),
-    a = list(h).map(|y| rand(0..1).list(w))
+    a = list(h).map(|y| rng(0..1).list(w))
    } = argm
    psize = csize-2
    b = list(h).map(|y| [0]*w)

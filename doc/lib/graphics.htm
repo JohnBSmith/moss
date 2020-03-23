@@ -191,8 +191,8 @@ the color palette. If <code>n</code> is out of bounds,
 <dd>The color palette, containing <code>[r,g,b]</code> colors.
 A random color is picked this way:
 <pre class="moss">
-rng = rand(s.palette)
-s.rgb(*rng())
+rand = rng(s.palette)
+s.rgb(*rand())
 </pre>
 
 <dt>s.desaturate()

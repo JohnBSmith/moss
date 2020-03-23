@@ -13,15 +13,15 @@ end
 
 i = complex(0,1)
 
-function random_matrix(m,n,rng)
-   return matrix(*rng.chunks(n).list(m))
+function random_matrix(m,n,rand)
+   return matrix(*rand.chunks(n).list(m))
 end
 
 function check(n,N,a,b)
    E = scalar(n,1,0)
    for k in 1..N
-      A = random_matrix(n,n,rand(a..b)).map(rat)
-      B = random_matrix(n,n,rand(a..b)).map(rat)
+      A = random_matrix(n,n,rng(a..b)).map(rat)
+      B = random_matrix(n,n,rng(a..b)).map(rat)
       C = A+B*i
       # print(C)
       if det(C)!=0

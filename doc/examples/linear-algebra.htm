@@ -188,17 +188,17 @@ print(inv(A)*A)
 
 <h2 id="rand">Random numbers</h2>
 <pre class="moss">
-function random_vector(n,rng)
-  return vector(*rng.list(n))
+function random_vector(n,rand)
+   return vector(*rand.list(n))
 end
 
-function random_matrix(m,n,rng)
-  return matrix(*rng.chunks(n).list(m))
+function random_matrix(m,n,rand)
+   return matrix(*rand.chunks(n).list(m))
 end
 
-v = random_vector(4,rand(1..6))
-A = random_matrix(4,4,rand(1..6))
-B = random_matrix(4,4,rand())
+v = random_vector(4,rng(1..6))
+A = random_matrix(4,4,rng(1..6))
+B = random_matrix(4,4,rng())
 </pre>
 
 </body>

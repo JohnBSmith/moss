@@ -144,7 +144,7 @@ function grid(sys,canvas,w,h,ax,ay,csys,cgrid,scale=1)
    end
 end
 
-w = rand()
+w = rng()
 
 function plot_simple(canvas,point,f,px,py,wx,wy,step)
    for x in px-wx..px+wx: step
