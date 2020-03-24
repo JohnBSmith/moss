@@ -7,9 +7,9 @@
   <script src = "../js/moss-syntax.js">
   </script>
   <style>
-table.bt td {
-  padding-top: 0.8em;
-  padding-bottom: 0.8em;
+table.bt td{
+  padding-top: 5px;
+  padding-bottom: 5px;
 }
   </style>
 </head>
@@ -177,12 +177,12 @@ a.sum()
 <td>product over a range
 
 <tr>
-<td><span class="math">&forall;<var>x</var>&isin;<var>M</var>(<var>p</var>(<var>x</var>))</span>
+<td><span class="math">&forall;<var>x</var>&isin;<var>M</var>: <var>p</var>(<var>x</var>)</span>
 <td><code class="moss">M.all(|x| p(x))</code>
 <td>universal quantifier
 
 <tr>
-<td><span class="math">&exist;<var>x</var>&isin;<var>M</var>(<var>p</var>(<var>x</var>))</span>
+<td><span class="math">&exist;<var>x</var>&isin;<var>M</var>: <var>p</var>(<var>x</var>)</span>
 <td><code class="moss">M.any(|x| p(x))</code>
 <td>existential quantifier
 
