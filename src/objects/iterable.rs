@@ -265,9 +265,29 @@ fn each(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     return Ok(Object::Null);
 }
 
+fn any_zero_args(env: &mut Env, pself: &Object) -> FnResult {
+    let i = &iter(env,pself)?;
+    loop{
+        let x = env.call(i,&Object::Null,&[])?;
+        if x.is_empty() {
+            break;
+        }else{
+            if let Object::Bool(x) = x {
+                if x {return Ok(Object::Bool(true));}
+            }else{
+                return env.type_error(
+                    "Type error in i.any(): expected all elements to be of type Bool.");
+            }
+        }
+    }
+    return Ok(Object::Bool(false));
+}
+
 fn any(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
-        1 => {}, n => return env.argc_error(n,1,1,"any")
+        0 => return any_zero_args(env,pself),
+        1 => {},
+        n => return env.argc_error(n,1,1,"any")
     }
     let i = &iter(env,pself)?;
     let p = &argv[0];
@@ -288,9 +308,29 @@ fn any(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     return Ok(Object::Bool(false));
 }
 
+fn all_zero_args(env: &mut Env, pself: &Object) -> FnResult {
+    let i = &iter(env,pself)?;
+    loop{
+        let x = env.call(i,&Object::Null,&[])?;
+        if x.is_empty() {
+            break;
+        }else{
+            if let Object::Bool(x) = x {
+                if !x {return Ok(Object::Bool(false));}
+            }else{
+                return env.type_error(
+                    "Type error in i.all(): expected all elements to be of type Bool.");
+            }
+        }
+    }
+    return Ok(Object::Bool(true));
+}
+
 fn all(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
-        1 => {}, n => return env.argc_error(n,1,1,"all")
+        0 => return all_zero_args(env,pself),
+        1 => {},
+        n => return env.argc_error(n,1,1,"all")
     }
     let i = &iter(env,pself)?;
     let p = &argv[0];

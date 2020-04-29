@@ -27,7 +27,7 @@ function hash(x=null)
    elif x: Bytes
       return hasher().push(x).value()
    else
-      return hasher().push(str(x).encode("utf-8")).value()
+      return hasher().push(str(x).encode()).value()
    end
 end
 

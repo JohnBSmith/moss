@@ -68,6 +68,12 @@ mod format;
 #[path = "modules/sys.rs"]
 mod sys;
 
+#[path = "modules/sysfn.rs"]
+mod sysfn;
+
+#[path = "modules/inspect.rs"]
+mod inspect;
+
 #[path = "modules/time.rs"]
 mod time;
 

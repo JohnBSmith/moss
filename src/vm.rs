@@ -3294,7 +3294,7 @@ fn mut_fn_aliasing(env: &mut Env, f: &Function) -> Box<Exception> {
     ))
 }
 
-fn get_line_col(a: &[u32], ip: usize) -> (usize,usize) {
+pub fn get_line_col(a: &[u32], ip: usize) -> (usize,usize) {
     // let line = (a[ip+2] as usize)<<8 | (a[ip+1] as usize);
     // let col = a[ip+3] as usize;
     let line = ((a[ip]>>8) & 0xffff) as usize;
@@ -4616,6 +4616,24 @@ fn call_object(env: &mut Env,
     }
     return env.type_error1(
         "Type error in f(...): f is not callable.", "f", fobj);
+}
+
+pub struct FrameInfo {
+    pub file: String,
+    pub line: usize
+}
+
+pub fn frame_stack_len(env: &Env) -> usize {
+    return env.env.frame_stack.len();
+}
+
+pub fn frame_info(env: &Env, index: usize) -> FrameInfo {
+    let frame = &env.env.frame_stack[index];
+    let ip = frame.ip;
+    let a = &frame.module.program;
+    let (line,_) = get_line_col(&a,ip-BCASIZE);
+    let file = frame.module.id.clone();
+    return FrameInfo{file,line};
 }
 
 // Calling environment of a function call

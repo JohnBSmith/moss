@@ -67,6 +67,34 @@ implication, ownership of <code>Object</code> is needed, because
 <code>strong_count</code>, which needs only <code>&amp;Rc</code>.
 </ol>
 
+<h3>Pixel graphics</h3>
+<ol>
+<li>It should be allowed to draw to more than one buffer.
+<li>It should be allowed to draw relative to a position.
+<li>There should be at least one good monospace bitmap font in all
+  sizes from one size to doubled size, containing the standard sizes
+  for 60 ppi up to 160 ppi. For minimalism it should be stored as a
+  matrix in a raw buffer, i.e. in the PGM format. Each font file
+  should contain at least the first 256 Unicode code points. A font
+  file containing just the first 256 code points should be
+  arranged as 32*8. &mdash; Currently an adaption of Vera/DejaVu Sans
+  Mono is used. 
+<li>The font loader should also be able to load GNU Unifont.
+</ol>
+
+<h3>Vector graphics</h3>
+<ol>
+<li>It should be allowed to draw to more than one buffer.
+  Some alpha blending and anti-aliasing techniques need
+  intermediate buffers.
+<li>It should be allowed to draw relative to a position and scale.
+<li>Buffers with floating point color depth and alpha depth should
+  be available.
+<li>Colors and alpha values should be given as floating point numbers.
+<li>There should be convenience functions to convert between
+  color spaces.
+<ol>
+
 </body>
 </html>
 

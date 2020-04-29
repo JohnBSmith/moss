@@ -1,0 +1,25 @@
+
+begin
+public log, file, line
+
+use inspect: info
+
+function log(*a)
+   file,line = info()
+   if len(a)==0
+      print("File '{}.moss', line {}: pass" % [file,line])   
+   else
+      print("File '{}.moss', line {}: {}" % [file,line,a.join(", ")])
+      return a[0]
+   end
+end
+
+function file()
+   return info()[0]+".moss"
+end
+
+function line()
+   return info()[1]
+end
+
+end

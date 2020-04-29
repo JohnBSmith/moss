@@ -107,9 +107,7 @@ begin
 
    function isprime(n,m=null)
       for k in prime_tab
-         if n%k==0
-            return n==k
-         end
+         if n%k==0 then return n==k end
       end
       if m is null
          return isprime_deterministic(n)

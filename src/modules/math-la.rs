@@ -1351,6 +1351,7 @@ pub fn load_math_la(env: &mut Env) -> Object
         m.insert_fn_plain("vector",vector,0,VARIADIC);
         m.insert_fn_plain("matrix",matrix,0,VARIADIC);
         m.insert_fn_plain("array",array,2,2);
+        m.insert_fn_plain("vec",vector,0,VARIADIC);
         m.insert_fn_plain("scalar",scalar,3,3);
         m.insert_fn_plain("unit",unit,2,2);
         m.insert_fn_plain("diag",diag,0,VARIADIC);

@@ -313,6 +313,7 @@ fn load(env: &mut Env, id: Rc<CharString>, hot_plug: bool) -> FnResult{
     let s = id.to_string();
     let y = match &s[..] {
         "fs" => crate::fs::load_fs(env),
+        "inspect" => crate::inspect::load_inspect(),
 
         #[cfg(feature = "la")]
         "la" => crate::la::load_la(env),
@@ -331,6 +332,7 @@ fn load(env: &mut Env, id: Rc<CharString>, hot_plug: bool) -> FnResult{
         "cmath" => crate::math::load_cmath(),
         "regex" => crate::regex::load_regex(env),
         "sys"   => crate::sys::load_sys(env.rte()),
+        "sysfn" => crate::sysfn::load_sysfn(env.rte()),
         "time"  => crate::time::load_time(),
         "data" => crate::data::load_data(env),
         

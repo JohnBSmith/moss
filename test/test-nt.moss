@@ -1,0 +1,20 @@
+
+use data: hash
+use math.nt: isprime
+
+function info(s)
+   "number theory, test {}" % [s]
+end
+
+function check_isprime()
+   ok = "475efad4ee8a9587c6e9423236c38ac172ed12dd1f4a6e9ae6ab69cf94e639e3"
+   h = hash()
+   for p in (0..1000000).filter(isprime)
+      h.push((str(p)+",").encode())
+   end
+   value = h.value().hex()
+   assert value == ok, info("#1 (isprime)")
+end
+
+check_isprime()
+

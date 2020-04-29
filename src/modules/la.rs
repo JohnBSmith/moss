@@ -628,6 +628,7 @@ pub fn load_la(env: &mut Env) -> Object
         let mut m = la.map.borrow_mut();
         m.insert_fn_plain("vector",vector,0,VARIADIC);
         m.insert_fn_plain("matrix",matrix,1,VARIADIC);
+        m.insert_fn_plain("vec",vector,0,VARIADIC);
     }
 
     return Object::Interface(Rc::new(la));

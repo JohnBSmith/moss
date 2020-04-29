@@ -46,6 +46,7 @@ function tests(scale,path,extra=[])
 
    if scale>medium
       test("test-la-inv-complex")
+      test("test-nt")
       # too slow in debug mode
    end
 end
