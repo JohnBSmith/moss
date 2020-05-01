@@ -4620,7 +4620,9 @@ fn call_object(env: &mut Env,
 
 pub struct FrameInfo {
     pub file: String,
-    pub line: usize
+    pub line: usize,
+    pub col: usize,
+    pub name: Object
 }
 
 pub fn frame_stack_len(env: &Env) -> usize {
@@ -4631,9 +4633,10 @@ pub fn frame_info(env: &Env, index: usize) -> FrameInfo {
     let frame = &env.env.frame_stack[index];
     let ip = frame.ip;
     let a = &frame.module.program;
-    let (line,_) = get_line_col(&a,ip-BCASIZE);
+    let (line,col) = get_line_col(&a,ip-BCASIZE);
     let file = frame.module.id.clone();
-    return FrameInfo{file,line};
+    let name = frame.f.id.clone();
+    return FrameInfo{file,line,col,name};
 }
 
 // Calling environment of a function call

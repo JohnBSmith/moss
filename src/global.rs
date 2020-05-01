@@ -313,7 +313,6 @@ fn load(env: &mut Env, id: Rc<CharString>, hot_plug: bool) -> FnResult{
     let s = id.to_string();
     let y = match &s[..] {
         "fs" => crate::fs::load_fs(env),
-        "inspect" => crate::inspect::load_inspect(),
 
         #[cfg(feature = "la")]
         "la" => crate::la::load_la(env),
