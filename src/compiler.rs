@@ -1,4 +1,33 @@
 
+/*
+This compiler implements the following pipeline.
+
+Input
+  |
+  | Lexical analysis (scanner)
+  v
+Tokens
+  |
+  | Syntactic analysis (recursive descent parser)
+  v
+AST (abstract syntax tree)
+  |
+  | Code generator
+  v
+Bytecode (PIC: position independent code)
+
+Bytecode format:
+Instruction: u32, [argument 1: u32, ..., argument n: u32];
+
+Instruction format:
+MSB --------------- LSB
+8 bit    16 bit   8 bit
+Column   Line    Opcode
+   \      /         \
+Position in     Operates the virtual machine
+source code
+*/
+
 use std::rc::Rc;
 use std::mem::replace;
 use std::str::{Chars,FromStr};
@@ -7,6 +36,10 @@ use std::char;
 use crate::system;
 use crate::vm::{bc, BCSIZE, BCASIZE, BCAASIZE, Module, RTE};
 use crate::object::{Object, VARIADIC};
+
+// Addresses inserted until actual address is known.
+const DUMMY_UADDRESS: u32 = 0xcafe;
+const DUMMY_IADDRESS: i32 = 0xcafe;
 
 #[derive(Copy,Clone,PartialEq)]
 pub enum Value{
@@ -716,7 +749,9 @@ fn print_ast(t: &AST, indent: usize){
     };
 }
 
-fn scan_line(line_start: usize, h: &mut system::History, new_line_start: bool) -> Result<Vec<Token>,Error>{
+fn scan_line(line_start: usize, h: &mut system::History, new_line_start: bool)
+-> Result<Vec<Token>,Error>
+{
     let input = match system::getline_history("| ",h) {
         Ok(x) => x,
         _ => panic!()
@@ -2798,11 +2833,11 @@ fn compile_if(&mut self, v: &mut Vec<u32>, t: &Rc<AST>, is_op: bool)
         self.compile_ast(v,&a[2*i])?;
         push_bc(v, bc::JZ, a[2*i].line, a[2*i].col);
         let index = v.len();
-        push_u32(v,0xcafe);
+        push_u32(v,DUMMY_UADDRESS);
         self.compile_ast(v,&a[2*i+1])?;
         push_bc(v, bc::JMP, t.line, t.col);
         jumps.push(v.len());
-        push_u32(v,0xcafe);
+        push_u32(v,DUMMY_UADDRESS);
         let len = v.len();
         write_i32(&mut v[index..index+1],(BCSIZE+len) as i32-index as i32);
     }
@@ -2838,7 +2873,7 @@ fn compile_while(&mut self, v: &mut Vec<u32>, t: &Rc<AST>)
         self.compile_ast(v,&a[0])?;
         push_bc(v,bc::JZ,t.line,t.col);
         index2 = v.len();
-        push_u32(v,0xcafe);
+        push_u32(v,DUMMY_UADDRESS);
     }
 
     self.compile_ast(v,&a[1])?;
@@ -2921,7 +2956,7 @@ fn compile_try_catch(&mut self, bv: &mut Vec<u32>, t: &Rc<AST>)
     push_bc(bv,bc::OP,t.line,t.col);
     push_bc(bv,bc::TRY,t.line,t.col);
     let index1 = bv.len();
-    push_i32(bv,0xcafe);
+    push_i32(bv,DUMMY_IADDRESS);
 
     let a = ast_argv(t);
     self.compile_ast(bv,&a[0])?;
@@ -2930,7 +2965,7 @@ fn compile_try_catch(&mut self, bv: &mut Vec<u32>, t: &Rc<AST>)
     push_bc(bv,bc::TRYEND,t.line,t.col);
     push_bc(bv,bc::JMP,t.line,t.col);
     let index2 = bv.len();
-    push_i32(bv,0xcafe);
+    push_i32(bv,DUMMY_IADDRESS);
     let len = bv.len();
     write_i32(&mut bv[index1..index1+1],(BCSIZE+len) as i32-index1 as i32);
     
@@ -2946,7 +2981,7 @@ fn compile_try_catch(&mut self, bv: &mut Vec<u32>, t: &Rc<AST>)
         self.compile_ast(bv,&c[1])?;
         push_bc(bv,bc::JNZ,t.line,t.col);
         let index3 = bv.len();
-        push_i32(bv,0xcafe);
+        push_i32(bv,DUMMY_IADDRESS);
         push_bc(bv,bc::OP,t.line,t.col);
         push_bc(bv,bc::CRAISE,t.line,t.col);
         let len = bv.len();
@@ -3694,7 +3729,7 @@ fn compile_ast(&mut self, bv: &mut Vec<u32>, t: &Rc<AST>)
             self.compile_ast(bv,&a[0])?;
             push_bc(bv,bc::AND,t.line,t.col);
             let index = bv.len();
-            push_i32(bv,0xcafe);
+            push_i32(bv,DUMMY_IADDRESS);
             self.compile_ast(bv,&a[1])?;
             let len = bv.len();
             write_i32(&mut bv[index..index+1], (BCSIZE+len) as i32-index as i32);
@@ -3705,7 +3740,7 @@ fn compile_ast(&mut self, bv: &mut Vec<u32>, t: &Rc<AST>)
             self.compile_ast(bv,&a[0])?;
             push_bc(bv,bc::OR,t.line,t.col);
             let index = bv.len();
-            push_i32(bv,0xcafe);
+            push_i32(bv,DUMMY_IADDRESS);
             self.compile_ast(bv,&a[1])?;
             let len = bv.len();
             write_i32(&mut bv[index..index+1], (BCSIZE+len) as i32-index as i32);
@@ -3715,7 +3750,7 @@ fn compile_ast(&mut self, bv: &mut Vec<u32>, t: &Rc<AST>)
             self.compile_ast(bv,&a[0])?;
             push_bc(bv,bc::ELSE,t.line,t.col);
             let index = bv.len();
-            push_i32(bv,0xcafe);
+            push_i32(bv,DUMMY_IADDRESS);
             self.compile_ast(bv,&a[1])?;
             let len = bv.len();
             write_i32(&mut bv[index..index+1], (BCSIZE+len) as i32-index as i32);
@@ -3791,7 +3826,7 @@ fn compile_ast(&mut self, bv: &mut Vec<u32>, t: &Rc<AST>)
             }
             let breaks = &mut self.jmp_stack[n-1].breaks;
             breaks.push(bv.len());
-            push_u32(bv,0xcafe);
+            push_u32(bv,DUMMY_UADDRESS);
         }else if value == Symbol::Continue {
             push_bc(bv,bc::JMP,t.line,t.col);
             let start = match self.jmp_stack.last() {
