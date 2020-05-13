@@ -680,17 +680,19 @@ enum ParseError{Invalid,Overflow}
 
 fn parse_int(a: &[char]) -> Result<i32,ParseError> {
     let n = a.len();
-    if n==0 {return Err(ParseError::Invalid);}
     let mut sgn: i32 = 1;
     let mut i = 0;
-    if a[i]=='-' {i+=1; sgn = -1;}
+    while i<n && a[i]==' ' {i+=1;}
+    if i<n && a[i]=='-' {i+=1; sgn = -1;}
     let mut y = 0;
     let base: u32 = if i+1<n && a[i]=='0' {
         match a[i+1] {'x' => 16, 'b' => 2, 'o' => 8, _ => 10}
     } else {10};
     if base != 10 {i+=2;}
-    for x in &a[i..] {
-        match (*x).to_digit(base) {
+    if i==n {return Err(ParseError::Invalid);}
+    while i<n {
+        let x = a[i];
+        match x.to_digit(base) {
             Some(digit) => {
                 match (base as i32).checked_mul(y) {
                     Some(value) => {y = value;},
@@ -702,9 +704,14 @@ fn parse_int(a: &[char]) -> Result<i32,ParseError> {
                 }
             },
             None => {
-                return Err(ParseError::Invalid);
+                if x != '_' {
+                    for &x in &a[i..] {
+                        if x != ' ' {return Err(ParseError::Invalid);}
+                    }
+                }
             }
         };
+        i+=1;
     }
     return Ok(sgn*y);
 }

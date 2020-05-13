@@ -630,12 +630,13 @@ struct Parser{}
 
 impl Parser {
 
-fn lambda_formal_argument_list(&mut self, i: &TokenIterator)
--> Result<Vec<Argument>,Error>
+fn formal_argument_list(&mut self, i: &TokenIterator,
+    right_delimiter: Symbol
+) -> Result<Vec<Argument>,Error>
 {
     let mut argv: Vec<Argument> = Vec::new();
     let t = i.get();
-    if t.value == Symbol::Vert {
+    if t.value == right_delimiter {
         i.advance();
         return Ok(argv);
     }
@@ -651,7 +652,7 @@ fn lambda_formal_argument_list(&mut self, i: &TokenIterator)
             argv.push(Argument{id, ty});
         }
         let t = i.get();
-        if t.value == Symbol::Vert {
+        if t.value == right_delimiter {
             i.advance();
             break;
         }
@@ -663,7 +664,8 @@ fn lambda_formal_argument_list(&mut self, i: &TokenIterator)
 fn lambda_expression(&mut self, t0: &Token, i: &TokenIterator)
 -> Result<Rc<AST>,Error>
 {
-    let argv = self.lambda_formal_argument_list(i)?;
+    i.advance();
+    let argv = self.formal_argument_list(i,Symbol::Vert)?;
     let body_expression = self.expression(i)?;
 
     let ret_type = AST::symbol(t0.line,t0.col,Symbol::None);
@@ -691,11 +693,11 @@ fn expect(&mut self, i: &TokenIterator, value: Symbol)
     }
 }
 
-fn expect_nl_or_semicolon(&mut self, i: &TokenIterator)
+fn expect_end_marker(&mut self, i: &TokenIterator)
 -> Result<(),Error>
 {
     let t = i.get();
-    if t.value == Symbol::Terminal {
+    if t.value == Symbol::Terminal || t.value == Symbol::End {
         return Ok(());
     }else if t.value == Symbol::Semicolon || t.value == Symbol::Newline {
         i.advance();
@@ -777,7 +779,6 @@ fn atom(&mut self, i: &TokenIterator)
             Info::None, Some(a.into_boxed_slice())
         ));
     }else if value == Symbol::Vert {
-        i.advance();
         return self.lambda_expression(t,i);
     }else if value == Symbol::Null {
         i.advance();
@@ -1063,7 +1064,8 @@ fn assignment(&mut self, i: &TokenIterator)
             Box::new([left_hand_side,right_hand_side])
         ));
     }else if t.value == Symbol::Semicolon ||
-        t.value == Symbol::Newline || t.value == Symbol::Terminal
+        t.value == Symbol::Newline || t.value == Symbol::Terminal ||
+        t.value == Symbol::End
     {
         return Ok(AST::operator(t.line,t.col,Symbol::Statement,
             Box::new([left_hand_side])
@@ -1073,30 +1075,6 @@ fn assignment(&mut self, i: &TokenIterator)
             format!("expected '=' or ';', got '{:?}'",t.value)
         ));
     }
-}
-
-fn formal_argument_list(&mut self, i: &TokenIterator)
--> Result<Vec<Argument>,Error>
-{
-    let mut argv: Vec<Argument> = Vec::new();
-    let t = i.get();
-    if t.value == Symbol::PRight {
-        i.advance();
-        return Ok(argv);
-    }
-    loop{
-        let id = self.identifier_raw(i)?;
-        self.expect(i,Symbol::Colon)?;
-        let ty = self.type_expression(i)?;
-        argv.push(Argument{id, ty});
-        let t = i.get();
-        if t.value == Symbol::PRight {
-            i.advance();
-            break;
-        }
-        self.expect(i,Symbol::Comma)?;
-    }
-    return Ok(argv);
 }
 
 fn type_variables(&mut self, t0: &Token, i: &TokenIterator)
@@ -1146,7 +1124,7 @@ fn function_statement(&mut self, t0: &Token, i: &TokenIterator)
     
     self.expect(i,Symbol::PLeft)?;
     i.bracket_level_inc();
-    let argv = self.formal_argument_list(i)?;
+    let argv = self.formal_argument_list(i,Symbol::PRight)?;
     i.bracket_level_dec();
 
     let t = i.get();
@@ -1154,9 +1132,9 @@ fn function_statement(&mut self, t0: &Token, i: &TokenIterator)
         i.advance();
         self.type_expression(i)?
     }else{
-        AST::symbol(t.line,t.col,Symbol::Unit)
+        AST::symbol(t.line,t.col,Symbol::None)
     };
-    self.expect_nl_or_semicolon(i)?;
+    self.expect_end_marker(i)?;
     let bracket_level = i.bracket_level.get();
     i.bracket_level.set(0);
     let block = self.statements(i,Value::Null)?;
@@ -1185,6 +1163,15 @@ fn return_statement(&mut self, t0: &Token, i: &TokenIterator)
     return Ok(AST::node(t0.line, t0.col,
         Symbol::Return, Info::None, Some(Box::new([x]))
     ));
+}
+
+fn break_statement(&mut self, t0: &Token, i: &TokenIterator)
+-> Rc<AST>
+{
+    i.advance();
+    return AST::node(t0.line, t0.col,
+        Symbol::Break, Info::None, None
+    );
 }
 
 fn if_statement(&mut self, t0: &Token, i: &TokenIterator)
@@ -1327,7 +1314,7 @@ fn statements(&mut self, i: &TokenIterator, ret: Value)
                     Some(Box::new([id,texp,x]))
                 );
                 a.push(let_exp);
-                self.expect_nl_or_semicolon(i)?;
+                self.expect_end_marker(i)?;
             }else if t.value == Symbol::Semicolon {
                 i.advance();
                 let let_exp = AST::node(line,col,Symbol::Let,mut_cond,
@@ -1358,11 +1345,14 @@ fn statements(&mut self, i: &TokenIterator, ret: Value)
         }else if value == Symbol::Return {
             let x = self.return_statement(t,i)?;
             a.push(x);
-            self.expect_nl_or_semicolon(i)?;
+            self.expect_end_marker(i)?;
+        }else if value == Symbol::Break {
+            a.push(self.break_statement(t,i));
+            self.expect_end_marker(i)?;
         }else{
             let x = self.assignment(i)?;
             a.push(x);
-            self.expect_nl_or_semicolon(i)?;
+            self.expect_end_marker(i)?;
         }
     }
     if ret == Value::Null {

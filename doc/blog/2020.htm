@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Blog</title>
+  <link rel="stylesheet" href="../css/main.css">
+  <script src="../js/moss-syntax.js"></script>
+  <script src="../js/blog.js"></script>
+  <script>
+window.onload = function(){
+  toc();
+  main();
+}
+  </script>
+</head>
+<body>
+
+<table class="navigation">
+<tr><td><b>&uarr;</b> <a href="../blog.htm">Blog</a>
+</table>
+<h1>Development blog 2020</h1>
+<h2>Table of contents</h2>
+<div id="toc" class="toc"></div>
+
+<h3 data-date="20200114" id="traits"
+>A complication with traits</h3>
+
+<p>So I set up a type system with general type inference and
+parametric polymorphism. One can already state such code:
+<pre class="moss indent">
+function map[X,Y](a: List[X], f: X-&gt;Y): List[Y]
+   let b = []
+   for x in a
+      b.push(f(x))
+   end
+   return b
+end
+
+let a = map(list(1..10), |x| 2*x)
+print(a)
+</pre>
+<p>Or this:
+<pre class="moss indent">
+let compose = |g,f| |x| g(f(x))
+let add = |x,y| x+y
+let h = compose(|x| add(x,1), |x| add(x,1))
+print(h(0))
+</pre>
+<p>The type inference algorithm deduces:
+<pre class="indent">
+compose: (Int-&gt;Int,Int-&gt;Int)-&gt;Int-&gt;Int
+add: (Int,Int)-&gt;Int
+h: Int-&gt;Int
+</pre>
+
+<p>One can also state <code>compose</code> in polymorphic fashion:
+<pre class="moss indent">
+function compose[X,Y,Z](g: Y-&gt;Z, f: X-&gt;Y): X-&gt;Z
+   return |x| g(f(x))
+end
+</pre>
+
+<p>Currently, there is no notion of mutability, because firstly this
+introduces a subtype relation and secondly I don't know whether it
+should become a first class feature of the type system or not. The
+type system and type checker will become more complex, one has to
+work out what the best algorithms would be.
+
+<p>Of course, reassignable variables are introduced with another
+syntax &ndash; <code>var</code> &ndash; instead of <code>let</code>.
+That's not the same as mutability, although both concepts are slightly
+intertwined in Rust.
+
+<p>Regarding parametric polymorphism with type variables restricted
+by traits, a further complication emerges. Let's have a look
+at this code:
+<pre class="moss indent">
+function pow[T: Mul+One](x: T, n: Int): T
+   var y = T.one
+   for k in 1..n
+      y = y*x
+   end
+   return y
+end
+
+print(pow(2,10))
+</pre>
+
+<p>Here, <code>pow</code> needs the type <code>T</code> at runtime,
+because it occurs explicitly in <code>T.one</code>. One could obtain
+it through <code>x</code>, but in general this is not feasible
+&mdash; for example, one cannot simply obtain the element type of
+list, because the list could be empty, and an empty list does
+not know its element type at runtime.
+
+<p>The best approach would be to give the type as an additional
+argument. The resulting code at runtime would be:
+
+<pre class="moss indent">
+# impl One for Int
+Int.one = 1
+
+function pow(x,n,T)
+   y = T.one
+   for k in 1..n
+      y = y*x
+   end
+   return y
+end
+
+print(pow(2,10,Int))
+</pre>
+
+<p>This means, the ABI of a polymorphic function type would depend
+one the standalone occurrence of the type. Thus one must take care,
+this information is not erased during unification. It would be
+easier if the type argument is given explicitly for every type
+variable restricted by a trait.
+
+
+</body>
+</html>
+

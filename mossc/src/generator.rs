@@ -534,8 +534,8 @@ fn compile_for(&mut self, bv: &mut Vec<u32>, t: &AST) {
     ]));
     let id = format!("_it{}_",self.for_nesting);
     let it = AST::identifier(&id,t.line,t.col);
-    self.symbol_table.variable_binding(self.is_global_context(),false,id,
-        Type::None);
+    self.symbol_table.variable_binding(self.is_global_context(),
+        false,id,Type::None);
     let assignment = AST::operator(t.line,t.col,Symbol::Assignment,
         Box::new([it.clone(),iter])
     );
@@ -551,7 +551,9 @@ fn compile_for(&mut self, bv: &mut Vec<u32>, t: &AST) {
     push_i32(bv,0xcafe);
     self.compile_left_hand_side(bv,&a[0]);
 
+    self.for_nesting += 1;
     self.compile_node(bv,&a[2]);
+    self.for_nesting -= 1;
     push_bc(bv,bc::JMP,t.line,t.col);
     let len = bv.len();
     push_i32(bv,(BCSIZE+start) as i32-len as i32);
@@ -617,6 +619,17 @@ fn compile_operator_or(&mut self, bv: &mut Vec<u32>, t: &AST) {
     self.compile_node(bv,&a[1]);
     let len = bv.len();
     write_i32(&mut bv[index..index+1], (BCSIZE+len) as i32-index as i32);
+}
+
+fn compile_break(&mut self, bv: &mut Vec<u32>, t: &AST) {
+    push_bc(bv,bc::JMP,t.line,t.col);
+    let n = self.jmp_stack.len();
+    if n==0 {
+        panic!("Statement 'break' is expected to be inside of a loop.");
+    }
+    let breaks = &mut self.jmp_stack[n-1].breaks;
+    breaks.push(bv.len());
+    push_u32(bv,0xcafe);
 }
 
 fn compile_node(&mut self, bv: &mut Vec<u32>, t: &AST) {
@@ -745,6 +758,9 @@ fn compile_node(&mut self, bv: &mut Vec<u32>, t: &AST) {
         Symbol::As => {
             let a = t.argv();
             self.compile_node(bv,&a[0]);
+        },
+        Symbol::Break => {
+            self.compile_break(bv,t);
         },
         _ => unimplemented!("{}",t.value)
     }

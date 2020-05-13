@@ -1338,7 +1338,7 @@ fn type_check_function(&mut self, env_rec: &Env, t: &AST)
         (env_rec.clone(), None)
     };
 
-    let ret = self.type_from_signature_or_none(&env,&header.ret_type)?;
+    let ret = self.type_from_signature(&env,&header.ret_type)?;
     let mut arg: Vec<Type> = Vec::with_capacity(header.argv.len());
     let argv = &header.argv;
     for i in 0..argv.len() {
@@ -1466,21 +1466,24 @@ fn type_check_while_statement(&mut self, env: &Env, t: &AST)
     return Ok(self.tab.type_unit());
 }
 
-fn iter_element(&self, iterable: &Type) -> Type {
+fn iter_element(&mut self, env: &Env, iterable: &Type, t: &AST)
+-> Result<Type,SemanticError>
+{
     if let Some(a) = iterable.is_app(&self.tab.type_list) {
-        return a[0].clone();
+        return Ok(a[0].clone());
     }else if let Some(a) = iterable.is_app(&self.tab.type_range) {
         if a[0].is_atomic(&self.tab.type_int) &&
-           a[1].is_atomic(&self.tab.type_int) &&
            a[2].is_atomic(&self.tab.type_unit)
         {
-            return a[0].clone();
-        }else{
-            todo!();
+            return match self.unify(env,&a[0],&a[1]) {
+                Ok(()) => Ok(a[0].clone()),
+                Err(err) => Err(type_error(t.line,t.col,err))
+            };
         }
-    }else{
-        todo!();
     }
+    return Err(type_error(t.line,t.col,format!(
+        "{} is not iterable", iterable
+    )));
 }
 
 fn type_check_for_statement(&mut self, env: &Env, t: &AST)
@@ -1488,7 +1491,7 @@ fn type_check_for_statement(&mut self, env: &Env, t: &AST)
 {
     let a = t.argv();
     let ty_range = self.type_check_node(env,&a[1])?;
-    let typ = self.iter_element(&ty_range);
+    let typ = self.iter_element(env,&ty_range,&a[1])?;
     let id = match &a[0].info {Info::Id(id) => id.clone(), _ => panic!()};
     let global = self.global_context;
     self.symbol_table.variable_binding(global,false,id,typ);
@@ -1622,6 +1625,9 @@ fn type_check_node_plain(&mut self, env: &Env, t: &Rc<AST>)
         },
         Symbol::Dot => {
             return self.type_check_dot(env,t);
+        },
+        Symbol::Break => {
+            return Ok(self.tab.type_unit());
         },
         _ => {
             unimplemented!("{}",t.value)
