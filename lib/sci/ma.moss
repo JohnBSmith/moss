@@ -1,0 +1,29 @@
+
+function simple_moving_average(a,n=2)
+   b = []
+   for t in len(a)
+      count = 0; s = 0
+      for i in n
+         if t>=i then count += 1; s += a[t-i] end
+      end
+      b.push(s/count)
+   end
+   return b
+end
+
+function central_moving_average(a,n=3)
+   b = []; m = int(0.5*(n-1))
+   N = len(a)
+   for t in N
+      count = 0; s = 0; t0 = t+m
+      for i in n
+         if t0>=i && t0-i<N
+            count += 1
+            s += a[t0-i]
+         end
+      end
+      b.push(s/count)
+   end
+   return b
+end
+

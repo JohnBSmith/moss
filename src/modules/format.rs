@@ -2,6 +2,8 @@
 use crate::object::{Object, FnResult, CharString, Exception};
 use crate::vm::Env;
 
+const DIGIT_ZERO: usize = b'0' as usize;
+
 fn get(env: &Env, a: &Object, i: usize) -> FnResult {
     match *a {
         Object::List(ref a) => {
@@ -72,14 +74,14 @@ fn number(v: &[char], mut i: usize, value: &mut usize) -> usize {
     while i<n && v[i]==' ' {i+=1;}
     let mut x: usize = 0;
     if i<n && v[i].is_digit(10) {
-        x = v[i] as usize - '0' as usize;
+        x = v[i] as usize - DIGIT_ZERO;
         i+=1;
     }else{
         *value = x;
         return i;
     }
     while i<n && v[i].is_digit(10) {
-        x = 10*x + v[i] as usize - '0' as usize;
+        x = 10*x + v[i] as usize - DIGIT_ZERO;
         i+=1;
     }
     *value = x;
@@ -254,10 +256,10 @@ pub fn u32string_format(env: &mut Env, s: &CharString, a: &Object)
                     let key = CharString::new_object(v[j..i].to_vec());
                     x = get_key(env,&a,&key)?;
                 }else if i<n && v[i].is_digit(10) {
-                    let mut j: usize = v[i] as usize-'0' as usize;
+                    let mut j: usize = v[i] as usize - DIGIT_ZERO;
                     i+=1;
                     while i<n && v[i].is_digit(10) {
-                        j = 10*j + v[i] as usize-'0' as usize;
+                        j = 10*j + v[i] as usize - DIGIT_ZERO;
                         i+=1;
                     }
                     x = get(env,&a,j)?;

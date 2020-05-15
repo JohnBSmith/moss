@@ -716,26 +716,24 @@ fn parse_int(a: &[char]) -> Result<i32,ParseError> {
     return Ok(sgn*y);
 }
 
-fn stoi(env: &mut Env, a: &[char]) -> FnResult {
-    loop{
-        match parse_int(a) {
-            Ok(x) => return Ok(Object::Int(x)),
-            Err(e) => match e {
-                ParseError::Invalid => break,
-                ParseError::Overflow => {
-                    match Long::object_from_string(a) {
-                        Ok(value) => return Ok(value),
-                        Err(()) => break
-                    }
+fn string_to_int(env: &mut Env, a: &[char]) -> FnResult {
+    match parse_int(a) {
+        Ok(x) => return Ok(Object::Int(x)),
+        Err(e) => match e {
+            ParseError::Invalid => {},
+            ParseError::Overflow => {
+                match Long::object_from_string(a) {
+                    Ok(value) => return Ok(value),
+                    Err(()) => {}
                 }
             }
         }
     }
     return env.value_error(
-    "Value error in int(s): could not convert s into an integer.")
+        "Value error in int(s): could not convert s into an integer.");
 }
 
-fn fint(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
+fn int(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         1 => {}, n => return env.argc_error(n,1,1,"int")
     }
@@ -743,7 +741,7 @@ fn fint(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
         Object::Bool(x) => return Ok(Object::Int(x as i32)),
         Object::Int(n) => return Ok(Object::Int(n)),
         Object::Float(x) => return Ok(Object::Int(x.round() as i32)),
-        Object::String(ref s) => return stoi(env,&s.data),
+        Object::String(ref s) => return string_to_int(env,&s.data),
         _ => {}
     }
     if let Some(x) = downcast::<Long>(&argv[0]) {
@@ -1129,7 +1127,7 @@ pub fn init_rte(rte: &RTE){
     gtab.insert_fn_plain("print",print,0,VARIADIC);
     gtab.insert_fn_plain("put",put,0,VARIADIC);
     gtab.insert_fn_plain("str",fstr,1,1);
-    gtab.insert_fn_plain("int",fint,1,1);
+    gtab.insert_fn_plain("int",int,1,1);
     gtab.insert_fn_plain("float",to_float,1,1);
     gtab.insert_fn_plain("repr",repr,1,1);
     gtab.insert_fn_plain("hex",hex,1,1);
