@@ -17,7 +17,7 @@ function central_moving_average(a,n=3)
    for t in N
       count = 0; s = 0; t0 = t+m
       for i in n
-         if t0>=i && t0-i<N
+         if t0>=i and t0-i<N
             count += 1
             s += a[t0-i]
          end
@@ -26,4 +26,3 @@ function central_moving_average(a,n=3)
    end
    return b
 end
-

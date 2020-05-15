@@ -1,0 +1,53 @@
+
+# Conversions between Julian date and calendar date
+
+begin
+public julian_date, calendar_date, shift_date
+
+use math: floor
+
+function julian_date({day, month, year, JulianCalendar = false})
+   if month > 2
+      y = year; m = month
+   else
+      y = year-1; m = month+12
+   end
+
+   d = day # including day fraction
+   b = 0 if JulianCalendar else 2 - floor(y/100) + floor(y/400)
+
+   return (floor(365.25*(y+4716)) + floor(30.6001*(m+1))
+      + d + b - 1524.5)
+end
+
+function calendar_date({jd, JulianCalendar = false})
+   Z = floor(jd + 0.5)
+   F = jd + 0.5 - Z
+   if JulianCalendar
+      A = Z
+   else
+      alpha = floor((Z - 1867216.25)/36524.25)
+      A = Z + 1 + alpha - floor(alpha/4)
+   end
+   B = A + 1524
+   C = int(floor((B - 122.1)/365.25))
+   D = int(floor(365.25*C))
+   E = int(floor((B - D)/30.6001))
+   
+   day = B - D - floor(30.6001*E) + F # including day fraction
+   if E <= 13
+      return {day = day, month = E - 1, year = C - 4716}
+   else
+      return {day = day, month = E - 13, year = C - 4715}
+   end
+end
+
+function shift_date(date,days)
+   jd = julian_date(date)
+   date = calendar_date{jd = jd+days}
+   date["day"] = int(date["day"])
+   return date
+end
+
+end
+

@@ -4,9 +4,13 @@ public pli, inv, diffh, diffvh, integral
 
 use math: nan, floor
 
-function pli(x0,d,a)
+function pli(x0,d,a,otherwise=null)
    n = len(a)
-   undefined = nan if n==0 else nan*a[0]
+   if otherwise is null
+      undefined = nan if n==0 else nan*a[0]
+   else
+      undefined = otherwise
+   end
    return fn|x|
       k = int(floor((x-x0)/d))
       if k<0 or k+1>=n

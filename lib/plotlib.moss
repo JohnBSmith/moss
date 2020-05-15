@@ -397,6 +397,28 @@ class System = {
       end
    end,
 
+   function print(x,y,text,argm=null)
+      canvas = self.c
+      wx = self.wx; px = self.px; ax = self.ax
+      wy = self.wy; py = self.py; ay = self.ay
+      if argm is null
+         color = null
+      else
+         {color = null} = argm
+      end
+      if not color is null
+         canvas.rgb(*color)
+      end
+      w2 = self.w/2
+      h2 = self.h/2
+      x = int(w2 + w2*(ax+(x-px)/wx))
+      y = int(h2 - w2*(ay+(y-py)/wy))
+      font.print(canvas,x,y,text)
+      if not color is null
+         self.color(0)
+      end
+   end,
+
    function line([x1,y1],[x2,y2])
       wx = self.wx; px = self.px; ax = self.ax
       wy = self.wy; py = self.py; ay = self.ay
