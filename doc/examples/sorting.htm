@@ -26,9 +26,10 @@
 
 <h2 id="quicksort">Quicksort</h2>
 
+<h3>Recursive</h3>
 <pre class="moss">
 qsort = |a| ([] if len(a)==0 else
-   qsort(a[1..].filter(|x| x&lt;a[0]))+[a[0]]+
+   qsort(a[1..].filter(|x| x&lt;a[0])) + [a[0]] +
    qsort(a[1..].filter(|x| x&gt;=a[0])))
 
 
@@ -37,10 +38,19 @@ is_sorted = |a| (0..len(a)-2).all(|i| a[i]&lt;=a[i+1])
 a = list(1..100).shuffle()
 print(qsort(a))
 print(is_sorted(qsort(a)))
+</pre>
+<br>
 
+<h3>Recursive, shorter</h3>
+<pre class="moss">
+use math.partition
 
+qsort = |a| [] if a==[] else qsort[a[1..]%|x| x&lt;a[0]].chain(a[0])
+</pre>
+<br>
 
-# in place
+<h3>Recursive, in-place</h3>
+<pre class="moss">
 function partition(a,l,r)
    pivot = a[r]
    i = l-1
@@ -66,7 +76,7 @@ function qsort(a)
    quicksort(a,0,len(a)-1)
 end
 </pre>
-
+<br>
 
 <h2 id="mergesort">Mergesort</h2>
 

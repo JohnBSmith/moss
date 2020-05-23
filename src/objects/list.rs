@@ -208,15 +208,21 @@ fn new_shuffle() -> MutableFn {
 }
 
 fn list_chain(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
-    match argv.len() {
-        0 => {}, n => return env.argc_error(n,0,0,"chain")
-    }
+    let infix = match argv.len() {
+        0 => None,
+        1 => Some(&argv[0]),
+        n => return env.argc_error(n,0,0,"chain")
+    };
     let a = match *pself {
         Object::List(ref a) => a.borrow(),
         _ => return env.type_error("Type error in a.chain(): a is not a list.")
     };
     let mut v: Vec<Object> = Vec::new();
+    let mut first = true;
     for t in &a.v {
+        if let Some(infix) = infix {
+            if first {first = false} else {v.push(infix.clone());}
+        }
         match *t {
             Object::List(ref t) => {
                 for x in &t.borrow().v {

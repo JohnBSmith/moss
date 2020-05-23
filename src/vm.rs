@@ -1475,9 +1475,16 @@ fn operator_mod(env: &mut EnvPart, sp: usize, stack: &mut [Object])
         },
         a => {
             let x = stack[sp-2].clone();
-            Err(env.type_error2_plain(sp,stack,
-                "Type error in x%y.","x","y",&x,&a
-            ))
+            if let Some(f) = dispatch_leftover(env,&x,&env.rte.key_mod) {
+                match (Env{env,sp,stack}).call(&f,&x,&[a]) {
+                    Ok(y) => {stack[sp-2] = y; Ok(())},
+                    Err(e) => Err(e)
+                }
+            }else{
+                Err(env.type_error2_plain(sp,stack,
+                    "Type error in x%y.","x","y",&x,&a
+                ))
+            }
         }
     }
 }

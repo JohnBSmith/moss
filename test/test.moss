@@ -29,6 +29,7 @@ function tests(scale,path,extra=[])
 
    test("test-basic")
    test("test-object-system")
+   test("test-format")
    test("test-json")
    test("test-import")
    test("test-sudoku")
@@ -45,9 +46,9 @@ function tests(scale,path,extra=[])
    end
 
    if scale>medium
+      # too slow in debug mode
       test("test-la-inv-complex")
       test("test-nt")
-      # too slow in debug mode
    end
 end
 

@@ -1,8 +1,7 @@
 
 use crate::object::{Object, FnResult, CharString, Exception};
 use crate::vm::Env;
-
-const DIGIT_ZERO: usize = b'0' as usize;
+use std::convert::TryFrom;
 
 fn get(env: &Env, a: &Object, i: usize) -> FnResult {
     match *a {
@@ -16,11 +15,16 @@ fn get(env: &Env, a: &Object, i: usize) -> FnResult {
         },
         Object::Map(ref m) => {
             let d = &m.borrow_mut().m;
-            match d.get(&Object::Int(i as i32)) {
-                Some(value) => Ok(value.clone()),
-                None => env.index_error(
-                    "Index error in m[key]: key not found.")
+            if let Ok(index) = i32::try_from(i) {
+                if let Some(value) = d.get(&Object::Int(index)) {
+                    return Ok(value.clone());
+                }
+            }else{
+                return env.index_error(
+                    "Index error in m[key]: key outside of i32 range.");
             }
+            env.index_error(
+                "Index error in m[key]: key not found.")
         },
         _ => env.type_error("Type error in a[i]: a is not a list.")
     }
@@ -59,33 +63,34 @@ struct Fmt {
 }
 
 impl Fmt {
-    fn new() -> Self {
-        Fmt{
-            space: Space::None,
-            fmt_type: FmtType::None,
-            sign: false,
-            fill: ' '
-        }
-    }
+    fn new() -> Self {Fmt{
+        space: Space::None, fmt_type: FmtType::None,
+        sign: false, fill: ' '
+    }}
 }
 
-fn number(v: &[char], mut i: usize, value: &mut usize) -> usize {
+fn string_to_usize(v: &[char], mut i: usize, value: &mut usize)
+-> Option<usize>
+{
     let n = v.len();
     while i<n && v[i]==' ' {i+=1;}
-    let mut x: usize = 0;
-    if i<n && v[i].is_digit(10) {
-        x = v[i] as usize - DIGIT_ZERO;
-        i+=1;
-    }else{
-        *value = x;
-        return i;
-    }
+    let mut x: u32 = 0;
     while i<n && v[i].is_digit(10) {
-        x = 10*x + v[i] as usize - DIGIT_ZERO;
+        x = x.checked_mul(10)?
+            .checked_add(u32::from(v[i]) - u32::from('0'))?;
         i+=1;
     }
-    *value = x;
-    return i;
+    *value = usize::try_from(x).ok()?;
+    return Some(i);
+}
+
+fn number(v: &[char], i: usize, value: &mut usize)
+-> Result<usize,String>
+{
+    match string_to_usize(v,i,value) {
+        Some(usize) => Ok(usize),
+        None => Err(String::from("Value error in s%a: overflow."))
+    }
 }
 
 fn obtain_fmt(fmt: &mut Fmt, v: &[char], mut i: usize)
@@ -97,15 +102,15 @@ fn obtain_fmt(fmt: &mut Fmt, v: &[char], mut i: usize)
     let mut value: usize = 0;
     if v[i]=='l' {
         i+=1;
-        i = number(v,i,&mut value);
+        i = number(v,i,&mut value)?;
         fmt.space = Space::Left(value);
     }else if v[i]=='r' {
         i+=1;
-        i = number(v,i,&mut value);
+        i = number(v,i,&mut value)?;
         fmt.space = Space::Right(value);
     }else if v[i]=='c' {
         i+=1;
-        i = number(v,i,&mut value);
+        i = number(v,i,&mut value)?;
         fmt.space = Space::Center(value);
     }
     if i<n && (v[i]=='+' || v[i]=='-') {
@@ -120,7 +125,7 @@ fn obtain_fmt(fmt: &mut Fmt, v: &[char], mut i: usize)
         let c = v[i];
         i+=1;
         let precision = if i<n && v[i].is_digit(10) {
-            i = number(v,i,&mut value);
+            i = number(v,i,&mut value)?;
             Some(value)
         }else{
             None
@@ -256,12 +261,11 @@ pub fn u32string_format(env: &mut Env, s: &CharString, a: &Object)
                     let key = CharString::new_object(v[j..i].to_vec());
                     x = get_key(env,&a,&key)?;
                 }else if i<n && v[i].is_digit(10) {
-                    let mut j: usize = v[i] as usize - DIGIT_ZERO;
-                    i+=1;
-                    while i<n && v[i].is_digit(10) {
-                        j = 10*j + v[i] as usize - DIGIT_ZERO;
-                        i+=1;
-                    }
+                    let mut j: usize = 0;
+                    i = match number(v,i,&mut j) {
+                        Ok(index) => index,
+                        Err(s) => return env.value_error(&s)
+                    };
                     x = get(env,&a,j)?;
                 }else{
                     x = get(env,&a,index)?;
@@ -271,9 +275,7 @@ pub fn u32string_format(env: &mut Env, s: &CharString, a: &Object)
                 if i<n && v[i]==':' {i+=1;}
                 i = match obtain_fmt(&mut fmt,v,i) {
                     Ok(index) => index,
-                    Err(s) => {
-                        return env.value_error(&s)
-                    }
+                    Err(s) => return env.value_error(&s)
                 };
                 apply_fmt(env,&mut buffer,&fmt,&x)?;
                 while i<n && v[i]==' ' {i+=1;}

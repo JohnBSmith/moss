@@ -1,0 +1,19 @@
+
+# Partition into two parts by predeicate.
+List.fork = |p| [self.filter(p), self.filter(|x| not p(x))]
+List.mod = List.fork
+
+# Partition into equivalence classes by projection.
+Iterable.div = fn|p|
+   m = {}
+   for x in self
+      y = p(x)
+      if y in m
+         m[y].push(x)
+      else
+         m[y] = [x]
+      end
+   end
+   return m
+end
+

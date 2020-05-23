@@ -75,9 +75,9 @@ print(chain(a))
 
 <h3 id="qsort">Quicksort</h3>
 <pre class="moss">
-qsort = |a| ([] if a==[] else
-   qsort(a[1..].filter(|x| x&lt;a[0]))+[a[0]]+
-   qsort(a[1..].filter(|x| x&gt;=a[0])))
+use math.partition
+
+qsort = |a| [] if a==[] else qsort[a[1..]%|x| x&lt;a[0]].chain(a[0])
 </pre>
 <br>
 

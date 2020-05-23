@@ -400,15 +400,20 @@ modified.
 [10, 9, 5, 3, 1, 7, 6, 2, 8, 4]
 </pre>
 
-<dt>a.chain()
+<dt>a.chain(), a.chain(x)
 <dd>Construct a new list with the same elements, but if elements
 of <code>a</code> are lists or ranges, these will be unpacked.
+When <code>x</code> is given, insert it between the unpacked
+lists.
 <pre class="moss">
 &gt; [[1,2],[3,4]].chain()
 [1, 2, 3, 4]
 
 &gt; [[1,2],11..14,3,4].chain()
 [1, 2, 11, 12, 13, 14, 3, 4]
+
+&gt; [[1,2],[3,4]].chain(0)
+[1, 2, 0, 3, 4]
 </pre>
 
 </dl>
