@@ -8,12 +8,13 @@ by: David Leon Gil
 
 Port to rust:
 Marek Kotewicz (marek.kotewicz@gmail.com)
+https://github.com/debris/tiny-keccak/blob/master/src/lib.rs
 
 License: CC0.
 No liability.
 
 Adapted by:
-Finn (2019-03-16)
+Finn (2020-06-12)
 */
 
 const RHO: [u32; 24] = [
@@ -208,15 +209,8 @@ fn setout(src: &[u8], dst: &mut [u8], len: usize) {
 
 fn xorin(dst: &mut [u8], src: &[u8]) {
     assert!(dst.len() <= src.len());
-    let len = dst.len();
-    let mut dst_ptr = dst.as_mut_ptr();
-    let mut src_ptr = src.as_ptr();
-    for _ in 0..len {
-        unsafe {
-            *dst_ptr ^= *src_ptr;
-            src_ptr = src_ptr.offset(1);
-            dst_ptr = dst_ptr.offset(1);
-        }
+    for (x,y) in dst.iter_mut().zip(src) {
+        *x ^= *y;
     }
 }
 
@@ -230,31 +224,23 @@ pub struct Keccak {
     delim: u8
 }
 
-macro_rules! impl_constructor {
-    ($name: ident, $alias: ident, $bits: expr, $delim: expr) => {
-        pub fn $name() -> Keccak {
-            Keccak::new(200 - $bits/4, $delim)
-        }
-    }
-}
-
 impl Keccak {
-    pub fn new(rate: usize, delim: u8) -> Keccak {
-        Keccak {
-            a: [0; PLEN],
-            offset: 0,
-            rate: rate,
-            delim: delim
-        }
+    fn new(rate: usize, delim: u8) -> Self {
+        Self {a: [0; PLEN], offset: 0, rate: rate, delim: delim}
     }
-    impl_constructor!(new_sha3_256, sha3_256, 256, 0x06);
-
-    fn a_bytes(&self) -> &[u8; PLEN * 8] {
-        unsafe { ::core::mem::transmute(&self.a) }
+    pub fn new_sha3_256() -> Self {
+        const BITS: usize = 256;
+        Self::new(200 - BITS/4, 0x06)
     }
 
-    fn a_mut_bytes(&mut self) -> &mut [u8; PLEN * 8] {
-        unsafe { ::core::mem::transmute(&mut self.a) }
+    #[cfg(target_endian = "little")]
+    fn a_bytes(&self) -> &[u8; PLEN*8] {
+        unsafe {core::mem::transmute(&self.a)}
+    }
+
+    #[cfg(target_endian = "little")]
+    fn a_mut_bytes(&mut self) -> &mut [u8; PLEN*8] {
+        unsafe {core::mem::transmute(&mut self.a)}
     }
 
     pub fn update(&mut self, input: &[u8]) {
@@ -272,7 +258,7 @@ impl Keccak {
     }
 
     // Absorb input
-    pub fn absorb(&mut self, input: &[u8]) {
+    fn absorb(&mut self, input: &[u8]) {
         //first foldp
         let mut ip = 0;
         let mut l = input.len();
@@ -292,7 +278,7 @@ impl Keccak {
         self.offset = offset + l;
     }
 
-    pub fn pad(&mut self) {
+    fn pad(&mut self) {
         let offset = self.offset;
         let rate = self.rate;
         let delim = self.delim;
@@ -302,7 +288,7 @@ impl Keccak {
     }
 
     // squeeze output
-    pub fn squeeze(&mut self, output: &mut [u8]) {
+    fn squeeze(&mut self, output: &mut [u8]) {
         // second foldp
         let mut op = 0;
         let mut l = output.len();

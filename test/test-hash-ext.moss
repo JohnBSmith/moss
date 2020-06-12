@@ -1,0 +1,32 @@
+
+use hash: hash
+use sys: exit
+
+function error(s)
+   print("Error: hash test ", s, " failed.")
+   exit(1)
+end
+
+h = |s| hex(hash(s.encode("utf-8")))
+
+s = ""
+for k in 1000000
+   s = h(s)
+end
+
+if s!="4cf39fb768adc6a711513271df57c3a553972e7c75e8a861ff9d820276c90ec9"
+   error("#1")
+end
+
+/*
+import hashlib
+
+def h(s):
+    return hashlib.sha3_256(s.encode("UTF-8")).hexdigest()
+
+s = ""
+for k in range(1000000):
+    s = h(s)
+
+print(s)
+*/
