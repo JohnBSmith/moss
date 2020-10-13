@@ -6,26 +6,8 @@ use crate::vm::Env;
 use crate::data::Bytes;
 use crate::class::Class;
 
-fn isdigit(c: char) -> bool {
-    ('0' as u32)<=(c as u32) && (c as u32)<=('9' as u32)
-}
-
-fn isalpha(c: char) -> bool {
-    let c = c as u32;
-    ('A' as u32)<=c && c<=('Z' as u32) ||
-    ('a' as u32)<=c && c<=('z' as u32)
-}
-
 fn isspace(c: char) -> bool {
-    c==' ' || c=='\t' || c=='\n'
-}
-
-fn islower(c: char) -> bool {
-    ('a' as u32)<=(c as u32) && (c as u32)<=('z' as u32)
-}
-
-fn isupper(c: char) -> bool {
-    ('A' as u32)<=(c as u32) && (c as u32)<=('Z' as u32)
+    match c {' ' | '\t' | '\n' => true, _ => false}
 }
 
 #[inline(never)]
@@ -38,8 +20,8 @@ fn type_error0_string(env: &mut Env, id: &str, s: &Object) -> FnResult {
 fn string_isdigit(env: &mut Env, pself: &Object, argv: &[Object])
 -> FnResult
 {
-    let base = match argv.len() {
-        0 => 10 as u32,
+    let base: u32 = match argv.len() {
+        0 => 10,
         1 => match argv[0] {
           Object::Int(x) => if x<0 {0 as u32} else {x as u32},
           ref x => return env.type_error1(
@@ -69,7 +51,9 @@ fn string_isalpha(env: &mut Env, pself: &Object, argv: &[Object])
     match *pself {
         Object::String(ref s) => {
             for c in &s.data {
-                if !isalpha(*c) {return Ok(Object::Bool(false));}
+                if !(*c).is_ascii_alphabetic() {
+                    return Ok(Object::Bool(false));
+                }
             }
             return Ok(Object::Bool(true));
         },
@@ -86,7 +70,7 @@ fn string_isalnum(env: &mut Env, pself: &Object, argv: &[Object])
     match *pself {
         Object::String(ref s) => {
             for c in &s.data {
-                if !(isdigit(*c) || isalpha(*c)) {
+                if !((*c).is_ascii_digit() || (*c).is_ascii_alphabetic()) {
                     return Ok(Object::Bool(false));
                 }
             }
@@ -122,7 +106,7 @@ fn string_islower(env: &mut Env, pself: &Object, argv: &[Object])
     match *pself {
         Object::String(ref s) => {
             for c in &s.data {
-                if !islower(*c) {return Ok(Object::Bool(false));}
+                if !(*c).is_ascii_lowercase() {return Ok(Object::Bool(false));}
             }
             return Ok(Object::Bool(true));
         },
@@ -139,7 +123,7 @@ fn string_isupper(env: &mut Env, pself: &Object, argv: &[Object])
     match *pself {
         Object::String(ref s) => {
             for c in &s.data {
-                if !isupper(*c) {return Ok(Object::Bool(false));}
+                if !(*c).is_ascii_uppercase() {return Ok(Object::Bool(false));}
             }
             return Ok(Object::Bool(true));
         },

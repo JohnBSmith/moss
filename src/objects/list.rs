@@ -11,13 +11,13 @@ use crate::rand::Rand;
 use crate::global::list;
 use crate::class::Class;
 
-fn push(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
+fn push(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     match *pself {
         Object::List(ref a) => {
             match a.try_borrow_mut() {
                 Ok(mut a) => {
                     if a.frozen {
-                        return env.value_error("Value error in a.pop(): a is frozen.");
+                        return env.value_error("Value error in a.push(): a is frozen.");
                     }
                     for i in 0..argv.len() {
                         a.v.push(argv[i].clone());
@@ -26,7 +26,7 @@ fn push(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
                 },
                 Err(_) => {env.std_exception(
                     "Memory error in a.push(x): internal buffer of a was aliased.\n\
-                      Try to replace a by copy(a) at some place."
+                     Try to replace a by copy(a) at some place."
                 )}
             }
         },
@@ -34,9 +34,17 @@ fn push(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
     }
 }
 
+fn plus(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
+    push(env,pself,argv)?;
+    return Ok(pself.clone());
+}
+
 fn append(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
     match *pself {
         Object::List(ref a) => {
+            if a.borrow_mut().frozen {
+                return env.value_error("Value error in a.append(): a is frozen.");
+            }
             for i in 0..argv.len() {
                 match argv[i] {
                     Object::List(ref ai) => {
@@ -55,22 +63,28 @@ fn append(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
     }
 }
 
-fn pop_at_index(env: &mut Env, v: &mut Vec<Object>, index: &Object) -> FnResult {
+fn pop_at_index(env: &mut Env, v: &mut Vec<Object>, index: &Object)
+-> FnResult
+{
     let len = v.len();
     let i = match *index {
-        Object::Int(i) => if i<0 {
-            let i = i as isize+len as isize;
-            if i<0 {
-                return env.index_error("Index error in a.pop(i): i is out of lower bound.");
-            } else {i as usize}
-        } else {i as usize},
-        ref i => return env.type_error1("Type error in a.pop(i): is not an integer.","i",i)
+        Object::Int(i) => if i>=0 {i as usize} else {
+            // #overflow-transmutation: len as isize
+            let i = i as isize + len as isize;
+            if i>=0 {i as usize} else {
+                return env.index_error(
+                    "Index error in a.pop(i): i is out of lower bound.");
+            }
+        },
+        ref i => return env.type_error1(
+            "Type error in a.pop(i): is not an integer.","i",i)
     };
-    if i<v.len() {
-        return Ok(v.remove(i));
+    return if i<len {
+        Ok(v.remove(i))
     }else{
-        return env.index_error("Index error in a.pop(i): i is is out of upper bound.");
-    }
+        env.index_error(
+            "Index error in a.pop(i): i is is out of upper bound.")
+    };
 }
 
 fn pop(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
@@ -273,7 +287,7 @@ fn list_swap(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
             let len = a.v.len();
             let i = if x<0 {
                 // #overflow-transmutation: len as isize
-                let x = x as isize+len as isize;
+                let x = x as isize + len as isize;
                 if x<0 {
                     return env.index_error("Index error in a.swap(i,j): i is out of lower bound.");
                 }else{
@@ -286,7 +300,7 @@ fn list_swap(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
             };
             let j = if y<0 {
                 // #overflow-transmutation: len as isize
-                let y = y as isize+len as isize;
+                let y = y as isize + len as isize;
                 if y<0 {
                     return env.index_error("Index error in a.swap(i,j): j is out of lower bound.");
                 }else{
@@ -473,6 +487,7 @@ fn list_rot(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
 pub fn init(t: &Class){
     let mut m = t.map.borrow_mut();
     m.insert_fn_plain("push",push,0,VARIADIC);
+    m.insert_fn_plain("plus",plus,0,VARIADIC);
     m.insert_fn_plain("append",append,0,VARIADIC);
     m.insert_fn_plain("pop",pop,0,0);
     m.insert_fn_plain("insert",insert,2,2);

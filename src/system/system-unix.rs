@@ -27,7 +27,7 @@ fn get_win_size() -> (usize, usize) {
     unsafe {
         let mut size: libc::winsize = zeroed();
         match libc::ioctl(libc::STDOUT_FILENO, libc::TIOCGWINSZ, &mut size) {
-            0 => (size.ws_col as usize, size.ws_row as usize),
+            0 => (usize::from(size.ws_col), usize::from(size.ws_row)),
             _ => (80, 24),
         }
     }
@@ -76,8 +76,9 @@ impl History{
 }
 
 fn getchar() -> u8 {
+    use std::convert::TryFrom;
     let c = unsafe{libc::getchar()};
-    return if c<0 {b'?'} else {c as u8};
+    return u8::try_from(c).unwrap_or(b'?');
 }
 
 fn flush() {

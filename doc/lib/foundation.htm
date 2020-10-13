@@ -340,6 +340,12 @@ until a character is found, that is not contained in
 <dt>a.push(x)
 <dd>Append <code>x</code> to <code>a</code>.
 
+<dt>a.append(b), a.push(*b)
+<dd>Append all elements from <code>b</code> to <code>a</code>.
+
+<dt>a.plus(x)
+<dd>The same as <code>a.push(x)</code>, but returns <code>a</code>.
+
 <dt>a.pop()
 <dd>Remove the last element of <code>a</code> and
 return it.
@@ -352,9 +358,6 @@ and return it. Thus, <code>a.pop(0)</code> removes the first element.
 <dd>Insert the object <code>x</code> at index <code>i</code>.
 Beforehand, all elements from index <code>i</code> inclusive onwards
 are shiftet one position to the right.
-
-<dt>a.append(b), a.push(*b)
-<dd>Append all elements from <code>b</code> to <code>a</code>.
 
 <dt>a.clear(), a.clear(n)
 <dd>Remove all elements.

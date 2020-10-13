@@ -2,8 +2,12 @@
 use std::time::{Duration,Instant};
 use std::thread::sleep;
 use std::rc::Rc;
+use std::convert::TryFrom;
 use crate::math::type_error_int_float;
-use crate::object::{Env,Object,Function,FnResult,float,new_module};
+use crate::object::{
+    Env, Object, Function, FnResult,
+    float, new_module
+};
 
 fn time_clock(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
@@ -27,10 +31,10 @@ fn time_sleep(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     }
     let duration = match argv[0] {
         Object::Float(x) => {
-            Duration::from_micros((1000000.0*x.max(0.0)) as u64)
+            Duration::from_micros((1000000.0*x).max(0.0) as u64)
         },
         Object::Int(x) => {
-            Duration::from_secs(x.max(0) as u64)
+            Duration::from_secs(u64::try_from(x).unwrap_or(0))
         },
         ref x => return type_error_int_float(env,"sleep",x)
     };

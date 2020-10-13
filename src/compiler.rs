@@ -2823,35 +2823,33 @@ fn compile_map(&mut self, bv: &mut Vec<u32>,
 // c3 JPZ[3] a3 JMP[end] (3)
 // ae (end)
 
-fn compile_if(&mut self, v: &mut Vec<u32>, t: &Rc<AST>, is_op: bool)
+fn compile_if(&mut self, bv: &mut Vec<u32>, t: &Rc<AST>, is_op: bool)
 -> Result<(),Error>
 {
     let a = ast_argv(t);
     let mut jumps: Vec<usize> = Vec::new();
     let m = a.len()/2;
     for i in 0..m {
-        self.compile_ast(v,&a[2*i])?;
-        push_bc(v, bc::JZ, a[2*i].line, a[2*i].col);
-        let index = v.len();
-        push_u32(v,DUMMY_UADDRESS);
-        self.compile_ast(v,&a[2*i+1])?;
-        push_bc(v, bc::JMP, t.line, t.col);
-        jumps.push(v.len());
-        push_u32(v,DUMMY_UADDRESS);
-        let len = v.len();
-        write_i32(&mut v[index..index+1],(BCSIZE+len) as i32-index as i32);
+        self.compile_ast(bv,&a[2*i])?;
+        push_bc(bv, bc::JZ, a[2*i].line, a[2*i].col);
+        let index = bv.len();
+        push_u32(bv,DUMMY_UADDRESS);
+        self.compile_ast(bv,&a[2*i+1])?;
+        push_bc(bv, bc::JMP, t.line, t.col);
+        jumps.push(bv.len());
+        push_u32(bv,DUMMY_UADDRESS);
+        write_pic_address(bv,index);
     }
     if a.len()%2==1 {
-        self.compile_ast(v,&a[a.len()-1])?;
+        self.compile_ast(bv,&a[a.len()-1])?;
     }else{
         if is_op {
-            push_bc(v, bc::NULL, t.line, t.col);
+            push_bc(bv, bc::NULL, t.line, t.col);
         }
     }
-    let len = v.len();
     for i in 0..m {
         let index = jumps[i];
-        write_i32(&mut v[index..index+1],(BCSIZE+len) as i32-index as i32);
+        write_pic_address(bv,index);
     }
     return Ok(());
 }
@@ -2860,38 +2858,36 @@ fn compile_if(&mut self, v: &mut Vec<u32>, t: &Rc<AST>, is_op: bool)
 // while c do b end
 // (1) c JPZ[2] b JMP[1] (2)
 
-fn compile_while(&mut self, v: &mut Vec<u32>, t: &Rc<AST>)
+fn compile_while(&mut self, bv: &mut Vec<u32>, t: &Rc<AST>)
 -> Result<(),Error>
 {
-    let index1 = v.len();
+    let index1 = bv.len();
     let mut index2 = 0;
     self.jmp_stack.push(JmpInfo{start: index1, breaks: Vec::new()});
     let a = ast_argv(t);
     let condition = a[0].value != Symbol::True;
     
     if condition {
-        self.compile_ast(v,&a[0])?;
-        push_bc(v,bc::JZ,t.line,t.col);
-        index2 = v.len();
-        push_u32(v,DUMMY_UADDRESS);
+        self.compile_ast(bv,&a[0])?;
+        push_bc(bv,bc::JZ,t.line,t.col);
+        index2 = bv.len();
+        push_u32(bv,DUMMY_UADDRESS);
     }
 
-    self.compile_ast(v,&a[1])?;
-    push_bc(v,bc::JMP,t.line,t.col);
-    let len = v.len();
-    push_i32(v,(BCSIZE+index1) as i32-len as i32);
+    self.compile_ast(bv,&a[1])?;
+    push_bc(bv,bc::JMP,t.line,t.col);
+    let len = bv.len();
+    push_i32(bv,(BCSIZE+index1) as i32-len as i32);
 
     if condition {
-        let len = v.len();
-        write_i32(&mut v[index2..index2+1],(BCSIZE+len) as i32-index2 as i32);
+        write_pic_address(bv,index2);
     }
 
     let info = match self.jmp_stack.pop() {
         Some(info) => info, None => unreachable!()
     };
-    let len = v.len();
     for index in info.breaks {
-        write_i32(&mut v[index..index+1],(BCSIZE+len) as i32-index as i32);
+        write_pic_address(bv,index);
     }
     return Ok(());
 }
@@ -2931,7 +2927,7 @@ fn compile_for(&mut self, bv: &mut Vec<u32>, t: &Rc<AST>)
     push_bc(bv,bc::NEXT,it.line,it.col);
     let n = self.jmp_stack.len();
     self.jmp_stack[n-1].breaks.push(bv.len());
-    push_i32(bv,0xcafe);
+    push_i32(bv,DUMMY_IADDRESS);
     self.compile_left_hand_side(bv,&a[0])?;
 
     self.compile_ast(bv,&a[2])?;
@@ -2942,9 +2938,8 @@ fn compile_for(&mut self, bv: &mut Vec<u32>, t: &Rc<AST>)
     let info = match self.jmp_stack.pop() {
         Some(info) => info, None => unreachable!()
     };
-    let len = bv.len();
     for index in info.breaks {
-        write_i32(&mut bv[index..index+1],(BCSIZE+len) as i32-index as i32);
+        write_pic_address(bv,index);
     }
 
     return Ok(());
@@ -2966,9 +2961,8 @@ fn compile_try_catch(&mut self, bv: &mut Vec<u32>, t: &Rc<AST>)
     push_bc(bv,bc::JMP,t.line,t.col);
     let index2 = bv.len();
     push_i32(bv,DUMMY_IADDRESS);
-    let len = bv.len();
-    write_i32(&mut bv[index1..index1+1],(BCSIZE+len) as i32-index1 as i32);
-    
+    write_pic_address(bv,index1);
+
     push_bc(bv,bc::OP,t.line,t.col);
     push_bc(bv,bc::GETEXC,t.line,t.col);
     let c = ast_argv(&a[1]);
@@ -2984,17 +2978,14 @@ fn compile_try_catch(&mut self, bv: &mut Vec<u32>, t: &Rc<AST>)
         push_i32(bv,DUMMY_IADDRESS);
         push_bc(bv,bc::OP,t.line,t.col);
         push_bc(bv,bc::CRAISE,t.line,t.col);
-        let len = bv.len();
-        write_i32(&mut bv[index3..index3+1],(BCSIZE+len) as i32-index3 as i32);   
+        write_pic_address(bv,index3);   
 
         push_bc(bv,bc::OP,t.line,t.col);
         push_bc(bv,bc::TRYEND,t.line,t.col);
         self.compile_ast(bv,&c[2])?;
     }
-    
-    let len = bv.len();
-    write_i32(&mut bv[index2..index2+1],(BCSIZE+len) as i32-index2 as i32);
 
+    write_pic_address(bv,index2);
     return Ok(());
 }
 
@@ -3127,7 +3118,7 @@ fn compile_fn(&mut self, bv: &mut Vec<u32>, t: &Rc<AST>)
     self.offsets(&mut bv2,-(self.bv_blocks.len() as i32));
 
     // Restore self.fn_indices.
-    replace(&mut self.fn_indices,fn_indices);
+    let _ = replace(&mut self.fn_indices,fn_indices);
     self.jmp_stack = jmp_stack;
 
     // Add an additional return statement that will be reached
@@ -3731,8 +3722,7 @@ fn compile_ast(&mut self, bv: &mut Vec<u32>, t: &Rc<AST>)
             let index = bv.len();
             push_i32(bv,DUMMY_IADDRESS);
             self.compile_ast(bv,&a[1])?;
-            let len = bv.len();
-            write_i32(&mut bv[index..index+1], (BCSIZE+len) as i32-index as i32);
+            write_pic_address(bv,index);
         }else if value == Symbol::Or {
             // We use a OR[1] b (1) instead of
             // a JPZ[1] CONST_BOOL true JMP[2] (1) b (2).
@@ -3742,8 +3732,7 @@ fn compile_ast(&mut self, bv: &mut Vec<u32>, t: &Rc<AST>)
             let index = bv.len();
             push_i32(bv,DUMMY_IADDRESS);
             self.compile_ast(bv,&a[1])?;
-            let len = bv.len();
-            write_i32(&mut bv[index..index+1], (BCSIZE+len) as i32-index as i32);
+            write_pic_address(bv,index);
         }else if value == Symbol::Else {
             // a ELSE[1] b (1)
             let a = ast_argv(t);
@@ -3752,8 +3741,7 @@ fn compile_ast(&mut self, bv: &mut Vec<u32>, t: &Rc<AST>)
             let index = bv.len();
             push_i32(bv,DUMMY_IADDRESS);
             self.compile_ast(bv,&a[1])?;
-            let len = bv.len();
-            write_i32(&mut bv[index..index+1], (BCSIZE+len) as i32-index as i32);
+            write_pic_address(bv,index);
         }else if value == Symbol::Tuple {
             self.compile_operator(bv,t,bc::TUPLE)?;
             let size = match t.a {Some(ref a) => a.len() as u32, None => unreachable!()};
@@ -3930,12 +3918,17 @@ fn write_i32(a: &mut [u32], x: i32){
     a[0] = x as u32;
 }
 
+// Jump from index to the current end of bv.
+// This is position independent code, a.k.a. relative jump.
+fn write_pic_address(bv: &mut [u32], index: usize) {
+    let len = bv.len();
+    write_i32(&mut bv[index..index+1], (BCSIZE+len) as i32 - index as i32);
+}
+
 fn push_u64(bv: &mut Vec<u32>, x: u64){
     bv.push(x as u32);
     bv.push((x>>32) as u32);
 }
-
-
 
 fn push_bc(bv: &mut Vec<u32>, byte: u8, line: usize, col: usize){
     bv.push(((col as u32)&0xff)<<24 | ((line as u32)&0xffff)<<8 | (byte as u32))

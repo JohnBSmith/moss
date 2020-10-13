@@ -5,7 +5,7 @@ public runge_kutta
 use math.na: pli
 
 function runge_kutta_first_order(argm)
-   {f, h=0.001, w=10, unilateral=false} = argm
+   {f, h=0.001, w=10, unilateral=false, otherwise = null} = argm
    x0 = argm["t0"]
    y0 = argm["y0"]
 
@@ -23,7 +23,7 @@ function runge_kutta_first_order(argm)
       a.push(y)
    end
    if unilateral
-      return pli(x0,h,a)
+      return pli(x0,h,a,otherwise)
    end
 
    x=x0; y=y0
@@ -37,13 +37,13 @@ function runge_kutta_first_order(argm)
       x = x0-k*h
       b.push(y)
    end
-   fp = pli(x0,h,a)
-   fm = pli(x0,-h,b)
+   fp = pli(x0,h,a,otherwise)
+   fm = pli(x0,-h,b,otherwise)
    return |x| fm(x) if x<x0 else fp(x)
 end
 
 function runge_kutta_system(argm)
-   {f, h=0.001, w=10, unilateral = false} = argm
+   {f, h=0.001, w=10, unilateral = false, otherwise = null} = argm
    x0 = argm["t0"]
    y0 = argm["y0"]
    N = int(w/abs(h))+1
@@ -65,7 +65,7 @@ function runge_kutta_system(argm)
 
    if unilateral
       return list(len(y0)).map(fn|k|
-         pli(x0,h,a.map(|y| y[k]))
+         pli(x0,h,a.map(|y| y[k]),otherwise)
       end)
    end
 
@@ -85,8 +85,8 @@ function runge_kutta_system(argm)
    end
 
    return list(len(y0)).map(fn|k|
-      fp = pli(x0,h,a.map(|y| y[k]))
-      fm = pli(x0,-h,b.map(|y| y[k]))
+      fp = pli(x0,h,a.map(|y| y[k]),otherwise)
+      fm = pli(x0,-h,b.map(|y| y[k]),otherwise)
       return |x| fm(x) if x<0 else fp(x)
    end)
 end

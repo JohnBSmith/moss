@@ -595,8 +595,7 @@ fn copy(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     }
 }
 
-fn rng_float(env: &mut Env) -> FnResult {
-    let seed = env.rte().seed_rng.borrow_mut().rand_u32();
+fn rng_float(seed: u32) -> FnResult {
     let mut rng = Rand::new(seed);
     let f = Box::new(move |_: &mut Env, _: &Object, _: &[Object]| -> FnResult {
         Ok(Object::Float(rng.rand_float()))
@@ -604,7 +603,7 @@ fn rng_float(env: &mut Env) -> FnResult {
     return Ok(Function::mutable(f,0,0));
 }
 
-fn rng_range(env: &mut Env, r: &Range) -> FnResult {
+fn rng_range(env: &mut Env, r: &Range, seed: u32) -> FnResult {
     let a = match r.a {
         Object::Int(x)=>x,
         _ => return env.type_error1(
@@ -617,7 +616,6 @@ fn rng_range(env: &mut Env, r: &Range) -> FnResult {
             "Type error in rng(a..b): b is not an integer.",
             "b",&r.b)
     };
-    let seed = env.rte().seed_rng.borrow_mut().rand_u32();
     let mut rng = Rand::new(seed);
     let f = Box::new(move |_: &mut Env, _: &Object, _: &[Object]| -> FnResult {
         Ok(Object::Int(rng.rand_range(a,b)))
@@ -625,12 +623,13 @@ fn rng_range(env: &mut Env, r: &Range) -> FnResult {
     return Ok(Function::mutable(f,0,0));
 }
 
-fn rng_list(env: &mut Env, a: Rc<RefCell<List>>) -> FnResult {
+fn rng_list(env: &mut Env, a: Rc<RefCell<List>>,
+    seed: u32
+) -> FnResult {
     let len = a.borrow_mut().v.len();
     let n = if len>0 {(len-1) as i32} else {
         return env.value_error("Value error in rng(a): size(a)==0.");
     };
-    let seed = env.rte().seed_rng.borrow_mut().rand_u32();
     let mut rng = Rand::new(seed);
     let f = Box::new(move |_: &mut Env, _: &Object, _: &[Object]| -> FnResult {
         let index = rng.rand_range(0,n) as usize;
@@ -639,14 +638,45 @@ fn rng_list(env: &mut Env, a: Rc<RefCell<List>>) -> FnResult {
     return Ok(Function::mutable(f,0,0));    
 }
 
+fn seed_arg(argm: &HashMap<Object,Object>) -> Option<u32> {
+    if argm.len() != 1 {return None;}
+    for (key, value) in argm {
+        if let Object::String(key) = key {
+            if key.data == ['s','e','e','d'] {
+                if let Object::Int(seed) = *value {
+                    return Some(seed as u32);
+                }
+            }
+        }
+    }
+    None
+}
+
 fn rng(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
-    match argv.len() {
-        0 => rng_float(env),
+    let mut len = argv.len();
+    let seed = match argv.last() {
+        Some(obj) => {
+            if let Object::Int(seed) = *obj {
+                Some(seed as u32)
+            } else if let Object::Map(argm) = obj {
+                seed_arg(&argm.borrow().m)
+            } else {
+                None
+            }
+        },
+        None => None
+    };
+    let seed = match seed {
+        Some(seed) => {len -= 1; seed},
+        None => env.rte().seed_rng.borrow_mut().rand_u32()
+    };
+    match len {
+        0 => rng_float(seed),
         1 => {
             if let Some(r) = downcast::<Range>(&argv[0]) {
-                return rng_range(env,r);
+                return rng_range(env,r,seed);
             }else if let Object::List(ref a) = argv[0] {
-                return rng_list(env,a.clone());
+                return rng_list(env,a.clone(),seed);
             }
             return env.type_error1(
                 "Type error in rng(r): r is not a range.",

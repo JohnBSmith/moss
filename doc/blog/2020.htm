@@ -117,6 +117,92 @@ this information is not erased during unification. It would be
 easier if the type argument is given explicitly for every type
 variable restricted by a trait.
 
+<h3 data-date="20200824" id="generic-map"
+>Generic map</h3>
+
+<p>Say we would like to code the generic map function.
+A first consideration would be:
+
+<pre class="moss indent">
+List.zero = || []
+Map.zero = || {}
+List.plus = fn|x| self.push(x); self end
+Map.plus = fn|x| self.add(x); self end
+
+map = |a,f| a.reduce(a.zero(), |b,x| b.plus(f(x)))
+</pre>
+
+<p>Now two problems arise. Firstly, there is monkey patching.
+Secondly, in Moss there is no separate type for sets. The above
+code will work for lists and sets, but not for maps.
+
+<p>A cleaner solution:
+<pre class="moss indent">
+class Set = {}
+
+MapTrait = {}
+MapTrait[List] = table{
+   zero = || [],
+   plus = fn|a,x| a.push(x); a end,
+   iter = iter
+}
+MapTrait[Set] = table{
+   zero = || {},
+   plus = fn|s,x| s.add(x); s end,
+   iter = iter
+}
+MapTrait[Map] = table{
+   zero = || {},
+   plus = fn|m,[k,v]| m[k] = v; m end,
+   iter = |m| m.items()
+}
+
+function map(T,a,f)
+   M = MapTrait[T]
+   M.iter(a).reduce(M.zero(), |b,x| M.plus(b,f(x)))
+end
+
+print(map(List,[1,2,3,4],|x| 2*x))
+print(map(Set,{1,2,3,4},|x| 2*x))
+print(map(Map,{x=1,y=2},|[k,v]| [k,2*v]))
+</pre>
+
+<p>Would sets and maps have a different type, a simplification
+would be allowed:
+<pre class="moss indent">
+MapTrait = {}
+MapTrait[List] = table{
+   zero = || [],
+   plus = fn|a,x| a.push(x); a end
+}
+MapTrait[Set] = table{
+   zero = || {},
+   plus = fn|s,x| s.add(x); s end
+}
+MapTrait[Map] = table{
+   zero = || set{},
+   plus = fn|m,[k,v]| m[k] = v; m end
+}
+
+function map(a,f)
+   M = MapTrait[type(a)]
+   a.reduce(M.zero(), |b,x| M.plus(b,f(x)))
+end
+
+print(map([1,2,3,4],|x| 2*x))
+print(map(set{1,2,3,4},|x| 2*x))
+print(map({x=1,y=2},|[k,v]| [k,2*v]))
+</pre>
+
+<p>One may ask whether unification of map and set was a mistake.
+Anyway, the specific tasks may accomplished by iterator comprehensions,
+which are more general in certain ways.
+
+<pre class="moss indent">
+print(list(2*x for x in [1,2,3,4]))
+print(set(2*x for x in {1,2,3,4}))
+print(map([k,2*v] for k,v in {x=1,y=2}.items()))
+</pre>
 
 </body>
 </html>
