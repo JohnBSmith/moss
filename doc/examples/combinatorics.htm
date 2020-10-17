@@ -19,6 +19,7 @@
 <ol>
 <li><a href="#factorial">Factorial function</a>
 <li><a href="#permutations">Permutations</a>
+<li><a href="#k-permutations">k-Permutations</a>
 <li><a href="#cartesian-product">Cartesian product</a>
 <li><a href="#bernoulli-numbers">Bernoulli numbers</a>
 </ol>
@@ -169,6 +170,16 @@ end
 
 # Take any iterable
 perm = |a| permutations(list(a))
+</pre>
+
+
+<h2 id="k-permutations">k-Permutations</h2>
+
+<pre class="moss">
+# Generate all k-permutations of an ordered
+# list in lexicographical order
+perm = |a,k=len(a)| [[]] if k==0 else list([a[i]]+x
+   for i in len(a) for x in perm(a[..i-1]+a[i+1..],k-1))
 </pre>
 
 

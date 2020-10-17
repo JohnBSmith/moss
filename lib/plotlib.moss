@@ -2,7 +2,10 @@
 begin
 public system, system3d, System
 
-use math: pi, tau, hypot, tanh, atan2, sin, cos, floor
+use math{
+   pi, tau, nan, hypot, tanh, atan2, sin, cos,
+   floor, sqrt, isinf, isnan
+}
 use cmath: re, im, arg
 use graphics: sleep
 use graphics.typeset: load_font
@@ -146,7 +149,7 @@ end
 
 w = rng()
 
-function plot_simple(canvas,point,f,px,py,wx,wy,step)
+function plot_simple(canvas,point,f,px,py,wx,wy,step,ratio)
    for x in px-wx..px+wx: step
       y = f(x)
       if y: Complex
@@ -155,6 +158,23 @@ function plot_simple(canvas,point,f,px,py,wx,wy,step)
       else
          point(canvas;(x-px)/wx,(y-py)/wy)
       end
+   end
+end
+
+function plot_dashed(n)
+   return fn|canvas,point,f,px,py,wx,wy,step,ratio|
+      step = 0.1*step
+      shift = 0.1*1000/n; wratio = wx/wy
+      count = 0; h = 0.001
+      diff = |f,x| (f(x+h)-f(x-h))/(2*h)
+      f0 = fn|x|
+         dx = sqrt(1+(wratio*diff(f,x))^2)
+         if isinf(dx) or isnan(dx) then dx = 1 end
+         count += dx*shift
+         if count>40 then count=0 end
+         return f(x) if count<18 else nan
+      end
+      plot_simple(canvas,point,f0,px,py,wx,wy,step,ratio)
    end
 end
 
@@ -214,7 +234,8 @@ class System = {
       canvas = self.c
       wx = self.wx; px = self.px; ax = self.ax
       wy = self.wy; py = self.py; ay = self.ay
-      {n = self.n, point = canvas.point, color = null} = drain(argm)
+      {n = self.n, point = canvas.point, color = null,
+       method = null, style = null} = drain(argm)
       assert_empty(argm)
       if not color is null
          canvas.rgb(*color)
@@ -224,9 +245,12 @@ class System = {
       py = py-ay*wy
       ratio = 1.5*self.h/self.w
       a = [f] if f: Function else f
+      plot_fn = plot_simple if method=="simple" else plot_adaptive
+      if style=="dashed"
+         plot_fn = plot_dashed(n)
+      end
       for f in a
-         # plot_simple(canvas,point,f,px,py,wx,wy,step)
-         plot_adaptive(canvas,point,f,px,py,wx,wy,step,ratio)
+         plot_fn(canvas,point,f,px,py,wx,wy,step,ratio)
          if not self.lock and color is null
             self.next_color()
          end

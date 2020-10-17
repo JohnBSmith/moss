@@ -6,12 +6,12 @@ end
 
 # raising factorial
 function rf(x,n)
-   n.prod(|k| x+k)
+   iter(n).prod(|k| x+k)
 end
 
 # falling factorial
 function ff(x,n)
-   n.prod(|k| x-k)
+   iter(n).prod(|k| x-k)
 end
 
 # binomial coefficient
@@ -32,7 +32,7 @@ end
 
 # multinomial coefficient
 function mc(k)
-   return len(k).prod(|i| bc(i.sum(|j| k[j]),k[i]))
+   return iter(len(k)).prod(|i| bc(i.sum(|j| k[j]),k[i]))
 end
 
 # finite difference
