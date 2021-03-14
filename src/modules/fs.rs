@@ -123,15 +123,13 @@ fn file_write(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     if let Some(file) = downcast::<File>(pself) {
         if let Object::String(ref s) = argv[0] {
             let data = &s.to_string().into_bytes();
-            match file.file.borrow_mut().write_all(data) {
-                Ok(()) => return Ok(Object::Null),
-                Err(_) => {}
+            if let Ok(()) = file.file.borrow_mut().write_all(data) {
+                return Ok(Object::Null);
             }
         }else if let Some(a) = downcast::<Bytes>(&argv[0]) {
             let data = &a.data.borrow();
-            match file.file.borrow_mut().write_all(data) {
-                Ok(()) => return Ok(Object::Null),
-                Err(_) => {}
+            if let Ok(()) = file.file.borrow_mut().write_all(data) {
+                return Ok(Object::Null);
             }
         }else{
             return env.type_error1(

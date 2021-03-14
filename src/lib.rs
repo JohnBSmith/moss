@@ -157,7 +157,7 @@ impl Interpreter{
         }
 
         let state = RefCell::new(State{
-            stack: stack, sp: 0,
+            stack, sp: 0,
             env: EnvPart::new(FRAME_STACK_SIZE, rte.clone())
         });
 
@@ -211,7 +211,7 @@ pub fn new_list_str(a: &[String]) -> Rc<RefCell<List>> {
     for x in a {
         v.push(CharString::new_object_str(x));
     }
-    return Rc::new(RefCell::new(List{v: v, frozen: false}));
+    return Rc::new(RefCell::new(List{v, frozen: false}));
 }
 
 fn clear_map(buffer: &mut Vec<Object>, map: &Rc<RefCell<Map>>) {

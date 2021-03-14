@@ -99,9 +99,7 @@ fn scan(s: &[char]) -> Vec<Token> {
         if c==' ' {col+=1; i+=1;}
         else if c=='\n' {line+=1; col=0;i+=1;}
         else{
-            v.push(Token{
-                c: c, index: i, line: line, col: col
-            });
+            v.push(Token {c, index: i, line, col});
             col+=1;
             i+=1;
         }
@@ -109,8 +107,8 @@ fn scan(s: &[char]) -> Vec<Token> {
     return v;
 }
 
-fn syntax_error(s: &str) -> Result<Option<RegexSymbol>,String> {
-    return Err(format!("Syntax error in regex: {}",s));
+fn syntax_error(text: &str) -> Result<Option<RegexSymbol>,String> {
+    Err(format!("Syntax error in regex: {}", text))
 }
 
 fn new_char_class(neg: bool, value: Class) -> RegexSymbol {
@@ -208,7 +206,7 @@ fn atom(i: &mut TokenIterator) -> Result<Option<RegexSymbol>,String> {
             return Ok(Some(RegexSymbol::Dot));
         }else if c == '(' {
             i.index+=1;
-            let c = match i.get() {Some(c)=>c, None=>'_'};
+            let c = i.get().unwrap_or('_');
             let r = if c == '*' {
                 i.index+=1;
                 RegexSymbol::Group(Box::new(regex(i)?))
@@ -306,7 +304,7 @@ fn regex(i: &mut TokenIterator) -> Result<RegexSymbol,String> {
 
 fn compile(s: &[char]) -> Result<RegexSymbol,String> {
     let v = scan(s);
-    let mut i = TokenIterator{v: v, index: 0};
+    let mut i = TokenIterator{v, index: 0};
     return regex(&mut i);
 }
 
@@ -637,12 +635,10 @@ fn regex_compile(index: usize) -> Object {
             Object::String(ref s) => {
                 let r = match compile(&s.data) {
                     Ok(r) => r,
-                    Err(e) => {
-                        return env.std_exception(&e);
-                    }
+                    Err(e) => return env.std_exception(&e)
                 };
-                return Ok(Object::Interface(Rc::new(Regex{
-                    index: index, regex: r
+                return Ok(Object::Interface(Rc::new(Regex {
+                    index, regex: r
                 })));
             },
             ref s => env.type_error1("Type error in re(s): s is not a string.","s",s)

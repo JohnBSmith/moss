@@ -85,7 +85,7 @@ impl Interface for Array {
                 let x = &data[(base+i as isize*stride) as usize];
                 s.push_str(&x.repr(env)?);
             }
-            s.push_str(")");
+            s.push(')');
             return Ok(s);
         }else if self.n==2 {
             let m = self.s[0].shape;
@@ -109,7 +109,7 @@ impl Interface for Array {
                     let x = &data[(ibase+j as isize*jstride) as usize];
                     s.push_str(&x.repr(env)?);
                 }
-                s.push_str("]");
+                s.push(']');
             }
             s.push_str("\n)");
             return Ok(s);
@@ -423,7 +423,7 @@ fn array_to_string_rec(env: &mut Env,
     let ShapeStride{shape,stride} = a.s[depth];
     let mut first = true;
     fill_space(buffer,depth*2);
-    buffer.push_str("[");
+    buffer.push('[');
     if depth+1 < a.n {buffer.push('\n');}
     if depth+1 == a.n {
         for i in 0..shape {
@@ -431,16 +431,19 @@ fn array_to_string_rec(env: &mut Env,
             let x = &data[(base+(i as isize)*stride) as usize];
             buffer.push_str(&x.repr(env)?);
         }
-    }else{
+    } else {
         for i in 0..shape {
             if first {first = false} else {buffer.push_str(",\n");}
             let index = base+(i as isize)*stride;
             array_to_string_rec(env,buffer,a,data,depth+1,index)?;
         }
     }
-    if depth+1 < a.n {buffer.push('\n'); fill_space(buffer,depth*2);}
-    buffer.push_str("]");
-    return Ok(());
+    if depth+1 < a.n {
+        buffer.push('\n');
+        fill_space(buffer, depth*2);
+    }
+    buffer.push(']');
+    Ok(())
 }
 
 fn array_to_string(env: &mut Env, a: &Array) -> Result<String,Box<Exception>> {
@@ -449,8 +452,8 @@ fn array_to_string(env: &mut Env, a: &Array) -> Result<String,Box<Exception>> {
     let data = a.data.borrow();
     let base = a.base as isize;
     array_to_string_rec(env,&mut buffer,a,&data,0,base)?;
-    buffer.push_str(")");
-    return Ok(buffer);
+    buffer.push(')');
+    Ok(buffer)
 }
 
 fn compare(env: &mut Env, a: &Array, b: &Array,
@@ -1203,7 +1206,7 @@ fn setup_strides(shape: &mut [ShapeStride]) {
     let mut m: isize = 1;
     for s in shape.iter_mut().rev() {
         s.stride = m;
-        m = m*(s.shape as isize);
+        m *= s.shape as isize;
     }
 }
 
@@ -1244,8 +1247,8 @@ fn scalar(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         3 => {}, argc => return env.argc_error(argc,3,3,"scalar")
     }
-    let n = match argv[0] {
-        Object::Int(x) => if x<0 {0 as usize} else {x as usize},
+    let n: usize = match argv[0] {
+        Object::Int(x) => if x<0 {0} else {x as usize},
         _ => return env.type_error1(
             "Type error in scalar(n,e,z): n is not an integer.","n",&argv[0])
     };
@@ -1258,17 +1261,17 @@ fn unit(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         2 => {}, argc => return env.argc_error(argc,2,2,"unit")
     }
-    let n = match argv[0] {
-        Object::Int(x) => if x<0 {0 as usize} else {x as usize},
+    let n: usize = match argv[0] {
+        Object::Int(x) => if x < 0 {0} else {x as usize},
         _ => return env.type_error1(
             "Type error in unit(n,k): n is not an integer.","n",&argv[0])
     };
-    let k = match argv[1] {
-        Object::Int(x) => if x<0 {0 as usize} else {x as usize},
+    let k: usize = match argv[1] {
+        Object::Int(x) => if x < 0 {0} else {x as usize},
         _ => return env.type_error1(
             "Type error in unit(n,k): k is not an integer.","k",&argv[1])
     };
-    return Ok(Object::Interface(unit_vector(n,k)));
+    Ok(Object::Interface(unit_vector(n,k)))
 }
 
 fn diag(_env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {

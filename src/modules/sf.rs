@@ -263,7 +263,7 @@ fn czeta_em(s: c64) -> c64 {
     let N = 18;
     let mut y = c64{re: 1.0, im: 0.0};
     for k in 2..N {
-        y = y+(-s).expf(float(k));
+        y += (-s).expf(float(k));
     }
     let Nf = float(N);
     let s2 = s*(s+1.0)*(s+2.0);

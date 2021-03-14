@@ -123,8 +123,8 @@ fn clear_input(lines: usize){
 }
 
 fn complete_u32_char(c: u8) -> char {
-    if c>127 {
-        let mut buffer: [u8;8] = [0,0,0,0,0,0,0,0];
+    if c > 127 {
+        let mut buffer: [u8; 8] = [0; 8];
         let bytes = number_of_bytes(c);
         match bytes {
             2 => {
@@ -144,14 +144,10 @@ fn complete_u32_char(c: u8) -> char {
             },
             _ => panic!()
         };
-        let s = match str::from_utf8(&buffer[0..bytes]) {
-            Ok(s) => s, Err(_) => "?"
-        };
-        return match s.chars().next() {
-            Some(x) => x, None => '?'
-        };
-    }else{
-        return char::from(c);
+        let s = str::from_utf8(&buffer[0..bytes]).unwrap_or("?");
+        s.chars().next().unwrap_or('?')
+    } else {
+        char::from(c)
     }
 }
 
@@ -163,7 +159,7 @@ pub fn getline_history(prompt: &str, history: &History) -> io::Result<String> {
 
     tio.c_lflag &= !(ICANON|ECHO);
     tcsetattr(fd, TCSANOW, &tio)?;
-    print!("{}",prompt);
+    print!("{}", prompt);
     flush();
 
     let mut history_index=0;
@@ -176,21 +172,21 @@ pub fn getline_history(prompt: &str, history: &History) -> io::Result<String> {
 
     loop{
         let c = getchar();
-        if c==NEWLINE {
+        if c == NEWLINE {
             println!();
             break;
         }else if c<32 {
-            if c==ESC {
+            if c == ESC {
                 let c2 = getchar();
-                if c2==ARROW {
+                if c2 == ARROW {
                     let c3 = getchar();
-                    if c3==LEFT {
-                        if i>0 {i-=1; print_flush("\x1b[1D");}
+                    if c3 == LEFT {
+                        if i > 0 {i-=1; print_flush("\x1b[1D");}
                         continue;
-                    }else if c3==RIGHT {
-                        if i<n {i+=1; print_flush("\x1b[1C");}
+                    }else if c3 == RIGHT {
+                        if i < n {i+=1; print_flush("\x1b[1C");}
                         continue;
-                    }else if c3==UP {
+                    }else if c3 == UP {
                         if history_index == 0 {
                             a0 = a.clone();
                         }
@@ -202,44 +198,44 @@ pub fn getline_history(prompt: &str, history: &History) -> io::Result<String> {
                             print_prompt_flush(prompt,&a);
                         }
                         continue;
-                    }else if c3==DOWN {
-                        if history_index>0 {
-                            if history_index==1 {
-                                clear(cols,prompt,&a);
-                                history_index=0;
+                    }else if c3 == DOWN {
+                        if history_index > 0 {
+                            if history_index == 1 {
+                                clear(cols, prompt, &a);
+                                history_index = 0;
                                 a = a0.clone();
-                                n = a.len(); i=n;
-                                print_prompt_flush(prompt,&a);
+                                n = a.len(); i = n;
+                                print_prompt_flush(prompt, &a);
                             }else if let Some(x) = history.get(history_index-1) {
-                                clear(cols,prompt,&a);
-                                history_index-=1;
+                                clear(cols, prompt, &a);
+                                history_index -= 1;
                                 a = x.chars().collect();
-                                n = a.len(); i=n;
-                                print_prompt_flush(prompt,&a);
-                            }else{
+                                n = a.len(); i = n;
+                                print_prompt_flush(prompt, &a);
+                            } else {
                                 panic!();
                             }
                         }
                         continue;
-                    }else{
+                    } else {
                         continue;
                     }
-                }else{
+                } else {
                     continue;
                 }
             }else if c != TAB {
                 continue;
             }
-        }else if c==BACKSPACE {
-            if i>0 {
+        }else if c == BACKSPACE {
+            if i > 0 {
                 for j in i..n {
-                    a[j-1]=a[j];
+                    a[j-1] = a[j];
                 }
                 a.pop();
-                n-=1; i-=1;
+                n -= 1; i -= 1;
                 print!("\x1b[D");
-                for j in i..n {
-                    print!("{}",a[j]);
+                for &x in &a[i..n] {
+                    print!("{}", x);
                 }
                 print!(" ");
                 for _ in i..n+1 {
@@ -252,12 +248,12 @@ pub fn getline_history(prompt: &str, history: &History) -> io::Result<String> {
         let cu32 = complete_u32_char(c);
         a.push('0');
         for j in (i..n).rev() {
-            a[j+1]=a[j];
+            a[j+1] = a[j];
         }
         a[i] = cu32;
-        i+=1; n+=1;
-        for j in i-1..n {
-            print!("{}",a[j]);
+        i += 1; n += 1;
+        for &x in &a[i-1..n] {
+            print!("{}", x);
         }
 
         // Bug: a hanzi, say 0x4567, hampers the cursor
@@ -268,12 +264,12 @@ pub fn getline_history(prompt: &str, history: &History) -> io::Result<String> {
     }
     tcsetattr(fd, TCSANOW, &tio_backup)?;
     let s: String = a.into_iter().collect();
-    return Ok(s);
+    Ok(s)
 }
 
 pub fn getline(prompt: &str) -> io::Result<String> {
     let history = History{first: None};
-    return getline_history(prompt,&history);
+    getline_history(prompt,&history)
 }
 
 /*
@@ -300,6 +296,6 @@ pub fn init_search_paths() -> List {
         Some(s) => a.push(Object::from(s)),
         None => unreachable!()
     }
-    return List{v: a, frozen: false};
+    List {v: a, frozen: false}
 }
 

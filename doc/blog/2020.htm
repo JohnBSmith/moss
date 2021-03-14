@@ -22,7 +22,7 @@ window.onload = function(){
 <h2>Table of contents</h2>
 <div id="toc" class="toc"></div>
 
-<h3 data-date="20200114" id="traits"
+<h3 data-date="2020-01-14" id="traits"
 >A complication with traits</h3>
 
 <p>So I set up a type system with general type inference and
@@ -117,7 +117,7 @@ this information is not erased during unification. It would be
 easier if the type argument is given explicitly for every type
 variable restricted by a trait.
 
-<h3 data-date="20200824" id="generic-map"
+<h3 data-date="2020-08-24" id="generic-map"
 >Generic map</h3>
 
 <p>Say we would like to code the generic map function.
@@ -202,6 +202,63 @@ which are more general in certain ways.
 print(list(2*x for x in [1,2,3,4]))
 print(set(2*x for x in {1,2,3,4}))
 print(map([k,2*v] for k,v in {x=1,y=2}.items()))
+</pre>
+
+<h3 data-date="2020-10-17" id="orbit"
+>The right semantics of orbit</h3>
+
+<p>Until now <code>f.orbit(x)</code> was defined like this:
+<pre class="moss indent">
+function orbit(f,x)
+   return fn||
+      y = x
+      x = f(x)
+      return y
+   end
+end
+</pre>
+
+<p>This is actually wrong semantics. Say we have a function
+<code>next_perm(a)</code>, which returns the next permutation
+of a list <code>a</code> with regard to lexicographical order, but
+works in-place and thus modifies <code>a</code> itself. We would like
+to generate all the permutations of an ordered list this way:
+
+<pre class="moss indent">
+permutations = |a| next_perm.orbit(a).take(fac(len(a)))
+
+print(permutations([0,1,2]).map(copy).list())
+</pre>
+
+<p>As one can see, <code>orbit</code> will eat up the first
+permutation by calling <code>f&nbsp;= next_perm</code> once before
+returning <code>y</code>. A second indication for the wrong semantics
+is that <code>f</code> is called once more than necessary.
+The right behavior is
+
+<pre class="moss indent">
+function orbit(f,x)
+   first = true
+   return fn||
+      if first
+         first = false
+      else
+         x = f(x)
+      end
+      return x
+   end
+end
+</pre>
+
+<p>or equivalently
+
+<pre class="moss indent">
+function orbit(f,x)
+   return fn*||
+      yield x
+      x = f(x)
+   end
+end
 </pre>
 
 </body>

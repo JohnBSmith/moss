@@ -7,7 +7,7 @@ use crate::data::Bytes;
 use crate::class::Class;
 
 fn isspace(c: char) -> bool {
-    match c {' ' | '\t' | '\n' => true, _ => false}
+    matches!(c, ' ' | '\t' | '\n')
 }
 
 #[inline(never)]
@@ -23,7 +23,7 @@ fn string_isdigit(env: &mut Env, pself: &Object, argv: &[Object])
     let base: u32 = match argv.len() {
         0 => 10,
         1 => match argv[0] {
-          Object::Int(x) => if x<0 {0 as u32} else {x as u32},
+          Object::Int(x) => if x<0 {0} else {x as u32},
           ref x => return env.type_error1(
             "Type error in s.isdigit(base): base is not an integer.",
             "base", x
@@ -390,16 +390,16 @@ fn string_encode(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     };
     match *pself {
         Object::String(ref s) => {
-            if spec=="utf-8" {
+            if spec == "utf-8" {
                 let data = s.to_string().into_bytes();
                 Ok(Bytes::object_from_vec(data))
             }else{
                 env.value_error(&format!(
-                    "Value error in s.encode(spec): spec=='{}' is unknown.",spec.to_string()))
+                    "Value error in s.encode(spec): spec == '{}' is unknown.", spec))
             }
         },
         ref s => env.type_error1(
-            "Type error in s.encode(spec): s is not a string.","s",s)
+            "Type error in s.encode(spec): s is not a string.", "s", s)
     }
 }
 

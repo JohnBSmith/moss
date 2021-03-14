@@ -170,7 +170,7 @@ fn standard_getter(env: &mut Env, t: Rc<Table>, key: &Object)
 
 fn custom_getter(f: Object) -> PGet {
     Box::new(move |env: &mut Env, t: Rc<Table>, key: &Object| -> FnResult {
-        env.call(&f,&Object::Interface(t.clone()),&[key.clone()])
+        env.call(&f,&Object::Interface(t),&[key.clone()])
     })
 }
 
@@ -178,12 +178,12 @@ fn standard_setter(_env: &mut Env, t: Rc<Table>, key: Object, value: Object)
 -> FnResult
 {
     t.map.borrow_mut().m.insert(key,value);
-    return Ok(Object::Null);
+    Ok(Object::Null)
 }
 
 fn custom_setter(f: Object) -> PSet {
     Box::new(move |env: &mut Env, t: Rc<Table>, key: Object, value: Object| -> FnResult {
-        env.call(&f,&Object::Interface(t.clone()),&[key,value])
+        env.call(&f,&Object::Interface(t),&[key,value])
     })
 }
 
@@ -266,7 +266,7 @@ pub struct Table {
 
 impl Table {
     pub fn new(prototype: Object) -> Rc<Table> {
-        Rc::new(Table{prototype: prototype, map: Map::new()})
+        Rc::new(Table{prototype, map: Map::new()})
     }
     pub fn slot(&self, key: &Object) -> Option<Object> {
         if let Some(class) = downcast::<Class>(&self.prototype) {
@@ -535,18 +535,18 @@ fn list_get(a: &Rc<RefCell<List>>, key: &Object) -> Option<Object> {
     for x in &a.borrow().v {
         if let Some(pt) = downcast::<Table>(x) {
             if let Some(y) = table_get(pt,key) {
-                return Some(y.clone());
+                return Some(y);
             }
         }
     }
-    return None;
+    None
 }
 
 fn class_get(c: &Class, key: &Object) -> Option<Object> {
     if let Some(value) = c.map.borrow().m.get(key) {
-        return Some(value.clone());
-    }else{
-        return object_get(&c.parent,key);
+        Some(value.clone())
+    } else {
+        object_get(&c.parent, key)
     }
 }
 

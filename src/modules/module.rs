@@ -92,7 +92,7 @@ fn load_from_u8(rte: &Rc<RTE>, id: &str, bv: &[u8])
     }
     let m = Rc::new(Module{
         program: Rc::from(v),
-        data: data,
+        data,
         rte: rte.clone(),
         gtab: rte.gtab.clone(),
         id: id.to_string()

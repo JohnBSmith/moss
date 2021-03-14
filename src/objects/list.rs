@@ -19,8 +19,8 @@ fn push(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
                     if a.frozen {
                         return env.value_error("Value error in a.push(): a is frozen.");
                     }
-                    for i in 0..argv.len() {
-                        a.v.push(argv[i].clone());
+                    for x in argv {
+                        a.v.push(x.clone());
                     }
                     Ok(Object::Null)        
                 },
@@ -45,8 +45,8 @@ fn append(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
             if a.borrow_mut().frozen {
                 return env.value_error("Value error in a.append(): a is frozen.");
             }
-            for i in 0..argv.len() {
-                match argv[i] {
+            for obj in argv {
+                match obj {
                     Object::List(ref ai) => {
                         let mut v = (&ai.borrow().v[..]).to_vec();
                         let mut a = a.borrow_mut();
@@ -336,8 +336,8 @@ pub fn map_fn(env: &mut Env, f: &Object, argv: &[Object]) -> FnResult {
         return Ok(List::new_object(Vec::new()));
     }
     let mut v: Vec<Rc<RefCell<List>>> = Vec::with_capacity(argc);
-    for i in 0..argc {
-        match argv[i] {
+    for obj in argv {
+        match obj {
             Object::List(ref a) => v.push(a.clone()),
             ref a => {
                 let y = list(env,a)?;
@@ -347,8 +347,8 @@ pub fn map_fn(env: &mut Env, f: &Object, argv: &[Object]) -> FnResult {
         }
     }
     let n = v[0].borrow().v.len();
-    for i in 0..argc {
-        if n != v[i].borrow().v.len() {
+    for obj in &v {
+        if n != obj.borrow().v.len() {
             return env.type_error("Type error in f[a1,...,an]: all lists must have the same size.");
         }
     }
@@ -411,11 +411,11 @@ pub fn cartesian_power(v: &[Object], n: i32) -> Object {
     let m = v.len();
     let len = m.pow(n);
     let mut y: Vec<Vec<Object>> = Vec::with_capacity(len);
-    if m==0 {
+    if m == 0 {
         let y = List::new_object(Vec::new());
-        if n==0 {
+        if n == 0 {
             return List::new_object(vec![y]);
-        }else{
+        } else {
             return y;
         }
     }
@@ -425,12 +425,12 @@ pub fn cartesian_power(v: &[Object], n: i32) -> Object {
     let mut k = len/m;
     let mut count = 1;
     for _ in 0..n {
-        let mut j=0;
+        let mut j = 0;
         for _ in 0..count {
-            for index in 0..m {
+            for obj in &v[0..m] {
                 for _ in 0..k {
-                    y[j].push(v[index].clone());
-                    j+=1;
+                    y[j].push(obj.clone());
+                    j += 1;
                 }
             }
         }
@@ -444,13 +444,13 @@ pub fn cartesian_power(v: &[Object], n: i32) -> Object {
 
 fn rotate(a: &mut [Object], n: i32) {
     let m = a.len();
-    if n>=0 {
+    if n >= 0 {
         let mut n = n as usize;
-        if n>=m {n %= m;}
+        if n >= m {n %= m;}
         a.rotate_right(n);
     }else {
         let mut n = (-n) as usize;
-        if n>=m {n %= m;}
+        if n >= m {n %= m;}
         a.rotate_left(n);
     }
 }

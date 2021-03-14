@@ -27,7 +27,7 @@ impl Interface for Tuple {
             if first {first = false;} else {s.push_str(", ");}
             s.push_str(&x.string(env)?);
         }
-        s.push_str(")");
+        s.push(')');
         return Ok(s);
     }
     fn index(self: Rc<Self>, indices: &[Object], env: &mut Env) -> FnResult {

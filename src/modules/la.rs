@@ -60,7 +60,7 @@ impl<T: Number> Array<T> {
         let data = Rc::new(RefCell::new(v));
         Rc::new(Array{
             s: Box::new([ShapeStride{shape, stride: 1}]),
-            n: 1, base: 0, data: data
+            n: 1, base: 0, data
         })
     }
     fn matrix(m: usize, n: usize, a: Vec<T>) -> Rc<Array<T>> {
@@ -70,7 +70,7 @@ impl<T: Number> Array<T> {
                 ShapeStride{shape: m, stride: n as isize},
                 ShapeStride{shape: n, stride: 1}
             ]),
-            n: 2, base: 0, data: data,
+            n: 2, base: 0, data,
         })
     }
 }
@@ -159,7 +159,7 @@ fn to_string<T: Number>(a: &Array<T>, _env: &mut Env)
         let mut s = "vector(".to_string();
         let data = a.data.borrow();
         vector_to_string(a,&mut s,&data);
-        s.push_str(")");
+        s.push(')');
         return Ok(s);
     }else if a.n==2 {
         let mut s = "matrix(\n".to_string();

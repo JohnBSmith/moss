@@ -5,12 +5,11 @@ body{
   margin-top: 2em;
   margin-bottom: 20em;
   max-width: 48em;
-  color: #4a463a;
+  color: #2a2a24;
   font-family: "DejaVu Sans", "Verdana", sans-serif;
-}
-p{
   line-height: 1.5;
 }
+ol, ul {line-height: 1.4;}
 @media(max-width: 68em){
   body{margin-left: 10%;}
 }
@@ -21,12 +20,10 @@ p{
   body{
     margin-left: 2%;
     margin-right: 1%;
+    line-height: 1.4;
   }
   ol, ul{
     padding-left: 2em;
-  }
-  p{
-    line-height: 1.4;
   }
 }
 h1, h2, h3, h4{
@@ -102,8 +99,8 @@ table.bt{
 }
 
 table.bt td, table.bt th{
-  border-left: 2px dotted #babab0;
-  border-right: 2px dotted #babab0;
+  /* border-left: 2px dotted #babab0;
+  border-right: 2px dotted #babab0; */
   padding-left: 12px;
   padding-right: 12px;
   padding-top: 4px;
@@ -113,8 +110,8 @@ table.bt td, table.bt th{
 }
 
 table.bt td{
-  border-bottom: 2px solid #babab0;
-  background-color: #fcfcff;
+  border-bottom: 2px solid #cacac0;
+  background-color: #fcfcf0;
 }
 
 table.bt th{

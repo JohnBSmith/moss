@@ -32,18 +32,18 @@ fn exit(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
 }
 
 fn eput(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
-    for i in 0..argv.len() {
-        eprint!("{}",argv[i].string(env)?);
+    for obj in argv {
+        eprint!("{}", obj.string(env)?);
     }
-    return Ok(Object::Null);
+    Ok(Object::Null)
 }
 
 fn eprint(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
-    for i in 0..argv.len() {
-        eprint!("{}",argv[i].string(env)?);
+    for obj in argv {
+        eprint!("{}", obj.string(env)?);
     }
     eprintln!();
-    return Ok(Object::Null);
+    Ok(Object::Null)
 }
 
 fn istable(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {

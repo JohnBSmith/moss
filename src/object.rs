@@ -42,7 +42,7 @@ impl Object{
 
     #[inline(always)]
     pub fn take(&mut self) -> Object {
-        replace(self,Object::Null)
+        replace(self, Object::Null)
     }
 
     pub fn table(t: Rc<Table>) -> Object {
@@ -58,17 +58,11 @@ impl Object{
     }
     
     pub fn is_empty(&self) -> bool {
-        match self {
-            Object::Info(Info::Empty) => true,
-            _ => false
-        }
+        matches!(self, Object::Info(Info::Empty))
     }
 
     pub fn is_unimplemented(&self) -> bool {
-        match self {
-            Object::Info(Info::Unimplemented) => true,
-            _ => false
-        }
+        matches!(self, Object::Info(Info::Unimplemented))
     }
 }
 

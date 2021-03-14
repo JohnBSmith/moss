@@ -131,15 +131,15 @@ fn index_range(a: &[u8], r: &Range, env: &mut Env) -> FnResult {
     };
     let j = match r.b {
         Object::Int(value) => {
-            if value<0 {0} else {
-                if value>=len as i32 {len} else {value as usize+1}
-            }
+            if value<0 {0}
+            else if value >= len as i32 {len}
+            else {value as usize + 1}
         },
         Object::Null => len,
         _ => return env.type_error1("Type error in a[i..j]: j is not an integer.","j",&r.a)
     };
     let v = if j<i {Vec::new()} else {a[i..j].to_vec()};
-    return Ok(Bytes::object_from_vec(v));
+    Ok(Bytes::object_from_vec(v))
 }
 
 fn bytes(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {

@@ -22,14 +22,14 @@ window.onload = function(){
 <h2>Table of contents</h2>
 <div id="toc" class="toc"></div>
 
-<h3 data-date="20160808" id="new-formatted-printing-policy"
+<h3 data-date="2016-08-08" id="new-formatted-printing-policy"
 >New formatted printing policy</h3>
 <p>Separation between formatted printing to <code>stdout</code> and string
 buffers shall be resolved. Formatted printing to <code>stdout</code>
 shall be removed in favor of string buffers.
 
 
-<h3 data-date="20160808" id="new-formatted-printing-function"
+<h3 data-date="2016-08-08" id="new-formatted-printing-function"
 >New formatted printing function</h3>
 
 <p>Moss gets a function and syntax for formatted printing.
@@ -71,7 +71,7 @@ could be generated automatically from data. But one must say
 to this, that HTML5 is more easy to use than LaTeX2e.
 
 
-<h3 data-date="20160920" id="set-dict-joined"
+<h3 data-date="2016-09-20" id="set-dict-joined"
 >Joined datatypes map and set</h3>
 <p>As sets are a special case of maps (dictionaries) and set operations
 do not interfere with map operations, them can be joined.
@@ -88,7 +88,7 @@ structures of multisets. An alternative is, to simply monkey patch
 the necessary operations into <code>Map</code>
 (<code>Map</code> is the data type of maps).
 
-<h3 data-date="20160930" id="assignment-to-application"
+<h3 data-date="2016-09-30" id="assignment-to-application"
 >Assignments to function applications</h3>
 <p>A syntactical sugar for assignments to function
 applications is added to the language.
@@ -106,7 +106,7 @@ and (4) would blow it up. It is definitely much harder to
 implement than (1,2,3) which required less than 40 lines of code.
 
 
-<h3 data-date="20161006" id="print-float"
+<h3 data-date="2016-10-06" id="print-float"
 >Printing floating point numbers</h3>
 
 <p>There is a problem with standard printing of floating point
@@ -129,7 +129,7 @@ precision by "{g16}"%[x] or even "{g17}"%[x].
 </pre>
 
 
-<h3 data-date="20161107" id="Rust"
+<h3 data-date="2016-11-07" id="Rust"
 >Reimplementation in Rust</h3>
 
 <p>It is clear for me now, that the Moss interpreter must be
@@ -210,7 +210,7 @@ and immutability of data. For file access, a model with
 sandbox directories seems to be, albeit less fine grained,
 easier to achieve without loopholes.
 
-<h3 data-date="20161107" id="self"
+<h3 data-date="2016-11-07" id="self"
 >New syntax for a formal self-argument</h3>
 
 <p>The standard syntax for formal self-arguments
@@ -236,7 +236,7 @@ arguments. Then we have:
 Function.o = |g;f| |x| g(f(x))
 </pre>
 
-<h3 data-date="20170509" id="about-modules"
+<h3 data-date="2017-05-09" id="about-modules"
 >About modules</h3>
 
 <p>What is the difference between what follows? Firstly:
@@ -266,7 +266,7 @@ the environment. For example, global variable of the environment
 are used by default by <code>eval</code>. If a module would be loaded,
 <code>eval</code> had to take an empty environment.
 
-<h3 data-date="20170509" id="default-arguments"
+<h3 data-date="2017-05-09" id="default-arguments"
 >Default arguments</h3>
 
 <p>The interpreter already supports default arguments for
@@ -367,7 +367,7 @@ f(x,y,a=e1,b=e2) ≡≡ f(x,y,{a=e1,b=e2})
 arguments. That is a little more welfare than simply omitting
 the curly brackets.
 
-<h3 data-date="20170525" id="private-variables"
+<h3 data-date="2017-05-25" id="private-variables"
 >Private variables</h3>
 
 <p>At first I recall that
@@ -444,7 +444,7 @@ be stored inside an array rather than a map. But to me
 <code>begin-end</code> is nicer and more powerful as it leads
 to more fine-grained constructions.
 
-<h3 data-date="20170924" id="use"
+<h3 data-date="2017-09-24" id="use"
 >Definition of the import statement</h3>
 
 <p>In Moss, a module, for example <i>math</i>, is made available by
@@ -498,7 +498,7 @@ galias = malias.g
 </pre>
 
 
-<h3 data-date="20170930" id="assert"
+<h3 data-date="2017-09-30" id="assert"
 >Assert statements</h3>
 
 <p>The assert statement was added to the language:
@@ -538,7 +538,7 @@ switched on by "<code>moss -d</code>". So, if something goes
 wrong and a long stack trace is returned, debug mode could be
 turned on to inspect the situation further.
 
-<h3 data-date="20171024" id="embedded-slicing-ability"
+<h3 data-date="2017-10-24" id="embedded-slicing-ability"
 >Embedded slicing ability</h3>
 
 <p>If we have a string <code>s</code>, it is expensive to
@@ -590,7 +590,7 @@ The algorithms could be made a bit more quick and memory
 friendly, but it hardly is worthwhile as these algorithms are
 terribly inefficient.
 
-<h3 data-date="20171120" id="null-coalescing"
+<h3 data-date="2017-11-20" id="null-coalescing"
 >Null coalescing operator</h3>
 
 <p>In Moss, the index operations <code>a[i]</code>, <code>m[key]</code>
@@ -614,7 +614,7 @@ y = m(key) or else x
 <p>In both statements, <code>x</code> is lazily evaluated.
 
 
-<h3 data-date="20171120" id="reflection"
+<h3 data-date="2017-11-20" id="reflection"
 >Better reflection support</h3>
 
 <p>In Moss, there is the member access operation "<code>a.x</code>".
@@ -640,7 +640,7 @@ we have:
 a.x ≡≡ a.("x")
 </pre>
 
-<h3 data-date="20180326" id="the-metaclass-patch"
+<h3 data-date="2018-03-26" id="the-metaclass-patch"
 >The metaclass patch</h3>
 
 <p>The basic idea for the object system of Moss is so far, that
@@ -737,7 +737,7 @@ print("type: ", type(d))
 # type: Duck
 </pre>
 
-<h3 data-date="20180327" id="proper-lexical-scoping"
+<h3 data-date="2018-03-27" id="proper-lexical-scoping"
 >Proper lexical scoping</h3>
 
 <p>Not possible in Moss so far is proper lexical scoping.
@@ -851,7 +851,7 @@ end
 <p>Again, difficulties arise when nesting and chaining are combined.
 
 
-<h3 data-date="20180406" id="auto-unpacking-removed"
+<h3 data-date="2018-04-06" id="auto-unpacking-removed"
 >Auto unpacking removed</h3>
 
 <p>For convenience, in some higher order functions there was
@@ -868,7 +868,7 @@ removed in favor of explicit unpacking:
 scalar_product = |v,w| zip(v,w).sum(|[x,y]| x*y)
 </pre>
 
-<h3 data-date="20180406" id="argument-list-unpacking"
+<h3 data-date="2018-04-06" id="argument-list-unpacking"
 >Argument list unpacking</h3>
 
 <p>For argument list unpacking there was so far:
@@ -920,7 +920,7 @@ etc.
 
 <p>Thus we need to use the right hand side.
 
-<h3 data-date="20180503" id="table-literal"
+<h3 data-date="2018-05-03" id="table-literal"
 >Making table literals orthogonal</h3>
 
 <p>The function call
@@ -939,7 +939,7 @@ table{x=1,y=2}   ≡≡ table null(m)
 table T{x=1,y=2} ≡≡ table T(m)
 </pre>
 
-<h3 data-date="20180709" id="list-comprehensions"
+<h3 data-date="2018-07-09" id="list-comprehensions"
 >List comprehensions</h3>
 
 <p>In the last week I mused about adding generator comprehensions
@@ -983,7 +983,7 @@ and done elegantly, the compiler would become only slightly
 slightly larger by 100 up to 200 lines.
 
 
-<h3 data-date="20180802" id="security-model"
+<h3 data-date="2018-08-02" id="security-model"
 >A first security model</h3>
 
 <p>After musing for some time about a capability based security
@@ -1023,7 +1023,7 @@ to load untrusted modules in an authorized program. That is,
 one cannot have untrusted modules and authorization at the same
 time.
 
-<h3 data-date="20181115" id="destructors"
+<h3 data-date="2018-11-15" id="destructors"
 >Destructors, getters, setters</h3>
 
 <p>So, implementing custom getters and setters is not very difficult,
@@ -1078,7 +1078,7 @@ sub-sub-destructions a fourth calling environment and so on.
 Don't get confused, but I would consider it somewhat similar
 to trampolining tail calls.
 
-<h3 data-date="20190212" id="type-system"
+<h3 data-date="2019-02-12" id="type-system"
 >A type system</h3>
 
 <p>A typed programming language Moss is planned, the compiler
@@ -1123,7 +1123,7 @@ let qsort[T: Ord, n](a: List[T,n]): List[T,n] =
       qsort(a[1..].filter(|x| x&gt;=a[0]));
 </pre>
 
-<h3 data-date="20190314" id="leftover-named-arguments"
+<h3 data-date="2019-03-14" id="leftover-named-arguments"
 >Preventing leftover named arguments</h3>
 
 <p>Checking for leftover named arguments was very unergonomic so far.
@@ -1161,7 +1161,7 @@ assert_empty(m)
 <p>To my pleasure, being a library feature, it holds the
 interpreter kernel smaller.
 
-<h3 data-date="20191021" id="classes"
+<h3 data-date="2019-10-21" id="classes"
 >First class support for classes</h3>
 
 <p>So, with the introduction of classes, Moss has got a second
@@ -1215,7 +1215,7 @@ Duck = class_constructor("Duck",null,{
 })
 </pre>
 
-<h3 data-date="20191027" id="copy"
+<h3 data-date="2019-10-27" id="copy"
 >Deep copy moved out</h3>
 
 <p>The algorithms for deep copy can become quite complicated.
@@ -1225,7 +1225,7 @@ algorithms are actually handled quite well in Moss. For these reasons
 I have decided to move the functionality out of the interpreter into
 a library. That makes the interpreter a bit smaller again.
 
-<h3 data-date="20191120" id="unicode-identifiers"
+<h3 data-date="2019-11-20" id="unicode-identifiers"
 >Unicode identifiers</h3>
 
 <p>Concerning Unicode identifiers, these were prohibited until now in

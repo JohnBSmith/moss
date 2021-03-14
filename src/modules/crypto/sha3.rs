@@ -226,7 +226,7 @@ pub struct Keccak {
 
 impl Keccak {
     fn new(rate: usize, delim: u8) -> Self {
-        Self {a: [0; PLEN], offset: 0, rate: rate, delim: delim}
+        Self {a: [0; PLEN], offset: 0, rate, delim}
     }
     pub fn new_sha3_256() -> Self {
         const BITS: usize = 256;

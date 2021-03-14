@@ -271,14 +271,13 @@ fn any_zero_args(env: &mut Env, pself: &Object) -> FnResult {
         let x = env.call(i,&Object::Null,&[])?;
         if x.is_empty() {
             break;
+        }else if let Object::Bool(x) = x {
+            if x {return Ok(Object::Bool(true));}
         }else{
-            if let Object::Bool(x) = x {
-                if x {return Ok(Object::Bool(true));}
-            }else{
-                return env.type_error(
-                    "Type error in i.any(): expected all elements to be of type Bool.");
-            }
+            return env.type_error(
+                "Type error in i.any(): expected all elements to be of type Bool.");
         }
+        
     }
     return Ok(Object::Bool(false));
 }
@@ -314,13 +313,11 @@ fn all_zero_args(env: &mut Env, pself: &Object) -> FnResult {
         let x = env.call(i,&Object::Null,&[])?;
         if x.is_empty() {
             break;
+        }else if let Object::Bool(x) = x {
+            if !x {return Ok(Object::Bool(false));}
         }else{
-            if let Object::Bool(x) = x {
-                if !x {return Ok(Object::Bool(false));}
-            }else{
-                return env.type_error(
-                    "Type error in i.all(): expected all elements to be of type Bool.");
-            }
+            return env.type_error(
+                "Type error in i.all(): expected all elements to be of type Bool.");
         }
     }
     return Ok(Object::Bool(true));
@@ -786,9 +783,11 @@ fn take(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
             0 => {}, n => return env.argc_error(n,0,0,"iterator from Iterable.take")
         }
         let x = env.call(&i,&Object::Null,&[])?;
-        return Ok(if x.is_empty() {x} else {
-            if k<n {k+=1; x} else {Object::empty()}
-        });
+        return Ok(
+            if x.is_empty() {x}
+            else if k<n {k+=1; x}
+            else {Object::empty()}
+        );
     });
     Ok(new_iterator(g))
 }

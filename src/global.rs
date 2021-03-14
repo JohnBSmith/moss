@@ -49,21 +49,21 @@ pub fn type_name(env: &mut Env, x: &Object) -> String {
     }.to_string();
 }
 
-pub fn fpanic(_env: &mut Env, _pself: &Object, _argv: &[Object]) -> FnResult{
+pub fn fpanic(_env: &mut Env, _pself: &Object, _argv: &[Object]) -> FnResult {
     panic!()
 }
 
-pub fn print(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult{
-    for i in 0..argv.len() {
-        print!("{}",argv[i].string(env)?);
+pub fn print(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
+    for obj in argv {
+        print!("{}", obj.string(env)?);
     }
     println!();
     return Ok(Object::Null);
 }
 
-pub fn put(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult{
-    for i in 0..argv.len() {
-        print!("{}",argv[i].string(env)?);
+pub fn put(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
+    for obj in argv {
+        print!("{}", obj.string(env)?);
     }
     return Ok(Object::Null);
 }
@@ -907,8 +907,8 @@ fn _zip(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
         return Ok(List::new_object(Vec::new()));
     }
     let mut v: Vec<Rc<RefCell<List>>> = Vec::with_capacity(argc);
-    for i in 0..argc {
-        match argv[i] {
+    for obj in argv {
+        match obj {
             Object::List(ref a) => v.push(a.clone()),
             ref a => {
                 let y = list(env,a)?;
@@ -918,16 +918,16 @@ fn _zip(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
         }
     }
     let n = v[0].borrow().v.len();
-    for i in 0..argc {
-        if n != v[i].borrow().v.len() {
+    for x in &v {
+        if n != x.borrow().v.len() {
             return env.type_error("Type error in f[a1,...,an]: all lists must have the same size.");
         }
     }
     let mut vy: Vec<Object> = Vec::with_capacity(argc);
     for k in 0..n {
         let mut t: Vec<Object> = Vec::with_capacity(argc);
-        for i in 0..argc {
-            t.push(v[i].borrow().v[k].clone());
+        for obj in &v {
+            t.push(obj.borrow().v[k].clone());
         }
         vy.push(List::new_object(t));
     }
@@ -937,8 +937,8 @@ fn _zip(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
 fn zip(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     let argc = argv.len();
     let mut v: Vec<Object> = Vec::with_capacity(argc);
-    for k in 0..argc {
-        let i = iter(env,&argv[k])?;
+    for x in argv {
+        let i = iter(env,x)?;
         v.push(i);
     }
     let g = Box::new(move |env: &mut Env, _pself: &Object, _argv: &[Object]| -> FnResult {

@@ -30,15 +30,15 @@ Options:
 "#;
 
 fn is_option(s: &str) -> bool {
-    !s.is_empty() && &s[0..1]=="-"
+    !s.is_empty() && &s[0..1] == "-"
 }
 
-struct IFile{
+struct IFile {
     s: String,
     e: bool
 }
 
-struct Info{
+struct Info {
     program: Option<String>,
     ifile: Vec<IFile>,
     argv: Vec<String>,
@@ -51,7 +51,7 @@ struct Info{
 
 impl Info{
     pub fn new() -> Box<Self> {
-        let mut info = Info{
+        let mut info = Info {
             program: None,
             ifile: Vec::new(),
             argv: Vec::new(),
@@ -68,42 +68,42 @@ impl Info{
         for s in env::args() {
             if args {
                 info.argv.push(s);
-            }else if first {
+            } else if first {
                 info.program = Some(s);
                 first = false;
-            }else if is_option(&s) {
+            } else if is_option(&s) {
                 if s=="-i" {
                     ifile = true;
-                }else if s=="-e" {
+                } else if s=="-e" {
                     cmd = true;
-                }else if s=="-ei" {
+                } else if s=="-ei" {
                     ifile = true;
                     cmd = true;
-                }else if s=="-h" || s=="-help" || s=="--help" {
+                } else if s=="-h" || s=="-help" || s=="--help" {
                     println!("{}",HELP);
                     info.exit = true;
                     return Box::new(info);
-                }else if s=="-u" {
+                } else if s=="-u" {
                     info.debug_mode = false;
-                }else if s=="-c" {
+                } else if s=="-c" {
                     info.compile = true;
-                }else if s=="-unsafe" {
+                } else if s=="-unsafe" {
                     info.unsafe_mode = true;
-                }else{
-                    info.ifile.push(IFile{s: s[1..].to_string(), e: false});
+                } else{
+                    info.ifile.push(IFile {s: s[1..].to_string(), e: false});
                 }
-            }else if ifile {
-                info.ifile.push(IFile{s, e: cmd});
+            } else if ifile {
+                info.ifile.push(IFile {s, e: cmd});
                 ifile = false;
                 cmd = false;
-            }else if cmd {
+            } else if cmd {
                 info.cmd = Some(s);
-            }else{
+            } else {
                 info.argv.push(s);
                 args = true;
             }
         }
-        return Box::new(info);
+        Box::new(info)
     }
 }
 
@@ -130,7 +130,7 @@ fn main(){
     for file in &mut info.ifile {
         if file.e {
             env.eval_env(&file.s,gtab.clone());
-        }else{
+        } else {
             if let Some(path) = moss::residual_path(&file.s) {
                 file.s = path;
             }
@@ -140,9 +140,9 @@ fn main(){
     if let Some(ref id) = info.argv.first() {
         if id.is_empty() {
             env.command_line_session(gtab);
-        }else if info.compile {
+        } else if info.compile {
             moss::module::compile_file(&i.rte,id);
-        }else{
+        } else {
             env.eval_file(id,gtab);
         }
     }else if let Some(ref cmd) = info.cmd {
@@ -156,7 +156,7 @@ fn main(){
                 }
             }
         }
-    }else{
+    } else {
         env.command_line_session(gtab);
     }
 }
