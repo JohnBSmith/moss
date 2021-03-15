@@ -608,7 +608,7 @@ pub fn scan(s: &str, line_start: usize, file: &str, new_line_start: bool)
 }
 
 fn symbol_to_string(value: Symbol) -> &'static str {
-    return match value {
+    match value {
         Symbol::None => "none",
         Symbol::Plus => "+",  Symbol::Minus => "-",
         Symbol::Ast  => "*",  Symbol::Div => "/",
@@ -677,7 +677,7 @@ fn symbol_to_string(value: Symbol) -> &'static str {
         Symbol::While => "while",
         Symbol::Yield => "yield",
         Symbol::Terminal => "terminal"
-    };
+    }
 }
 
 #[allow(dead_code)]
@@ -879,12 +879,12 @@ mod var_tab {
                         return None;
                     }
                     self.push_context(id.to_string());
-                    return Some((self.count_context-1,VarType::Context));
+                    Some((self.count_context - 1, VarType::Context))
                 } else {
-                    return None;
+                    None
                 }
             } else {
-                return None;
+                None
             }
         }
         pub fn borrow_parts(&mut self)
@@ -928,8 +928,8 @@ mod pool {
             }
             self.data.push(CharString::new_object_str(key));
             self.stab.insert(String::from(key),self.stab_index);
-            self.stab_index+=1;
-            return self.stab_index-1;
+            self.stab_index += 1;
+            self.stab_index - 1
         }
         pub fn into_data(self) -> Vec<Object> {self.data}
 
@@ -1145,10 +1145,11 @@ fn list_literal(&mut self, i: &mut TokenIterator) -> Result<Box<[Rc<AST>]>,Error
             i.index += 1;
             break;
         } else {
-            return Err(self.syntax_error(t.line, t.col, "expected ',' or ']'."));
+            return Err(self.syntax_error(t.line, t.col,
+                "expected ',' or ']'."));
         }
     }
-    return Ok(v.into_boxed_slice());
+    Ok(v.into_boxed_slice())
 }
 
 fn map_literal(&mut self, i: &mut TokenIterator) -> ResultAST {
@@ -1235,10 +1236,10 @@ fn map_literal(&mut self, i: &mut TokenIterator) -> ResultAST {
             }
         }
     }
-    return Ok(Rc::new(AST {line: t.line, col: t.col,
+    Ok(Rc::new(AST {line: t.line, col: t.col,
         symbol_type: SymbolType::Operator, value: Symbol::Map,
         info: Info::None, s: None, a: Some(v.into_boxed_slice())
-    }));
+    }))
 }
 
 fn table_literal(&mut self, i: &mut TokenIterator, t0: &Token)
@@ -1261,8 +1262,10 @@ fn table_literal(&mut self, i: &mut TokenIterator, t0: &Token)
     } else {
         return Err(self.syntax_error(t.line, t.col, "expected '{'."));
     };
-    return Ok(Rc::new(AST{line: t0.line, col: t0.col, symbol_type: SymbolType::Keyword,
-        value: Symbol::Table, info: Info::None, s: None, a: Some(Box::new([prototype,map]))}));
+    Ok(Rc::new(AST {line: t0.line, col: t0.col,
+        symbol_type: SymbolType::Keyword,
+        value: Symbol::Table, info: Info::None,
+        s: None, a: Some(Box::new([prototype,map]))}))
 }
 
 fn expect_assignment(&mut self, i: &mut TokenIterator)
@@ -1272,9 +1275,9 @@ fn expect_assignment(&mut self, i: &mut TokenIterator)
     let t = &p[i.index];
     if t.value == Symbol::Assignment {
         i.index += 1;
-        return Ok(());
+        Ok(())
     } else {
-        return Err(self.syntax_error(t.line,t.col,"expected '='."));
+        Err(self.syntax_error(t.line, t.col, "expected '='."))
     }
 }
 
@@ -1309,7 +1312,8 @@ fn class_statement(&mut self, i: &mut TokenIterator, t0: &Token)
             None => unreachable!()
         }
     } else {
-        return Err(self.syntax_error(id.line, id.col, "expected an identifier."));
+        return Err(self.syntax_error(id.line, id.col,
+            "expected an identifier."));
     };
     let parent = self.parent(i)?;
     self.expect_assignment(i)?;
@@ -1389,10 +1393,9 @@ fn arguments_list(&mut self, i: &mut TokenIterator, t0: &Token, terminator: Symb
     } else {
         Info::None
     };
-    return Ok(Rc::new(AST {line: t0.line, col: t0.col,
+    Ok(Rc::new(AST {line: t0.line, col: t0.col,
         symbol_type: SymbolType::Operator, value: Symbol::List,
-        info, s: None, a: Some(v.into_boxed_slice())
-    }));
+        info, s: None, a: Some(v.into_boxed_slice())}))
 }
 
 fn concise_function_literal(&mut self, i: &mut TokenIterator, t0: &Token)
@@ -1400,10 +1403,9 @@ fn concise_function_literal(&mut self, i: &mut TokenIterator, t0: &Token)
 {
     let args = self.arguments_list(i,t0,Symbol::Vline)?;
     let x = self.expression(i)?;
-    return Ok(Rc::new(AST{line: t0.line, col: t0.col,
+    Ok(Rc::new(AST {line: t0.line, col: t0.col,
         symbol_type: SymbolType::Keyword, value: Symbol::Fn,
-        info: Info::None, s: None, a: Some(Box::new([args,x]))
-    }));
+        info: Info::None, s: None, a: Some(Box::new([args,x]))}))
 }
 
 fn function_body(&mut self, i: &mut TokenIterator, coroutine: bool)
@@ -1429,7 +1431,7 @@ fn function_body(&mut self, i: &mut TokenIterator, coroutine: bool)
     self.syntax_nesting -= 1;
     i.index += 1;
     self.end_of(i,Symbol::Fn)?;
-    return Ok(body);
+    Ok(body)
 }
 
 fn coroutine_info(&mut self, i: &mut TokenIterator)
@@ -1437,12 +1439,12 @@ fn coroutine_info(&mut self, i: &mut TokenIterator)
 {
     let p = i.next_token(self)?;
     let t = &p[i.index];
-    return Ok(if t.value == Symbol::Ast {
+    Ok(if t.value == Symbol::Ast {
         i.index += 1;
-        (Info::Coroutine,true)
+        (Info::Coroutine, true)
     } else {
-        (Info::None,false)
-    });
+        (Info::None, false)
+    })
 }
 
 fn function_literal(&mut self, i: &mut TokenIterator, t0: &Token)
@@ -1467,11 +1469,9 @@ fn function_literal(&mut self, i: &mut TokenIterator, t0: &Token)
     let args = self.arguments_list(i,t0,Symbol::Vline)?;
 
     let body = self.function_body(i,coroutine)?;
-    let y = Rc::new(AST {line: t0.line, col: t0.col,
+    Ok(Rc::new(AST {line: t0.line, col: t0.col,
         symbol_type: SymbolType::Keyword, value: Symbol::Fn,
-        info, s: id, a: Some(Box::new([args,body]))
-    });
-    return Ok(y);
+        info, s: id, a: Some(Box::new([args,body]))}))
 }
 
 fn function_statement(&mut self, i: &mut TokenIterator, t0: &Token)
@@ -1503,7 +1503,7 @@ fn function_statement(&mut self, i: &mut TokenIterator, t0: &Token)
         symbol_type: SymbolType::Keyword, value: Symbol::Fn,
         info, s: Some(id), a: Some(Box::new([args,body]))
     });
-    return Ok(binary_operator(t.line,t.col,Symbol::Assignment,lhs,y));
+    Ok(binary_operator(t.line, t.col, Symbol::Assignment, lhs, y))
 }
 
 
@@ -3908,11 +3908,11 @@ fn compile_ast(&mut self, bv: &mut Vec<u32>, t: &Rc<AST>)
 fn expect_char(i: &mut Chars, c: char) -> Result<char,String> {
     match i.next() {
         Some(y) => {
-            if c=='*' || y==c {return Ok(y);} else {
-                return Err(format!("after \\x: unexpected character: '{}'.",y));
+            if c == '*' || y == c {Ok(y)} else {
+                Err(format!("after \\x: unexpected character: '{}'.", y))
             }
         },
-        _ => return Err("in \\x{}: unexpected end of input.".to_string())
+        _ => Err("in \\x{}: unexpected end of input.".to_string())
     }
 }
 
@@ -4359,7 +4359,5 @@ pub fn compile(s: &str, id: &str, mode_cmd: bool, value: Value,
 ) -> Result<Rc<Module>,Box<EnumError>>
 {
     let v = scan(s,1,id,false)?;
-    return compile_token_vector(
-        v, mode_cmd, value, history, id, rte
-    );
+    compile_token_vector(v, mode_cmd, value, history, id, rte)
 }

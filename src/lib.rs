@@ -1,4 +1,6 @@
 
+#![allow(clippy::all)]
+
 pub const STACK_SIZE: usize = 4000;
 pub const FRAME_STACK_SIZE: usize = 200;
 
@@ -161,7 +163,7 @@ impl Interpreter{
             env: EnvPart::new(FRAME_STACK_SIZE, rte.clone())
         });
 
-        return Self{rte, state};
+        Self {rte, state}
     }
 
     pub fn new() -> Rc<Self> {
@@ -172,9 +174,9 @@ impl Interpreter{
         let mut ilock = self.lock();
         let mut env = ilock.env();
         match x.repr(&mut env) {
-            Ok(s)=>s,
-            Err(e)=>{
-                println!("{}",env.exception_to_string(&e));
+            Ok(s) => s,
+            Err(e) => {
+                println!("{}", env.exception_to_string(&e));
                 "[exception in Interpreter::repr, see stdout]".to_string()
             }
         }
@@ -186,7 +188,7 @@ impl Interpreter{
         match x.string(&mut self.lock().env()) {
             Ok(s) => return s,
             Err(e) => {
-                println!("{}",env.exception_to_string(&e));
+                println!("{}", env.exception_to_string(&e));
                 panic!();
             }
         }
@@ -196,7 +198,7 @@ impl Interpreter{
         let mut conf = self.rte.compiler_config.borrow_mut();
         *conf = Some(Box::new(config));
     }
-    
+
     pub fn set_capabilities(&self, root_mode: bool) {
         if root_mode {
             let mut capabilities = self.rte.capabilities.borrow_mut();
@@ -207,11 +209,11 @@ impl Interpreter{
 }
 
 pub fn new_list_str(a: &[String]) -> Rc<RefCell<List>> {
-    let mut v: Vec<Object> = Vec::with_capacity(a.len());
+    let mut acc: Vec<Object> = Vec::with_capacity(a.len());
     for x in a {
-        v.push(CharString::new_object_str(x));
+        acc.push(CharString::new_object_str(x));
     }
-    return Rc::new(RefCell::new(List{v, frozen: false}));
+    Rc::new(RefCell::new(List {v: acc, frozen: false}))
 }
 
 fn clear_map(buffer: &mut Vec<Object>, map: &Rc<RefCell<Map>>) {
@@ -256,16 +258,16 @@ fn is_file(id: &str) -> bool {
         Ok(value) => value,
         Err(_) => return false
     };
-    return metadata.file_type().is_file();
+    metadata.file_type().is_file()
 }
 
 pub fn residual_path(id: &str) -> Option<String> {
     if is_file(id) {
-        return None;
-    }else{
+        None
+    } else {
         let mut path = system::library_path();
         path.push_str("include/");
         path.push_str(id);
-        return Some(path);
+        Some(path)
     }
 }

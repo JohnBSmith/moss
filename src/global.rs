@@ -29,7 +29,7 @@ use crate::range::Range;
 use crate::data::{Bytes,base16};
 
 pub fn type_name(env: &mut Env, x: &Object) -> String {
-    return match *x {
+    match *x {
         Object::Null => "null",
         Object::Bool(_) => "Bool",
         Object::Int(_) => "Int",
@@ -46,7 +46,7 @@ pub fn type_name(env: &mut Env, x: &Object) -> String {
             }
         },
         Object::Interface(ref x) => return x.type_name(env)
-    }.to_string();
+    }.to_string()
 }
 
 pub fn fpanic(_env: &mut Env, _pself: &Object, _argv: &[Object]) -> FnResult {
@@ -58,14 +58,14 @@ pub fn print(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
         print!("{}", obj.string(env)?);
     }
     println!();
-    return Ok(Object::Null);
+    Ok(Object::Null)
 }
 
 pub fn put(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     for obj in argv {
         print!("{}", obj.string(env)?);
     }
-    return Ok(Object::Null);
+    Ok(Object::Null)
 }
 
 fn float_to_string(env: &Env, x: &Object, fmt: &Object, precision: &Object) -> FnResult {
@@ -91,12 +91,12 @@ fn float_to_string(env: &Env, x: &Object, fmt: &Object, precision: &Object) -> F
         'E' => {format!("{:.*E}",n,x)}, // upper exponential
         't' => { // fixed point, trimmed zeroes
             let mut v: Vec<char> = format!("{:.*}",n,x).chars().collect();
-            loop{
+            loop {
                 let n = v.len();
                 if n<2 {break;}
                 if v[n-1]=='0' || v[n-1]=='.' {
                     v.pop();
-                }else{
+                } else {
                     break;
                 }
             }
@@ -106,20 +106,20 @@ fn float_to_string(env: &Env, x: &Object, fmt: &Object, precision: &Object) -> F
             return env.value_error("Value error in str(x,fmt,precision): fmt should be one of 'f', 'e', 'E'.");
         }
     };
-    return Ok(CharString::new_object_str(&s));
+    Ok(CharString::new_object_str(&s))
 }
 
 fn fstr(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult{
     match argv.len() {
         1 => {
             let s = argv[0].string(env)?;
-            return Ok(CharString::new_object_str(&s));
+            Ok(CharString::new_object_str(&s))
         },
         3 => {
-            return float_to_string(env,&argv[0],&argv[1],&argv[2]);
+            float_to_string(env, &argv[0], &argv[1], &argv[2])
         },
         n => {
-            return env.argc_error(n,1,1,"str");
+            env.argc_error(n,1,1,"str")
         }
     }
 }
@@ -129,7 +129,7 @@ fn repr(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
         1 => {}, n => return env.argc_error(n,1,1,"repr")
     }
     let s = argv[0].repr(env)?;
-    return Ok(CharString::new_object_str(&s));
+    Ok(CharString::new_object_str(&s))
 }
 
 fn sgn(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
@@ -138,22 +138,21 @@ fn sgn(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     }
     match argv[0] {
         Object::Int(x) => {
-            return Ok(Object::Int(if x<0 {-1} else if x==0 {0} else {1}));
+            Ok(Object::Int(if x<0 {-1} else if x==0 {0} else {1}))
         },
         Object::Float(x) => {
-            return Ok(Object::Float(x.signum()));
+            Ok(Object::Float(x.signum()))
         },
         Object::Complex(z) => {
-            return Ok(Object::Complex(z/z.abs()));
+            Ok(Object::Complex(z/z.abs()))
         },
         Object::Interface(ref x) => {
-            return x.clone().sgn(env);
+            x.clone().sgn(env)
         },
         _ => {
-            return env.type_error1(
+            env.type_error1(
                 "Type error in sgn(x): x should be of type Int, Long, Float.",
-                "x",&argv[0]
-            );
+                "x", &argv[0])
         }
     }
 }
@@ -162,27 +161,25 @@ fn abs(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         1 => {}, n => return env.argc_error(n,1,1,"abs")
     }
-    'type_error: loop{
     match argv[0] {
         Object::Int(x) => {
-            return Ok(Object::Int(x.abs()));
+            Ok(Object::Int(x.abs()))
         },
         Object::Float(x) => {
-            return Ok(Object::Float(x.abs()));
+            Ok(Object::Float(x.abs()))
         },
         Object::Complex(z) => {
-            return Ok(Object::Float(z.abs()));
+            Ok(Object::Float(z.abs()))
         },
         Object::Interface(ref x) => {
-            return x.clone().abs(env);
+            x.clone().abs(env)
         },
-        _ => break 'type_error
+        ref x => {
+            env.type_error1(
+                "Type error in abs(x): x should be of type Int, Long, Float, Complex.",
+                "x", x)
+        }
     }
-    } // type_error:
-    return env.type_error1(
-        "Type error in abs(x): x should be of type Int, Long, Float, Complex.",
-        "x",&argv[0]
-    );
 }
 
 fn eval(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult{
@@ -193,7 +190,7 @@ fn eval(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult{
                 Object::Map(ref m) => m.clone(),
                 _ => return env.type_error2(
                     "Type error in eval(s,m): m is not a map.",
-                    "s","m",&argv[0],&argv[1])
+                    "s", "m", &argv[0], &argv[1])
             }
         },
         n => {
@@ -203,29 +200,28 @@ fn eval(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult{
     match argv[0] {
         Object::String(ref s) => {
             let s = s.to_string();
-            return match env.eval_string(&s,"eval",gtab,Value::Optional) {
+            match env.eval_string(&s, "eval", gtab, Value::Optional) {
                 Ok(x) => {Ok(x)},
                 Err(e) => Err(e)
             }
         },
         _ => {
-            return env.type_error1(
+            env.type_error1(
                 "Type error in eval(s): s is not a string.",
-                "s", &argv[0]
-            );
+                "s", &argv[0])
         }
     }
 }
 
 fn range_length(a: i32, b: i32, step: i32) -> Option<i32> {
-    if step>0 && b>=a {
-        return Some((b-a)/step+1);
-    }else if step<0 && b<=a {
-        return Some((a-b)/(-step)+1);
-    }else if step != 0 {
-        return Some(0);
-    }else{
-        return None;
+    if step > 0 && b >= a {
+        Some((b-a)/step + 1)
+    } else if step < 0 && b <= a {
+        Some((a-b)/(-step) + 1)
+    } else if step != 0 {
+        Some(0)
+    } else {
+        None
     }
 }
 
@@ -248,35 +244,34 @@ fn len(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
                 if let Object::Int(a) = r.a {
                 if let Object::Int(b) = r.b {
                 if let Object::Null = r.step {
-                    return Ok(Object::Int(b-a+1));
-                }else if let Object::Int(step) = r.step {
+                    return Ok(Object::Int(b - a + 1));
+                } else if let Object::Int(step) = r.step {
                     if let Some(value) = range_length(a,b,step) {
                         return Ok(Object::Int(value));
-                    }else{
+                    } else {
                         return env.value_error(
                             "Value error in len(a..b: step): step==0.")
                     }
                 }}}
             }
-            let f = x.clone().get(&Object::from("len"),env)?;
-            return env.call(&f,&argv[0],&[]);
+            let f = x.clone().get(&Object::from("len"), env)?;
+            env.call(&f, &argv[0], &[])
         },
         _ => env.type_error1(
             "Type error in len(a): cannot determine the length of a.",
-            "a", &argv[0]
-        )
+            "a", &argv[0])
     }
 }
 
 fn load_file(env: &mut Env, id: &str) -> FnResult {
     if !env.rte().read_access(id) {
         return env.std_exception(&format!(
-            "Error in load(id): Could not open file id=='{}': permission denied.",id
-        ));
+            "Error in load(id): Could not open file id=='{}': permission denied.",
+            id));
     }
     let path = env.rte().path.clone();
     let search_paths = &path.borrow().v;
-    let (mut f,binary) = match open_module_file(search_paths,id) {
+    let (mut f,binary) = match open_module_file(search_paths, id) {
         Ok(value) => value,
         Err(e) => return env.std_exception(&e)
     };
@@ -286,21 +281,21 @@ fn load_file(env: &mut Env, id: &str) -> FnResult {
     let cond = env.rte().main_module.get();
     let value = if binary {
         env.rte().main_module.set(false);
-        eval_module(env,module.map.clone(),&mut f,id)
-    }else{
+        eval_module(env, module.map.clone(), &mut f, id)
+    } else {
         let mut s = String::new();
         if f.read_to_string(&mut s).is_err() {
             return env.std_exception(&format!(
-                "Error in load: could not read file '{}.moss'.",id));
+                "Error in load: could not read file '{}.moss'.", id));
         }
         env.rte().main_module.set(false);
-        env.eval_string(&s,id,module.map.clone(),Value::None)
+        env.eval_string(&s, id, module.map.clone(), Value::None)
     };
     env.rte().main_module.set(cond);
-    return Ok(match value? {
+    Ok(match value? {
         Object::Null => Object::Interface(Rc::new(module)),
         x => x
-    });
+    })
 }
 
 fn load(env: &mut Env, id: Rc<CharString>, hot_plug: bool) -> FnResult{
@@ -334,8 +329,7 @@ fn load(env: &mut Env, id: Rc<CharString>, hot_plug: bool) -> FnResult{
         "sysfn" => crate::sysfn::load_sysfn(env.rte()),
         "time"  => crate::time::load_time(),
         "data" => crate::data::load_data(env),
-        
-        
+
         #[cfg(feature = "graphics")]
         "graphics" => crate::graphics::load_graphics(),
 
@@ -348,7 +342,7 @@ fn load(env: &mut Env, id: Rc<CharString>, hot_plug: bool) -> FnResult{
         let mut m = env.rte().module_table.borrow_mut();
         m.m.insert(Object::String(id),y.clone());
     }
-    return Ok(y);
+    Ok(y)
 }
 
 fn fload(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
@@ -368,7 +362,7 @@ fn fiter(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         1 => {}, n => return env.argc_error(n,1,1,"iter")
     }
-    return iter(env,&argv[0]);
+    iter(env, &argv[0])
 }
 
 fn record(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
@@ -377,11 +371,11 @@ fn record(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     }
     if let Some(t) = downcast::<Table>(&argv[0]) {
         Ok(Object::Map(t.map.clone()))
-    }else if let Some(t) = downcast::<Table>(&argv[0]) {
+    } else if let Some(t) = downcast::<Table>(&argv[0]) {
         Ok(Object::Map(t.map.clone()))
-    }else if let Some(t) = downcast::<Class>(&argv[0]) {
+    } else if let Some(t) = downcast::<Class>(&argv[0]) {
         Ok(Object::Map(t.map.clone()))
-    }else{
+    } else {
         env.type_error1(
             "Type error in record(x): x is not a table.",
             "x", &argv[0]
@@ -419,7 +413,7 @@ fn ftype(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         1 => {}, n => return env.argc_error(n,1,1,"type")
     }
-    return Ok(match argv[0] {
+    Ok(match argv[0] {
         Object::Null => Object::Null,
         Object::Bool(_) => Object::Interface(env.rte().type_bool.clone()),
         Object::Int(_) => Object::Interface(env.rte().type_int.clone()),
@@ -431,7 +425,7 @@ fn ftype(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
         Object::Function(_) => Object::Interface(env.rte().type_function.clone()),
         Object::Interface(ref x) => return x.get_type(env),
         _ => Object::Null
-    });
+    })
 }
 
 fn float_range_to_list(env: &mut Env, r: &Range) -> FnResult {
@@ -463,11 +457,11 @@ fn float_range_to_list(env: &mut Env, r: &Range) -> FnResult {
     let q = (b-a)/d;
     let n = if q<0.0 {0} else {(q+0.001) as usize+1};
 
-    let mut v: Vec<Object> = Vec::with_capacity(n);
+    let mut acc: Vec<Object> = Vec::with_capacity(n);
     for k in 0..n {
-        v.push(Object::Float(a+float(k)*d));
+        acc.push(Object::Float(a + float(k)*d));
     }
-    return Ok(List::new_object(v));
+    Ok(List::new_object(acc))
 }
 
 pub fn list(env: &mut Env, obj: &Object) -> FnResult {
@@ -544,24 +538,23 @@ pub fn list(env: &mut Env, obj: &Object) -> FnResult {
         }
         return Ok(List::new_object(v));
     }
-    
+
     if let Object::Interface(x) = obj {
         let key = env.rte().key_list.clone();
         let f = x.clone().get(&key,env)?;
         return env.call(&f,obj,&[]);
     }
 
-    return env.type_error1(
+    env.type_error1(
         "Type error in list(x): cannot convert x into a list.",
-        "x", obj
-    );
+        "x", obj)
 }
 
 pub fn flist(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult{
     match argv.len() {
         1 => {}, n => return env.argc_error(n,1,1,"list")
     }
-    return list(env,&argv[0]);
+    list(env, &argv[0])
 }
 
 fn set(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
@@ -575,7 +568,7 @@ fn set(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
         if y.is_empty() {break;}
         m.insert(y,Object::Null);
     }
-    return Ok(Map::new_object(m));
+    Ok(Map::new_object(m))
 }
 
 fn copy(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
@@ -600,7 +593,7 @@ fn rng_float(seed: u32) -> FnResult {
     let f = Box::new(move |_: &mut Env, _: &Object, _: &[Object]| -> FnResult {
         Ok(Object::Float(rng.rand_float()))
     });
-    return Ok(Function::mutable(f,0,0));
+    Ok(Function::mutable(f,0,0))
 }
 
 fn rng_range(env: &mut Env, r: &Range, seed: u32) -> FnResult {
@@ -620,7 +613,7 @@ fn rng_range(env: &mut Env, r: &Range, seed: u32) -> FnResult {
     let f = Box::new(move |_: &mut Env, _: &Object, _: &[Object]| -> FnResult {
         Ok(Object::Int(rng.rand_range(a,b)))
     });
-    return Ok(Function::mutable(f,0,0));
+    Ok(Function::mutable(f,0,0))
 }
 
 fn rng_list(env: &mut Env, a: Rc<RefCell<List>>,
@@ -635,7 +628,7 @@ fn rng_list(env: &mut Env, a: Rc<RefCell<List>>,
         let index = rng.rand_range(0,n) as usize;
         Ok(a.borrow_mut().v[index].clone())
     });
-    return Ok(Function::mutable(f,0,0));    
+    Ok(Function::mutable(f,0,0))
 }
 
 fn seed_arg(argm: &HashMap<Object,Object>) -> Option<u32> {
@@ -674,14 +667,14 @@ fn rng(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
         0 => rng_float(seed),
         1 => {
             if let Some(r) = downcast::<Range>(&argv[0]) {
-                return rng_range(env,r,seed);
-            }else if let Object::List(ref a) = argv[0] {
-                return rng_list(env,a.clone(),seed);
+                rng_range(env, r, seed)
+            } else if let Object::List(ref a) = argv[0] {
+                rng_list(env, a.clone(), seed)
+            } else {
+                env.type_error1(
+                    "Type error in rng(r): r is not a range.",
+                    "r", &argv[0])
             }
-            return env.type_error1(
-                "Type error in rng(r): r is not a range.",
-                "r", &argv[0]
-            );
         },
         n => env.argc_error(n,0,1,"rng")
     }
@@ -693,7 +686,7 @@ fn fgtab(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
             Object::Function(ref f) => {
                 if let EnumFunction::Std(ref fp) = f.f {
                     Ok(Object::Map(fp.gtab.clone()))
-                }else{
+                } else {
                     env.type_error("Type error in gtab(f): f is not a function from Moss source code.")
                 }
             },
@@ -701,7 +694,7 @@ fn fgtab(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
                 "Type error in gtab(f): f is not a function.",
                 "f",&argv[0])
         }
-    }else{
+    } else {
         Ok(Object::Map(env.rte().pgtab.borrow().clone()))
     }
 }
@@ -743,7 +736,7 @@ fn parse_int(a: &[char]) -> Result<i32,ParseError> {
         };
         i+=1;
     }
-    return Ok(sgn*y);
+    Ok(sgn*y)
 }
 
 fn string_to_int(env: &mut Env, a: &[char]) -> FnResult {
@@ -759,8 +752,8 @@ fn string_to_int(env: &mut Env, a: &[char]) -> FnResult {
             }
         }
     }
-    return env.value_error(
-        "Value error in int(s): could not convert s into an integer.");
+    env.value_error(
+        "Value error in int(s): could not convert s into an integer.")
 }
 
 fn int(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
@@ -835,12 +828,12 @@ fn input(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
                     match crate::system::getline_history(&prompt,&h) {
                         Ok(s)=>s, Err(_) => return env.std_exception("Error in input(): could not obtain input.")
                     }
-                }else{
+                } else {
                     return env.type_error1(
                         "Type error in input(prompt,history): history is not a list.",
                         "history",&argv[1])
                 }
-            }else{
+            } else {
                 match crate::system::getline(&prompt) {
                     Ok(s)=>s, Err(_) => return env.std_exception("Error in input(): could not obtain input.")
                 }
@@ -874,7 +867,7 @@ fn fconst(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
         },
         _ => {}
     }
-    return Ok(argv[0].clone());
+    Ok(argv[0].clone())
 }
 
 fn read(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
@@ -889,8 +882,8 @@ fn read(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
                     "Error in read(id): Could not open file id=='{}': permission denied.",id
                 ));
             }
-            
-            return match crate::system::read_file(&id) {
+
+            match crate::system::read_file(&id) {
                 Ok(s) => Ok(CharString::new_object_str(&s)),
                 Err(e) => env.std_exception(&e)
             }
@@ -931,7 +924,7 @@ fn _zip(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
         }
         vy.push(List::new_object(t));
     }
-    return Ok(List::new_object(vy));
+    Ok(List::new_object(vy))
 }
 
 fn zip(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
@@ -948,16 +941,16 @@ fn zip(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
             if y.is_empty() {return Ok(y);}
             else {t.push(y);}
         }
-        return Ok(List::new_object(t));
+        Ok(List::new_object(t))
     });
-    return Ok(new_iterator(g));
+    Ok(new_iterator(g))
 }
 
 fn pow(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         3 => {}, n => return env.argc_error(n,3,3,"pow")
     }
-    return pow_mod(env,&argv[0],&argv[1],&argv[2]);
+    pow_mod(env, &argv[0], &argv[1], &argv[2])
 }
 
 fn min(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
@@ -966,9 +959,9 @@ fn min(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     }
     let cond = op_lt(env,&argv[0],&argv[1])?;
     if let Object::Bool(cond) = cond {
-        return Ok(argv[if cond {0} else {1}].clone());
-    }else{
-        return env.type_error("Type error in min(x,y): value of x<y is not a boolean.")
+        Ok(argv[if cond {0} else {1}].clone())
+    } else {
+        env.type_error("Type error in min(x,y): value of x<y is not a boolean.")
     }
 }
 
@@ -978,9 +971,9 @@ fn max(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     }
     let cond = op_lt(env,&argv[0],&argv[1])?;
     if let Object::Bool(cond) = cond {
-        return Ok(argv[if cond {1} else {0}].clone());
-    }else{
-        return env.type_error("Type error in max(x,y): value of x<y is not a boolean.")
+        Ok(argv[if cond {1} else {0}].clone())
+    } else {
+        env.type_error("Type error in max(x,y): value of x<y is not a boolean.")
     }
 }
 
@@ -991,8 +984,8 @@ fn ord(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv[0] {
         Object::String(ref s) => {
             if s.data.len()==1 {
-                return Ok(Object::Int(s.data[0] as u32 as i32));
-            }else{
+                Ok(Object::Int(s.data[0] as u32 as i32))
+            } else {
                 env.value_error("Value error in ord(c): size(c)!=1.")
             }
         },
@@ -1022,32 +1015,32 @@ fn map(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     }
     let i = iter(env,&argv[0])?;
     let mut m: HashMap<Object,Object> = HashMap::new();
-    loop{
+    loop {
         let y = env.call(&i,&Object::Null,&[])?;
         if y.is_empty() {
             break;
-        }else if let Object::List(a) = y {
+        } else if let Object::List(a) = y {
             let a = a.borrow_mut();
             if a.v.len() != 2 {
                 return env.type_error("Type error in map(a): iter(a) is expected to return pairs.");
             }
-            m.insert(a.v[0].clone(),a.v[1].clone());
-        }else{
+            m.insert(a.v[0].clone(), a.v[1].clone());
+        } else {
             return env.type_error("Type error in map(a): iter(a) is expected to return lists.");
         }
     }
-    return Ok(Map::new_object(m));
+    Ok(Map::new_object(m))
 }
 
 fn extend(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     if argv.len()<2 {
-        return env.argc_error(argv.len(),2,VARIADIC,"extend");
+        return env.argc_error(argv.len(), 2, VARIADIC, "extend");
     }
     let mut borrow = if let Some(t) = downcast::<Table>(&argv[0]) {
         t.map.borrow_mut()
-    }else if let Some(t) = downcast::<Class>(&argv[0]) {
+    } else if let Some(t) = downcast::<Class>(&argv[0]) {
         t.map.borrow_mut()
-    }else{
+    } else {
         return env.type_error("Type error in extend(x,y): x is not a table.");
     };
     let m = &mut borrow;
@@ -1055,17 +1048,17 @@ fn extend(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
         if let Object::Map(ref pm) = *p {
             let pm = &pm.borrow();
             map_extend(m,pm);
-        }else if let Some(pt) = downcast::<Table>(p) {
+        } else if let Some(pt) = downcast::<Table>(p) {
             let pm = &pt.map.borrow();
             map_extend(m,pm);
-        }else if let Some(pc) = downcast::<Class>(p) {
+        } else if let Some(pc) = downcast::<Class>(p) {
             let pm = &pc.map.borrow();
             map_extend(m,pm);
-        }else{
+        } else {
             return env.type_error("Type error in extend(x,y): y is not a table.");
         }
     }
-    return Ok(Object::Null);
+    Ok(Object::Null)
 }
 
 fn long(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
@@ -1077,17 +1070,16 @@ fn long(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
         Err(()) => {
             env.type_error1(
                 "Type error in long(x): cannot convert x to long.",
-                "x",&argv[0]
-            )
+                "x", &argv[0])
         }
     }
 }
 
 fn abort(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
-        0 => return env.std_exception("Aborted."),
-        1 => return env.std_exception(&format!("Aborted: {}.",argv[0])),
-        n => return env.argc_error(n,0,1,"abort")
+        0 => env.std_exception("Aborted."),
+        1 => env.std_exception(&format!("Aborted: {}.", argv[0])),
+        n => env.argc_error(n,0,1,"abort")
     }
 }
 
@@ -1100,7 +1092,7 @@ fn getattr(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
             Some(x) => x,
             _ => Object::Null
         }
-    }else{
+    } else {
         Object::Null
     })
 }
@@ -1110,17 +1102,17 @@ fn hex(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
         1 => {}, n => return env.argc_error(n,1,1,"hex")
     }
     if let Object::Int(n) = argv[0] {
-        let s: &str = &format!("0x{:x}",n);
+        let s: &str = &format!("0x{:x}", n);
         Ok(Object::from(s))
-    }else if let Some(n) = downcast::<Long>(&argv[0]) {
-        let s: &str = &format!("0x{}",Long::to_hex(n));
+    } else if let Some(n) = downcast::<Long>(&argv[0]) {
+        let s: &str = &format!("0x{}", Long::to_hex(n));
         Ok(Object::from(s))
-    }else if let Some(data) = downcast::<Bytes>(&argv[0]) {
+    } else if let Some(data) = downcast::<Bytes>(&argv[0]) {
         Ok(base16(&data.data.borrow()))
-    }else{
+    } else {
         env.type_error1(
            "Type error in hex(x): cannot convert x into hexadecimal representation.",
-           "x",&argv[0])
+           "x", &argv[0])
     }
 }
 
@@ -1129,12 +1121,12 @@ fn bin(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
         1 => {}, n => return env.argc_error(n,1,1,"bin")
     }
     if let Object::Int(n) = argv[0] {
-        let s: &str = &format!("0b{:b}",n);
+        let s: &str = &format!("0b{:b}", n);
         Ok(Object::from(s))
-    }else{
+    } else {
         env.type_error1(
            "Type error in bin(x): cannot convert x into binary representation.",
-           "x",&argv[0])
+           "x", &argv[0])
     }
 }
 
@@ -1143,12 +1135,12 @@ fn oct(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
         1 => {}, n => return env.argc_error(n,1,1,"oct")
     }
     if let Object::Int(n) = argv[0] {
-        let s: &str = &format!("0o{:o}",n);
+        let s: &str = &format!("0o{:o}", n);
         Ok(Object::from(s))
-    }else{
+    } else {
         env.type_error1(
            "Type error in oct(x): cannot convert x into octal representation.",
-           "x",&argv[0])
+           "x", &argv[0])
     }
 }
 
@@ -1197,13 +1189,13 @@ pub fn init_rte(rte: &RTE){
 
     let type_bool = rte.type_bool.clone();
     gtab.insert("Bool", Object::Interface(type_bool));
-    
+
     let type_int = rte.type_int.clone();
     gtab.insert("Int", Object::Interface(type_int));
-    
+
     let type_float = rte.type_float.clone();
     gtab.insert("Float", Object::Interface(type_float));
-    
+
     let type_complex = rte.type_complex.clone();
     gtab.insert("Complex", Object::Interface(type_complex));
 
@@ -1222,7 +1214,7 @@ pub fn init_rte(rte: &RTE){
     let type_function = rte.type_function.clone();
     crate::function::init(&type_function);
     gtab.insert("Function", Object::Interface(type_function));
-    
+
     let type_range = rte.type_range.clone();
     gtab.insert("Range", Object::Interface(type_range));
 
@@ -1253,11 +1245,11 @@ pub fn init_rte(rte: &RTE){
     );
     {
         let mut m = type_bytes.map.borrow_mut();
-        m.insert_fn_plain("list",crate::data::bytes_list,0,0);
-        m.insert_fn_plain("decode",crate::data::bytes_decode,0,1);
-        m.insert_fn_plain("len",crate::data::bytes_len,0,0);
-        m.insert_fn_plain("hex",crate::data::bytes_hex,0,0);
+        m.insert_fn_plain("list", crate::data::bytes_list, 0, 0);
+        m.insert_fn_plain("decode", crate::data::bytes_decode, 0, 1);
+        m.insert_fn_plain("len", crate::data::bytes_len, 0, 0);
+        m.insert_fn_plain("hex", crate::data::bytes_hex, 0, 0);
     }
-    interface_types_set(rte,interface_index::BYTES,type_bytes);
+    interface_types_set(rte, interface_index::BYTES, type_bytes);
 }
 

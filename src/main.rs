@@ -72,24 +72,24 @@ impl Info{
                 info.program = Some(s);
                 first = false;
             } else if is_option(&s) {
-                if s=="-i" {
+                if s == "-i" {
                     ifile = true;
-                } else if s=="-e" {
+                } else if s == "-e" {
                     cmd = true;
-                } else if s=="-ei" {
+                } else if s == "-ei" {
                     ifile = true;
                     cmd = true;
-                } else if s=="-h" || s=="-help" || s=="--help" {
+                } else if s == "-h" || s == "-help" || s == "--help" {
                     println!("{}",HELP);
                     info.exit = true;
                     return Box::new(info);
-                } else if s=="-u" {
+                } else if s == "-u" {
                     info.debug_mode = false;
-                } else if s=="-c" {
+                } else if s == "-c" {
                     info.compile = true;
-                } else if s=="-unsafe" {
+                } else if s == "-unsafe" {
                     info.unsafe_mode = true;
-                } else{
+                } else {
                     info.ifile.push(IFile {s: s[1..].to_string(), e: false});
                 }
             } else if ifile {
@@ -129,29 +129,29 @@ fn main(){
 
     for file in &mut info.ifile {
         if file.e {
-            env.eval_env(&file.s,gtab.clone());
+            env.eval_env(&file.s, gtab.clone());
         } else {
             if let Some(path) = moss::residual_path(&file.s) {
                 file.s = path;
             }
-            env.eval_file(&file.s,gtab.clone());
+            env.eval_file(&file.s, gtab.clone());
         }
     }
     if let Some(ref id) = info.argv.first() {
         if id.is_empty() {
             env.command_line_session(gtab);
         } else if info.compile {
-            moss::module::compile_file(&i.rte,id);
+            moss::module::compile_file(&i.rte, id);
         } else {
-            env.eval_file(id,gtab);
+            env.eval_file(id, gtab);
         }
-    }else if let Some(ref cmd) = info.cmd {
-        let x = env.eval_env(cmd,gtab);
+    } else if let Some(ref cmd) = info.cmd {
+        let x = env.eval_env(cmd, gtab);
         if x != Object::Null {
             match x.repr(&mut env) {
-                Ok(s) => println!("{}",s),
+                Ok(s) => println!("{}", s),
                 Err(e) => {
-                    println!("{}",env.exception_to_string(&e));
+                    println!("{}", env.exception_to_string(&e));
                     println!("[exception in Interpreter::repr, see stdout]");
                 }
             }
