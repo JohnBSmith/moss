@@ -22,7 +22,7 @@ fn push(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
                     for x in argv {
                         a.v.push(x.clone());
                     }
-                    Ok(Object::Null)        
+                    Ok(Object::Null)
                 },
                 Err(_) => {env.std_exception(
                     "Memory error in a.push(x): internal buffer of a was aliased.\n\
@@ -35,8 +35,8 @@ fn push(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
 }
 
 fn plus(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
-    push(env,pself,argv)?;
-    return Ok(pself.clone());
+    push(env, pself, argv)?;
+    Ok(pself.clone())
 }
 
 fn append(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
@@ -79,15 +79,15 @@ fn pop_at_index(env: &mut Env, v: &mut Vec<Object>, index: &Object)
         ref i => return env.type_error1(
             "Type error in a.pop(i): is not an integer.","i",i)
     };
-    return if i<len {
+    if i<len {
         Ok(v.remove(i))
-    }else{
+    } else {
         env.index_error(
             "Index error in a.pop(i): i is is out of upper bound.")
-    };
+    }
 }
 
-fn pop(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
+fn pop(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     match *pself {
         Object::List(ref a) => {
             match a.try_borrow_mut() {
@@ -96,20 +96,18 @@ fn pop(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
                         return env.value_error("Value error in a.pop(): a is frozen.");
                     }
                     if !argv.is_empty() {
-                        return pop_at_index(env,&mut a.v,&argv[0]);
-                    }else{
+                        pop_at_index(env, &mut a.v, &argv[0])
+                    } else {
                         match a.v.pop() {
                             Some(x) => Ok(x),
-                            None => {
-                                env.value_error("Value error in a.pop(): a is empty.")
-                            }
+                            None => env.value_error(
+                                "Value error in a.pop(): a is empty.")
                         }
                     }
                 },
-                Err(_) => {env.std_exception(
+                Err(_) => env.std_exception(
                     "Memory error in a.pop(): internal buffer of a is aliased.\n\
-                      Try to replace a by copy(a) at some place."
-                )}
+                     Try to replace a by copy(a) at some place.")
             }
         },
         ref a => env.type_error1("Type error in a.pop(): a is not a list.","a",a)
@@ -138,17 +136,19 @@ fn insert(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
                     }
                     if index < a.v.len() {
                         a.v.insert(index,argv[1].clone());
-                    }else{
+                    } else {
                         return env.index_error("Index error in a.insert(i,x): i is out of upper bound.");
                     }
-                    return Ok(Object::Null);
+                    Ok(Object::Null)
                 },
                 Err(_) => {
-                    return env.std_exception("Memory error in a.insert(i,x): internal buffer of a is aliased.")
+                    env.std_exception("Memory error in a.insert(i,x): internal buffer of a is aliased.")
                 }
             }
         },
-        ref a => return env.type_error1("Type error in a.insert(i,x): a is not a list.","a",a)
+        ref a => env.type_error1(
+            "Type error in a.insert(i,x): a is not a list.",
+            "a", a)
     }
 }
 
@@ -170,14 +170,14 @@ fn map(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     }
     let a = match *pself {
         Object::List(ref a) => a.borrow(),
-        _ => {return env.type_error("Type error in a.map(f): a is not a list.");}
+        _ => return env.type_error("Type error in a.map(f): a is not a list.")
     };
-    let mut v: Vec<Object> = Vec::with_capacity(a.v.len());
+    let mut acc: Vec<Object> = Vec::with_capacity(a.v.len());
     for x in &a.v {
         let y = env.call(&argv[0],&Object::Null,&[x.clone()])?;
-        v.push(y);
+        acc.push(y);
     }
-    return Ok(List::new_object(v));
+    Ok(List::new_object(acc))
 }
 
 fn filter(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
@@ -186,27 +186,27 @@ fn filter(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
     }
     let a = match *pself {
         Object::List(ref a) => a.borrow(),
-        _ => {return env.type_error("Type error in a.filter(p): a is not a list.");}
+        _ => return env.type_error("Type error in a.filter(p): a is not a list.")
     };
-    let mut v: Vec<Object> = Vec::new();
+    let mut acc: Vec<Object> = Vec::new();
     for x in &a.v {
-        let y = env.call(&argv[0],&Object::Null,&[x.clone()])?;
+        let y = env.call(&argv[0], &Object::Null, &[x.clone()])?;
         let condition = match y {
-            Object::Bool(u)=>u,
+            Object::Bool(u) => u,
             ref value => return env.type_error2(
                 "Type error in a.filter(p): return value of p is not of boolean type.",
-                "x","p(x)",x,value)
+                "x", "p(x)", x, value)
         };
         if condition {
-            v.push(x.clone());
+            acc.push(x.clone());
         }
     }
-    return Ok(List::new_object(v));
+    Ok(List::new_object(acc))
 }
 
 fn new_shuffle() -> MutableFn {
     let mut rng = Rand::new(0);
-    return Box::new(move |env: &mut Env, pself: &Object, argv: &[Object]| -> FnResult {
+    Box::new(move |env: &mut Env, pself: &Object, argv: &[Object]| -> FnResult {
         match argv.len() {
             0 => {}, n => return env.argc_error(n,0,0,"shuffle")
         }
@@ -218,7 +218,7 @@ fn new_shuffle() -> MutableFn {
             },
             _ => env.type_error("Type error in a.shuffle(): a is not a list.")
         }
-    });
+    })
 }
 
 fn list_chain(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
@@ -231,24 +231,24 @@ fn list_chain(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
         Object::List(ref a) => a.borrow(),
         _ => return env.type_error("Type error in a.chain(): a is not a list.")
     };
-    let mut v: Vec<Object> = Vec::new();
+    let mut acc: Vec<Object> = Vec::new();
     let mut first = true;
     for t in &a.v {
         if let Some(infix) = infix {
-            if first {first = false} else {v.push(infix.clone());}
+            if first {first = false} else {acc.push(infix.clone());}
         }
         match *t {
             Object::List(ref t) => {
                 for x in &t.borrow().v {
-                    v.push(x.clone());
+                    acc.push(x.clone());
                 }
             },
             ref x => {
-                v.push(x.clone());
+                acc.push(x.clone());
             }
         }
     }
-    Ok(List::new_object(v))
+    Ok(List::new_object(acc))
 }
 
 fn list_rev(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
@@ -290,12 +290,12 @@ fn list_swap(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
                 let x = x as isize + len as isize;
                 if x<0 {
                     return env.index_error("Index error in a.swap(i,j): i is out of lower bound.");
-                }else{
+                } else {
                     x as usize
                 }
-            }else if x as usize >= len {
+            } else if x as usize >= len {
                 return env.index_error("Index error in a.swap(i,j): i is out of upper bound.");
-            }else{
+            } else {
                 x as usize
             };
             let j = if y<0 {
@@ -303,12 +303,12 @@ fn list_swap(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
                 let y = y as isize + len as isize;
                 if y<0 {
                     return env.index_error("Index error in a.swap(i,j): j is out of lower bound.");
-                }else{
+                } else {
                     y as usize
                 }
-            }else if y as usize >= len {
+            } else if y as usize >= len {
                 return env.index_error("Index error in a.swap(i,j): j is out of upper bound.");
-            }else{
+            } else {
                 y as usize
             };
             a.v.swap(i,j);
@@ -321,18 +321,18 @@ fn list_swap(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
 pub fn duplicate(a: &Rc<RefCell<List>>, n: usize) -> Object {
     let a = a.borrow();
     let size = a.v.len()*n;
-    let mut v: Vec<Object> = Vec::with_capacity(size);
+    let mut acc: Vec<Object> = Vec::with_capacity(size);
     for _ in 0..n {
         for x in &a.v {
-            v.push(x.clone());
+            acc.push(x.clone());
         }
     }
-    return List::new_object(v);
-} 
+    List::new_object(acc)
+}
 
 pub fn map_fn(env: &mut Env, f: &Object, argv: &[Object]) -> FnResult {
     let argc = argv.len();
-    if argc==0 {
+    if argc == 0 {
         return Ok(List::new_object(Vec::new()));
     }
     let mut v: Vec<Rc<RefCell<List>>> = Vec::with_capacity(argc);
@@ -352,18 +352,18 @@ pub fn map_fn(env: &mut Env, f: &Object, argv: &[Object]) -> FnResult {
             return env.type_error("Type error in f[a1,...,an]: all lists must have the same size.");
         }
     }
-    
+
     let null = &Object::Null;
-    let mut vy: Vec<Object> = Vec::with_capacity(argc);
+    let mut acc: Vec<Object> = Vec::with_capacity(argc);
     let mut args: Vec<Object> = vec![Object::Null; argc];
     for k in 0..n {
         for i in 0..argc {
             args[i] = v[i].borrow().v[k].clone();
         }
-        let y = env.call(f,null,&args)?;
-        vy.push(y);
+        let y = env.call(f, null, &args)?;
+        acc.push(y);
     }
-    return Ok(List::new_object(vy));
+    Ok(List::new_object(acc))
 }
 
 fn clear(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
@@ -385,29 +385,30 @@ fn clear(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
                         },
                         n => return env.argc_error(n,0,1,"clear")
                     }
-                    Ok(Object::Null)        
+                    Ok(Object::Null)
                 },
-                Err(_) => {env.std_exception(
-                    "Memory error in a.clear(x): internal buffer of a was aliased."
-                )}
+                Err(_) => env.std_exception(
+                    "Memory error in a.clear(x): internal buffer of a was aliased.")
             }
         },
-        ref a => env.type_error1("Type error in a.clear(): a is not a list.","a",a)
+        ref a => env.type_error1(
+            "Type error in a.clear(): a is not a list.",
+            "a", a)
     }
 }
 
 pub fn cartesian_product(a: &List, b: &List) -> Object {
-    let mut v: Vec<Object> = Vec::with_capacity(a.v.len()*b.v.len());
+    let mut acc: Vec<Object> = Vec::with_capacity(a.v.len()*b.v.len());
     for x in &a.v {
         for y in &b.v {
-            v.push(List::new_object(vec![x.clone(),y.clone()]));
+            acc.push(List::new_object(vec![x.clone(), y.clone()]));
         }
     }
-    return List::new_object(v);
+    List::new_object(acc)
 }
 
 pub fn cartesian_power(v: &[Object], n: i32) -> Object {
-    let n = if n<0 {0} else {n as u32};
+    let n = if n < 0 {0} else {n as u32};
     let m = v.len();
     let len = m.pow(n);
     let mut y: Vec<Vec<Object>> = Vec::with_capacity(len);
@@ -437,9 +438,8 @@ pub fn cartesian_power(v: &[Object], n: i32) -> Object {
         count *= m;
         k /= m;
     }
-    return List::new_object(
-        y.into_iter().map(List::new_object).collect()
-    );
+    List::new_object(y.into_iter()
+       .map(List::new_object).collect())
 }
 
 fn rotate(a: &mut [Object], n: i32) {
@@ -448,7 +448,7 @@ fn rotate(a: &mut [Object], n: i32) {
         let mut n = n as usize;
         if n >= m {n %= m;}
         a.rotate_right(n);
-    }else {
+    } else {
         let mut n = (-n) as usize;
         if n >= m {n %= m;}
         a.rotate_left(n);
@@ -477,7 +477,7 @@ fn list_rot(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
                 Err(_) => {env.std_exception(
                     "Memory error in a.rot(n): internal buffer of a was aliased."
                 )}
-            }           
+            }
         },
         ref x => env.type_error1(
             "Type error in a.rot(n): a is not a list","a",x)
@@ -486,18 +486,18 @@ fn list_rot(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult{
 
 pub fn init(t: &Class){
     let mut m = t.map.borrow_mut();
-    m.insert_fn_plain("push",push,0,VARIADIC);
-    m.insert_fn_plain("plus",plus,0,VARIADIC);
-    m.insert_fn_plain("append",append,0,VARIADIC);
-    m.insert_fn_plain("pop",pop,0,0);
-    m.insert_fn_plain("insert",insert,2,2);
-    m.insert_fn_plain("size",size,0,0);
-    m.insert_fn_plain("map",map,1,1);
-    m.insert_fn_plain("filter",filter,1,1);
-    m.insert_fn_plain("chain",list_chain,0,0);
-    m.insert_fn_plain("rev",list_rev,0,0);
-    m.insert_fn_plain("swap",list_swap,2,2);
-    m.insert_fn_plain("clear",clear,0,1);
-    m.insert_fn_plain("rot",list_rot,1,1);
-    m.insert("shuffle",Function::mutable(new_shuffle(),0,0));
+    m.insert_fn_plain("push", push, 0, VARIADIC);
+    m.insert_fn_plain("plus", plus, 0, VARIADIC);
+    m.insert_fn_plain("append", append, 0, VARIADIC);
+    m.insert_fn_plain("pop", pop, 0, 0);
+    m.insert_fn_plain("insert", insert, 2, 2);
+    m.insert_fn_plain("size", size, 0, 0);
+    m.insert_fn_plain("map", map, 1, 1);
+    m.insert_fn_plain("filter", filter, 1, 1);
+    m.insert_fn_plain("chain", list_chain, 0, 0);
+    m.insert_fn_plain("rev", list_rev, 0, 0);
+    m.insert_fn_plain("swap", list_swap, 2, 2);
+    m.insert_fn_plain("clear", clear, 0, 1);
+    m.insert_fn_plain("rot", list_rot, 1, 1);
+    m.insert("shuffle", Function::mutable(new_shuffle(), 0, 0));
 }

@@ -1,13 +1,13 @@
 
 use std::str;
 use std::env::var;
-use std::io;
-use std::io::Write;
+use std::{io, io::Write};
 use std::os::unix::io::RawFd;
 use std::path::PathBuf;
 use termios::{
     Termios, tcsetattr, TCSANOW, ICANON, ECHO
 };
+use crate::object::{Object, List};
 
 const STDIN_FILENO: i32 = 0;
 const TAB: u8 = 9;
@@ -19,8 +19,6 @@ const DOWN: u8 = 66;
 const LEFT: u8 = 68;
 const RIGHT: u8 = 67;
 const BACKSPACE: u8 = 127;
-
-use crate::object::{Object,List};
 
 fn get_win_size() -> (usize, usize) {
     use std::mem::zeroed;
@@ -35,41 +33,41 @@ fn get_win_size() -> (usize, usize) {
 
 fn get_cols() -> usize {
     let (cols,_) = get_win_size();
-    return cols;
+    cols
 }
 
-struct HistoryNode{
+struct HistoryNode {
     s: String,
     next: Option<Box<HistoryNode>>
 }
-pub struct History{
+pub struct History {
     first: Option<Box<HistoryNode>>
 }
 
-impl History{
+impl History {
     pub fn get(&self, index: usize) -> Option<String> {
-        if index==0 {return None;}
+        if index == 0 {return None;}
         if let Some(ref first) = self.first {
             let mut p = first;
             for _ in 0..index-1 {
                 if let Some(ref next) = p.next {
                     p = next;
-                }else{
+                } else {
                     return None;
                 }
             }
             return Some(p.s.clone());
         }
-        return None;
+        None
     }
-    pub fn new() -> History{
-        return History{first: None};
+    pub fn new() -> History {
+        History {first: None}
     }
     pub fn append(&mut self, s: &str){
         if let Some(ref first) = self.first {
-            if first.s==s {return;}
+            if first.s == s {return;}
         }
-        self.first = Some(Box::new(HistoryNode{
+        self.first = Some(Box::new(HistoryNode {
             s: String::from(s), next: self.first.take()
         }));
     }
@@ -78,7 +76,7 @@ impl History{
 fn getchar() -> u8 {
     use std::convert::TryFrom;
     let c = unsafe{libc::getchar()};
-    return u8::try_from(c).unwrap_or(b'?');
+    u8::try_from(c).unwrap_or(b'?')
 }
 
 fn flush() {
@@ -86,7 +84,7 @@ fn flush() {
 }
 
 fn print_flush(s: &str) {
-    print!("{}",s);
+    print!("{}", s);
     io::stdout().flush().ok();
 }
 
@@ -96,22 +94,18 @@ fn clear(cols: usize, prompt: &str, a: &[char]){
 }
 
 fn print_prompt_flush(prompt: &str, a: &[char]) {
-    print!("{}",prompt);
-    for x in a {print!("{}",x);}
+    print!("{}", prompt);
+    for x in a {print!("{}", x);}
     flush();
 }
 
 fn number_of_bytes(c: u8) -> usize {
-    let mut i: usize = 0;
-    while i<=7 && c>>(7-i)&1 == 1 {
-        i+=1;
-    }
-    return i;
+    c.leading_ones() as usize
 }
 
 fn number_of_lines(cols: usize, prompt: &str, a: &[char]) -> usize {
     let n = prompt.len()+a.len();
-    return if n==0 {1} else {(n-1)/cols+1};
+    if n == 0 {1} else {(n-1)/cols + 1}
 }
 
 fn clear_input(lines: usize){
@@ -170,35 +164,35 @@ pub fn getline_history(prompt: &str, history: &History) -> io::Result<String> {
     let mut i: usize = 0;
     let mut n: usize = 0;
 
-    loop{
+    loop {
         let c = getchar();
         if c == NEWLINE {
             println!();
             break;
-        }else if c<32 {
+        } else if c<32 {
             if c == ESC {
                 let c2 = getchar();
                 if c2 == ARROW {
                     let c3 = getchar();
                     if c3 == LEFT {
-                        if i > 0 {i-=1; print_flush("\x1b[1D");}
+                        if i > 0 {i -= 1; print_flush("\x1b[1D");}
                         continue;
-                    }else if c3 == RIGHT {
-                        if i < n {i+=1; print_flush("\x1b[1C");}
+                    } else if c3 == RIGHT {
+                        if i < n {i += 1; print_flush("\x1b[1C");}
                         continue;
-                    }else if c3 == UP {
+                    } else if c3 == UP {
                         if history_index == 0 {
                             a0 = a.clone();
                         }
                         if let Some(x) = history.get(history_index+1) {
                             clear(cols,prompt,&a);
                             a = x.chars().collect();
-                            n = a.len(); i=n;
-                            history_index+=1;
+                            n = a.len(); i = n;
+                            history_index += 1;
                             print_prompt_flush(prompt,&a);
                         }
                         continue;
-                    }else if c3 == DOWN {
+                    } else if c3 == DOWN {
                         if history_index > 0 {
                             if history_index == 1 {
                                 clear(cols, prompt, &a);
@@ -206,7 +200,7 @@ pub fn getline_history(prompt: &str, history: &History) -> io::Result<String> {
                                 a = a0.clone();
                                 n = a.len(); i = n;
                                 print_prompt_flush(prompt, &a);
-                            }else if let Some(x) = history.get(history_index-1) {
+                            } else if let Some(x) = history.get(history_index-1) {
                                 clear(cols, prompt, &a);
                                 history_index -= 1;
                                 a = x.chars().collect();
@@ -223,10 +217,10 @@ pub fn getline_history(prompt: &str, history: &History) -> io::Result<String> {
                 } else {
                     continue;
                 }
-            }else if c != TAB {
+            } else if c != TAB {
                 continue;
             }
-        }else if c == BACKSPACE {
+        } else if c == BACKSPACE {
             if i > 0 {
                 for j in i..n {
                     a[j-1] = a[j];

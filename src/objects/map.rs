@@ -9,14 +9,14 @@ use crate::class::Class;
 
 pub fn map_update(m: &mut Map, m2: &Map){
     for (key,value) in &m2.m {
-        m.m.insert(key.clone(),value.clone());
+        m.m.insert(key.clone(), value.clone());
     }
 }
 
 pub fn map_extend(m: &mut Map, m2: &Map) {
     for (key,value) in &m2.m {
         if !m.m.contains_key(key) {
-            m.m.insert(key.clone(),value.clone());
+            m.m.insert(key.clone(), value.clone());
         }
     }
 }
@@ -73,15 +73,15 @@ fn values(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
         let mut index: usize = 0;
         let v: Vec<Object> = m.borrow().m.values().cloned().collect();
         let f = Box::new(move |_env: &mut Env, _pself: &Object, _argv: &[Object]| -> FnResult {
-            if index == v.len() {
-                return Ok(Object::empty());
-            }else{
-                index+=1;
-                return Ok(v[index-1].clone());
-            }
+            Ok(if index == v.len() {
+                Object::empty()
+            } else {
+                index += 1;
+                v[index-1].clone()
+            })
         });
         Ok(new_iterator(f))
-    }else{
+    } else {
         env.type_error("Type error in m.values(): m is not a map.")
     }
 }
@@ -94,22 +94,22 @@ fn items(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
         let mut index: usize = 0;
         let m = &m.borrow().m;
         let mut keys: Vec<Object> = Vec::with_capacity(m.len());
-        let mut values: Vec<Object> = Vec::with_capacity(m.len()); 
+        let mut values: Vec<Object> = Vec::with_capacity(m.len());
         for (key,value) in m.iter() {
             keys.push(key.clone());
             values.push(value.clone());
         }
         let f = Box::new(move |_env: &mut Env, _pself: &Object, _argv: &[Object]| -> FnResult {
-            if index == keys.len() {
-                return Ok(Object::empty());
-            }else{
-                index+=1;
-                let t = vec![keys[index-1].clone(),values[index-1].clone()];
-                return Ok(List::new_object(t));
-            }
+            Ok(if index == keys.len() {
+                Object::empty()
+            } else {
+                index += 1;
+                let t = vec![keys[index-1].clone(), values[index-1].clone()];
+                List::new_object(t)
+            })
         });
         Ok(new_iterator(f))
-    }else{
+    } else {
         env.type_error("Type error in m.items(): m is not a map.")
     }
 }
@@ -169,22 +169,22 @@ fn add(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
 pub fn subseteq(a: &Map, b: &Map) -> bool {
     let bm = &b.m;
     for key in a.m.keys() {
-        if !bm.contains_key(key) {return false;} 
+        if !bm.contains_key(key) {return false;}
     }
-    return true;
+    true
 }
 
 pub fn subset(a: &Map, b: &Map) -> bool {
-    return a.m.len()<b.m.len() && subseteq(a,b);
+    a.m.len() < b.m.len() && subseteq(a,b)
 }
 
 pub fn init(t: &Class){
     let mut m = t.map.borrow_mut();
-    m.insert_fn_plain("update",update,1,1);
-    m.insert_fn_plain("extend",extend,1,1);
-    m.insert_fn_plain("values",values,0,0);
-    m.insert_fn_plain("items",items,0,0);
-    m.insert_fn_plain("clear",clear,0,0);
-    m.insert_fn_plain("remove",remove,0,0);
-    m.insert_fn_plain("add",add,0,VARIADIC);
+    m.insert_fn_plain("update", update, 1, 1);
+    m.insert_fn_plain("extend", extend, 1, 1);
+    m.insert_fn_plain("values", values, 0, 0);
+    m.insert_fn_plain("items", items, 0, 0);
+    m.insert_fn_plain("clear", clear, 0, 0);
+    m.insert_fn_plain("remove", remove, 0, 0);
+    m.insert_fn_plain("add", add, 0, VARIADIC);
 }

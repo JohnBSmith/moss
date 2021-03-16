@@ -1,5 +1,6 @@
 
 #![allow(clippy::all)]
+#![warn(clippy::needless_return)]
 
 pub const STACK_SIZE: usize = 4000;
 pub const FRAME_STACK_SIZE: usize = 200;

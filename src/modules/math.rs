@@ -1,8 +1,8 @@
 
-use std::f64::consts::{PI,E,LOG10_E};
+use std::f64::consts::{PI, E, LOG10_E};
 use std::rc::Rc;
 
-use crate::complex::c64;
+use crate::complex::C64;
 use crate::object::{Object, FnResult, new_module, float};
 use crate::vm::Env;
 
@@ -12,87 +12,83 @@ const LN_2PI: f64 = 1.8378770664093453;
 const TAU: f64 = 2.0*PI;
 
 fn lanczos_gamma(x: f64) -> f64 {
-    let p=[
+    let p = [
         0.99999999999980993, 676.5203681218851, -1259.1392167224028,
         771.32342877765313, -176.61502916214059, 12.507343278686905,
         -0.13857109526572012, 9.9843695780195716e-6, 1.5056327351493116e-7
     ];
-    let x = x-1.0;
+    let x = x - 1.0;
     let mut y = p[0];
-    y+=p[1]/(x+1.0); y+=p[2]/(x+2.0);
-    y+=p[3]/(x+3.0); y+=p[4]/(x+4.0);
-    y+=p[5]/(x+5.0); y+=p[6]/(x+6.0);
-    y+=p[7]/(x+7.0); y+=p[8]/(x+8.0);
-    let t=x+7.5;
-    return SQRT_2PI*t.powf(x+0.5)*(-t).exp()*y;
+    y += p[1]/(x + 1.0); y += p[2]/(x + 2.0);
+    y += p[3]/(x + 3.0); y += p[4]/(x + 4.0);
+    y += p[5]/(x + 5.0); y += p[6]/(x + 6.0);
+    y += p[7]/(x + 7.0); y += p[8]/(x + 8.0);
+    let t = x + 7.5;
+    SQRT_2PI*t.powf(x + 0.5)*f64::exp(-t)*y
 }
 
 pub fn gamma(x: f64) -> f64 {
-    if x<0.5 {
-        return PI/(x*PI).sin()/lanczos_gamma(1.0-x);
+    if x < 0.5 {
+        PI/f64::sin(x*PI)/lanczos_gamma(1.0 - x)
     }else{
-        return lanczos_gamma(x);
+        lanczos_gamma(x)
     }
 }
 
 fn lanczos_lgamma(x: f64) -> f64 {
-    let p=[
+    let p = [
         0.99999999999980993, 676.5203681218851, -1259.1392167224028,
         771.32342877765313, -176.61502916214059, 12.507343278686905,
         -0.13857109526572012, 9.9843695780195716e-6, 1.5056327351493116e-7
     ];
-    let x = x-1.0;
+    let x = x - 1.0;
     let mut y = p[0];
-    y+=p[1]/(x+1.0); y+=p[2]/(x+2.0);
-    y+=p[3]/(x+3.0); y+=p[4]/(x+4.0);
-    y+=p[5]/(x+5.0); y+=p[6]/(x+6.0);
-    y+=p[7]/(x+7.0); y+=p[8]/(x+8.0);
-    let t=x+7.5;
-    return 0.5*LN_2PI+(x+0.5)*t.ln()-t+y.ln();
+    y += p[1]/(x + 1.0); y += p[2]/(x + 2.0);
+    y += p[3]/(x + 3.0); y += p[4]/(x + 4.0);
+    y += p[5]/(x + 5.0); y += p[6]/(x + 6.0);
+    y += p[7]/(x + 7.0); y += p[8]/(x + 8.0);
+    let t = x + 7.5;
+    0.5*LN_2PI + (x + 0.5)*f64::ln(t) - t + f64::ln(y)
 }
 
 pub fn lgamma(x: f64) -> f64 {
-    if x<0.5 {
-        return LN_PI-(x*PI).sin().abs().ln()-lanczos_lgamma(1.0-x);
-    }else{
-        return lanczos_lgamma(x);
+    if x < 0.5 {
+        LN_PI - (x*PI).sin().abs().ln() - lanczos_lgamma(1.0 - x)
+    } else {
+        lanczos_lgamma(x)
     }
 }
 
 pub fn sgngamma(x: f64) -> f64 {
-    if x<0.0 {
-        return (x*PI).sin().signum();
-    }else{
-        return 1.0;
-    }
+    if x < 0.0 {(x*PI).sin().signum()} else {1.0}
 }
 
-fn lanczos_cgamma(z: c64) -> c64 {
+fn lanczos_cgamma(z: C64) -> C64 {
     let p = [
         0.99999999999980993, 676.5203681218851, -1259.1392167224028,
         771.32342877765313, -176.61502916214059, 12.507343278686905,
         -0.13857109526572012, 9.9843695780195716e-6, 1.5056327351493116e-7
     ];
     let z = z - 1.0;
-    let mut y = c64{re: p[0], im: 0.0};
-    y += p[1]/(z+1.0); y += p[2]/(z+2.0);
-    y += p[3]/(z+3.0); y += p[4]/(z+4.0);
-    y += p[5]/(z+5.0); y += p[6]/(z+6.0);
-    y += p[7]/(z+7.0); y += p[8]/(z+8.0);
+    let mut y = C64 {re: p[0], im: 0.0};
+    y += p[1]/(z + 1.0); y += p[2]/(z + 2.0);
+    y += p[3]/(z + 3.0); y += p[4]/(z + 4.0);
+    y += p[5]/(z + 5.0); y += p[6]/(z + 6.0);
+    y += p[7]/(z + 7.0); y += p[8]/(z + 8.0);
     let t = z + 7.5;
-    return SQRT_2PI*t.powc(z+0.5)*(-t).exp()*y;
+    SQRT_2PI*t.powc(z + 0.5)*(-t).exp()*y
 }
 
-pub fn cgamma(z: c64) -> c64 {
-    if z.re<0.5 {
-        return PI/(PI*z).sin()/lanczos_cgamma(1.0-z);
-    }else{
-        return lanczos_cgamma(z);
+pub fn cgamma(z: C64) -> C64 {
+    if z.re < 0.5 {
+        PI/(PI*z).sin()/lanczos_cgamma(1.0 - z)
+    } else {
+        lanczos_cgamma(z)
     }
 }
 
 fn erf(x: f64) -> f64 {
-    let t = 1.0/(1.0+0.5*x.abs());
+    let t = 1.0/(1.0 + 0.5*x.abs());
     let t2 = t*t;
     let t4 = t2*t2;
     let t8 = t4*t4;
@@ -103,23 +99,21 @@ fn erf(x: f64) -> f64 {
       - 1.13520398*t4*t2 + 1.48851587*t4*t2*t
       - 0.82215223*t8 + 0.17087277*t8*t
     ).exp();
-    return if x<0.0 {y-1.0} else {1.0-y};
+    if x < 0.0 {y - 1.0} else {1.0 - y}
 }
 
 #[inline(never)]
 pub fn type_error_int_float(env: &mut Env, id: &str, x: &Object) -> FnResult {
     env.type_error1(
         &format!("Type error in {}(x): expected x of type Int or Float.",id),
-        "x", x
-    )
+        "x", x)
 }
 
 #[inline(never)]
 pub fn type_error_int_float_complex(env: &mut Env, id: &str, x: &Object) -> FnResult {
     env.type_error1(
         &format!("Type error in {}(z): expected z of type Int, Float or Complex.",id),
-        "z", x
-    )
+        "z", x)
 }
 
 fn floor(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
@@ -657,14 +651,14 @@ fn csqrt(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
         },
         Object::Float(x) => {
             if x<0.0 {
-                Ok(Object::Complex(c64{re: x, im: 0.0}.sqrt()))
+                Ok(Object::Complex(C64 {re: x, im: 0.0}.sqrt()))
             }else{
                 Ok(Object::Float(x.sqrt()))
             }
         },
         Object::Int(x) => {
             if x<0 {
-                Ok(Object::Complex(c64{re: float(x), im: 0.0}.sqrt()))
+                Ok(Object::Complex(C64 {re: float(x), im: 0.0}.sqrt()))
             }else{
                 Ok(Object::Float(float(x).sqrt()))
             }
@@ -679,10 +673,10 @@ fn cln(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     }
     match argv[0] {
         Object::Int(x) => {
-            Ok(Object::Complex(c64{re: float(x), im: 0.0}.ln()))
+            Ok(Object::Complex(C64 {re: float(x), im: 0.0}.ln()))
         },
         Object::Float(x) => {
-            Ok(Object::Complex(c64{re: x, im: 0.0}.ln()))
+            Ok(Object::Complex(C64 {re: x, im: 0.0}.ln()))
         },
         Object::Complex(z) => {
             Ok(Object::Complex(z.ln()))
@@ -697,10 +691,10 @@ fn casin(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     }
     match argv[0] {
         Object::Int(x) => {
-            Ok(Object::Complex(c64{re: float(x), im: 0.0}.asin()))
+            Ok(Object::Complex(C64 {re: float(x), im: 0.0}.asin()))
         },
         Object::Float(x) => {
-            Ok(Object::Complex(c64{re: x, im: 0.0}.asin()))
+            Ok(Object::Complex(C64 {re: x, im: 0.0}.asin()))
         },
         Object::Complex(z) => {
             Ok(Object::Complex(z.asin()))
@@ -715,10 +709,10 @@ fn cacos(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     }
     match argv[0] {
         Object::Int(x) => {
-            Ok(Object::Complex(c64{re: float(x), im: 0.0}.acos()))
+            Ok(Object::Complex(C64 {re: float(x), im: 0.0}.acos()))
         },
         Object::Float(x) => {
-            Ok(Object::Complex(c64{re: x, im: 0.0}.acos()))
+            Ok(Object::Complex(C64 {re: x, im: 0.0}.acos()))
         },
         Object::Complex(z) => {
             Ok(Object::Complex(z.acos()))
@@ -733,10 +727,10 @@ fn catan(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     }
     match argv[0] {
         Object::Int(x) => {
-            Ok(Object::Complex(c64{re: float(x), im: 0.0}.atan()))
+            Ok(Object::Complex(C64 {re: float(x), im: 0.0}.atan()))
         },
         Object::Float(x) => {
-            Ok(Object::Complex(c64{re: x, im: 0.0}.atan()))
+            Ok(Object::Complex(C64 {re: x, im: 0.0}.atan()))
         },
         Object::Complex(z) => {
             Ok(Object::Complex(z.atan()))
@@ -751,10 +745,10 @@ fn casinh(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     }
     match argv[0] {
         Object::Int(x) => {
-            Ok(Object::Complex(c64{re: float(x), im: 0.0}.asinh()))
+            Ok(Object::Complex(C64 {re: float(x), im: 0.0}.asinh()))
         },
         Object::Float(x) => {
-            Ok(Object::Complex(c64{re: x, im: 0.0}.asinh()))
+            Ok(Object::Complex(C64 {re: x, im: 0.0}.asinh()))
         },
         Object::Complex(z) => {
             Ok(Object::Complex(z.asinh()))
@@ -769,10 +763,10 @@ fn cacosh(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     }
     match argv[0] {
         Object::Int(x) => {
-            Ok(Object::Complex(c64{re: float(x), im: 0.0}.acosh()))
+            Ok(Object::Complex(C64 {re: float(x), im: 0.0}.acosh()))
         },
         Object::Float(x) => {
-            Ok(Object::Complex(c64{re: x, im: 0.0}.acosh()))
+            Ok(Object::Complex(C64 {re: x, im: 0.0}.acosh()))
         },
         Object::Complex(z) => {
             Ok(Object::Complex(z.acosh()))
@@ -787,10 +781,10 @@ fn catanh(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     }
     match argv[0] {
         Object::Int(x) => {
-            Ok(Object::Complex(c64{re: float(x), im: 0.0}.atanh()))
+            Ok(Object::Complex(C64 {re: float(x), im: 0.0}.atanh()))
         },
         Object::Float(x) => {
-            Ok(Object::Complex(c64{re: x, im: 0.0}.atanh()))
+            Ok(Object::Complex(C64 {re: x, im: 0.0}.atanh()))
         },
         Object::Complex(z) => {
             Ok(Object::Complex(z.atanh()))
@@ -807,68 +801,68 @@ pub fn load_math() -> Object {
         m.insert("pi",  Object::Float(PI));
         m.insert("tau", Object::Float(TAU));
         m.insert("e",   Object::Float(E));
-        m.insert("nan", Object::Float(::std::f64::NAN));
-        m.insert("inf", Object::Float(::std::f64::INFINITY));
+        m.insert("nan", Object::Float(f64::NAN));
+        m.insert("inf", Object::Float(f64::INFINITY));
 
-        m.insert_fn_plain("floor",floor,1,1);
-        m.insert_fn_plain("ceil",ceil,1,1);
-        m.insert_fn_plain("trunc",trunc,1,1);
-        m.insert_fn_plain("sqrt",sqrt,1,1);
-        m.insert_fn_plain("exp",exp,1,1);
-        m.insert_fn_plain("ln",ln,1,1);
-        m.insert_fn_plain("lg",lg,1,1);
+        m.insert_fn_plain("floor", floor, 1, 1);
+        m.insert_fn_plain("ceil", ceil, 1, 1);
+        m.insert_fn_plain("trunc", trunc, 1, 1);
+        m.insert_fn_plain("sqrt", sqrt, 1, 1);
+        m.insert_fn_plain("exp", exp, 1, 1);
+        m.insert_fn_plain("ln", ln, 1, 1);
+        m.insert_fn_plain("lg", lg, 1, 1);
 
-        m.insert_fn_plain("sin",sin,1,1);
-        m.insert_fn_plain("cos",cos,1,1);
-        m.insert_fn_plain("tan",tan,1,1);
-        m.insert_fn_plain("sinh",sinh,1,1);
-        m.insert_fn_plain("cosh",cosh,1,1);
-        m.insert_fn_plain("tanh",tanh,1,1);
+        m.insert_fn_plain("sin", sin, 1, 1);
+        m.insert_fn_plain("cos", cos, 1, 1);
+        m.insert_fn_plain("tan", tan, 1, 1);
+        m.insert_fn_plain("sinh", sinh, 1, 1);
+        m.insert_fn_plain("cosh", cosh, 1, 1);
+        m.insert_fn_plain("tanh", tanh, 1, 1);
 
-        m.insert_fn_plain("asin",asin,1,1);
-        m.insert_fn_plain("acos",acos,1,1);
-        m.insert_fn_plain("atan",atan,1,1);
-        m.insert_fn_plain("asinh",asinh,1,1);
-        m.insert_fn_plain("acosh",acosh,1,1);
-        m.insert_fn_plain("atanh",atanh,1,1);
+        m.insert_fn_plain("asin",asin, 1, 1);
+        m.insert_fn_plain("acos",acos, 1, 1);
+        m.insert_fn_plain("atan",atan, 1, 1);
+        m.insert_fn_plain("asinh",asinh, 1, 1);
+        m.insert_fn_plain("acosh",acosh, 1, 1);
+        m.insert_fn_plain("atanh",atanh, 1, 1);
 
-        m.insert_fn_plain("gamma",math_gamma,1,1);
-        m.insert_fn_plain("lgamma",math_lgamma,1,1);
-        m.insert_fn_plain("sgngamma",math_sgngamma,1,1);
-        m.insert_fn_plain("hypot",hypot,2,2);
-        m.insert_fn_plain("atan2",atan2,2,2);
-        m.insert_fn_plain("erf",math_erf,1,1);
-        m.insert_fn_plain("isnan",isnan,1,1);
-        m.insert_fn_plain("isinf",isinf,1,1);
+        m.insert_fn_plain("gamma", math_gamma, 1, 1);
+        m.insert_fn_plain("lgamma", math_lgamma, 1, 1);
+        m.insert_fn_plain("sgngamma", math_sgngamma, 1, 1);
+        m.insert_fn_plain("hypot", hypot, 2, 2);
+        m.insert_fn_plain("atan2", atan2, 2, 2);
+        m.insert_fn_plain("erf", math_erf, 1, 1);
+        m.insert_fn_plain("isnan", isnan, 1, 1);
+        m.insert_fn_plain("isinf", isinf, 1, 1);
     }
-    return Object::Interface(Rc::new(math));
+    Object::Interface(Rc::new(math))
 }
 
 pub fn load_cmath() -> Object {
     let cmath = new_module("cmath");
     {
         let mut m = cmath.map.borrow_mut();
-        m.insert_fn_plain("exp",exp,1,1);
-        m.insert_fn_plain("sin",sin,1,1);
-        m.insert_fn_plain("cos",cos,1,1);
-        m.insert_fn_plain("tan",tan,1,1);
-        m.insert_fn_plain("sinh",sinh,1,1);
-        m.insert_fn_plain("cosh",cosh,1,1);
-        m.insert_fn_plain("tanh",tanh,1,1);
+        m.insert_fn_plain("exp", exp, 1, 1);
+        m.insert_fn_plain("sin", sin, 1, 1);
+        m.insert_fn_plain("cos", cos, 1, 1);
+        m.insert_fn_plain("tan", tan, 1, 1);
+        m.insert_fn_plain("sinh", sinh, 1, 1);
+        m.insert_fn_plain("cosh", cosh, 1, 1);
+        m.insert_fn_plain("tanh", tanh, 1, 1);
 
-        m.insert_fn_plain("asin",casin,1,1);
-        m.insert_fn_plain("acos",cacos,1,1);
-        m.insert_fn_plain("atan",catan,1,1);
-        m.insert_fn_plain("asinh",casinh,1,1);
-        m.insert_fn_plain("acosh",cacosh,1,1);
-        m.insert_fn_plain("atanh",catanh,1,1);
+        m.insert_fn_plain("asin", casin, 1, 1);
+        m.insert_fn_plain("acos", cacos, 1, 1);
+        m.insert_fn_plain("atan", catan, 1, 1);
+        m.insert_fn_plain("asinh", casinh, 1, 1);
+        m.insert_fn_plain("acosh", cacosh, 1, 1);
+        m.insert_fn_plain("atanh", catanh, 1, 1);
 
-        m.insert_fn_plain("re",re,1,1);
-        m.insert_fn_plain("im",im,1,1);
-        m.insert_fn_plain("conj",conj,1,1);
-        m.insert_fn_plain("ln",cln,1,1);
-        m.insert_fn_plain("sqrt",csqrt,1,1);
-        m.insert_fn_plain("arg",arg,1,1);
+        m.insert_fn_plain("re", re, 1, 1);
+        m.insert_fn_plain("im", im, 1, 1);
+        m.insert_fn_plain("conj", conj, 1, 1);
+        m.insert_fn_plain("ln", cln, 1, 1);
+        m.insert_fn_plain("sqrt", csqrt, 1, 1);
+        m.insert_fn_plain("arg", arg, 1, 1);
     }
-    return Object::Interface(Rc::new(cmath));
+    Object::Interface(Rc::new(cmath))
 }

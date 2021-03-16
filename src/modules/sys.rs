@@ -7,8 +7,8 @@ use crate::object::{
     Object, FnResult, Interface, Exception,
     VARIADIC, new_module, downcast
 };
-use crate::vm::{RTE,Env};
-use crate::class::{Class,Table};
+use crate::vm::{RTE, Env};
+use crate::class::{Class, Table};
 
 fn exit(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
@@ -50,30 +50,30 @@ fn istable(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         1 => {}, n => return env.argc_error(n,1,1,"istable")
     }
-    return Ok(Object::Bool(downcast::<Table>(&argv[0]).is_some()));
+    Ok(Object::Bool(downcast::<Table>(&argv[0]).is_some()))
 }
 
 fn isclass(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     match argv.len() {
         1 => {}, n => return env.argc_error(n,1,1,"isclass")
     }
-    return Ok(Object::Bool(downcast::<Class>(&argv[0]).is_some()));
+    Ok(Object::Bool(downcast::<Class>(&argv[0]).is_some()))
 }
 
-struct Id{
+struct Id {
     value: u64
 }
 
 impl Interface for Id {
     fn as_any(&self) -> &dyn Any {self}
     fn to_string(self: Rc<Self>, _env: &mut Env) -> Result<String,Box<Exception>> {
-        Ok(String::from(&format!("0x{:x}",self.value)))
+        Ok(String::from(&format!("0x{:x}", self.value)))
     }
     fn hash(&self) -> u64 {self.value}
     fn eq_plain(&self, b: &Object) -> bool {
         if let Some(b) = downcast::<Id>(b) {
             self.value == b.value
-        }else{
+        } else {
             false
         }
     }
@@ -89,7 +89,7 @@ impl Interface for Id {
 }
 
 fn ptr_as_u64<T: ?Sized>(p: &Rc<T>) -> u64 {
-    return &**p as *const T as *const () as u64;
+    &**p as *const T as *const () as u64
 }
 
 fn address(x: u64) -> Object {
@@ -148,9 +148,10 @@ fn cmd(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
                 Ok(if status.success() {Object::Null} else {Object::Int(1)})
             },
             Err(_) => env.std_exception(&format!(
-                "Error in cmd(command,argv): failed to execute command=='{}'.",cmd_name))
+                "Error in cmd(command,argv): failed to execute command=='{}'.",
+                cmd_name))
         }
-    }else{
+    } else {
         env.std_exception("Error in cmd(command,argv): permission denied.")
     }
 }
@@ -162,16 +163,16 @@ pub fn load_sys(rte: &Rc<RTE>) -> Object {
         if let Some(ref argv) = *rte.argv.borrow() {
             m.insert("argv", Object::List(argv.clone()));
         }
-        m.insert("path",Object::List(rte.path.clone()));
-        m.insert_fn_plain("exit",exit,0,1);
-        m.insert_fn_plain("call",crate::vm::sys_call,2,VARIADIC);
-        m.insert_fn_plain("eput",eput,0,VARIADIC);
-        m.insert_fn_plain("eprint",eprint,0,VARIADIC);
-        m.insert_fn_plain("istable",istable,1,1);
-        m.insert_fn_plain("isclass",isclass,1,1);
-        m.insert_fn_plain("id",id,1,1);
-        m.insert_fn_plain("main",ismain,0,0);
-        m.insert_fn_plain("cmd",cmd,2,2);
+        m.insert("path", Object::List(rte.path.clone()));
+        m.insert_fn_plain("exit", exit, 0, 1);
+        m.insert_fn_plain("call", crate::vm::sys_call, 2, VARIADIC);
+        m.insert_fn_plain("eput", eput, 0, VARIADIC);
+        m.insert_fn_plain("eprint", eprint, 0, VARIADIC);
+        m.insert_fn_plain("istable", istable, 1, 1);
+        m.insert_fn_plain("isclass", isclass, 1, 1);
+        m.insert_fn_plain("id", id, 1, 1);
+        m.insert_fn_plain("main", ismain, 0, 0);
+        m.insert_fn_plain("cmd", cmd, 2, 2);
     }
-    return Object::Interface(Rc::new(sys));
+    Object::Interface(Rc::new(sys))
 }

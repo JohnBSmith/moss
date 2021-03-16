@@ -22,11 +22,11 @@ fn info(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     let line = Object::Int(frame.line as i32);
     let col = Object::Int(frame.col as i32);
     let name = frame.name;
-    return Ok(Object::from(vec![id,line,col,name]));
+    Ok(Object::from(vec![id, line, col, name]))
 }
 
 fn stack_len(env: &mut Env, _pself: &Object, _argv: &[Object]) -> FnResult {
-    return Ok(Object::Int(frame_stack_len(env) as i32));
+    Ok(Object::Int(frame_stack_len(env) as i32))
 }
 
 /*
@@ -34,9 +34,9 @@ fn stack_len(env: &mut Env, _pself: &Object, _argv: &[Object]) -> FnResult {
 info, stack_len: sys.trace, sys.inspect
 */
 
-static FN_TABLE: [(PlainFn,u32,u32); 2] = [
-    (info,0,1),
-    (stack_len,0,0)
+static FN_TABLE: [(PlainFn, u32, u32); 2] = [
+    (info, 0, 1),
+    (stack_len, 0, 0)
 ];
 
 fn sysfn(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
@@ -48,9 +48,9 @@ fn sysfn(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
         _ => return Ok(Object::Null)
     };
     let (f,min,max) = FN_TABLE[index];
-    return Ok(Function::plain(f,min,max));
+    Ok(Function::plain(f,min,max))
 }
 
 pub fn load_sysfn(_rte: &Rc<RTE>) -> Object {
-    return Function::plain(sysfn,1,1);
+    Function::plain(sysfn,1,1)
 }

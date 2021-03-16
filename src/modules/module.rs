@@ -2,12 +2,12 @@
 use std::rc::Rc;
 use std::cell::RefCell;
 use std::fs::File;
-use std::io::{Read,Write};
+use std::io::{Read, Write};
 
 use crate::system::History;
-use crate::object::{Object,FnResult,Map};
-use crate::vm::{Module,RTE,Env,eval};
-use crate::compiler::{compile,Value};
+use crate::object::{Object, FnResult, Map};
+use crate::vm::{Module, RTE, Env, eval};
+use crate::compiler::{compile, Value};
 
 fn push_u32(bv: &mut Vec<u8>, x: u32) {
     bv.push(x as u8);
@@ -30,27 +30,27 @@ pub fn push_object(bv: &mut Vec<u8>, x: &Object) {
         for c in s.as_bytes() {
             bv.push(*c);
         }
-    }else{
+    } else {
         unimplemented!();
     }
 }
 
 fn serialize(v: &[u32], data: &[Object]) -> Vec<u8> {
     let mut bv: Vec<u8> = Vec::with_capacity(v.len());
-    push_u32(&mut bv,0); // indicates a binary file
-    push_u32(&mut bv,0xcafe); // pointer to data
+    push_u32(&mut bv, 0); // indicates a binary file
+    push_u32(&mut bv, 0xcafe); // pointer to data
     for x in v {
-        push_u32(&mut bv,*x);
+        push_u32(&mut bv, *x);
     }
     let len = bv.len() as u32;
-    write_u32(&mut bv[4..8],len);
+    write_u32(&mut bv[4..8], len);
 
     let len = data.len() as u32;
     push_u32(&mut bv, len);
     for x in data {
-        push_object(&mut bv,x);
+        push_object(&mut bv, x);
     }
-    return bv;
+    bv
 }
 
 fn load_u32(bv: &[u8]) -> u32 {
@@ -60,15 +60,15 @@ fn load_u32(bv: &[u8]) -> u32 {
     | (bv[3] as u32)<<24
 }
 
-fn load_object(bv: &[u8], index: usize) -> (usize,Object) {
-    let i = index+4;
+fn load_object(bv: &[u8], index: usize) -> (usize, Object) {
+    let i = index + 4;
     let size = load_u32(&bv[index..i]) as usize;
     let a: Vec<u8> = Vec::from(&bv[i..i+size]);
     let s = match String::from_utf8(a) {
         Ok(value) => value,
         _ => panic!("Could not load binary module: invalid Unicode.")
     };
-    return (i+size,Object::from(&s[..]));
+    (i + size, Object::from(&s[..]))
 }
 
 fn load_from_u8(rte: &Rc<RTE>, id: &str, bv: &[u8])
@@ -80,29 +80,28 @@ fn load_from_u8(rte: &Rc<RTE>, id: &str, bv: &[u8])
     let mut i = 8;
     while i<data_index {
         v.push(load_u32(&bv[i..i+4]));
-        i+=4;
+        i += 4;
     }
     let data_count = load_u32(&bv[data_index..data_index+4]) as usize;
     let mut data: Vec<Object> = Vec::with_capacity(data_count);
-    i = data_index+4;
+    i = data_index + 4;
     for _ in 0..data_count {
         let (index,x) = load_object(bv,i);
         data.push(x);
         i = index;
     }
-    let m = Rc::new(Module{
+    Ok(Rc::new(Module {
         program: Rc::from(v),
         data,
         rte: rte.clone(),
         gtab: rte.gtab.clone(),
         id: id.to_string()
-    });
-    return Ok(m);
+    }))
 }
 
 fn save_module(m: &Rc<Module>) {
     let bv = serialize(&m.program, &m.data);
-    let mut file = File::create(format!("{}.bin",m.id)).unwrap();
+    let mut file = File::create(format!("{}.bin", m.id)).unwrap();
     file.write_all(&bv).unwrap();
 }
 
@@ -114,9 +113,9 @@ pub fn compile_file(rte: &Rc<RTE>, id: &str) {
     f.read_to_string(&mut s).expect("something went wrong reading the file");
 
     let history = &mut History::new();
-    match compile(&s,id,false,Value::Optional,history,rte) {
+    match compile(&s, id, false, Value::Optional, history, rte) {
         Ok(module) => save_module(&module),
-        Err(e) => println!("{}",crate::compiler::format_error(&e))
+        Err(e) => println!("{}", crate::compiler::format_error(&e))
     };
 }
 
@@ -127,11 +126,11 @@ fn load_module(rte: &Rc<RTE>, f: &mut File, id: &str)
     match f.read_to_end(&mut bv) {
         Ok(_) => {},
         Err(_) => {
-            println!("Could open but not read file '{}'.",id);
+            println!("Could open but not read file '{}'.", id);
             return Err(());
         }
     }
-    return load_from_u8(rte,id,&bv);
+    load_from_u8(rte, id, &bv)
 }
 
 pub fn eval_module(env: &mut Env, gtab: Rc<RefCell<Map>>, f: &mut File, id: &str)
@@ -140,25 +139,25 @@ pub fn eval_module(env: &mut Env, gtab: Rc<RefCell<Map>>, f: &mut File, id: &str
     let m = match load_module(env.rte(),f,id) {
         Ok(m) => m,
         Err(()) => return env.std_exception(&format!(
-            "Could not load module '{}'.",id))
+            "Could not load module '{}'.", id))
     };
-    return eval(env,m,gtab,false);
+    eval(env, m, gtab, false)
 }
 
 pub fn open_file(id: &str) -> Option<File> {
     let mut path: String = String::from(id);
     path += ".moss";
-    return match File::open(&path) {
+    match File::open(&path) {
         Ok(f) => Some(f),
         Err(_) => {
             match File::open(id) {
                 Ok(f) => Some(f),
                 Err(_) => {
-                    println!("File '{}' not found.",id);
-                    return None;
+                    println!("File '{}' not found.", id);
+                    None
                 }
             }
         }
-    };
+    }
 }
 

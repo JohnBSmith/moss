@@ -14,7 +14,7 @@ fn isspace(c: char) -> bool {
 fn type_error0_string(env: &mut Env, id: &str, s: &Object) -> FnResult {
      env.type_error1(&format!(
          "Type error in s.{}(): s is not a string.", id
-     ),"s",s)
+     ), "s", s)
 }
 
 fn string_isdigit(env: &mut Env, pself: &Object, argv: &[Object])
@@ -36,7 +36,7 @@ fn string_isdigit(env: &mut Env, pself: &Object, argv: &[Object])
             for c in &s.data {
                 if !(*c).is_digit(base) {return Ok(Object::Bool(false));}
             }
-            return Ok(Object::Bool(true));
+            Ok(Object::Bool(true))
         },
         ref s => type_error0_string(env,"isdigit",s)
     }
@@ -55,7 +55,7 @@ fn string_isalpha(env: &mut Env, pself: &Object, argv: &[Object])
                     return Ok(Object::Bool(false));
                 }
             }
-            return Ok(Object::Bool(true));
+            Ok(Object::Bool(true))
         },
         ref s => type_error0_string(env,"isalpha",s)
     }
@@ -74,7 +74,7 @@ fn string_isalnum(env: &mut Env, pself: &Object, argv: &[Object])
                     return Ok(Object::Bool(false));
                 }
             }
-            return Ok(Object::Bool(true));
+            Ok(Object::Bool(true))
         },
         ref s => type_error0_string(env,"isalnum",s)
     }
@@ -91,7 +91,7 @@ fn string_isspace(env: &mut Env, pself: &Object, argv: &[Object])
             for c in &s.data {
                 if !isspace(*c) {return Ok(Object::Bool(false));}
             }
-            return Ok(Object::Bool(true));
+            Ok(Object::Bool(true))
         },
         ref s => type_error0_string(env,"isspace",s)
     }
@@ -108,7 +108,7 @@ fn string_islower(env: &mut Env, pself: &Object, argv: &[Object])
             for c in &s.data {
                 if !(*c).is_ascii_lowercase() {return Ok(Object::Bool(false));}
             }
-            return Ok(Object::Bool(true));
+            Ok(Object::Bool(true))
         },
         ref s => type_error0_string(env,"islower",s)
     }
@@ -125,7 +125,7 @@ fn string_isupper(env: &mut Env, pself: &Object, argv: &[Object])
             for c in &s.data {
                 if !(*c).is_ascii_uppercase() {return Ok(Object::Bool(false));}
             }
-            return Ok(Object::Bool(true));
+            Ok(Object::Bool(true))
         },
         ref s => type_error0_string(env,"isupper",s)
     }
@@ -139,11 +139,11 @@ fn lower(env: &mut Env, pself: &Object, argv: &[Object])
     }
     match *pself {
         Object::String(ref s) => {
-            let mut v: Vec<char> = Vec::new();
+            let mut acc: Vec<char> = Vec::new();
             for c in &s.data {
-                v.append(&mut c.to_lowercase().collect());
+                acc.append(&mut c.to_lowercase().collect());
             }
-            return Ok(CharString::new_object(v));
+            Ok(CharString::new_object(acc))
         },
         ref s => type_error0_string(env,"lower",s)
     }
@@ -157,11 +157,11 @@ fn upper(env: &mut Env, pself: &Object, argv: &[Object])
     }
     match *pself {
         Object::String(ref s) => {
-            let mut v: Vec<char> = Vec::new();
+            let mut acc: Vec<char> = Vec::new();
             for c in &s.data {
-                v.append(&mut c.to_uppercase().collect());
+                acc.append(&mut c.to_uppercase().collect());
             }
-            return Ok(CharString::new_object(v));
+            Ok(CharString::new_object(acc))
         },
         ref s => type_error0_string(env,"upper",s)
     }
@@ -205,11 +205,11 @@ fn ljust(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
             "s",pself
         );}
     };
-    let mut v: Vec<char> = s.clone();
+    let mut acc: Vec<char> = s.clone();
     for _ in s.len()..n {
-        v.push(c);
+        acc.push(c);
     }
-    return Ok(CharString::new_object(v));
+    Ok(CharString::new_object(acc))
 }
 
 fn rjust(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
@@ -250,62 +250,62 @@ fn rjust(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
             "s", pself
         );}
     };
-    let mut v: Vec<char> = Vec::new();
+    let mut acc: Vec<char> = Vec::new();
     for _ in s.len()..n {
-        v.push(c);
+        acc.push(c);
     }
     for x in s {
-        v.push(*x);
+        acc.push(*x);
     }
-    return Ok(CharString::new_object(v));
+    Ok(CharString::new_object(acc))
 }
 
 pub fn duplicate(s: &[char], n: i32) -> Object {
-    if n<0 {
-        return CharString::new_object_str("");
+    if n < 0 {
+        CharString::new_object_str("")
     }else{
-        let mut v: Vec<char> = Vec::with_capacity(n as usize*s.len());
+        let mut acc: Vec<char> = Vec::with_capacity(n as usize*s.len());
         for _ in 0..n {
-            v.extend_from_slice(&s);
+            acc.extend_from_slice(&s);
         }
-        return CharString::new_object(v);
+        CharString::new_object(acc)
     }
 }
 
 fn contains(chars: &[char], c: char) -> bool {
     for x in chars {
-        if *x==c {return true;}
+        if *x == c {return true;}
     }
-    return false;
+    false
 }
 
 fn ltrim(s: &[char], chars: &[char]) -> Vec<char> {
     let mut i = 0;
     let n = s.len();
-    while i<n && contains(chars,s[i]) {
-        i+=1;
+    while i < n && contains(chars, s[i]) {
+        i += 1;
     }
-    return Vec::from(&s[i..]);
+    Vec::from(&s[i..])
 }
 
 fn rtrim(s: &[char], chars: &[char]) -> Vec<char> {
     let mut j = s.len();
-    while j>0 && contains(chars,s[j-1]) {
-        j-=1;
+    while j > 0 && contains(chars, s[j-1]) {
+        j -= 1;
     }
-    return Vec::from(&s[..j]);
+    Vec::from(&s[..j])
 }
 
 fn trim(s: &[char], chars: &[char]) -> Vec<char> {
     let mut i = 0;
     let mut j = s.len();
-    while i<j && contains(chars,s[i]) {
-        i+=1;
+    while i < j && contains(chars, s[i]) {
+        i += 1;
     }
-    while j>i && contains(chars,s[j-1]) {
-        j-=1;
+    while j > i && contains(chars, s[j-1]) {
+        j -= 1;
     }
-    return Vec::from(&s[i..j]);
+    Vec::from(&s[i..j])
 }
 
 fn string_ltrim(env: &mut Env, pself: &Object, argv: &[Object])
@@ -405,18 +405,18 @@ fn string_encode(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
 
 pub fn init(t: &Class){
     let mut m = t.map.borrow_mut();
-    m.insert_fn_plain("isdigit",string_isdigit,0,1);
-    m.insert_fn_plain("isalpha",string_isalpha,0,0);
-    m.insert_fn_plain("isalnum",string_isalnum,0,0);
-    m.insert_fn_plain("isspace",string_isspace,0,0);
-    m.insert_fn_plain("islower",string_islower,0,0);
-    m.insert_fn_plain("isupper",string_isupper,0,0);
-    m.insert_fn_plain("lower",lower,0,0);
-    m.insert_fn_plain("upper",upper,0,0);
-    m.insert_fn_plain("ljust",ljust,1,2);
-    m.insert_fn_plain("rjust",rjust,1,2);
-    m.insert_fn_plain("ltrim",string_ltrim,0,1);
-    m.insert_fn_plain("rtrim",string_rtrim,0,1);
-    m.insert_fn_plain("trim",string_trim,0,1);
-    m.insert_fn_plain("encode",string_encode,0,1);
+    m.insert_fn_plain("isdigit", string_isdigit, 0, 1);
+    m.insert_fn_plain("isalpha", string_isalpha, 0, 0);
+    m.insert_fn_plain("isalnum", string_isalnum, 0, 0);
+    m.insert_fn_plain("isspace", string_isspace, 0, 0);
+    m.insert_fn_plain("islower", string_islower, 0, 0);
+    m.insert_fn_plain("isupper", string_isupper, 0, 0);
+    m.insert_fn_plain("lower", lower, 0, 0);
+    m.insert_fn_plain("upper", upper, 0, 0);
+    m.insert_fn_plain("ljust", ljust, 1, 2);
+    m.insert_fn_plain("rjust", rjust, 1, 2);
+    m.insert_fn_plain("ltrim", string_ltrim, 0, 1);
+    m.insert_fn_plain("rtrim", string_rtrim, 0, 1);
+    m.insert_fn_plain("trim", string_trim, 0, 1);
+    m.insert_fn_plain("encode", string_encode, 0, 1);
 }

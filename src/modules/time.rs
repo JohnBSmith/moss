@@ -1,5 +1,5 @@
 
-use std::time::{Duration,Instant};
+use std::time::{Duration, Instant};
 use std::thread::sleep;
 use std::rc::Rc;
 use std::convert::TryFrom;
@@ -20,9 +20,9 @@ fn time_clock(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
         let elapsed = clock.elapsed();
         let s = float(elapsed.as_secs());
         let us = float(elapsed.subsec_micros());
-        return Ok(Object::Float(s+0.000001*us));
+        Ok(Object::Float(s+0.000001*us))
     });
-    return Ok(Function::mutable(f,0,0));
+    Ok(Function::mutable(f,0,0))
 }
 
 fn time_sleep(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
@@ -36,19 +36,19 @@ fn time_sleep(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
         Object::Int(x) => {
             Duration::from_secs(u64::try_from(x).unwrap_or(0))
         },
-        ref x => return type_error_int_float(env,"sleep",x)
+        ref x => return type_error_int_float(env, "sleep", x)
     };
     sleep(duration);
-    return Ok(Object::Null);
+    Ok(Object::Null)
 }
 
 pub fn load_time() -> Object {
     let time = new_module("time");
     {
         let mut m = time.map.borrow_mut();
-        m.insert_fn_plain("sleep",time_sleep,1,1);
-        m.insert_fn_plain("clock",time_clock,0,0);
+        m.insert_fn_plain("sleep", time_sleep, 1, 1);
+        m.insert_fn_plain("clock", time_clock, 0, 0);
     }
-    return Object::Interface(Rc::new(time));
+    Object::Interface(Rc::new(time))
 }
 

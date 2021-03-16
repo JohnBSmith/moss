@@ -7,7 +7,7 @@ use crate::object::{
     Object, Env, Interface, FnResult, Exception,
     CharString, float, downcast, ptr_eq_plain
 };
-use crate::vm::{RTE,object_to_string};
+use crate::vm::{RTE, object_to_string};
 use crate::iterable::{new_iterator, int_range_iterator};
 
 pub struct Range {
@@ -21,39 +21,38 @@ impl Interface for Range {
     fn type_name(&self, _env: &mut Env) -> String {String::from("Range")}
 
     fn to_string(self: Rc<Self>, env: &mut Env) -> Result<String,Box<Exception>> {
-        let a = object_to_string(env,&self.a)?;
-        let b = object_to_string(env,&self.b)?;
+        let a = object_to_string(env, &self.a)?;
+        let b = object_to_string(env, &self.b)?;
         Ok(match self.step {
             Object::Null =>
-                format!("{}..{}",a,b),
+                format!("{}..{}", a, b),
             ref step =>
-                format!("{}..{}: {}",a,b,object_to_string(env,step)?)
+                format!("{}..{}: {}", a, b, object_to_string(env, step)?)
         })
     }
 
     fn eq_plain(&self, b: &Object) -> bool {
         if let Some(y) = downcast::<Range>(b) {
-            self.a==y.a && self.b==y.b && self.step==y.step
-        }else{
+            self.a == y.a && self.b == y.b && self.step == y.step
+        } else {
             false
         }
     }
 
     fn eq(self: Rc<Self>, b: &Object, _env: &mut Env) -> FnResult {
         Ok(if let Some(y) = downcast::<Range>(b) {
-            Object::Bool(self.a==y.a && self.b==y.b && self.step==y.step)
-        }else{
+            Object::Bool(self.a == y.a && self.b == y.b && self.step == y.step)
+        } else {
             Object::unimplemented()
         })
     }
-    
+
     fn get(self: Rc<Self>, key: &Object, env: &mut Env) -> FnResult {
         match env.rte().type_iterable.map.borrow().m.get(key) {
             Some(x) => Ok(x.clone()),
             None => env.index_error(&format!(
                 "Index error in r.{0}: '{0}' not in property chain.",
-                key
-            ))
+                key))
         }
     }
 
@@ -74,7 +73,7 @@ impl Interface for Range {
             Object::Null => {},
             _ => return Err(env.type_error_plain("Type error in 'k in i..j: step': step is not supported."))
         }
-        return Ok(Object::Bool(i<=k && k<=j));
+        Ok(Object::Bool(i <= k && k <= j))
     }
 
     fn iter(self: Rc<Self>, env: &mut Env) -> FnResult {
@@ -92,21 +91,21 @@ impl Interface for Range {
                 "Type error in iter(a..b: d): d is not an integer.",
                 "d",&self.step)
         };
-        if d==0 {
+        if d == 0 {
             return env.value_error("Value error in iter(a..b: d): d==0.");
         }
         let f: Box<dyn FnMut(&mut Env,&Object,&[Object])->FnResult> = match self.b {
             Object::Int(b) => {
                 if d<0 {
                     Box::new(move |_env: &mut Env, _pself: &Object, _argv: &[Object]| -> FnResult{
-                        return if a>=b {
-                            a+=d;
-                            Ok(Object::Int(a-d))
-                        }else{
-                            Ok(Object::empty())
-                        }
+                        Ok(if a >= b {
+                            a += d;
+                            Object::Int(a-d)
+                        } else {
+                            Object::empty()
+                        })
                     })
-                }else{
+                } else {
                     int_range_iterator(a,b,d)
                 }
             },
@@ -117,8 +116,7 @@ impl Interface for Range {
             },
             _ => {return env.type_error("Type error in iter(a..b): b is not an integer.");}
         };
-        return Ok(new_iterator(f));
-
+        Ok(new_iterator(f))
     }
 
     fn index(self: Rc<Self>, indices: &[Object], env: &mut Env) -> FnResult {
@@ -141,7 +139,7 @@ impl Interface for Range {
         if let Object::Interface(p) = type_obj {
             ptr_eq_plain(p,&rte.type_range) ||
             ptr_eq_plain(p,&rte.type_iterable)
-        }else{false}
+        } else {false}
     }
 }
 
@@ -170,19 +168,19 @@ fn float_range_iterator(env: &mut Env, r: &Range) -> FnResult {
     };
 
     let q = (b-a)/d;
-    let n = if q<0.0 {0} else {(q+0.001) as u32+1};
+    let n = if q < 0.0 {0} else {(q + 0.001) as u32 + 1};
     let mut k: u32 = 0;
 
     let f = Box::new(move |_env: &mut Env, _pself: &Object, _argv: &[Object]| -> FnResult {
-        return Ok(if k<n {
-            let y = a+float(k)*d;
-            k+=1;
+        Ok(if k<n {
+            let y = a + float(k)*d;
+            k += 1;
             Object::Float(y)
-        }else{
+        } else {
             Object::empty()
-        });
+        })
     });
-    return Ok(new_iterator(f));
+    Ok(new_iterator(f))
 }
 
 fn char_range_iterator(env: &mut Env, r: &Range) -> FnResult {
@@ -191,7 +189,7 @@ fn char_range_iterator(env: &mut Env, r: &Range) -> FnResult {
             return env.value_error("
             Value error in iter(a..b): a is not a string of size 1.")
         }
-    }else{
+    } else {
         unreachable!()
     };
     let b = if let Object::String(ref s) = r.b {
@@ -199,21 +197,21 @@ fn char_range_iterator(env: &mut Env, r: &Range) -> FnResult {
             return env.value_error(
             "Value error in iter(a..b): b is not a string of size 1.")
         }
-    }else{
+    } else {
         return env.type_error(
         "Type error in iter(a..b): b is not of type String.")
     };
     let f = Box::new(move |_env: &mut Env, _pself: &Object, _argv: &[Object]| -> FnResult {
-        return Ok(if a<=b {
+        Ok(if a<=b {
             let value = match char::from_u32(a) {
                 Some(c) => CharString::new_object_char(c),
                 None=> Object::Null
             };
-            a+=1;
+            a += 1;
             value
-        }else{
+        } else {
             Object::empty()
-        });
+        })
     });
-    return Ok(new_iterator(f));
+    Ok(new_iterator(f))
 }

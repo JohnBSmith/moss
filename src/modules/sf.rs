@@ -17,7 +17,7 @@ use std::rc::Rc;
 use crate::object::{Object, FnResult, float, new_module};
 use crate::vm::Env;
 use crate::math::{gamma, lgamma, sgngamma, cgamma};
-use crate::complex::c64;
+use crate::complex::C64;
 
 const SQRT_PI: f64 = 1.7724538509055159;
 
@@ -259,9 +259,9 @@ fn zeta(s: f64) -> f64 {
     }
 }
 
-fn czeta_em(s: c64) -> c64 {
+fn czeta_em(s: C64) -> C64 {
     let N = 18;
-    let mut y = c64{re: 1.0, im: 0.0};
+    let mut y = C64 {re: 1.0, im: 0.0};
     for k in 2..N {
         y += (-s).expf(float(k));
     }
@@ -277,7 +277,7 @@ fn czeta_em(s: c64) -> c64 {
     - s6*(-s-7.0).expf(Nf)/1209600.0;
 }
 
-fn czeta(s: c64) -> c64 {
+fn czeta(s: C64) -> C64 {
     if s.re > -1.0 {
         return czeta_em(s);
     }else{

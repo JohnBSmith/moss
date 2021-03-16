@@ -39,19 +39,19 @@ pub fn open_module_file(search_paths: &[Object], id: &str)
             return Ok((f,false));
         }
     }
-    return Err(format!("Error in load: could not open file '{}.moss'.",id));
+    Err(format!("Error in load: could not open file '{}.moss'.", id))
 }
 
 pub fn read_file(id: &str) -> Result<String,String> {
     let mut f = match File::open(id) {
         Ok(f) => f,
-        Err(_) => return Err(format!("Error in read: could not open file '{}'.",id))
+        Err(_) => return Err(format!("Error in read: could not open file '{}'.", id))
     };
     let mut s = String::new();
     if f.read_to_string(&mut s).is_err() {
-        return Err(format!("Error in read: could not read file '{}'.",id));
+        return Err(format!("Error in read: could not read file '{}'.", id));
     }
-    return Ok(s);
+    Ok(s)
 }
 
 pub fn library_path() -> String {
@@ -60,5 +60,5 @@ pub fn library_path() -> String {
         _ => panic!()
     };
     path.push(".moss/");
-    return String::from(path.to_str().unwrap());
+    String::from(path.to_str().unwrap())
 }
