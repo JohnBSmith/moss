@@ -30,7 +30,7 @@ fn lanczos_gamma(x: f64) -> f64 {
 pub fn gamma(x: f64) -> f64 {
     if x < 0.5 {
         PI/f64::sin(x*PI)/lanczos_gamma(1.0 - x)
-    }else{
+    } else {
         lanczos_gamma(x)
     }
 }
@@ -650,16 +650,16 @@ fn csqrt(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
             Ok(Object::Complex(z.sqrt()))
         },
         Object::Float(x) => {
-            if x<0.0 {
+            if x < 0.0 {
                 Ok(Object::Complex(C64 {re: x, im: 0.0}.sqrt()))
-            }else{
+            } else {
                 Ok(Object::Float(x.sqrt()))
             }
         },
         Object::Int(x) => {
-            if x<0 {
+            if x < 0 {
                 Ok(Object::Complex(C64 {re: float(x), im: 0.0}.sqrt()))
-            }else{
+            } else {
                 Ok(Object::Float(float(x).sqrt()))
             }
         },

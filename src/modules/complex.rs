@@ -12,21 +12,21 @@ pub struct Complex64 {
 pub type C64 = Complex64;
 
 fn float_to_string(x: f64) -> String {
-    if x==0.0 {
+    if x == 0.0 {
         "0".to_string()
-    }else if x.abs()>1E14 || x.abs()<0.0001 {
+    } else if x.abs() > 1E14 || x.abs() < 0.0001 {
         format!("{:e}",x)
-    }else{
+    } else {
         format!("{}",x)
     }
 }
 
 impl fmt::Display for C64 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        if self.im<0.0 {
-            write!(f,"{}{}i",float_to_string(self.re),float_to_string(self.im))
-        }else{
-            write!(f,"{}+{}i",float_to_string(self.re),float_to_string(self.im))
+        if self.im < 0.0 {
+            write!(f, "{}{}i", float_to_string(self.re), float_to_string(self.im))
+        } else {
+            write!(f, "{}+{}i", float_to_string(self.re), float_to_string(self.im))
         }
     }
 }

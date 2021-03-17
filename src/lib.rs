@@ -1,7 +1,4 @@
 
-#![allow(clippy::all)]
-#![warn(clippy::needless_return)]
-
 pub const STACK_SIZE: usize = 4000;
 pub const FRAME_STACK_SIZE: usize = 200;
 
@@ -122,7 +119,7 @@ pub struct InterpreterLock<'a> {
 
 impl<'a> InterpreterLock<'a> {
     pub fn env(&mut self) -> Env {
-        return get_env(&mut self.state);
+        get_env(&mut self.state)
     }
 }
 
@@ -187,7 +184,7 @@ impl Interpreter{
         let mut ilock = self.lock();
         let mut env = ilock.env();
         match x.string(&mut self.lock().env()) {
-            Ok(s) => return s,
+            Ok(s) => s,
             Err(e) => {
                 println!("{}", env.exception_to_string(&e));
                 panic!();

@@ -263,7 +263,7 @@ fn rjust(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
 pub fn duplicate(s: &[char], n: i32) -> Object {
     if n < 0 {
         CharString::new_object_str("")
-    }else{
+    } else {
         let mut acc: Vec<char> = Vec::with_capacity(n as usize*s.len());
         for _ in 0..n {
             acc.extend_from_slice(&s);
@@ -393,7 +393,7 @@ fn string_encode(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
             if spec == "utf-8" {
                 let data = s.to_string().into_bytes();
                 Ok(Bytes::object_from_vec(data))
-            }else{
+            } else {
                 env.value_error(&format!(
                     "Value error in s.encode(spec): spec == '{}' is unknown.", spec))
             }

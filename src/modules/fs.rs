@@ -25,7 +25,7 @@ impl Interface for File {
         "File".to_string()
     }
     fn to_string(self: Rc<Self>, _env: &mut Env) -> Result<String,Box<Exception>> {
-        return Ok("file object".to_string());
+        Ok("file object".to_string())
     }
     fn get(self: Rc<Self>, key: &Object, env: &mut Env) -> FnResult {
         interface_object_get("File",key,env,interface_index::FILE)
@@ -59,7 +59,7 @@ fn open(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
             ));
         }
         fs::File::open(&file_id)
-    }else{
+    } else {
         if !env.rte().write_access(&file_id) {
             return env.std_exception(&format!(
                 "Error in open(path,'w'): permission denied.\n\
@@ -74,11 +74,11 @@ fn open(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
             &format!("Error in open(path): could not open file, path = '{}'.",
             file_id))
     };
-    let f = File{
+    let f = File {
         file: RefCell::new(file),
         id: file_id
     };
-    return Ok(Object::Interface(Rc::new(f)));
+    Ok(Object::Interface(Rc::new(f)))
 }
 
 fn file_read(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
@@ -92,12 +92,12 @@ fn file_read(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
                         "Error in f.read(): Could not read file '{}'.",
                         file.id))
                 }
-                return Ok(Bytes::object_from_vec(buffer));
+                Ok(Bytes::object_from_vec(buffer))
             },
             1 => {
                 let n = if let Object::Int(x) = argv[0] {
-                    if x<0 {0} else {x as usize}
-                }else{
+                    if x < 0 {0} else {x as usize}
+                } else {
                     return env.type_error("Type error in f.read(n): n is not an integer.");
                 };
                 let mut buffer: Vec<u8> = vec![0;n];
@@ -107,11 +107,11 @@ fn file_read(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
                         "Error in f.read(n): Could not read file '{}'.",
                         file.id))
                 }
-                return Ok(Bytes::object_from_vec(buffer));
+                Ok(Bytes::object_from_vec(buffer))
             },
             n => env.argc_error(n,0,1,"read")
         }
-    }else{
+    } else {
         env.type_error("Type error in f.read(): f is not a file.")
     }
 }
@@ -126,19 +126,19 @@ fn file_write(env: &mut Env, pself: &Object, argv: &[Object]) -> FnResult {
             if let Ok(()) = file.file.borrow_mut().write_all(data) {
                 return Ok(Object::Null);
             }
-        }else if let Some(a) = downcast::<Bytes>(&argv[0]) {
+        } else if let Some(a) = downcast::<Bytes>(&argv[0]) {
             let data = &a.data.borrow();
             if let Ok(()) = file.file.borrow_mut().write_all(data) {
                 return Ok(Object::Null);
             }
-        }else{
+        } else {
             return env.type_error1(
                 "Type error in f.write(data): data must be a string or binary data.",
                  "data",&argv[0]);
         }
         env.std_exception(&format!(
             "Error in f.write(data): failed to write to file '{}'.",file.id))
-    }else{
+    } else {
         env.type_error("Type error in f.write(data): f is not a file.")
     }
 }
@@ -152,7 +152,7 @@ fn is_file(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
         _ => return env.type_error("Type error in is_file(id): id is not a string.")
     };
     let path = Path::new(&file_id);
-    return Ok(Object::Bool(path.is_file()));
+    Ok(Object::Bool(path.is_file()))
 }
 
 fn is_dir(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
@@ -164,7 +164,7 @@ fn is_dir(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
         _ => return env.type_error("Type error in is_dir(id): id is not a string.")
     };
     let path = Path::new(&file_id);
-    return Ok(Object::Bool(path.is_dir()));
+    Ok(Object::Bool(path.is_dir()))
 }
 
 fn read_dir(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
@@ -183,15 +183,15 @@ fn read_dir(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
         Err(_) => return env.std_exception(&format!(
             "Error in ls(path): Could not read directory '{}'.",file_id))
     };
-    let mut v: Vec<Object> = Vec::new();
+    let mut acc: Vec<Object> = Vec::new();
     for x in it {
         if let Ok(x) = x {
             if let Some(s) = x.path().to_str() {
-                v.push(Object::from(s));
+                acc.push(Object::from(s));
             }
         }
     }
-    return Ok(List::new_object(v));
+    Ok(List::new_object(acc))
 }
 
 fn change_dir(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
@@ -204,10 +204,10 @@ fn change_dir(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     };
     let path = Path::new(&dir_id);
     if std::env::set_current_dir(&path).is_err() {
-        return env.std_exception(&format!(
-            "Error: could not change to directory '{}'.",dir_id));
-    }else{
-        return Ok(Object::Null);
+        env.std_exception(&format!(
+            "Error: could not change to directory '{}'.",dir_id))
+    } else {
+        Ok(Object::Null)
     }
 }
 
@@ -222,7 +222,7 @@ fn working_dir(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
     };
     if let Some(s) = path.to_str() {
         Ok(Object::from(s))
-    }else{
+    } else {
         env.std_exception(
             "Error in wd(): could not encode the working directory as UTF-8.")
     }
@@ -230,25 +230,25 @@ fn working_dir(env: &mut Env, _pself: &Object, argv: &[Object]) -> FnResult {
 
 pub fn load_fs(env: &mut Env) -> Object
 {
-    let type_file = Class::new("File",&Object::Null);
+    let type_file = Class::new("File", &Object::Null);
     {
         let mut m = type_file.map.borrow_mut();
-        m.insert_fn_plain("read",file_read,0,1);
-        m.insert_fn_plain("write",file_write,1,1);
+        m.insert_fn_plain("read", file_read, 0, 1);
+        m.insert_fn_plain("write", file_write, 1, 1);
     }
-    interface_types_set(env.rte(),interface_index::FILE,type_file);
+    interface_types_set(env.rte(), interface_index::FILE, type_file);
 
     let fs = new_module("fs");
     {
         let mut m = fs.map.borrow_mut();
-        m.insert_fn_plain("open",open,1,2);
-        m.insert_fn_plain("is_file",is_file,1,1);
-        m.insert_fn_plain("is_dir",is_dir,1,1);
-        m.insert_fn_plain("ls",read_dir,1,1);
-        m.insert_fn_plain("cd",change_dir,1,1);
-        m.insert_fn_plain("wd",working_dir,0,0);
+        m.insert_fn_plain("open",open, 1, 2);
+        m.insert_fn_plain("is_file",is_file, 1, 1);
+        m.insert_fn_plain("is_dir",is_dir, 1, 1);
+        m.insert_fn_plain("ls", read_dir, 1, 1);
+        m.insert_fn_plain("cd", change_dir, 1, 1);
+        m.insert_fn_plain("wd", working_dir, 0, 0);
     }
 
-    return Object::Interface(Rc::new(fs));
+    Object::Interface(Rc::new(fs))
 }
 
