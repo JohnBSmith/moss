@@ -10,14 +10,14 @@ mod generator;
 mod system;
 mod debug;
 
-use parser::{parse,Error};
-use typing::{TypeChecker,TypeTable};
+use parser::{parse, Error};
+use typing::{TypeChecker, TypeTable};
 use generator::generate;
 use system::save;
 
 fn print_error(e: &Error, file: &str) {
-    print!("File '{}', line {}, col {}:\n",file,e.line+1,e.col+1);
-    println!("{}",e.text);
+    print!("File '{}', line {}, col {}:\n", file, e.line + 1, e.col + 1);
+    println!("{}", e.text);
 }
 
 fn compile(s: &str, file: &str, info: &CmdInfo) -> Result<(),()> {
@@ -25,12 +25,12 @@ fn compile(s: &str, file: &str, info: &CmdInfo) -> Result<(),()> {
     let t = match parse(s) {
         Ok(t) => t,
         Err(e) => {
-            print_error(&e,file);
+            print_error(&e, file);
             return Err(());
         }
     };
     if debug_mode {
-        println!("{}",&t);
+        println!("{}", &t);
     }
 
     let tab = TypeTable::new();
@@ -43,8 +43,8 @@ fn compile(s: &str, file: &str, info: &CmdInfo) -> Result<(),()> {
         }
     }
     if debug_mode {
-        println!("{}",checker.string(&t));
-        println!("{}",checker.subs_as_string());
+        println!("{}", checker.string(&t));
+        println!("{}", checker.subs_as_string());
     }
     checker.apply_types();
     match checker.check_constraints() {
@@ -55,14 +55,14 @@ fn compile(s: &str, file: &str, info: &CmdInfo) -> Result<(),()> {
         }
     }
     if debug_mode {
-        println!("{}",checker.string(&t));
+        println!("{}", checker.string(&t));
     }
-    let code = generate(&t,checker.symbol_table);
+    let code = generate(&t, checker.symbol_table);
     if debug_mode {
-        println!("{}",code);
+        println!("{}", code);
     }
-    save(&code,file);
-    return Ok(());
+    save(&code, file);
+    Ok(())
 }
 
 fn read_file(path: &str) -> Result<String,std::io::Error> {
@@ -70,11 +70,11 @@ fn read_file(path: &str) -> Result<String,std::io::Error> {
     let mut buf_reader = BufReader::new(file);
     let mut s = String::new();
     buf_reader.read_to_string(&mut s)?;
-    return Ok(s);
+    Ok(s)
 }
 
 fn is_option(arg: &str) -> bool {
-    !arg.is_empty() && &arg[0..1]=="-"
+    !arg.is_empty() && &arg[0..1] == "-"
 }
 
 struct CmdInfo {
@@ -84,17 +84,17 @@ struct CmdInfo {
 
 impl CmdInfo {
     pub fn new() -> Self {
-        let mut info = CmdInfo{id: None, debug_mode: false};
+        let mut info = CmdInfo {id: None, debug_mode: false};
         let mut first = true;
         for arg in env::args() {
             if first {first = false; continue;}
             if is_option(&arg) {
                 if arg == "-d" {info.debug_mode = true;}
-            }else{
+            } else {
                 info.id = Some(arg);
             }
         }
-        return info;
+        info
     }
 }
 
@@ -113,15 +113,15 @@ fn main_result() -> Result<(),()> {
                 return Err(());
             }
         };
-        compile(&s,&id,&info)?;
-    }else{
-        println!("{}",HELP_MESSAGE);
+        compile(&s, &id, &info)?;
+    } else {
+        println!("{}", HELP_MESSAGE);
         return Err(());
     }
-    return Ok(());
+    Ok(())
 }
 
 fn main()  {
-    let result = match main_result() {Ok(())=>0, Err(())=>1};
+    let result = match main_result() {Ok(()) => 0, Err(()) => 1};
     std::process::exit(result);
 }

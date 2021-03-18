@@ -19,7 +19,7 @@ fn write_u32(bv: &mut [u8], x: u32) {
 }
 
 fn push_string(bv: &mut Vec<u8>, s: &str) {
-    push_u32(bv,s.len() as u32);
+    push_u32(bv, s.len() as u32);
     for c in s.as_bytes() {
         bv.push(*c);
     }
@@ -27,25 +27,25 @@ fn push_string(bv: &mut Vec<u8>, s: &str) {
 
 fn serialize(code: &CodeObject) -> Vec<u8> {
     let mut bv: Vec<u8> = Vec::with_capacity(code.program.len());
-    push_u32(&mut bv,0); // indicates a binary file
-    push_u32(&mut bv,0xcafe); // pointer to data
+    push_u32(&mut bv, 0); // indicates a binary file
+    push_u32(&mut bv, 0xcafe); // pointer to data
     for x in &code.program {
-        push_u32(&mut bv,*x);
+        push_u32(&mut bv, *x);
     }
     let len = bv.len() as u32;
-    write_u32(&mut bv[4..8],len);
+    write_u32(&mut bv[4..8], len);
 
     let len = code.data.len() as u32;
     push_u32(&mut bv, len);
     for x in &code.data {
-        push_string(&mut bv,x);
+        push_string(&mut bv, x);
     }
-    return bv;
+    bv
 }
 
 pub fn save(code: &CodeObject, id: &str) {
     let bv = serialize(code);
-    let mut file = File::create(format!("{}.bin",id)).unwrap();
+    let mut file = File::create(format!("{}.bin", id)).unwrap();
     file.write_all(&bv).unwrap();
 }
 

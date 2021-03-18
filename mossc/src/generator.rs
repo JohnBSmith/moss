@@ -5,11 +5,11 @@ use std::rc::Rc;
 use std::collections::HashMap;
 use std::mem::replace;
 use parser::{AST, Symbol, Info};
-use typing::{symbol_table::SymbolTable,VariableKind,Type};
+use typing::{symbol_table::SymbolTable, VariableKind, Type};
 
 // byte code size
-// byte code+argument size
-// byte code+argument+argument size
+// byte code + argument size
+// byte code + argument + argument size
 pub const BCSIZE: usize = 1;
 pub const BCASIZE: usize = 2;
 pub const BCAASIZE: usize = 3;
@@ -117,12 +117,12 @@ fn write_i32(a: &mut [u32], x: i32){
     a[0] = x as u32;
 }
 
-pub struct JmpInfo{
+pub struct JmpInfo {
     start: usize,
     breaks: Vec<usize>
 }
 
-pub struct Pool{
+pub struct Pool {
     stab: HashMap<Rc<str>,usize>,
     stab_index: usize,
     data: Vec<Rc<str>>
@@ -136,8 +136,8 @@ impl Pool{
         let pkey: Rc<str> = Rc::from(key);
         self.data.push(pkey.clone());
         self.stab.insert(pkey,self.stab_index);
-        self.stab_index+=1;
-        return self.stab_index-1;
+        self.stab_index += 1;
+        self.stab_index - 1
     }
 }
 
@@ -159,7 +159,8 @@ fn is_global_context(&self) -> bool {
 fn offsets(&self, bv: &mut Vec<u32>, offset: i32){
     for &index in &self.fn_indices {
         let x = load_i32(&bv[index..index+1]);
-        write_i32(&mut bv[index..index+1], x+BCSIZE as i32+offset-index as i32);
+        write_i32(&mut bv[index..index+1],
+            x + BCSIZE as i32 + offset - index as i32);
     }
 }
 
@@ -168,34 +169,34 @@ fn compile_identifier(&mut self, bv: &mut Vec<u32>, t: &AST, id: &str) {
         match info.kind {
             VariableKind::Global => {
                 let index = self.pool.get_index(id);
-                push_bc(bv,bc::LOAD,t.line,t.col);
-                push_u32(bv,index as u32);
+                push_bc(bv, bc::LOAD, t.line, t.col);
+                push_u32(bv, index as u32);
             },
             VariableKind::Local(index) => {
-                push_bc(bv,bc::LOAD_LOCAL,t.line,t.col);
-                push_u32(bv,index as u32);
+                push_bc(bv, bc::LOAD_LOCAL, t.line, t.col);
+                push_u32(bv, index as u32);
             },
             VariableKind::Argument(index) => {
-                push_bc(bv,bc::LOAD_ARG,t.line,t.col);
-                push_u32(bv,index as u32);
+                push_bc(bv, bc::LOAD_ARG, t.line, t.col);
+                push_u32(bv, index as u32);
             },
             VariableKind::Context(index) => {
-                push_bc(bv,bc::LOAD_CONTEXT,t.line,t.col);
-                push_u32(bv,index as u32);
+                push_bc(bv, bc::LOAD_CONTEXT, t.line, t.col);
+                push_u32(bv, index as u32);
             },
             VariableKind::FnSelf => {
-                push_bc(bv,bc::FNSELF,t.line,t.col);
+                push_bc(bv, bc::FNSELF, t.line, t.col);
             }
         }
-    }else{
-        unreachable!("{}:{}: {}",t.line+1,t.col+1,id);
+    } else {
+        unreachable!("{}:{}: {}", t.line + 1, t.col + 1, id);
     }
 }
 
 fn compile_string(&mut self, bv: &mut Vec<u32>, t: &AST, id: &str) {
     let index = self.pool.get_index(id);
-    push_bc(bv,bc::STR,t.line,t.col);
-    push_u32(bv,index as u32);
+    push_bc(bv, bc::STR, t.line, t.col);
+    push_u32(bv, index as u32);
 }
 
 fn compile_application(&mut self, bv: &mut Vec<u32>, t: &AST) {
@@ -203,19 +204,19 @@ fn compile_application(&mut self, bv: &mut Vec<u32>, t: &AST) {
     let self_argument = false;
     let n = a.len();
 
-    let argc = if self_argument {n-2} else {n-1};
+    let argc = if self_argument {n - 2} else {n - 1};
 
     if self_argument {
         // callee
-        self.compile_node(bv,&a[0]);
-    }else if a[0].value == Symbol::Dot {
+        self.compile_node(bv, &a[0]);
+    } else if a[0].value == Symbol::Dot {
         let b = a[0].argv();
-        self.compile_node(bv,&b[0]);
-        self.compile_node(bv,&b[1]);
+        self.compile_node(bv, &b[0]);
+        self.compile_node(bv, &b[1]);
         push_bc(bv, bc::DUP_DOT_SWAP, t.line, t.col);
-    }else{
+    } else {
         // callee
-        self.compile_node(bv,&a[0]);
+        self.compile_node(bv, &a[0]);
 
         // self argument
         push_bc(bv, bc::NULL, t.line, t.col);
@@ -223,7 +224,7 @@ fn compile_application(&mut self, bv: &mut Vec<u32>, t: &AST) {
 
     // arguments
     for i in 1..a.len() {
-        self.compile_node(bv,&a[i]);
+        self.compile_node(bv, &a[i]);
     }
 
     push_bc(bv, bc::CALL, t.line, t.col);
@@ -236,64 +237,64 @@ fn compile_application(&mut self, bv: &mut Vec<u32>, t: &AST) {
 
 fn compile_binary_operator(&mut self, bv: &mut Vec<u32>, t: &AST, code: u8) {
     let a = t.argv();
-    self.compile_node(bv,&a[0]);
-    self.compile_node(bv,&a[1]);
-    push_bc(bv,code,t.line,t.col);
+    self.compile_node(bv, &a[0]);
+    self.compile_node(bv, &a[1]);
+    push_bc(bv, code, t.line, t.col);
 }
 
 fn compile_operator(&mut self, bv: &mut Vec<u32>, t: &AST, code: u8) {
     let a = t.argv();
     for x in a {
-        self.compile_node(bv,x);
+        self.compile_node(bv ,x);
     }
-    push_bc(bv,code,t.line,t.col);
+    push_bc(bv, code, t.line, t.col);
 }
 
 fn store(&mut self, bv: &mut Vec<u32>, t: &AST, key: &str) {
     if let Some(info) = self.symbol_table.get(key) {
-        // println!("STORE {}, kind: {:?}",key,info.kind);
+        // println!("STORE {}, kind: {:?}", key, info.kind);
         match info.kind {
             VariableKind::Global => {
                 let index = self.pool.get_index(key);
-                push_bc(bv,bc::STORE,t.line,t.col);
-                push_u32(bv,index as u32);
+                push_bc(bv, bc::STORE, t.line, t.col);
+                push_u32(bv, index as u32);
             },
             VariableKind::Local(index) => {
-                push_bc(bv,bc::STORE_LOCAL,t.line,t.col);
-                push_u32(bv,index as u32);
+                push_bc(bv, bc::STORE_LOCAL, t.line, t.col);
+                push_u32(bv, index as u32);
             },
             VariableKind::Argument(index) => {
-                push_bc(bv,bc::STORE_ARG,t.line,t.col);
-                push_u32(bv,index as u32);
+                push_bc(bv, bc::STORE_ARG, t.line, t.col);
+                push_u32(bv, index as u32);
             },
             VariableKind::Context(index) => {
-                push_bc(bv,bc::STORE_CONTEXT,t.line,t.col);
-                push_u32(bv,index as u32);
+                push_bc(bv, bc::STORE_CONTEXT, t.line, t.col);
+                push_u32(bv, index as u32);
             },
             VariableKind::FnSelf => {
                 panic!();
             }
         }
-    }else{
-        unreachable!("Line {}, col {}: {}",t.line,t.col,key);
+    } else {
+        unreachable!("Line {}, col {}: {}", t.line, t.col, key);
     }
 }
 
 fn compile_left_hand_side(&mut self, bv: &mut Vec<u32>, t: &AST) {
     if t.value == Symbol::Item {
         let key = match t.info {
-            Info::Id(ref value)=>value,
+            Info::Id(ref value) => value,
             _ => unreachable!()
         };
         self.store(bv,t,key);
-    }else if t.value == Symbol::Index {
+    } else if t.value == Symbol::Index {
         let a = t.argv();
         for x in a {
             self.compile_node(bv,x);
         }
-        push_bc(bv,bc::SET_INDEX,t.line,t.col);
-        push_u32(bv,(a.len()-1) as u32);
-    }else{
+        push_bc(bv,bc::SET_INDEX, t.line, t.col);
+        push_u32(bv, (a.len()-1) as u32);
+    } else {
         unreachable!();
     }
 }
@@ -355,7 +356,7 @@ fn closure(&mut self, bv: &mut Vec<u32>, t: &AST) {
                         push_u32(bv,index as u32);
                     }
                 }
-            }else{
+            } else {
                 println!("Error in closure: id '{}' not in context.",id);
                 unreachable!();
             }
@@ -402,7 +403,7 @@ fn compile_fn(&mut self, bv: &mut Vec<u32>, t: &AST) {
     self.offsets(&mut bv2,-(self.bv_blocks.len() as i32));
 
     // Restore self.fn_indices.
-    replace(&mut self.fn_indices,fn_indices);
+    let _ = replace(&mut self.fn_indices, fn_indices);
     self.jmp_stack = jmp_stack;
 
     // Add an additional return statement that will be reached
@@ -412,7 +413,7 @@ fn compile_fn(&mut self, bv: &mut Vec<u32>, t: &AST) {
     // Closure bindings.
     if self.symbol_table.node().count_context()>0 {
         self.closure(bv,t);
-    }else{
+    } else {
         push_bc(bv, bc::NULL, t.line, t.col);
     }
 
@@ -445,14 +446,14 @@ fn compile_fn(&mut self, bv: &mut Vec<u32>, t: &AST) {
 
     let argc = if selfarg {
         header.argv.len()-1
-    }else{
+    } else {
         header.argv.len()
     };
 
     if variadic {
         push_u32(bv,(argc-1) as u32);
         push_u32(bv,VARIADIC);
-    }else{
+    } else {
         // minimal argument count
         push_u32(bv,(argc-count_optional) as u32);
 
@@ -472,7 +473,7 @@ fn compile_return(&mut self, bv: &mut Vec<u32>, t: &AST) {
     let a = t.argv();
     if a.len()==0 {
         push_bc(bv,bc::NULL,t.line,t.col);
-    }else{
+    } else {
         self.compile_node(bv,&a[0]);
     }
     push_bc(bv,bc::RET,t.line,t.col);
@@ -585,7 +586,7 @@ fn compile_conditional(&mut self, bv: &mut Vec<u32>, t: &AST, is_op: bool) {
     }
     if a.len()%2==1 {
         self.compile_node(bv,&a[a.len()-1]);
-    }else if is_op {
+    } else if is_op {
         push_bc(bv, bc::NULL, t.line, t.col);
     }
     let len = bv.len();
@@ -790,6 +791,6 @@ pub fn generate(t: &AST, stab: SymbolTable) -> CodeObject {
     gen.offsets(&mut bv, len as i32);
     bv.append(&mut gen.bv_blocks);
 
-    return CodeObject{program: bv, data: gen.pool.data};
+    CodeObject {program: bv, data: gen.pool.data}
 }
 

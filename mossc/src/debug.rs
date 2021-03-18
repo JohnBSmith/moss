@@ -17,19 +17,19 @@ fn load_u64(a: &[u32]) -> u64 {
 
 fn asm_listing(a: &[u32]) -> String {
     let mut s = String::from("Adr | Line:Col| Operation\n");
-    let mut i=0;
-    while i<a.len() {
+    let mut i = 0;
+    while i < a.len() {
         let op = a[i] as u8;
         let line = ((a[i]>>8) & 0xffff) as u16;
         let col = (a[i]>>24) as u8;
         if op != bc::FNSEP {
-            let u = format!("{:04}| {:4}:{:02} | ",i,line,col);
+            let u = format!("{:04}| {:4}:{:02} | ", i, line, col);
             s.push_str(&u);
         }
         match op {
             bc::INT => {
                 let x = load_i32(&a[BCSIZE+i..BCSIZE+i+1]);
-                let u = format!("push int {} (0x{:x})\n",x,x);
+                let u = format!("push int {} (0x{:x})\n", x, x);
                 s.push_str(&u);
                 i+=BCASIZE;
             },
@@ -49,32 +49,32 @@ fn asm_listing(a: &[u32]) -> String {
                 s.push_str(&u);
                 i+=BCAASIZE;
             },
-            bc::NULL => {s.push_str("null\n"); i+=BCSIZE;},
-            bc::TRUE => {s.push_str("true\n"); i+=BCSIZE;},
-            bc::FALSE => {s.push_str("false\n"); i+=BCSIZE;},
-            bc::FNSELF => {s.push_str("function self\n"); i+=BCSIZE;},
-            bc::ADD => {s.push_str("add\n"); i+=BCSIZE;},
-            bc::SUB => {s.push_str("sub\n"); i+=BCSIZE;},
-            bc::MUL => {s.push_str("mul\n"); i+=BCSIZE;},
-            bc::DIV => {s.push_str("div\n"); i+=BCSIZE;},
-            bc::IDIV => {s.push_str("idiv\n"); i+=BCSIZE;},
-            bc::MOD => {s.push_str("mod\n"); i+=BCSIZE;},
-            bc::POW => {s.push_str("pow\n"); i+=BCSIZE;},
-            bc::NEG => {s.push_str("neg\n"); i+=BCSIZE;},
-            bc::EQ => {s.push_str("eq\n"); i+=BCSIZE;},
-            bc::NE => {s.push_str("not eq\n"); i+=BCSIZE;},
-            bc::LT => {s.push_str("lt\n"); i+=BCSIZE;},
-            bc::GT => {s.push_str("gt\n"); i+=BCSIZE;},
-            bc::LE => {s.push_str("le\n"); i+=BCSIZE;},
-            bc::GE => {s.push_str("not ge\n"); i+=BCSIZE;},
-            bc::IS => {s.push_str("is\n"); i+=BCSIZE;},
-            bc::OF => {s.push_str("of\n"); i+=BCSIZE;},
-            bc::ISNOT => {s.push_str("is not\n"); i+=BCSIZE;},
-            bc::IN => {s.push_str("in\n"); i+=BCSIZE;},
-            bc::NOTIN => {s.push_str("not in\n"); i+=BCSIZE;},
-            bc::NOT => {s.push_str("not\n"); i+=BCSIZE;},
-            bc::RANGE => {s.push_str("range\n"); i+=BCSIZE;},
-            bc::TABLE => {s.push_str("table\n"); i+=BCSIZE;},
+            bc::NULL => {s.push_str("null\n"); i += BCSIZE;},
+            bc::TRUE => {s.push_str("true\n"); i += BCSIZE;},
+            bc::FALSE => {s.push_str("false\n"); i += BCSIZE;},
+            bc::FNSELF => {s.push_str("function self\n"); i += BCSIZE;},
+            bc::ADD => {s.push_str("add\n"); i += BCSIZE;},
+            bc::SUB => {s.push_str("sub\n"); i += BCSIZE;},
+            bc::MUL => {s.push_str("mul\n"); i += BCSIZE;},
+            bc::DIV => {s.push_str("div\n"); i += BCSIZE;},
+            bc::IDIV => {s.push_str("idiv\n"); i += BCSIZE;},
+            bc::MOD => {s.push_str("mod\n"); i += BCSIZE;},
+            bc::POW => {s.push_str("pow\n"); i += BCSIZE;},
+            bc::NEG => {s.push_str("neg\n"); i += BCSIZE;},
+            bc::EQ => {s.push_str("eq\n"); i += BCSIZE;},
+            bc::NE => {s.push_str("not eq\n"); i += BCSIZE;},
+            bc::LT => {s.push_str("lt\n"); i += BCSIZE;},
+            bc::GT => {s.push_str("gt\n"); i += BCSIZE;},
+            bc::LE => {s.push_str("le\n"); i += BCSIZE;},
+            bc::GE => {s.push_str("not ge\n"); i += BCSIZE;},
+            bc::IS => {s.push_str("is\n"); i += BCSIZE;},
+            bc::OF => {s.push_str("of\n"); i += BCSIZE;},
+            bc::ISNOT => {s.push_str("is not\n"); i += BCSIZE;},
+            bc::IN => {s.push_str("in\n"); i += BCSIZE;},
+            bc::NOTIN => {s.push_str("not in\n"); i += BCSIZE;},
+            bc::NOT => {s.push_str("not\n"); i += BCSIZE;},
+            bc::RANGE => {s.push_str("range\n"); i += BCSIZE;},
+            bc::TABLE => {s.push_str("table\n"); i += BCSIZE;},
             bc::LIST => {
                 let x = load_u32(&a[BCSIZE+i..BCSIZE+i+1]);
                 let u = format!("list, size={}\n",x);
@@ -204,10 +204,10 @@ fn asm_listing(a: &[u32]) -> String {
                 s.push_str(&u);
                 i+=BCASIZE;
             },
-            bc::RET => {s.push_str("ret\n"); i+=BCSIZE;},
-            bc::YIELD => {s.push_str("yield\n"); i+=BCSIZE;},
-            bc::RAISE => {s.push_str("raise\n"); i+=BCSIZE;},
-            bc::FNSEP => {s.push_str("\nFunction\n"); i+=BCSIZE;},
+            bc::RET => {s.push_str("ret\n"); i += BCSIZE;},
+            bc::YIELD => {s.push_str("yield\n"); i += BCSIZE;},
+            bc::RAISE => {s.push_str("raise\n"); i += BCSIZE;},
+            bc::FNSEP => {s.push_str("\nFunction\n"); i += BCSIZE;},
             bc::FN => {
                 let address = load_i32(&a[BCSIZE+i..BCSIZE+i+1]);
                 let argc_min = load_i32(&a[BCSIZE+i+1..BCSIZE+i+2]);
@@ -220,13 +220,13 @@ fn asm_listing(a: &[u32]) -> String {
                     i as i32+address, argc_min, argc_max
                 );
                 s.push_str(&u);
-                i+=BCSIZE+4;
+                i += BCSIZE+4;
             },
             bc::GET_INDEX => {
                 let argc = load_u32(&a[BCSIZE+i..BCSIZE+i+1]);
                 if argc>1 {
                     s.push_str(&format!("get index ({} args)\n",argc));
-                }else{
+                } else {
                     s.push_str("get index\n");
                 }
                 i+=BCASIZE;
@@ -235,64 +235,64 @@ fn asm_listing(a: &[u32]) -> String {
                 let argc = load_u32(&a[BCSIZE+i..BCSIZE+i+1]);
                 if argc>1 {
                     s.push_str(&format!("set index ({} args)\n",argc));
-                }else{
+                } else {
                     s.push_str("set index\n");
                 }
                 i+=BCASIZE;
             },
-            bc::DOT => {s.push_str("dot\n"); i+=BCSIZE;},
-            bc::DOT_SET => {s.push_str("dot set\n"); i+=BCSIZE;},
-            bc::SWAP => {s.push_str("swap\n"); i+=BCSIZE;},
-            bc::DUP => {s.push_str("dup\n"); i+=BCSIZE;},
-            bc::DUP_DOT_SWAP => {s.push_str("dup dot swap\n"); i+=BCSIZE;},
-            bc::POP => {s.push_str("pop\n"); i+=BCSIZE;},
-            bc::EMPTY => {s.push_str("empty\n"); i+=BCSIZE;},
-            bc::AOP => {s.push_str("aop\n"); i+=BCSIZE;},
-            bc::AOP_INDEX => {s.push_str("aop index\n"); i+=BCSIZE;},
+            bc::DOT => {s.push_str("dot\n"); i += BCSIZE;},
+            bc::DOT_SET => {s.push_str("dot set\n"); i += BCSIZE;},
+            bc::SWAP => {s.push_str("swap\n"); i += BCSIZE;},
+            bc::DUP => {s.push_str("dup\n"); i += BCSIZE;},
+            bc::DUP_DOT_SWAP => {s.push_str("dup dot swap\n"); i += BCSIZE;},
+            bc::POP => {s.push_str("pop\n"); i += BCSIZE;},
+            bc::EMPTY => {s.push_str("empty\n"); i += BCSIZE;},
+            bc::AOP => {s.push_str("aop\n"); i += BCSIZE;},
+            bc::AOP_INDEX => {s.push_str("aop index\n"); i += BCSIZE;},
             bc::OP => {
                 s.push_str("op ");
-                i+=BCSIZE;
+                i += BCSIZE;
                 let op = a[i] as u8;
-                if op==bc::TRY {
+                if op == bc::TRY {
                     let x = load_i32(&a[BCSIZE+i..BCSIZE+i+1]);
-                    let u = format!("try, catch {}\n",i as i32+x);
+                    let u = format!("try, catch {}\n" , i as i32 + x);
                     s.push_str(&u);
-                    i+=BCASIZE;
-                }else if op==bc::TRYEND {
+                    i += BCASIZE;
+                } else if op == bc::TRYEND {
                     s.push_str("try end\n");
-                    i+=BCSIZE;
-                }else if op==bc::GETEXC {
+                    i += BCSIZE;
+                } else if op == bc::GETEXC {
                     s.push_str("get exception\n");
-                    i+=BCSIZE;
-                }else if op==bc::CRAISE {
+                    i += BCSIZE;
+                } else if op==bc::CRAISE {
                     s.push_str("raise further\n");
-                    i+=BCSIZE;
-                }else{
+                    i += BCSIZE;
+                } else {
                     unreachable!("op ??");
                 }
             },
-            bc::APPLY => {s.push_str("apply\n"); i+=BCSIZE;}
-            bc::HALT => {s.push_str("halt\n"); i+=BCSIZE;},
+            bc::APPLY => {s.push_str("apply\n"); i += BCSIZE;}
+            bc::HALT => {s.push_str("halt\n"); i += BCSIZE;},
             _ => {unreachable!();}
         }
     }
-    return s;
+    s
 }
 
 fn print_data(a: &[Rc<str>], f: &mut fmt::Formatter) -> fmt::Result {
-    writeln!(f,"Data")?;
+    writeln!(f, "Data")?;
     for i in 0..a.len() {
-        writeln!(f,"[{}]: \"{}\"",i,a[i])?;
+        writeln!(f, "[{}]: \"{}\"", i, a[i])?;
     }
-    if a.len()==0 {
-        writeln!(f,"empty")?;
+    if a.len() == 0 {
+        writeln!(f, "empty")?;
     }
-    return Ok(());
+    Ok(())
 }
 
 impl fmt::Display for CodeObject {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}\n", asm_listing(&self.program))?;
+        writeln!(f, "{}", asm_listing(&self.program))?;
         print_data(&self.data,f)
     }
 }
