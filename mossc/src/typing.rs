@@ -3,6 +3,7 @@ use std::rc::Rc;
 use std::collections::HashMap;
 use parser::{AST, Symbol, Info};
 use self::symbol_table::{SymbolTable, SymbolTableNode};
+use error::{Error, error, type_error, undefined_symbol};
 
 #[path="symbol-table.rs"]
 pub mod symbol_table;
@@ -408,47 +409,6 @@ impl std::fmt::Display for Type {
     }
 }
 
-#[derive(PartialEq,Eq)]
-enum ErrorKind {
-    Error, TypeError, UndefinedSymbol
-}
-
-pub struct SemanticError {
-    line: usize,
-    col: usize,
-    kind: ErrorKind,
-    text: String
-}
-
-impl SemanticError {
-    pub fn print(&self) {
-        println!("Line {}, col {}:", self.line + 1, self.col + 1);
-        match self.kind {
-            ErrorKind::Error => {
-                println!("Error: {}", self.text);
-            },
-            ErrorKind::TypeError => {
-                println!("Type error: {}", self.text);
-            },
-            ErrorKind::UndefinedSymbol => {
-                println!("Undefined variable: {}", self.text);
-            }
-        }
-    }
-}
-
-fn error(line: usize, col: usize, text: String) -> SemanticError {
-    SemanticError {line, col, text, kind: ErrorKind::Error}
-}
-
-fn type_error(line: usize, col: usize, text: String) -> SemanticError {
-    SemanticError {line, col, text, kind: ErrorKind::TypeError}
-}
-
-fn undefined_symbol(line: usize, col: usize, text: String) -> SemanticError {
-    SemanticError {line, col, text, kind: ErrorKind::UndefinedSymbol}
-}
-
 fn type_mismatch(expected: &Type, given: &Type) -> String {
     format!("\n    expected type {}\n    found    type {}", expected, given)
 }
@@ -588,7 +548,7 @@ fn attach_type(&mut self, t: &AST, typ: &Type) {
 }
 
 fn type_from_signature_or_none(&mut self, env: &Env, t: &AST)
--> Result<Type, SemanticError>
+-> Result<Type, Error>
 {
     if t.value == Symbol::None {
         Ok(Type::None)
@@ -603,7 +563,7 @@ fn new_uniq_anonymous_type_var(&mut self, _t: &AST) -> Type {
 }
 
 fn type_from_signature(&mut self, env: &Env, t: &AST)
--> Result<Type, SemanticError>
+-> Result<Type, Error>
 {
     if t.value == Symbol::None {
         Ok(self.new_uniq_anonymous_type_var(t))
@@ -673,7 +633,7 @@ fn type_from_signature(&mut self, env: &Env, t: &AST)
 
 fn type_check_add(&mut self, env: &Env, t: &Rc<AST>,
     type1: Type, type2: Type
-) -> Result<Type, SemanticError>
+) -> Result<Type, Error>
 {
     if type1.is_atomic(&self.tab.type_string) ||
        type1.is_app(&self.tab.type_list).is_some()
@@ -695,7 +655,7 @@ fn type_check_add(&mut self, env: &Env, t: &Rc<AST>,
 
 fn type_check_sub(&mut self, env: &Env, t: &Rc<AST>,
     type1: Type, type2: Type
-) -> Result<Type, SemanticError>
+) -> Result<Type, Error>
 {
     if let Type::Var(tv1) = &type1 {
         self.constraints.push(Constraint {
@@ -713,7 +673,7 @@ fn type_check_sub(&mut self, env: &Env, t: &Rc<AST>,
 
 fn type_check_mul(&mut self, env: &Env, t: &Rc<AST>,
     type1: Type, type2: Type
-) -> Result<Type, SemanticError>
+) -> Result<Type, Error>
 {
     if let Type::Var(tv1) = &type1 {
         self.constraints.push(Constraint {
@@ -732,7 +692,7 @@ fn type_check_mul(&mut self, env: &Env, t: &Rc<AST>,
 
 fn type_check_mod(&mut self, env: &Env, t: &Rc<AST>,
     type1: Type, type2: Type
-) -> Result<Type, SemanticError>
+) -> Result<Type, Error>
 {
     if let Type::Var(tv1) = &type1 {
         self.constraints.push(Constraint {
@@ -750,7 +710,7 @@ fn type_check_mod(&mut self, env: &Env, t: &Rc<AST>,
 
 fn unify_binary_operator(&mut self, env: &Env, t: &AST,
     type1: &Type, type2: &Type
-) -> Result<(), SemanticError>
+) -> Result<(), Error>
 {
     match self.unify(env, type1, type2) {
         Ok(()) => Ok(()),
@@ -761,7 +721,7 @@ fn unify_binary_operator(&mut self, env: &Env, t: &AST,
 }
 
 fn type_check_binary_operator(&mut self, env: &Env, t: &Rc<AST>)
--> Result<Type, SemanticError>
+-> Result<Type, Error>
 {
     let a = t.argv();
     let type1 = self.type_check_node(env,&a[0])?;
@@ -791,7 +751,7 @@ fn type_check_binary_operator(&mut self, env: &Env, t: &Rc<AST>)
 }
 
 fn type_check_range(&mut self, env: &Env, t: &AST)
--> Result<Type, SemanticError>
+-> Result<Type, Error>
 {
     let a = t.argv();
     let ta = self.type_check_node(env, &a[0])?;
@@ -802,7 +762,7 @@ fn type_check_range(&mut self, env: &Env, t: &AST)
 }
 
 fn index_homogeneous(&mut self, t: &AST, ty_index: &Type, ty: Type)
--> Result<Type, SemanticError>
+-> Result<Type, Error>
 {
     let tab = &self.tab;
     if let Some(a) = ty_index.is_app(&tab.type_range) {
@@ -825,7 +785,7 @@ fn index_homogeneous(&mut self, t: &AST, ty_index: &Type, ty: Type)
 }
 
 fn type_check_operator_index(&mut self, env: &Env, t: &AST)
--> Result<Type, SemanticError>
+-> Result<Type, Error>
 {
     let a = t.argv();
     if a.len()>2 {
@@ -887,7 +847,7 @@ fn has_trait(&self, typ: &Type, trait_sig: &Trait) -> bool {
 }
 
 fn type_check_comparison(&mut self, env: &Env, t: &AST)
--> Result<Type, SemanticError>
+-> Result<Type, Error>
 {
     let a = t.argv();
     let type1 = self.type_check_node(env, &a[0])?;
@@ -914,7 +874,7 @@ fn type_check_comparison(&mut self, env: &Env, t: &AST)
 }
 
 fn type_check_eq(&mut self, env: &Env, t: &AST)
--> Result<Type, SemanticError>
+-> Result<Type, Error>
 {
     let a = t.argv();
     let type1 = self.type_check_node(env, &a[0])?;
@@ -926,7 +886,7 @@ fn type_check_eq(&mut self, env: &Env, t: &AST)
 }
 
 fn type_check_logical_operator(&mut self, env: &Env, t: &AST)
--> Result<Type, SemanticError>
+-> Result<Type, Error>
 {
     let a = t.argv();
     let type1 = self.type_check_node(env, &a[0])?;
@@ -944,7 +904,7 @@ fn type_check_logical_operator(&mut self, env: &Env, t: &AST)
 }
 
 fn type_check_not(&mut self, env: &Env, t: &AST)
--> Result<Type, SemanticError>
+-> Result<Type, Error>
 {
     let a = t.argv();
     let typ = self.type_check_node(env, &a[0])?;
@@ -957,7 +917,7 @@ fn type_check_not(&mut self, env: &Env, t: &AST)
 }
 
 fn type_check_if_expression(&mut self, env: &Env, t: &AST)
--> Result<Type, SemanticError>
+-> Result<Type, Error>
 {
     let a = t.argv();
     let type0 = self.type_check_node(env, &a[0])?;
@@ -976,7 +936,7 @@ fn type_check_if_expression(&mut self, env: &Env, t: &AST)
 }
 
 fn type_check_block(&mut self, env: &Env, t: &AST)
--> Result<Type, SemanticError>
+-> Result<Type, Error>
 {
     let a = t.argv();
     let n = a.len();
@@ -991,7 +951,7 @@ fn type_check_block(&mut self, env: &Env, t: &AST)
 }
 
 fn type_check_let(&mut self, env: &Env, t: &AST)
--> Result<Type, SemanticError>
+-> Result<Type, Error>
 {
     let is_var = match t.info {Info::Var => true, _ => false};
     let a = t.argv();
@@ -1014,7 +974,7 @@ fn type_check_let(&mut self, env: &Env, t: &AST)
 }
 
 fn type_check_index_assignment(&mut self, env: &Env, t: &AST)
--> Result<(), SemanticError>
+-> Result<(), Error>
 {
     let a = t.argv();
     if a[0].value != Symbol::Index {
@@ -1029,7 +989,7 @@ fn type_check_index_assignment(&mut self, env: &Env, t: &AST)
 }
 
 fn type_check_assignment(&mut self, env: &Env, t: &AST)
--> Result<(), SemanticError>
+-> Result<(), Error>
 {
     let a = t.argv();
     let id = match &a[0].info {
@@ -1060,7 +1020,7 @@ fn type_check_assignment(&mut self, env: &Env, t: &AST)
 }
 
 fn type_check_variable(&mut self, t: &AST, id: &String)
--> Result<Type, SemanticError>
+-> Result<Type, Error>
 {
     // self.symbol_table.print();
     if let Some(t) = self.symbol_table.get(id) {
@@ -1072,7 +1032,7 @@ fn type_check_variable(&mut self, t: &AST, id: &String)
 }
 
 fn type_check_list(&mut self, env: &Env, t: &AST)
--> Result<Type, SemanticError>
+-> Result<Type, Error>
 {
     let a = t.argv();
     if a.is_empty() {
@@ -1232,7 +1192,7 @@ fn fn_type_from_app(&mut self, t: &AST, argc: usize) -> (Type, Type) {
 }
 
 fn type_check_application(&mut self, env: &Env, t: &AST)
--> Result<Type, SemanticError>
+-> Result<Type, Error>
 {
     let a = t.argv();
     let argv = &a[1..];
@@ -1318,7 +1278,7 @@ fn poly_sig(&self, type_variables: &Rc<AST>) -> Vec<TypeVariable> {
 }
 
 fn type_check_function(&mut self, env_rec: &Env, t: &AST)
--> Result<Type, SemanticError>
+-> Result<Type, Error>
 {
     let header = match t.info {
         Info::FnHeader(ref h) => h,
@@ -1408,7 +1368,7 @@ fn type_check_function(&mut self, env_rec: &Env, t: &AST)
 }
 
 fn type_check_return(&mut self, env: &Env, t: &AST)
--> Result<Type, SemanticError>
+-> Result<Type, Error>
 {
     let x = &t.argv()[0];
     let ty_ret = self.type_check_node(env, x)?;
@@ -1424,7 +1384,7 @@ fn type_check_return(&mut self, env: &Env, t: &AST)
 }
 
 fn type_check_if_statement(&mut self, env: &Env, t: &AST)
--> Result<Type, SemanticError>
+-> Result<Type, Error>
 {
     let a = t.argv();
     let n = a.len();
@@ -1448,7 +1408,7 @@ fn type_check_if_statement(&mut self, env: &Env, t: &AST)
 }
 
 fn type_check_while_statement(&mut self, env: &Env, t: &AST)
--> Result<Type,SemanticError>
+-> Result<Type, Error>
 {
     let a = t.argv();
     let type_cond = self.type_check_node(env, &a[0])?;
@@ -1464,7 +1424,7 @@ fn type_check_while_statement(&mut self, env: &Env, t: &AST)
 }
 
 fn iter_element(&mut self, env: &Env, iterable: &Type, t: &AST)
--> Result<Type,SemanticError>
+-> Result<Type, Error>
 {
     if let Some(a) = iterable.is_app(&self.tab.type_list) {
         return Ok(a[0].clone());
@@ -1483,7 +1443,7 @@ fn iter_element(&mut self, env: &Env, iterable: &Type, t: &AST)
 }
 
 fn type_check_for_statement(&mut self, env: &Env, t: &AST)
--> Result<Type,SemanticError>
+-> Result<Type, Error>
 {
     let a = t.argv();
     let ty_range = self.type_check_node(env, &a[1])?;
@@ -1508,7 +1468,7 @@ fn class(&self, typ: &Type) -> Option<&Class> {
 }
 
 fn type_check_dot(&mut self, env: &Env, t: &AST)
--> Result<Type,SemanticError>
+-> Result<Type, Error>
 {
     let a = t.argv();
     let typ = self.type_check_node(env, &a[0])?;
@@ -1527,7 +1487,7 @@ fn type_check_dot(&mut self, env: &Env, t: &AST)
 }
 
 fn type_check_node(&mut self, env: &Env, t: &Rc<AST>)
--> Result<Type,SemanticError>
+-> Result<Type, Error>
 {
     let typ = self.type_check_node_plain(env, t)?;
     self.attach_type(t, &typ);
@@ -1535,7 +1495,7 @@ fn type_check_node(&mut self, env: &Env, t: &Rc<AST>)
 }
 
 fn type_check_node_plain(&mut self, env: &Env, t: &Rc<AST>)
--> Result<Type,SemanticError>
+-> Result<Type, Error>
 {
     match t.value {
         Symbol::Item => {
@@ -1636,7 +1596,7 @@ pub fn apply_types(&mut self) {
     }
 }
 
-pub fn check_constraints(&self) -> Result<(),SemanticError> {
+pub fn check_constraints(&self) -> Result<(), Error> {
     for constraint in &self.constraints {
         let typ = self.subs.apply(&Type::Var(constraint.tv.clone()));
         let trait_sig = &constraint.trait_sig;
@@ -1651,9 +1611,7 @@ pub fn check_constraints(&self) -> Result<(),SemanticError> {
     Ok(())
 }
 
-pub fn type_check(&mut self, t: &Rc<AST>)
--> Result<(), SemanticError>
-{
+pub fn type_check(&mut self, t: &Rc<AST>) -> Result<(), Error> {
     let env = Rc::new(Environment {env: None, map: HashMap::new()});
     let _ = self.type_check_node(&env, t)?;
     Ok(())

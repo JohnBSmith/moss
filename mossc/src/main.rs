@@ -4,56 +4,40 @@ use std::io::BufReader;
 use std::io::Read;
 use std::env;
 
+mod error;
 mod parser;
 mod typing;
 mod generator;
 mod system;
 mod debug;
 
-use parser::{parse, Error};
+#[cfg(test)]
+mod tests;
+
+use error::Error;
+use parser::parse;
 use typing::{TypeChecker, TypeTable};
 use generator::generate;
 use system::save;
 
-fn print_error(e: &Error, file: &str) {
-    print!("File '{}', line {}, col {}:\n", file, e.line + 1, e.col + 1);
-    println!("{}", e.text);
-}
-
-fn compile(s: &str, file: &str, info: &CmdInfo) -> Result<(),()> {
+fn compile(s: &str, file: &str, info: &CmdInfo) -> Result<(), Error> {
     let debug_mode = info.debug_mode;
-    let t = match parse(s) {
-        Ok(t) => t,
-        Err(e) => {
-            print_error(&e, file);
-            return Err(());
-        }
-    };
+    let t = parse(s)?;
     if debug_mode {
         println!("{}", &t);
     }
 
     let tab = TypeTable::new();
     let mut checker = TypeChecker::new(&tab);
-    match checker.type_check(&t) {
-        Ok(()) => {},
-        Err(e) => {
-            e.print();
-            return Err(());
-        }
-    }
+    checker.type_check(&t)?;
+
     if debug_mode {
         println!("{}", checker.string(&t));
         println!("{}", checker.subs_as_string());
     }
     checker.apply_types();
-    match checker.check_constraints() {
-        Ok(()) => {},
-        Err(e) => {
-            e.print();
-            return Err(());
-        }
-    }
+    checker.check_constraints()?;
+
     if debug_mode {
         println!("{}", checker.string(&t));
     }
@@ -61,11 +45,13 @@ fn compile(s: &str, file: &str, info: &CmdInfo) -> Result<(),()> {
     if debug_mode {
         println!("{}", code);
     }
-    save(&code, file);
+    if !file.is_empty() {
+        save(&code, file);
+    }
     Ok(())
 }
 
-fn read_file(path: &str) -> Result<String,std::io::Error> {
+fn read_file(path: &str) -> Result<String, std::io::Error> {
     let file = File::open(path)?;
     let mut buf_reader = BufReader::new(file);
     let mut s = String::new();
@@ -102,10 +88,10 @@ static HELP_MESSAGE: &str = "
 Usage: mossc file
 ";
 
-fn main_result() -> Result<(),()> {
+fn main_result() -> Result<(), ()> {
     let info = CmdInfo::new();
     if let Some(id) = &info.id {
-        let path = format!("{}.moss",id);
+        let path = format!("{}.moss", id);
         let s = match read_file(&path) {
             Ok(s) => s,
             Err(_) => {
@@ -113,7 +99,13 @@ fn main_result() -> Result<(),()> {
                 return Err(());
             }
         };
-        compile(&s, &id, &info)?;
+        match compile(&s, &id, &info) {
+            Ok(()) => {/* pass */},
+            Err(e) => {
+                println!("{}", e);
+                return Err(());
+            }
+        }
     } else {
         println!("{}", HELP_MESSAGE);
         return Err(());

@@ -1,25 +1,12 @@
 
+
 #![allow(dead_code)]
 
 use std::rc::Rc;
 use std::cell::Cell;
 use std::fmt::Write;
 use crate::typing::Type;
-
-pub struct Error {
-    pub line: usize,
-    pub col: usize,
-    pub text: String
-}
-
-fn scan_error(line: usize, col: usize, text: String) -> Error {
-    Error {text, line, col}
-}
-
-fn syntax_error(line: usize, col: usize, text: String) -> Error {
-    let text = format!("Syntax error: {}", text);
-    Error {text, line, col}
-}
+use error::{Error, scan_error, syntax_error};
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Symbol {
