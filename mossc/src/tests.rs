@@ -114,6 +114,26 @@ static TESTS1: &[(&str, &str, Expect)] = &[
     ("1.99", "let f: (Int, Bool) -> _ = |x, y| []", Expect::Ok)
 ];
 
+static TESTS2: &[(&str, &str, Expect)] = &[
+    ("2.01", "let f: (Int, Int) -> Int = |x, y| x + y", Expect::Ok),
+    ("2.02", "let f: (Int, Int) -> Bool = |x, y| x + y", Expect::TypeError),
+    ("2.03", "let f: (Bool, Int) -> Int = |x, y| x + y", Expect::TypeError),
+    ("2.04", "let f: (Int, Bool) -> Int = |x, y| x + y", Expect::TypeError),
+    ("2.05", "let f: (Int, Int) -> _ = |x, y| x + y", Expect::Ok),
+    ("2.06", "let f: (Int, _) -> Int = |x, y| x + y", Expect::Ok),
+    ("2.07", "let f: (_, Int) -> Int = |x, y| x + y", Expect::Ok),
+    ("2.08", "let f: (_, _) -> Int = |x, y| x + y", Expect::Ok),
+    ("2.09", "let f: (Int, _) -> _ = |x, y| x + y", Expect::Ok),
+    ("2.10", "let f: (_, Int) -> _ = |x, y| x + y", Expect::Ok),
+    ("2.11", "let f = |x: Int, y: Int| x + y", Expect::Ok),
+    ("2.12", "let f = |x: Int, y| x + y", Expect::Ok),
+    ("2.13", "let f = |x, y: Int| x + y", Expect::Ok),
+    ("2.14", "let f = |x: Int, y: _| x + y", Expect::Ok),
+    ("2.15", "let f = |x: _, y: Int| x + y", Expect::Ok),
+    // ("2.16", "let f = |x, y| x + y", Expect::Ok),
+    // ("2.17", "let f: (_, _) -> _ = |x, y| x + y", Expect::Ok),
+];
+
 fn is_expected(result: &Result<(), Error>, expected: Expect) -> bool {
     expected == match result {
         Ok(()) => Expect::Ok,
@@ -125,9 +145,8 @@ fn is_expected(result: &Result<(), Error>, expected: Expect) -> bool {
     }
 }
 
-#[test]
-fn test0() {
-    for (id, input, expected) in TESTS1 {
+fn test_list(tests: &[(&str, &str, Expect)]) {
+    for (id, input, expected) in tests {
         let result = test_compile(input);
         if !is_expected(&result, *expected) {
             if let Err(e) = result {
@@ -136,4 +155,10 @@ fn test0() {
             panic!("compiler test {} failed", id);
         }
     }
+}
+
+#[test]
+fn test0() {
+    test_list(TESTS1);
+    test_list(TESTS2);
 }

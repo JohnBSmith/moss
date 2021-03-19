@@ -294,7 +294,7 @@ impl PolyType {
 
 #[derive(Clone)]
 pub enum Type {
-    None, Atom(Rc<str>), Var(TypeId),
+    None, Atom(Rc<str>), Var(Rc<str>),
     App(Rc<Vec<Type>>), Fn(Rc<FnType>),
     Poly(Rc<PolyType>)
 }
@@ -371,7 +371,7 @@ impl std::fmt::Display for Type {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             Type::Atom(s) => write!(f, "{}", s),
-            Type::Var(id) => write!(f, "_{}", id.0),
+            Type::Var(s) => write!(f, "{}", s),
             Type::App(v) => {
                 write!(f, "{}[", v[0])?;
                 let mut first = true;
@@ -420,8 +420,20 @@ fn is_atomic_type(ty: &Type, id: &Rc<str>) -> bool {
     false
 }
 
-#[derive(PartialEq, Eq, Clone, Copy, Hash)]
-pub struct TypeId(u32);
+struct TypeId(Rc<str>);
+
+impl PartialEq for TypeId {
+    fn eq(&self, y: &Self) -> bool {
+        Rc::ptr_eq(&self.0, &y.0)
+    }
+}
+impl Eq for TypeId {}
+
+impl std::hash::Hash for TypeId {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        ((&*self.0) as *const str as *const () as usize).hash(state);
+    }
+}
 
 struct Substitution {
     map: HashMap<TypeId, Type>
@@ -436,10 +448,11 @@ impl Substitution {
             Type::Atom(typ) => {
                 Type::Atom(typ.clone())
             },
-            Type::Var(id) => {
-                let subs = match self.map.get(id) {
+            Type::Var(tv) => {
+                let id = TypeId(tv.clone());
+                let subs = match self.map.get(&id) {
                     Some(value) => value,
-                    None => return Type::Var(*id)
+                    None => return Type::Var(id.0)
                 };
                 if let Type::Atom(typ) = subs {
                     Type::Atom(typ.clone())
@@ -475,7 +488,7 @@ impl Substitution {
 impl std::fmt::Display for Substitution {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         let mut a: Vec<(&TypeId, &Type)> = self.map.iter().collect();
-        a.sort_by_key(|(id, _)| id.0);
+        a.sort_by_key(|t| &(t.0).0);
         for (key,value) in &a {
             writeln!(f, "{} := {},", key.0, value).ok();
         }
@@ -484,7 +497,7 @@ impl std::fmt::Display for Substitution {
 }
 
 struct Constraint {
-    tv: TypeId,
+    tv: Rc<str>,
     trait_sig: Trait,
     node: Rc<AST>
 }
@@ -498,7 +511,7 @@ pub struct TypeChecker {
     class_tab: ClassTable,
     subs: Substitution,
     types: Vec<Type>,
-    type_id_counter: u32,
+    tv_counter: u32,
     constraints: Vec<Constraint>
 }
 
@@ -516,7 +529,7 @@ pub fn new(tab: &Rc<TypeTable>) -> Self {
         trait_tab, class_tab,
         subs: Substitution::new(),
         types: vec![Type::None],
-        type_id_counter: 0,
+        tv_counter: 0,
         constraints: Vec::new()
     }
 }
@@ -544,17 +557,9 @@ fn type_from_signature_or_none(&mut self, env: &Env, t: &AST)
     }
 }
 
-fn new_uniq_type_id(&mut self) -> TypeId {
-    let id = self.type_id_counter;
-    self.type_id_counter += 1;
-    TypeId(id)
-}
-
 fn new_uniq_anonymous_type_var(&mut self, _t: &AST) -> Type {
-    // Further information about context can be stored
-    // in a Vec<(TypeId, Information)>. Lookup does not need to be
-    // fast because it is only needed one time in case of type error.
-    Type::Var(self.new_uniq_type_id())
+    self.tv_counter += 1;
+    Type::Var(Rc::from(format!("v{}", self.tv_counter)))
 }
 
 fn type_from_signature(&mut self, env: &Env, t: &AST)
@@ -635,9 +640,9 @@ fn type_check_add(&mut self, env: &Env, t: &Rc<AST>,
        type1.is_app(&self.tab.type_list).is_some()
     {
         // pass
-    } else if let Type::Var(id1) = &type1 {
+    } else if let Type::Var(tv1) = &type1 {
         self.constraints.push(Constraint {
-            tv: *id1,
+            tv: tv1.clone(),
             trait_sig: Trait::Atom(self.trait_tab.trait_add.clone()),
             node: t.clone()
         });
@@ -1070,21 +1075,21 @@ fn unify_fn(&mut self, env: &Env, f1: &FnType, f2: &FnType)
     Ok(())
 }
 
-fn unify_var(&mut self, env: &Env, tv: TypeId, t2: &Type)
+fn unify_var(&mut self, env: &Env, tv: &Rc<str>, t2: &Type)
 -> Result<(), String>
 {
     // println!("{} = {}", tv, t2);
-    if let Some(t1) = self.subs.map.get(&tv) {
+    if let Some(t1) = self.subs.map.get(&TypeId(tv.clone())) {
         let t1 = t1.clone();
         return self.unify(env, &t1, t2);
     } else if let Type::Var(tv2) = t2 {
-        if tv == *tv2 {return Ok(());}
-        if let Some(t2) = self.subs.map.get(tv2) {
+        if Rc::ptr_eq(tv, tv2) {return Ok(());}
+        if let Some(t2) = self.subs.map.get(&TypeId(tv2.clone())) {
             let t2 = t2.clone();
             return self.unify_var(env, tv, &t2);
         }
     }
-    self.subs.map.insert(tv, t2.clone());
+    self.subs.map.insert(TypeId(tv.clone()), t2.clone());
     Ok(())
 }
 
@@ -1092,15 +1097,19 @@ fn unify(&mut self, env: &Env, t1: &Type, t2: &Type)
 -> Result<(), String>
 {
     if let Type::Var(tv1) = t1 {
-        return self.unify_var(env, *tv1, t2);
+        return self.unify_var(env, tv1, t2);
     }
     if let Type::Var(tv2) = t2 {
-        return self.unify_var(env, *tv2, t1);
+        return self.unify_var(env, tv2, t1);
     }
     match t1 {
         Type::Atom(t1) => {
             if let Type::Atom(t2) = t2 {
                 if Rc::ptr_eq(t1, t2) {return Ok(());}
+            }
+            if let Some(t1) = self.subs.map.get(&TypeId(t1.clone())) {
+                let t1 = t1.clone();
+                return self.unify(env, &t1, t2);
             }
         },
         Type::App(app_t1) => {
@@ -1134,13 +1143,13 @@ fn unify(&mut self, env: &Env, t1: &Type, t2: &Type)
 }
 
 fn instantiate_rec(&self, typ: &Type,
-    mapping: &HashMap<Rc<str>, TypeId>
+    mapping: &HashMap<Rc<str>, Rc<str>>
 ) -> Type {
     match typ {
         Type::None => Type::None,
         Type::Atom(typ) => {
             match mapping.get(typ) {
-                Some(id) => Type::Var(*id),
+                Some(id) => Type::Var(id.clone()),
                 None =>  Type::Atom(typ.clone())
             }
         },
@@ -1169,25 +1178,9 @@ fn instantiate_rec(&self, typ: &Type,
     }
 }
 
-// Instantiating a type forall[T0, T1, ...] F[T0, T1, ...]
-// means replacing T0:=_0, T1:=_1, ... where _0, _1, ...
-// are new unique type variables. Only the resulting type
-// F[_0, _1, ...] is unified with some given type.
-
-// Example, let id: forall[T] T -> T = |x| x.
-// What is the type of id(0)?
-// We have 0: Int, thus we can deduce
-// => id: forall[T] T -> T is applied to 0: Int
-// => id: (T -> T)[T:=_0] is applied to 0: Int
-// => id: _0 -> _0 is applied to 0: Int
-// => _0 must be unified with Int
-// => success, unifier is {_0:=Int}
-// => id: Int -> Int
-// => id(0): Int.
-
-fn instantiate_poly_type(&mut self, poly: &PolyType) -> Type {
-    let mapping: HashMap<Rc<str>, TypeId> = poly.variables.iter()
-        .map(|x| (x.id.clone(), self.new_uniq_type_id())).collect();
+fn instantiate_poly_type(&self, poly: &PolyType) -> Type {
+    let mapping: HashMap<Rc<str>,Rc<str>> = poly.variables.iter()
+        .map(|x| (x.id.clone(),Rc::from(&*x.id))).collect();
     self.instantiate_rec(&poly.scheme, &mapping)
 }
 
@@ -1216,8 +1209,7 @@ fn type_check_application(&mut self, env: &Env, t: &AST)
         if argc < sig.argc_min || argc > sig.argc_max {
             let id = match a[0].info {Info::Id(ref s) => s, _ => panic!()};
             return Err(type_error(t.line, t.col,
-                format!("\n  function {} has argument count {}..{},\n  \
-                    found application of argument count {}.",
+                format!("\n  function {} has argument count {}..{},\n  found application of argument count {}.",
                     id, sig.argc_min, sig.argc_max, argc)
             ));
         }
@@ -1243,8 +1235,8 @@ fn type_check_application(&mut self, env: &Env, t: &AST)
         }
         return Ok(self.tab.type_object());
     } else if let Type::Var(tv) = sig {
-        let (typ, ret) = self.fn_type_from_app(t, argc);
-        return match self.unify_var(env, tv, &typ) {
+        let (typ,ret) = self.fn_type_from_app(t, argc);
+        return match self.unify_var(env, &tv, &typ) {
             Ok(()) => Ok(ret),
             Err(err) => Err(type_error(t.line, t.col, err))
         };
@@ -1623,8 +1615,6 @@ pub fn check_constraints(&self) -> Result<(), Error> {
 pub fn type_check(&mut self, t: &Rc<AST>) -> Result<(), Error> {
     let env = Rc::new(Environment {env: None, map: HashMap::new()});
     let _ = self.type_check_node(&env, t)?;
-    // println!("size of Type: {}", std::mem::size_of::<Type>());
-    // 12
     Ok(())
 }
 
