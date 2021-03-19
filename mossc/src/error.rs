@@ -3,7 +3,7 @@ use std::fmt;
 
 #[derive(PartialEq, Eq)]
 pub enum ErrorKind {
-    Error, Syntax, TypeError, UndefinedSymbol
+    Error, Syntax, TypeError, UndefinedSymbol, UndefinedType
 }
 
 pub struct Error {
@@ -20,7 +20,8 @@ impl fmt::Display for Error {
             ErrorKind::Syntax => "Syntax error",
             ErrorKind::Error => "Error",
             ErrorKind::TypeError => "Type error",
-            ErrorKind::UndefinedSymbol => "Undefined variable"
+            ErrorKind::UndefinedSymbol => "Undefined variable",
+            ErrorKind::UndefinedType => "Undefined type"
         };
         writeln!(f, "{}: {}", error_spec, self.text)
     }
@@ -40,6 +41,10 @@ pub fn error(line: usize, col: usize, text: String) -> Error {
 
 pub fn type_error(line: usize, col: usize, text: String) -> Error {
     Error {line, col, text, kind: ErrorKind::TypeError}
+}
+
+pub fn undefined_type(line: usize, col: usize, text: String) -> Error {
+    Error {line, col, text, kind: ErrorKind::UndefinedType}
 }
 
 pub fn undefined_symbol(line: usize, col: usize, text: String) -> Error {

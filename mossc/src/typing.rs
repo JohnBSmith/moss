@@ -3,7 +3,7 @@ use std::rc::Rc;
 use std::collections::HashMap;
 use parser::{AST, Symbol, Info};
 use self::symbol_table::{SymbolTable, SymbolTableNode};
-use error::{Error, error, type_error, undefined_symbol};
+use error::{Error, error, type_error, undefined_type, undefined_symbol};
 
 #[path="symbol-table.rs"]
 pub mod symbol_table;
@@ -580,7 +580,7 @@ fn type_from_signature(&mut self, env: &Env, t: &AST)
             "Object" => self.tab.type_object(),
             "_" => self.new_uniq_anonymous_type_var(t),
             id => {
-                return Err(type_error(t.line, t.col, format!(
+                return Err(undefined_type(t.line, t.col, format!(
                     "Unknown type: {}.", id
                 )));
             }
@@ -600,7 +600,8 @@ fn type_from_signature(&mut self, env: &Env, t: &AST)
                 }
                 Ok(Type::app(acc))
             } else {
-                panic!();
+                Err(undefined_type(t.line, t.col, format!(
+                    "undefined type constructor: {}", id)))
             }
         } else {
             panic!();

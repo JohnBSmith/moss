@@ -1330,6 +1330,12 @@ fn type_atom(&mut self, i: &TokenIterator)
             Info::Id(id.clone()), None))
     } else if t.value == Symbol::PLeft {
         i.advance();
+        let t = i.get();
+        if t.value == Symbol::PRight {
+            i.advance();
+            return Ok(AST::node(t.line, t.col, Symbol::List,
+                Info::None, Some(Box::new([]))));
+        }
         let x = self.type_expression(i)?;
         let t = i.get();
         if t.value == Symbol::PRight {
