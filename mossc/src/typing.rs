@@ -727,20 +727,20 @@ fn type_check_binary_operator(&mut self, env: &Env, t: &Rc<AST>)
        !type2.is_atomic(&self.tab.type_int) &&
        !type2.is_atomic(&self.tab.type_float)
     {
-        if t.value == Symbol::Plus {
-            return self.type_check_add(env, t, type1, type2);
+        return if t.value == Symbol::Plus {
+            self.type_check_add(env, t, type1, type2)
         } else if t.value == Symbol::Minus {
-            return self.type_check_sub(env, t, type1, type2);
+            self.type_check_sub(env, t, type1, type2)
         } else if t.value == Symbol::Ast {
-            return self.type_check_mul(env, t, type1, type2);
+            self.type_check_mul(env, t, type1, type2)
         } else if t.value == Symbol::Mod {
-            return self.type_check_mod(env, t, type1, type2);
+            self.type_check_mod(env, t, type1, type2)
         } else {
-            return Err(type_error(t.line,t.col,format!(
+            Err(type_error(t.line, t.col, format!(
                 "x{}y is not defined for x: {}, y: {}.",
                 t.value, type1, type2
-            )));
-        }
+            )))
+        };
     }
     self.unify_binary_operator(env, t, &type1, &type2)?;
     Ok(type1)
@@ -946,24 +946,39 @@ fn type_check_block(&mut self, env: &Env, t: &AST)
     Ok(block_type)
 }
 
-fn type_check_let(&mut self, env: &Env, t: &AST)
+fn type_check_let(&mut self, env_rec: &Env, t: &AST)
 -> Result<Type, Error>
 {
     let is_var = match t.info {Info::Var => true, _ => false};
+
+    let (env, sig) = if let Info::TypeVars(type_variables) = &t.info {
+        let sig = self.poly_sig(type_variables);
+        let env = Environment::from_sig(env_rec, &sig);
+        (env, Some(sig))
+    } else {
+        (env_rec.clone(), None)
+    };
+
     let a = t.argv();
     let id = match &a[0].info {Info::Id(id) => id.clone(), _ => unreachable!()};
-    let ty = self.type_from_signature_or_none(env, &a[1])?;
-    let ty_expr = self.type_check_node(env, &a[2])?;
+    let ty = self.type_from_signature_or_none(&env, &a[1])?;
+    let ty_expr = self.type_check_node(&env, &a[2])?;
 
-    let ty_of_id = if let Type::None = ty {
+    let mut ty_of_id = if let Type::None = ty {
         ty_expr
     } else {
-        match self.unify(env, &ty, &ty_expr) {
+        match self.unify(&env, &ty, &ty_expr) {
             Ok(()) => ty,
             Err(err) => return Err(type_error(t.line, t.col, err))
         }
     };
     let global = self.global_context;
+
+    if let Some(sig) = sig {
+        ty_of_id = Type::Poly(Rc::new(PolyType {
+            variables: Rc::new(sig), scheme: ty_of_id
+        }));
+    }
     self.symbol_table.variable_binding(global, is_var, id, ty_of_id);
 
     Ok(self.tab.type_unit())
@@ -1286,7 +1301,7 @@ fn poly_sig(&self, type_variables: &Rc<AST>) -> Vec<TypeVariable> {
     acc
 }
 
-fn type_check_function(&mut self, env_rec: &Env, t: &AST)
+fn type_check_function(&mut self, env: &Env, t: &AST)
 -> Result<Type, Error>
 {
     let header = match t.info {
@@ -1296,19 +1311,11 @@ fn type_check_function(&mut self, env_rec: &Env, t: &AST)
 
     let mut variables: Vec<(String, VariableInfo)> = Vec::new();
 
-    let (env,sig) = if let Some(type_variables) = &header.type_variables {
-        let sig = self.poly_sig(type_variables);
-        let env = Environment::from_sig(env_rec, &sig);
-        (env, Some(sig))
-    } else {
-        (env_rec.clone(), None)
-    };
-
-    let ret = self.type_from_signature(&env, &header.ret_type)?;
+    let ret = self.type_from_signature(env, &header.ret_type)?;
     let mut arg: Vec<Type> = Vec::with_capacity(header.argv.len());
     let argv = &header.argv;
     for i in 0..argv.len() {
-        let ty = self.type_from_signature(&env, &argv[i].ty)?;
+        let ty = self.type_from_signature(env, &argv[i].ty)?;
         arg.push(ty.clone());
         variables.push((argv[i].id.clone(), VariableInfo{
             var: false, ty,
@@ -1357,7 +1364,7 @@ fn type_check_function(&mut self, env_rec: &Env, t: &AST)
         }
     } else {
         if !ret_type.is_atomic(&self.tab.type_unit) {
-            match self.unify(&env, &ret, &ret_type) {
+            match self.unify(env, &ret, &ret_type) {
                 Ok(()) => {},
                 Err(err) => return Err(type_error(t.line, t.col, err))
             }
@@ -1366,14 +1373,7 @@ fn type_check_function(&mut self, env_rec: &Env, t: &AST)
 
     header.symbol_table_index.set(self.symbol_table.index);
     self.symbol_table.index = context;
-
-    Ok(if let Some(sig) = sig {
-        Type::Poly(Rc::new(PolyType {
-            variables: Rc::new(sig), scheme: ftype
-        }))
-    } else {
-        ftype
-    })
+    Ok(ftype)
 }
 
 fn type_check_return(&mut self, env: &Env, t: &AST)
@@ -1607,7 +1607,15 @@ pub fn apply_types(&mut self) {
 
 pub fn check_constraints(&self) -> Result<(), Error> {
     for constraint in &self.constraints {
-        let typ = self.subs.apply(&Type::Var(constraint.tv.clone()));
+        let typ = self.subs.apply(&Type::Var(constraint.tv));
+        if let Type::Var(_) = typ {
+            // I would like to have this because of convenience.
+            // Can this result in any unsoundness?
+            // Say, there are conflicting traits, or equivalently,
+            // the trait is the empty set?
+            return Ok(());
+        }
+        
         let trait_sig = &constraint.trait_sig;
         if !self.has_trait(&typ, trait_sig) {
             let node = &constraint.node;
@@ -1623,8 +1631,6 @@ pub fn check_constraints(&self) -> Result<(), Error> {
 pub fn type_check(&mut self, t: &Rc<AST>) -> Result<(), Error> {
     let env = Rc::new(Environment {env: None, map: HashMap::new()});
     let _ = self.type_check_node(&env, t)?;
-    // println!("size of Type: {}", std::mem::size_of::<Type>());
-    // 12
     Ok(())
 }
 

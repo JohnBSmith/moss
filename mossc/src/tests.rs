@@ -130,8 +130,19 @@ static TESTS2: &[(&str, &str, Expect)] = &[
     ("2.13", "let f = |x, y: Int| x + y", Expect::Ok),
     ("2.14", "let f = |x: Int, y: _| x + y", Expect::Ok),
     ("2.15", "let f = |x: _, y: Int| x + y", Expect::Ok),
-    // ("2.16", "let f = |x, y| x + y", Expect::Ok),
-    // ("2.17", "let f: (_, _) -> _ = |x, y| x + y", Expect::Ok),
+    ("2.16", "let f = |x, y| x + y", Expect::Ok),
+    ("2.17", "let f: (_, _) -> _ = |x, y| x + y", Expect::Ok),
+];
+
+static TESTS3: &[(&str, &str, Expect)] = &[
+    ("3.01", "let id[T]: T -> T = |x| x", Expect::Ok),
+    ("3.02", "let id[T]: T -> _ = |x| x", Expect::Ok),
+    ("3.03", "let id[T]: _ -> T = |x| x", Expect::Ok),
+    ("3.04", "let id[T] = |x: T| x", Expect::Ok),
+    ("3.05", "let id[T]: T -> T = |x: T| x", Expect::Ok),
+    ("3.06", "let f[T] = |x: T| [x, x]", Expect::Ok),
+    ("3.07", "let f[T]: T -> List[T] = |x| [x, x]", Expect::Ok),
+    ("3.08", "let f[T]: T -> List[T] = |x: T| [x, x]", Expect::Ok) 
 ];
 
 fn is_expected(result: &Result<(), Error>, expected: Expect) -> bool {
@@ -161,4 +172,5 @@ fn test_list(tests: &[(&str, &str, Expect)]) {
 fn test0() {
     test_list(TESTS1);
     test_list(TESTS2);
+    test_list(TESTS3);
 }

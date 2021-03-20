@@ -467,13 +467,13 @@ pub struct FnHeader {
     pub argv: Vec<Argument>,
     pub id: Option<String>,
     pub ret_type: Rc<AST>,
-    pub type_variables: Option<Rc<AST>>,
     pub symbol_table_index: Cell<usize>
 }
 
 pub enum Info {
     None, Var, Int(i32), Id(String),
     String(String), FnHeader(Box<FnHeader>),
+    TypeVars(Rc<AST>)
 }
 
 pub struct TypeRef {
@@ -645,17 +645,16 @@ fn formal_argument_list(&mut self, i: &TokenIterator,
 }
 
 fn lambda_expression(&mut self, t0: &Token, i: &TokenIterator)
--> Result<Rc<AST>,Error>
+-> Result<Rc<AST>, Error>
 {
     i.advance();
     let argv = self.formal_argument_list(i,Symbol::Vert)?;
     let body_expression = self.expression(i)?;
 
     let ret_type = AST::symbol(t0.line, t0.col, Symbol::None);
-    let header = Box::new(FnHeader{
+    let header = Box::new(FnHeader {
         argv, id: Some(format!("{}:{}", t0.line, t0.col)),
-        ret_type, type_variables: None,
-        symbol_table_index: Cell::new(SYMBOL_TABLE_DANGLING)
+        ret_type,  symbol_table_index: Cell::new(SYMBOL_TABLE_DANGLING)
     });
     Ok(AST::node(t0.line, t0.col, Symbol::Function,
         Info::FnHeader(header), Some(Box::new([body_expression]))))
@@ -1083,9 +1082,9 @@ fn function_statement(&mut self, t0: &Token, i: &TokenIterator)
     let t = i.get();
     let type_variables = if t.value == Symbol::BLeft {
         i.advance();
-        Some(self.type_variables(t,i)?)
+        Info::TypeVars(self.type_variables(t,i)?)
     } else {
-        None
+        Info::None
     };
 
     self.expect(i,Symbol::PLeft)?;
@@ -1108,7 +1107,7 @@ fn function_statement(&mut self, t0: &Token, i: &TokenIterator)
     self.expect(i, Symbol::End)?;
 
     let header = Box::new(FnHeader {
-        argv, id: Some(id.clone()), ret_type, type_variables,
+        argv, id: Some(id.clone()), ret_type,
         symbol_table_index: Cell::new(SYMBOL_TABLE_DANGLING)
     });
     let fun = AST::node(t0.line, t0.col,
@@ -1116,8 +1115,8 @@ fn function_statement(&mut self, t0: &Token, i: &TokenIterator)
     );
     let id = identifier_from_string(id, t0.line, t0.col);
     let none = AST::symbol(t0.line, t0.col, Symbol::None);
-    Ok(AST::node(t0.line, t0.col,
-        Symbol::Let, Info::None, Some(Box::new([id, none, fun]))))
+    Ok(AST::node(t0.line, t0.col, Symbol::Let,
+        type_variables, Some(Box::new([id, none, fun]))))
 }
 
 fn return_statement(&mut self, t0: &Token, i: &TokenIterator)
@@ -1239,51 +1238,61 @@ fn for_statement(&mut self, t0: &Token, i: &TokenIterator)
         Some(Box::new([lhs, range, body]))))
 }
 
+fn let_statement(&mut self, t0: &Token, i: &TokenIterator, value: Symbol)
+-> Result<Rc<AST>, Error>
+{
+    let mut info = match value {
+        Symbol::Let => Info::None,
+        _ => Info::Var
+    };
+    i.advance();
+    let id = self.atom(i)?;
+
+    let t = i.get();
+    if t.value == Symbol::BLeft {
+        if matches!(info, Info::Var) {todo!("error");}
+        i.advance();
+        info = Info::TypeVars(self.type_variables(t,i)?);
+    };
+
+    let t = i.get();
+    let texp = if t.value == Symbol::Colon {
+        i.advance();
+        self.type_expression(i)?
+    } else {
+        AST::symbol(t.line, t.col, Symbol::None)
+    };
+
+    let t = i.get();
+    if t.value == Symbol::Assignment {
+        i.advance();
+        let x = self.expression(i)?;
+        let let_exp = AST::node(t0.line, t0.col, Symbol::Let, info,
+            Some(Box::new([id, texp, x]))
+        );
+        self.expect_end_marker(i)?;
+        Ok(let_exp)
+    } else if t.value == Symbol::Semicolon {
+        i.advance();
+        let let_exp = AST::node(t0.line, t0.col, Symbol::Let,
+            info, Some(Box::new([id, texp])));
+        Ok(let_exp)
+    } else {
+        Err(syntax_error(t.line, t.col, String::from("expected '='")))
+    }
+}
+
 fn statements(&mut self, i: &TokenIterator, ret: Value)
--> Result<Rc<AST>,Error>
+-> Result<Rc<AST>, Error>
 {
     let mut a: Vec<Rc<AST>> = Vec::new();
     let t0 = i.get_skip_nl();
     loop {
         let t = i.get_skip_nl();
-        let line = t.line;
-        let col = t.col;
         let value = t.value;
         if value == Symbol::Let || value == Symbol::Var {
-            let mut_cond = match value {
-                Symbol::Let => Info::None,
-                _ => Info::Var
-            };
-            i.advance();
-            let id = self.atom(i)?;
-
-            let t = i.get();
-            let texp = if t.value == Symbol::Colon {
-                i.advance();
-                self.type_expression(i)?
-            } else {
-                AST::symbol(t.line,t.col,Symbol::None)
-            };
-
-            let t = i.get();
-            if t.value == Symbol::Assignment {
-                i.advance();
-                let x = self.expression(i)?;
-                let let_exp = AST::node(line,col,Symbol::Let,mut_cond,
-                    Some(Box::new([id,texp,x]))
-                );
-                a.push(let_exp);
-                self.expect_end_marker(i)?;
-            } else if t.value == Symbol::Semicolon {
-                i.advance();
-                let let_exp = AST::node(line, col, Symbol::Let,
-                    mut_cond, Some(Box::new([id, texp])));
-                a.push(let_exp);
-            } else {
-                return Err(syntax_error(t.line, t.col,
-                    String::from("expected '='")
-                ));
-            }
+            let x = self.let_statement(t,i,value)?;
+            a.push(x);
         } else if value == Symbol::If {
             let x = self.if_statement(t,i)?;
             a.push(x);
