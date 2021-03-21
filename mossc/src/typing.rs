@@ -8,10 +8,17 @@ use error::{Error, error, type_error, undefined_type, undefined_symbol};
 #[path = "symbol-table.rs"]
 pub mod symbol_table;
 
+#[path = "unify.rs"]
+mod unify;
+
 #[path = "traits.rs"]
 mod traits;
 
+use self::unify::Substitution;
 use self::traits::PredicateTable;
+
+#[derive(PartialEq, Eq, Clone, Copy, Hash)]
+pub struct TypeId(u32);
 
 const VARIADIC: usize = std::usize::MAX;
 
@@ -410,78 +417,11 @@ impl std::fmt::Display for Type {
     }
 }
 
-fn type_mismatch(expected: &Type, given: &Type) -> String {
-    format!("\n    expected type {}\n    found    type {}", expected, given)
-}
-
 fn is_atomic_type(ty: &Type, id: &Rc<str>) -> bool {
     if let Type::Atom(ty) = ty {
         return Rc::ptr_eq(ty,id);
     }
     false
-}
-
-#[derive(PartialEq, Eq, Clone, Copy, Hash)]
-pub struct TypeId(u32);
-
-struct Substitution {
-    map: HashMap<TypeId, Type>
-}
-impl Substitution {
-    fn new() -> Self {
-        Self {map: HashMap::new()}
-    }
-    fn apply(&self, typ: &Type) -> Type {
-        match typ {
-            Type::None => Type::None,
-            Type::Atom(typ) => {
-                Type::Atom(typ.clone())
-            },
-            Type::Var(id) => {
-                let subs = match self.map.get(id) {
-                    Some(value) => value,
-                    None => return Type::Var(*id)
-                };
-                if let Type::Atom(typ) = subs {
-                    Type::Atom(typ.clone())
-                } else if subs.contains_var() {
-                    self.apply(subs)
-                } else {
-                    subs.clone()
-                }
-            },
-            Type::App(app) => {
-                Type::app(app.iter().map(|x|
-                    self.apply(x)).collect::<Vec<Type>>())
-            },
-            Type::Fn(typ) => {
-                Type::Fn(Rc::new(FnType {
-                    argc_min: typ.argc_min,
-                    argc_max: typ.argc_max,
-                    arg_self: self.apply(&typ.arg_self),
-                    arg: typ.arg.iter().map(|x| self.apply(x)).collect(),
-                    ret: self.apply(&typ.ret)
-                }))
-            },
-            Type::Poly(poly_type) => {
-                Type::Poly(Rc::new(PolyType {
-                    variables: poly_type.variables.clone(),
-                    scheme: self.apply(&poly_type.scheme)
-                }))
-            }
-        }
-    }
-}
-
-impl std::fmt::Display for Substitution {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        let mut a: Vec<(&TypeId, &Type)> = self.map.iter().collect();
-        a.sort_by_key(|(id, _)| id.0);
-        for (key,value) in &a {
-            writeln!(f, "{} := {},", key.0, value).ok();
-        }
-        Ok(())
-    }
 }
 
 struct Constraint {
@@ -501,7 +441,8 @@ pub struct TypeChecker {
     types: Vec<Type>,
     type_id_counter: u32,
     constraints: Vec<Constraint>,
-    predicate_tab: PredicateTable
+    predicate_tab: PredicateTable,
+    unify_log: String
 }
 
 impl TypeChecker {
@@ -521,7 +462,8 @@ pub fn new(tab: &Rc<TypeTable>) -> Self {
         types: vec![Type::None],
         type_id_counter: 0,
         constraints: Vec::new(),
-        predicate_tab
+        predicate_tab,
+        unify_log: String::new()
     }
 }
 
@@ -631,7 +573,7 @@ fn type_from_signature(&mut self, env: &Env, t: &AST)
     }
 }
 
-fn type_check_add(&mut self, env: &Env, t: &Rc<AST>,
+fn type_check_add(&mut self, t: &Rc<AST>,
     type1: Type, type2: Type
 ) -> Result<Type, Error>
 {
@@ -641,17 +583,15 @@ fn type_check_add(&mut self, env: &Env, t: &Rc<AST>,
             trait_sig: Bound::Trait(self.trait_tab.trait_add.clone()),
             node: t.clone()
         });
-    } else if !type1.is_app(&self.tab.type_list).is_some() &&
-        !self.predicate_tab.apply(&self.trait_tab.trait_add, &type1)
-    {
+    } else if !self.predicate_tab.apply(&self.trait_tab.trait_add, &type1) {
         return Err(type_error(t.line, t.col, format!(
             "x + y is not defined for x: {}, y: {}.", type1, type2)));
     }
-    self.unify_binary_operator(env, t, &type1, &type2)?;
+    self.unify_binary_operator(t, &type1, &type2)?;
     Ok(type1)
 }
 
-fn type_check_sub(&mut self, env: &Env, t: &Rc<AST>,
+fn type_check_sub(&mut self, t: &Rc<AST>,
     type1: Type, type2: Type
 ) -> Result<Type, Error>
 {
@@ -665,11 +605,11 @@ fn type_check_sub(&mut self, env: &Env, t: &Rc<AST>,
         return Err(type_error(t.line, t.col, format!(
             "x - y is not defined for x: {}, y: {}.", type1, type2)));
     }
-    self.unify_binary_operator(env, t, &type1, &type2)?;
+    self.unify_binary_operator(t, &type1, &type2)?;
     Ok(type1)
 }
 
-fn type_check_mul(&mut self, env: &Env, t: &Rc<AST>,
+fn type_check_mul(&mut self, t: &Rc<AST>,
     type1: Type, type2: Type
 ) -> Result<Type, Error>
 {
@@ -684,11 +624,11 @@ fn type_check_mul(&mut self, env: &Env, t: &Rc<AST>,
             "x*y is not defined for x: {}, y: {}.", type1, type2
         )));
     }
-    self.unify_binary_operator(env, t, &type1, &type2)?;
+    self.unify_binary_operator(t, &type1, &type2)?;
     Ok(type1)
 }
 
-fn type_check_mod(&mut self, env: &Env, t: &Rc<AST>,
+fn type_check_mod(&mut self, t: &Rc<AST>,
     type1: Type, type2: Type
 ) -> Result<Type, Error>
 {
@@ -702,19 +642,19 @@ fn type_check_mod(&mut self, env: &Env, t: &Rc<AST>,
         return Err(type_error(t.line, t.col, format!(
             "x%y is not defined for x: {}, y: {}.", type1, type2)));
     }
-    self.unify_binary_operator(env, t, &type1, &type2)?;
+    self.unify_binary_operator(t, &type1, &type2)?;
     Ok(type1)
 }
 
-fn unify_binary_operator(&mut self, env: &Env, t: &AST,
+fn unify_binary_operator(&mut self, t: &AST,
     type1: &Type, type2: &Type
 ) -> Result<(), Error>
 {
-    match self.unify(env, type1, type2) {
+    match self.unify(type1, type2) {
         Ok(()) => Ok(()),
-        Err(err) => Err(type_error(t.line, t.col,
+        _ => Err(type_error(t.line, t.col,
             format!("in x{}y:{}\nNote:\n    x: {},\n    y: {}",
-                t.value, err, type1, type2)))
+                t.value, self.unify_log(), type1, type2)))
     }
 }
 
@@ -730,13 +670,13 @@ fn type_check_binary_operator(&mut self, env: &Env, t: &Rc<AST>)
        !type2.is_atomic(&self.tab.type_float)
     {
         return if t.value == Symbol::Plus {
-            self.type_check_add(env, t, type1, type2)
+            self.type_check_add(t, type1, type2)
         } else if t.value == Symbol::Minus {
-            self.type_check_sub(env, t, type1, type2)
+            self.type_check_sub(t, type1, type2)
         } else if t.value == Symbol::Ast {
-            self.type_check_mul(env, t, type1, type2)
+            self.type_check_mul(t, type1, type2)
         } else if t.value == Symbol::Mod {
-            self.type_check_mod(env, t, type1, type2)
+            self.type_check_mod(t, type1, type2)
         } else {
             Err(type_error(t.line, t.col, format!(
                 "x{}y is not defined for x: {}, y: {}.",
@@ -744,7 +684,7 @@ fn type_check_binary_operator(&mut self, env: &Env, t: &Rc<AST>)
             )))
         };
     }
-    self.unify_binary_operator(env, t, &type1, &type2)?;
+    self.unify_binary_operator(t, &type1, &type2)?;
     Ok(type1)
 }
 
@@ -852,9 +792,9 @@ fn type_check_comparison(&mut self, env: &Env, t: &AST)
             )));
         }
     }
-    match self.unify(env, &type1, &type2) {
+    match self.unify(&type1, &type2) {
         Ok(()) => Ok(self.tab.type_bool()),
-        Err(err) => Err(type_error(t.line, t.col, err))
+        _ => Err(type_error(t.line, t.col, self.unify_log()))
     }
 }
 
@@ -864,9 +804,9 @@ fn type_check_eq(&mut self, env: &Env, t: &AST)
     let a = t.argv();
     let type1 = self.type_check_node(env, &a[0])?;
     let type2 = self.type_check_node(env, &a[1])?;
-    match self.unify(env, &type1, &type2) {
+    match self.unify(&type1, &type2) {
         Ok(()) => Ok(self.tab.type_bool()),
-        Err(err) => Err(type_error(t.line, t.col, err))
+        _ => Err(type_error(t.line, t.col, self.unify_log()))
     }
 }
 
@@ -877,13 +817,13 @@ fn type_check_logical_operator(&mut self, env: &Env, t: &AST)
     let type1 = self.type_check_node(env, &a[0])?;
     let type2 = self.type_check_node(env, &a[1])?;
     let type_bool = self.tab.type_bool();
-    match self.unify(env, &type1, &type_bool) {
+    match self.unify(&type1, &type_bool) {
         Ok(()) => {},
-        Err(err) => return Err(type_error(t.line, t.col, err))
+        _ => return Err(type_error(t.line, t.col, self.unify_log()))
     }
-    match self.unify(env, &type2, &type_bool) {
+    match self.unify(&type2, &type_bool) {
         Ok(()) => {},
-        Err(err) => return Err(type_error(t.line, t.col, err))
+        _ => return Err(type_error(t.line, t.col, self.unify_log()))
     }
     Ok(type_bool)
 }
@@ -894,9 +834,9 @@ fn type_check_not(&mut self, env: &Env, t: &AST)
     let a = t.argv();
     let typ = self.type_check_node(env, &a[0])?;
     let typ_bool = self.tab.type_bool();
-    match self.unify(env, &typ, &typ_bool) {
+    match self.unify(&typ, &typ_bool) {
         Ok(()) => {},
-        Err(err) => return Err(type_error(t.line, t.col, err))
+        _ => return Err(type_error(t.line, t.col, self.unify_log()))
     }
     Ok(typ_bool)
 }
@@ -909,13 +849,13 @@ fn type_check_if_expression(&mut self, env: &Env, t: &AST)
     let type1 = self.type_check_node(env, &a[1])?;
     let type2 = self.type_check_node(env, &a[2])?;
     let type_bool = self.tab.type_bool();
-    match self.unify(env, &type0, &type_bool) {
+    match self.unify(&type0, &type_bool) {
         Ok(()) => {},
-        Err(err) => return Err(type_error(t.line, t.col, err))
+        _ => return Err(type_error(t.line, t.col, self.unify_log()))
     }
-    match self.unify(env, &type1, &type2) {
+    match self.unify(&type1, &type2) {
         Ok(()) => {},
-        Err(err) => return Err(type_error(t.line, t.col, err))
+        _ => return Err(type_error(t.line, t.col, self.unify_log()))
     }
     Ok(type1)
 }
@@ -956,9 +896,9 @@ fn type_check_let(&mut self, env_rec: &Env, t: &AST)
     let mut ty_of_id = if let Type::None = ty {
         ty_expr
     } else {
-        match self.unify(&env, &ty, &ty_expr) {
+        match self.unify(&ty, &ty_expr) {
             Ok(()) => ty,
-            Err(err) => return Err(type_error(t.line, t.col, err))
+            _ => return Err(type_error(t.line, t.col, self.unify_log()))
         }
     };
     let global = self.global_context;
@@ -982,9 +922,9 @@ fn type_check_index_assignment(&mut self, env: &Env, t: &AST)
     }
     let type1 = self.type_check_node(env, &a[0])?;
     let type2 = self.type_check_node(env, &a[1])?;
-    match self.unify(env, &type1, &type2) {
+    match self.unify(&type1, &type2) {
         Ok(()) => Ok(()),
-        Err(err) => Err(type_error(t.line, t.col, err))
+        _ => Err(type_error(t.line, t.col, self.unify_log()))
     }
 }
 
@@ -1003,15 +943,13 @@ fn type_check_assignment(&mut self, env: &Env, t: &AST)
     if let Some(variable_info) = node.get(&id) {
         if !variable_info.var {
             return Err(error(t.line, t.col,
-                format!("cannot assign twice to '{}'.", id)
-            ));
+                format!("cannot assign twice to '{}'.", id)));
         }
         let ty = variable_info.ty.clone();
-        match self.unify(env,&ty_expr,&ty) {
+        match self.unify(&ty_expr, &ty) {
             Ok(()) => {},
-            Err(err) => return Err(type_error(t.line, t.col,
-                format!("in assignment:{}", err)
-            ))
+            _ => return Err(type_error(t.line, t.col,
+                format!("in assignment:{}", self.unify_log())))
         }
     } else {
         return Err(undefined_symbol(t.line, t.col, id));
@@ -1044,97 +982,22 @@ fn type_check_list(&mut self, env: &Env, t: &AST)
     let ty0 = self.type_check_node(env, &a[0])?;
     for (k,x) in (&a[1..]).iter().enumerate() {
         let ty = self.type_check_node(env, x)?;
-        match self.unify(env,&ty0,&ty) {
+        match self.unify(&ty0, &ty) {
             Ok(()) => {},
-            Err(err) => return Err(type_error(x.line, x.col,
-                format!("in list literal at index {}:{}", k + 1, err)
-            ))
+            _ => return Err(type_error(x.line, x.col,
+                format!("in list literal at index {}:{}",
+                k + 1, self.unify_log())))
         }
     }
     Ok(self.tab.list_of(ty0))
 }
 
-fn unify_fn(&mut self, env: &Env, f1: &FnType, f2: &FnType)
--> Result<(), String>
-{
-    self.unify(env,&f1.ret,&f2.ret)?;
-    if f1.arg.len() != f2.arg.len() ||
-       f1.argc_min != f2.argc_min ||
-       f1.argc_max != f2.argc_max
-    {
-        return Err(format!(
-            "mismatch in number of arguments:\n  expected {}\n  found {}",
-            f1.arg.len(), f2.arg.len()
-        ));
-    }
-    self.unify(env, &f1.arg_self, &f2.arg_self)?;
-    for i in 0..f1.arg.len() {
-        self.unify(env, &f1.arg[i], &f2.arg[i])?;
-    }
-    Ok(())
+fn unify_log(&mut self) -> String {
+    std::mem::take(&mut self.unify_log)
 }
 
-fn unify_var(&mut self, env: &Env, tv: TypeId, t2: &Type)
--> Result<(), String>
-{
-    // println!("{} = {}", tv, t2);
-    if let Some(t1) = self.subs.map.get(&tv) {
-        let t1 = t1.clone();
-        return self.unify(env, &t1, t2);
-    } else if let Type::Var(tv2) = t2 {
-        if tv == *tv2 {return Ok(());}
-        if let Some(t2) = self.subs.map.get(tv2) {
-            let t2 = t2.clone();
-            return self.unify_var(env, tv, &t2);
-        }
-    }
-    self.subs.map.insert(tv, t2.clone());
-    Ok(())
-}
-
-fn unify(&mut self, env: &Env, t1: &Type, t2: &Type)
--> Result<(), String>
-{
-    if let Type::Var(tv1) = t1 {
-        return self.unify_var(env, *tv1, t2);
-    }
-    if let Type::Var(tv2) = t2 {
-        return self.unify_var(env, *tv2, t1);
-    }
-    match t1 {
-        Type::Atom(t1) => {
-            if let Type::Atom(t2) = t2 {
-                if Rc::ptr_eq(t1, t2) {return Ok(());}
-            }
-        },
-        Type::App(app_t1) => {
-            if let Type::App(app_t2) = t2 {
-                if app_t1.len() != app_t2.len() {
-                    return Err(format!(
-                        "Mismatch in number of type arguments: \n  expected {}, \n  found {}",
-                        t1,t2
-                    ));
-                }
-                for i in 0..app_t1.len() {
-                    self.unify(env, &app_t1[i], &app_t2[i])?;
-                }
-                return Ok(());
-            } else {
-                return Err(type_mismatch(t1, t2));
-            }
-        },
-        Type::Fn(fn_t1) => {
-            if let Type::Fn(fn_t2) = t2 {
-                return self.unify_fn(env, fn_t1, fn_t2);
-            } else {
-                return Err(type_mismatch(t1, t2));
-            }
-        },
-        t1 => {
-            return Err(format!("Cannot unify {}", t1));
-        }
-    }
-    Err(type_mismatch(t1, t2))
+fn unify(&mut self, t1: &Type, t2: &Type) -> Result<(), ()> {
+    self.subs.unify(t1, t2, &mut Some(&mut self.unify_log))
 }
 
 fn instantiate_rec(&self, typ: &Type,
@@ -1215,6 +1078,8 @@ fn type_check_application(&mut self, env: &Env, t: &AST)
         Type::Poly(poly) => self.instantiate_poly_type(poly),
         typ => typ.clone()
     };
+    // Todo: add trait constraints to the type variables
+    // of instantiated poly types.
 
     if let Type::Fn(ref sig) = sig {
         if argc < sig.argc_min || argc > sig.argc_max {
@@ -1231,13 +1096,10 @@ fn type_check_application(&mut self, env: &Env, t: &AST)
             if sig.arg[j].is_atomic(&self.tab.type_object) {
                 continue;
             }
-            match self.unify(env, &sig.arg[j], &ty) {
+            match self.unify(&sig.arg[j], &ty) {
                 Ok(()) => {},
-                Err(text) => {
-                    return Err(type_error(t.line, t.col,
-                        format!("Function argument {}: {}.", i, text)
-                    ));
-                }
+                _ => return Err(type_error(t.line, t.col,
+                    format!("Function argument {}: {}.", i, self.unify_log())))
             }
         }
         return Ok(sig.ret.clone());
@@ -1248,9 +1110,9 @@ fn type_check_application(&mut self, env: &Env, t: &AST)
         return Ok(self.tab.type_object());
     } else if let Type::Var(tv) = sig {
         let (typ, ret) = self.fn_type_from_app(t, argc);
-        return match self.unify_var(env, tv, &typ) {
+        return match self.subs.unify_var(tv, &typ, &mut Some(&mut self.unify_log)) {
             Ok(()) => Ok(ret),
-            Err(err) => Err(type_error(t.line, t.col, err))
+            _ => Err(type_error(t.line, t.col, self.unify_log()))
         };
     }
     Err(type_error(t.line, t.col,
@@ -1368,9 +1230,9 @@ fn type_check_function(&mut self, env: &Env, t: &AST)
         }
     } else {
         if !ret_type.is_atomic(&self.tab.type_unit) {
-            match self.unify(env, &ret, &ret_type) {
+            match self.unify(&ret, &ret_type) {
                 Ok(()) => {},
-                Err(err) => return Err(type_error(t.line, t.col, err))
+                _ => return Err(type_error(t.line, t.col, self.unify_log()))
             }
         }
     }
@@ -1387,9 +1249,9 @@ fn type_check_return(&mut self, env: &Env, t: &AST)
     let ty_ret = self.type_check_node(env, x)?;
     if let Some(ty) = self.ret_stack.last() {
         let ty = ty.clone();
-        match self.unify(env, &ty_ret, &ty) {
+        match self.unify(&ty_ret, &ty) {
             Ok(()) => Ok(self.tab.type_unit()),
-            Err(err) => Err(type_error(t.line, t.col, err))
+            _ => Err(type_error(t.line, t.col, self.unify_log()))
         }
     } else {
         panic!();
@@ -1405,11 +1267,9 @@ fn type_check_if_statement(&mut self, env: &Env, t: &AST)
     while i+1 < n {
         let type_cond = self.type_check_node(env, &a[i])?;
         let type_bool = self.tab.type_bool();
-        match self.unify(env, &type_cond, &type_bool) {
+        match self.unify(&type_cond, &type_bool) {
             Ok(()) => {},
-            Err(err) => {
-                return Err(type_error(t.line, t.col, err));
-            }
+            _ => return Err(type_error(t.line, t.col, self.unify_log()))
         }
         self.type_check_node(env, &a[i+1])?;
         i += 2;
@@ -1426,17 +1286,15 @@ fn type_check_while_statement(&mut self, env: &Env, t: &AST)
     let a = t.argv();
     let type_cond = self.type_check_node(env, &a[0])?;
     let type_bool = self.tab.type_bool();
-    match self.unify(env, &type_cond, &type_bool) {
+    match self.unify(&type_cond, &type_bool) {
         Ok(()) => {},
-        Err(err) => {
-            return Err(type_error(t.line, t.col, err));
-        }
+        _ => return Err(type_error(t.line, t.col, self.unify_log()))
     }
     self.type_check_node(env, &a[1])?;
     Ok(self.tab.type_unit())
 }
 
-fn iter_element(&mut self, env: &Env, iterable: &Type, t: &AST)
+fn iter_element(&mut self, iterable: &Type, t: &AST)
 -> Result<Type, Error>
 {
     if let Some(a) = iterable.is_app(&self.tab.type_list) {
@@ -1445,9 +1303,9 @@ fn iter_element(&mut self, env: &Env, iterable: &Type, t: &AST)
         if a[0].is_atomic(&self.tab.type_int) &&
            a[2].is_atomic(&self.tab.type_unit)
         {
-            return match self.unify(env, &a[0], &a[1]) {
+            return match self.unify(&a[0], &a[1]) {
                 Ok(()) => Ok(a[0].clone()),
-                Err(err) => Err(type_error(t.line, t.col, err))
+                _ => Err(type_error(t.line, t.col, self.unify_log()))
             };
         }
     }
@@ -1460,7 +1318,7 @@ fn type_check_for_statement(&mut self, env: &Env, t: &AST)
 {
     let a = t.argv();
     let ty_range = self.type_check_node(env, &a[1])?;
-    let typ = self.iter_element(env, &ty_range, &a[1])?;
+    let typ = self.iter_element(&ty_range, &a[1])?;
     let id = match &a[0].info {Info::Id(id) => id.clone(), _ => panic!()};
     let global = self.global_context;
     self.symbol_table.variable_binding(global, false, id, typ);

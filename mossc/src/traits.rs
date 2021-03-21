@@ -1,11 +1,38 @@
 
+/*
+What follows is basically logic programming, i.e. kind of a Prolog
+engine. A trait is considered to be a predicate. One abbreviates
+"type T has trait P" as P(T).
+
+The rules of a trait P consist of:
+leaf: a list of facts,
+clauses: a list of clauses of the form
+   P(type pattern) :- condition.
+
+Example. Is "[1, 2] + [3, 4]" a correct program? We have
++: forall[T: Add] (T, T) -> T. Thus T = List[Int].
+
+There is a rule
+Add(List[X]) :- Condition::None.
+
+Matching Add(List[Int]) against the list of clauses of Add succeeds
+at Add(List[X]), we get the unifier {X:=Int}. The are are no
+conditions to fulfill, so we are done.
+*/
+
 use std::rc::Rc;
 use std::collections::HashMap;
 
-use crate::typing::{Type, TypeTable, TraitTable, Bound};
+use crate::typing::{Type, TypeId, TypeTable, TraitTable, Bound};
+use crate::typing::unify::Substitution;
+
+enum Condition {
+    None
+}
 
 struct Rules {
-    leaf: Vec<Type>
+    leaf: Vec<Type>, 
+    clauses: Vec<(Type, Condition)> 
 }
 
 type TraitId = Rc<str>;
@@ -23,21 +50,23 @@ fn init_table(type_tab: &TypeTable, trait_tab: &TraitTable)
         Type::Atom(type_tab.type_float.clone()),
         Type::Atom(type_tab.type_string.clone()),
         Type::Atom(type_tab.type_object.clone())
+    ], clauses: vec![
+        (type_tab.list_of(Type::Var(TypeId(0))), Condition::None)
     ]});
     map.insert(trait_tab.trait_sub.clone(), Rules {leaf: vec![
         Type::Atom(type_tab.type_int.clone()),
         Type::Atom(type_tab.type_float.clone()),
         Type::Atom(type_tab.type_object.clone())
-    ]});
+    ], clauses: vec![]});
     map.insert(trait_tab.trait_mul.clone(), Rules {leaf: vec![
         Type::Atom(type_tab.type_int.clone()),
         Type::Atom(type_tab.type_float.clone()),
         Type::Atom(type_tab.type_object.clone())
-    ]});
+    ], clauses: vec![]});
     map.insert(trait_tab.trait_div.clone(), Rules {leaf: vec![
         Type::Atom(type_tab.type_float.clone()),
         Type::Atom(type_tab.type_object.clone())
-    ]});
+    ], clauses: vec![]});
     PredicateTable {map}
 }
 
@@ -63,7 +92,21 @@ impl PredicateTable {
         for ty in &rules.leaf {
             if type_eq(typ, ty) {return true;}
         }
+        let mut subs = Substitution::new();
+        let none = &mut None;
+        for (ty, cond) in &rules.clauses {
+            if let Ok(()) = subs.unify(ty, typ, none) {
+                return self.check_clause(subs, cond);
+            } else {
+                subs.map.clear();
+            }
+        }
         false
+    }
+    fn check_clause(&self, _subs: Substitution, cond: &Condition) -> bool {
+        match cond {
+            Condition::None => true
+        }
     }
     pub fn extend(&mut self, trait_id: &TraitId, typ: Type) {
         let rules = match self.map.get_mut(trait_id) {
