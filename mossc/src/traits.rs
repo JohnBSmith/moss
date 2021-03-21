@@ -76,7 +76,11 @@ impl PredicateTable {
         match bound {
             Bound::None => {},
             Bound::Trait(trait_id) => self.extend(trait_id, typ),
-            _ => todo!()
+            Bound::Union(list) => {
+                for trait_id in list.iter() {
+                    self.extend(trait_id, typ.clone())
+                }
+            }
         }
     }
 }

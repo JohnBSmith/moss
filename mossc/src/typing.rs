@@ -261,7 +261,7 @@ pub struct FnType {
 
 #[derive(Clone)]
 pub enum Bound {
-    None, Trait(Rc<str>), _Union(Rc<str>)
+    None, Trait(Rc<str>), Union(Box<[Rc<str>]>)
 }
 
 impl std::fmt::Display for Bound {
@@ -1263,8 +1263,20 @@ fn trait_sig(&self, t: &Rc<AST>) -> Bound {
             Some(value) => Bound::Trait(value.clone()),
             None => panic!("unknown trait '{}'", id)
         }
+    } else if let Symbol::List = t.value {
+        let argv = t.argv();
+        let mut acc = Vec::with_capacity(argv.len());
+        for item in argv {
+            if let Info::Id(id) = &item.info {
+                match self.trait_tab.map.get(id) {
+                    Some(value) => {acc.push(value.clone());},
+                    None => panic!("unknown trait '{}'", id)
+                }
+            }
+        }
+        Bound::Union(acc.into_boxed_slice())
     } else {
-        unimplemented!();
+        unreachable!()
     }
 }
 

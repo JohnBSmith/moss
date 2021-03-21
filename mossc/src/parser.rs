@@ -1418,9 +1418,33 @@ fn type_fn(&mut self, i: &TokenIterator)
 }
 
 fn type_expression(&mut self, i: &TokenIterator)
--> Result<Rc<AST>,Error>
+-> Result<Rc<AST>, Error>
 {
     self.type_fn(i)
+}
+
+fn trait_union(&mut self, i: &TokenIterator, t0: &Token, x: Rc<AST>)
+-> Result<Rc<AST>, Error>
+{
+    i.advance();
+    let mut acc = vec![x];
+    loop {
+        let t = i.get();
+        if let Item::Id(ref id) = t.item {
+            i.advance();
+            acc.push(AST::node(t.line, t.col, Symbol::Item,
+                Info::Id(id.clone()), None));
+        } else {
+            return Err(syntax_error(t.line, t.col, String::from(
+                "expected trait identifier")));
+        }
+        let t = i.get();
+        if t.value != Symbol::Plus {
+            break
+        }
+    }
+    Ok(AST::node(t0.line, t0.col, Symbol::List, Info::None,
+        Some(acc.into_boxed_slice())))
 }
 
 fn trait_sig(&mut self, i: &TokenIterator)
@@ -1429,8 +1453,14 @@ fn trait_sig(&mut self, i: &TokenIterator)
     let t = i.get();
     if let Item::Id(ref id) = t.item {
         i.advance();
-        Ok(AST::node(t.line, t.col, Symbol::Item,
-            Info::Id(id.clone()), None))
+        let x = AST::node(t.line, t.col, Symbol::Item,
+            Info::Id(id.clone()), None);
+        let t = i.get();
+        if t.value == Symbol::Plus {
+            self.trait_union(i, t, x)
+        } else {
+            Ok(x)
+        }
     } else {
         panic!();
     }

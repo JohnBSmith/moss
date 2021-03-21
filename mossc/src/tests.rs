@@ -157,7 +157,18 @@ static TESTS3: &[(&str, &str, Expect)] = &[
     ("3.20", "let f[T]: (T, T) -> T = |x, y| x + y", Expect::TypeError),
     ("3.21", "let f[T]: (T, _) -> _ = |x, y| x + y", Expect::TypeError),
     ("3.22", "let f[T]: (_, T) -> _ = |x, y| x + y", Expect::TypeError),
-    ("3.23", "let f[T]: (_, _) -> T = |x, y| x + y", Expect::TypeError)
+    ("3.23", "let f[T]: (_, _) -> T = |x, y| x + y", Expect::TypeError),
+    ("3.24", "let f[T: Add + Sub] = |x: T, y: T| [x + y, x - y]", Expect::Ok),
+    ("3.25", "let f[T: Add + Sub] = |x: T, y| [x + y, x - y]", Expect::Ok),
+    ("3.26", "let f[T: Add + Sub] = |x, y: T| [x + y, x - y]", Expect::Ok),
+    ("3.27", "let f[T: Add + Sub]: (T, T) -> List[T] = |x, y| (
+        [x + y, x - y])", Expect::Ok),
+    ("3.28", "let f[T: Add + Sub]: (T, _) -> _ = |x, y| (
+        [x + y, x - y])", Expect::Ok),
+    ("3.29", "let f[T: Add + Sub]: (_, T) -> _ = |x, y| (
+        [x + y, x - y])", Expect::Ok),
+    ("3.30", "let f[T: Add + Sub]: (_, _) -> List[T] = |x, y| (
+        [x + y, x - y])", Expect::Ok)
 ];
 
 fn is_expected(result: &Result<(), Error>, expected: Expect) -> bool {
