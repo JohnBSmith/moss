@@ -93,7 +93,15 @@ implication, ownership of <code>Object</code> is needed, because
 <li>Colors and alpha values should be given as floating point numbers.
 <li>There should be convenience functions to convert between
   color spaces.
+</ol>
+
+<h3>Type checking</h3>
 <ol>
+<li>Attaching traits to monotypes does not seem to work out ideal, as
+traits can also be implemented for values of type constructors.
+So it seems to be best if the database attaches types as leaf rules
+to trait implementations data.
+</ol>
 
 </body>
 </html>

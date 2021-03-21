@@ -5,8 +5,13 @@ use parser::{AST, Symbol, Info};
 use self::symbol_table::{SymbolTable, SymbolTableNode};
 use error::{Error, error, type_error, undefined_type, undefined_symbol};
 
-#[path="symbol-table.rs"]
+#[path = "symbol-table.rs"]
 pub mod symbol_table;
+
+#[path = "traits.rs"]
+mod traits;
+
+use self::traits::PredicateTable;
 
 const VARIADIC: usize = std::usize::MAX;
 
@@ -126,11 +131,8 @@ struct TraitTable {
     trait_add: Rc<str>,
     trait_sub: Rc<str>,
     trait_mul: Rc<str>,
-    trait_mod: Rc<str>,
-    add: Trait,
-    sub: Trait,
-    mul: Trait,
-    tmod: Trait
+    trait_div: Rc<str>,
+    trait_mod: Rc<str>
 }
 impl TraitTable {
     fn new() -> Self {
@@ -139,22 +141,21 @@ impl TraitTable {
         let trait_add: Rc<str> = Rc::from("Add");
         let trait_sub: Rc<str> = Rc::from("Sub");
         let trait_mul: Rc<str> = Rc::from("Mul");
+        let trait_div: Rc<str> = Rc::from("Div");
         let trait_mod: Rc<str> = Rc::from("Mod");
-        let add = Trait::Atom(trait_add.clone());
-        let sub = Trait::Atom(trait_sub.clone());
-        let mul = Trait::Atom(trait_mul.clone());
-        let tmod = Trait::Atom(trait_mod.clone());
         let mut map = HashMap::new();
         map.insert("Ord".into(), trait_ord.clone());
         map.insert("Eq".into(), trait_eq.clone());
         map.insert("Add".into(), trait_add.clone());
         map.insert("Sub".into(), trait_sub.clone());
         map.insert("Mul".into(), trait_mul.clone());
+        map.insert("Div".into(), trait_div.clone());
         map.insert("Mod".into(), trait_mod.clone());
         Self {map,
             trait_ord, trait_eq,
-            trait_add, trait_sub, trait_mul, trait_mod,
-            add, sub, mul, tmod}
+            trait_add, trait_sub, trait_mul, trait_div,
+            trait_mod
+        }
     }
 }
 
@@ -259,15 +260,15 @@ pub struct FnType {
 }
 
 #[derive(Clone)]
-pub enum Trait {
-    None, Atom(Rc<str>), _Union(Rc<str>)
+pub enum Bound {
+    None, Trait(Rc<str>), _Union(Rc<str>)
 }
 
-impl std::fmt::Display for Trait {
+impl std::fmt::Display for Bound {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            Trait::None => write!(f, "_"),
-            Trait::Atom(s) => write!(f, "{}", s),
+            Bound::None => write!(f, "_"),
+            Bound::Trait(s) => write!(f, "{}", s),
             _ => todo!()
         }
     }
@@ -276,7 +277,7 @@ impl std::fmt::Display for Trait {
 #[derive(Clone)]
 pub struct TypeVariable {
     pub id: Rc<str>,
-    pub trait_sig: Trait
+    pub bound: Bound
 }
 
 pub struct PolyType {
@@ -315,7 +316,7 @@ impl Type {
         Type::Poly(Rc::new(PolyType {
             variables: Rc::new(vec![TypeVariable {
                 id: type_var.clone(),
-                trait_sig: Trait::None
+                bound: Bound::None
             }]),
             scheme
         }))
@@ -326,10 +327,10 @@ impl Type {
         Type::Poly(Rc::new(PolyType {
             variables: Rc::new(vec![TypeVariable {
                 id: type_var1.clone(),
-                trait_sig: Trait::None
+                bound: Bound::None
             }, TypeVariable {
                 id: type_var2.clone(),
-                trait_sig: Trait::None
+                bound: Bound::None
             }]),
             scheme
         }))
@@ -485,7 +486,7 @@ impl std::fmt::Display for Substitution {
 
 struct Constraint {
     tv: TypeId,
-    trait_sig: Trait,
+    trait_sig: Bound,
     node: Rc<AST>
 }
 
@@ -499,7 +500,8 @@ pub struct TypeChecker {
     subs: Substitution,
     types: Vec<Type>,
     type_id_counter: u32,
-    constraints: Vec<Constraint>
+    constraints: Vec<Constraint>,
+    predicate_tab: PredicateTable
 }
 
 impl TypeChecker {
@@ -507,7 +509,8 @@ impl TypeChecker {
 pub fn new(tab: &Rc<TypeTable>) -> Self {
     let symbol_table = SymbolTable::new(&tab);
     let trait_tab = TraitTable::new();
-    let class_tab = ClassTable::new(&tab);
+    let class_tab = ClassTable::new(tab);
+    let predicate_tab = PredicateTable::new(tab, &trait_tab);
     TypeChecker {
         symbol_table,
         ret_stack: Vec::with_capacity(8),
@@ -517,7 +520,8 @@ pub fn new(tab: &Rc<TypeTable>) -> Self {
         subs: Substitution::new(),
         types: vec![Type::None],
         type_id_counter: 0,
-        constraints: Vec::new()
+        constraints: Vec::new(),
+        predicate_tab
     }
 }
 
@@ -631,19 +635,17 @@ fn type_check_add(&mut self, env: &Env, t: &Rc<AST>,
     type1: Type, type2: Type
 ) -> Result<Type, Error>
 {
-    if type1.is_atomic(&self.tab.type_string) ||
-       type1.is_app(&self.tab.type_list).is_some()
-    {
-        // pass
-    } else if let Type::Var(id1) = &type1 {
+    if let Type::Var(id1) = &type1 {
         self.constraints.push(Constraint {
             tv: *id1,
-            trait_sig: Trait::Atom(self.trait_tab.trait_add.clone()),
+            trait_sig: Bound::Trait(self.trait_tab.trait_add.clone()),
             node: t.clone()
         });
-    } else {
+    } else if !type1.is_app(&self.tab.type_list).is_some() &&
+        !self.predicate_tab.apply(&self.trait_tab.trait_add, &type1)
+    {
         return Err(type_error(t.line, t.col, format!(
-            "x+y is not defined for x: {}, y: {}.", type1, type2)));
+            "x + y is not defined for x: {}, y: {}.", type1, type2)));
     }
     self.unify_binary_operator(env, t, &type1, &type2)?;
     Ok(type1)
@@ -656,12 +658,12 @@ fn type_check_sub(&mut self, env: &Env, t: &Rc<AST>,
     if let Type::Var(tv1) = &type1 {
         self.constraints.push(Constraint {
             tv: tv1.clone(),
-            trait_sig: Trait::Atom(self.trait_tab.trait_sub.clone()),
+            trait_sig: Bound::Trait(self.trait_tab.trait_sub.clone()),
             node: t.clone()
         });
-    } else {
+    } else if !self.predicate_tab.apply(&self.trait_tab.trait_sub, &type1) {
         return Err(type_error(t.line, t.col, format!(
-            "x-y is not defined for x: {}, y: {}.", type1, type2)));
+            "x - y is not defined for x: {}, y: {}.", type1, type2)));
     }
     self.unify_binary_operator(env, t, &type1, &type2)?;
     Ok(type1)
@@ -674,10 +676,10 @@ fn type_check_mul(&mut self, env: &Env, t: &Rc<AST>,
     if let Type::Var(tv1) = &type1 {
         self.constraints.push(Constraint {
             tv: tv1.clone(),
-            trait_sig: Trait::Atom(self.trait_tab.trait_mul.clone()),
+            trait_sig: Bound::Trait(self.trait_tab.trait_mul.clone()),
             node: t.clone()
         });
-    } else {
+    } else if !self.predicate_tab.apply(&self.trait_tab.trait_mul, &type1) {
         return Err(type_error(t.line, t.col, format!(
             "x*y is not defined for x: {}, y: {}.", type1, type2
         )));
@@ -693,11 +695,11 @@ fn type_check_mod(&mut self, env: &Env, t: &Rc<AST>,
     if let Type::Var(tv1) = &type1 {
         self.constraints.push(Constraint {
             tv: tv1.clone(),
-            trait_sig: Trait::Atom(self.trait_tab.trait_mod.clone()),
+            trait_sig: Bound::Trait(self.trait_tab.trait_mod.clone()),
             node: t.clone()
         });
-    } else {
-        return Err(type_error(t.line,t.col,format!(
+    } else if !self.predicate_tab.apply(&self.trait_tab.trait_mod, &type1) {
+        return Err(type_error(t.line, t.col, format!(
             "x%y is not defined for x: {}, y: {}.", type1, type2)));
     }
     self.unify_binary_operator(env, t, &type1, &type2)?;
@@ -805,9 +807,9 @@ fn type_check_operator_index(&mut self, env: &Env, t: &AST)
     )))
 }
 
-fn trait_is_subset(&self, a: &Trait, b: &Trait) -> bool {
-    if let Trait::Atom(a) = a {
-        if let Trait::Atom(b) = b {
+fn trait_is_subset(&self, a: &Bound, b: &Bound) -> bool {
+    if let Bound::Trait(a) = a {
+        if let Bound::Trait(b) = b {
             Rc::ptr_eq(a,b)
         } else {
             false
@@ -817,26 +819,13 @@ fn trait_is_subset(&self, a: &Trait, b: &Trait) -> bool {
     }
 }
 
-fn poly_tv_has_trait(&self, env: &Env, typ: &Type, trait_sig: &Trait) -> bool {
+fn poly_tv_has_trait(&self, env: &Env, typ: &Type, trait_sig: &Bound) -> bool {
     if let Type::Atom(typ) = typ {
         if let Some(tv) = env.get(typ) {
-            self.trait_is_subset(trait_sig, &tv.trait_sig)
+            self.trait_is_subset(trait_sig, &tv.bound)
         } else {
             false
         }
-    } else {
-        false
-    }
-}
-
-fn has_trait(&self, typ: &Type, trait_sig: &Trait) -> bool {
-    if typ.is_atomic(&self.tab.type_int) {
-        self.trait_is_subset(trait_sig, &self.trait_tab.add) ||
-        self.trait_is_subset(trait_sig, &self.trait_tab.sub) ||
-        self.trait_is_subset(trait_sig, &self.trait_tab.mul) ||
-        self.trait_is_subset(trait_sig, &self.trait_tab.tmod)
-    } else if typ.is_atomic(&self.tab.type_string) {
-        self.trait_is_subset(trait_sig, &self.trait_tab.add)
     } else {
         false
     }
@@ -853,7 +842,7 @@ fn type_check_comparison(&mut self, env: &Env, t: &AST)
        !type2.is_atomic(&self.tab.type_int) &&
        !type2.is_atomic(&self.tab.type_float)
     {
-        let ord = Trait::Atom(self.trait_tab.trait_ord.clone());
+        let ord = Bound::Trait(self.trait_tab.trait_ord.clone());
         if !self.poly_tv_has_trait(env, &type1, &ord) &&
            !self.poly_tv_has_trait(env, &type2, &ord)
         {
@@ -936,7 +925,7 @@ fn type_check_block(&mut self, env: &Env, t: &AST)
 {
     let a = t.argv();
     let n = a.len();
-    if n==0 {
+    if n == 0 {
         return Ok(self.tab.type_unit());
     }
     for i in 0..n-1 {
@@ -1268,10 +1257,10 @@ fn type_check_application(&mut self, env: &Env, t: &AST)
         format!("cannot apply a value of type {}.", fn_type)))
 }
 
-fn trait_sig(&self, t: &Rc<AST>) -> Trait {
+fn trait_sig(&self, t: &Rc<AST>) -> Bound {
     if let Info::Id(id) = &t.info {
         match self.trait_tab.map.get(id) {
-            Some(value) => Trait::Atom(value.clone()),
+            Some(value) => Bound::Trait(value.clone()),
             None => panic!("unknown trait '{}'", id)
         }
     } else {
@@ -1279,12 +1268,12 @@ fn trait_sig(&self, t: &Rc<AST>) -> Trait {
     }
 }
 
-fn poly_sig(&self, type_variables: &Rc<AST>) -> Vec<TypeVariable> {
+fn poly_sig(&mut self, type_variables: &Rc<AST>) -> Vec<TypeVariable> {
     let mut acc: Vec<TypeVariable> = Vec::new();
     let a = type_variables.argv();
     for x in a {
-        let (id_node,trait_sig) = match x.value {
-            Symbol::Item => (x,Trait::None),
+        let (id_node, bound) = match x.value {
+            Symbol::Item => (x, Bound::None),
             Symbol::List => {
                 let pair = x.argv();
                 let sig = self.trait_sig(&pair[1]);
@@ -1296,7 +1285,10 @@ fn poly_sig(&self, type_variables: &Rc<AST>) -> Vec<TypeVariable> {
             Info::Id(id) => Rc::from(&**id),
             _ => unreachable!()
         };
-        acc.push(TypeVariable {id, trait_sig});
+        if !matches!(bound, Bound::None) {
+            self.predicate_tab.extend_bound(&bound, Type::Atom(id.clone()));
+        }
+        acc.push(TypeVariable {id, bound});
     }
     acc
 }
@@ -1617,7 +1609,11 @@ pub fn check_constraints(&self) -> Result<(), Error> {
         }
         
         let trait_sig = &constraint.trait_sig;
-        if !self.has_trait(&typ, trait_sig) {
+        let trait_id = match trait_sig {
+            Bound::Trait(value) => value,
+            _ => todo!()
+        };
+        if !self.predicate_tab.apply(trait_id, &typ) {
             let node = &constraint.node;
             return Err(type_error(node.line, node.col, format!(
                 "constraint not fulfilled: {} of trait {}",

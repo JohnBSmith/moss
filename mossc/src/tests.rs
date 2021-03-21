@@ -142,7 +142,22 @@ static TESTS3: &[(&str, &str, Expect)] = &[
     ("3.05", "let id[T]: T -> T = |x: T| x", Expect::Ok),
     ("3.06", "let f[T] = |x: T| [x, x]", Expect::Ok),
     ("3.07", "let f[T]: T -> List[T] = |x| [x, x]", Expect::Ok),
-    ("3.08", "let f[T]: T -> List[T] = |x: T| [x, x]", Expect::Ok) 
+    ("3.08", "let f[T]: T -> List[T] = |x: T| [x, x]", Expect::Ok),
+    ("3.09", "let f[T: Add] = |x: T, y: T| x + y", Expect::Ok),
+    ("3.10", "let f[T: Add] = |x: T, y| x + y", Expect::Ok),
+    ("3.11", "let f[T: Add] = |x, y: T| x + y", Expect::Ok),
+    ("3.12", "let f[T: Add]: (T, T) -> T = |x, y| x + y", Expect::Ok),
+    ("3.13", "let f[T: Add]: (T, T) -> _ = |x, y| x + y", Expect::Ok),
+    ("3.14", "let f[T: Add]: (T, _) -> _ = |x, y| x + y", Expect::Ok),
+    ("3.15", "let f[T: Add]: (_, T) -> _ = |x, y| x + y", Expect::Ok),
+    ("3.16", "let f[T: Add]: (_, _) -> T = |x, y| x + y", Expect::Ok),
+    ("3.17", "let f[T] = |x: T, y: T| x + y", Expect::TypeError),
+    ("3.18", "let f[T] = |x: T, y| x + y", Expect::TypeError),
+    ("3.19", "let f[T] = |x, y: T| x + y", Expect::TypeError),
+    ("3.20", "let f[T]: (T, T) -> T = |x, y| x + y", Expect::TypeError),
+    ("3.21", "let f[T]: (T, _) -> _ = |x, y| x + y", Expect::TypeError),
+    ("3.22", "let f[T]: (_, T) -> _ = |x, y| x + y", Expect::TypeError),
+    ("3.23", "let f[T]: (_, _) -> T = |x, y| x + y", Expect::TypeError)
 ];
 
 fn is_expected(result: &Result<(), Error>, expected: Expect) -> bool {
