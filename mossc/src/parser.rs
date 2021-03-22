@@ -1442,6 +1442,7 @@ fn trait_union(&mut self, i: &TokenIterator, t0: &Token, x: Rc<AST>)
         if t.value != Symbol::Plus {
             break
         }
+        i.advance();
     }
     Ok(AST::node(t0.line, t0.col, Symbol::List, Info::None,
         Some(acc.into_boxed_slice())))

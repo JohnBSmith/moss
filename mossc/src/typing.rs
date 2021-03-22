@@ -426,7 +426,7 @@ fn is_atomic_type(ty: &Type, id: &Rc<str>) -> bool {
 
 struct Constraint {
     tv: TypeId,
-    trait_sig: Bound,
+    bound: Bound,
     node: Rc<AST>
 }
 
@@ -580,7 +580,7 @@ fn type_check_add(&mut self, t: &Rc<AST>,
     if let Type::Var(id1) = &type1 {
         self.constraints.push(Constraint {
             tv: *id1,
-            trait_sig: Bound::Trait(self.trait_tab.trait_add.clone()),
+            bound: Bound::Trait(self.trait_tab.trait_add.clone()),
             node: t.clone()
         });
     } else if !self.predicate_tab.apply(&self.trait_tab.trait_add, &type1) {
@@ -598,7 +598,7 @@ fn type_check_sub(&mut self, t: &Rc<AST>,
     if let Type::Var(tv1) = &type1 {
         self.constraints.push(Constraint {
             tv: tv1.clone(),
-            trait_sig: Bound::Trait(self.trait_tab.trait_sub.clone()),
+            bound: Bound::Trait(self.trait_tab.trait_sub.clone()),
             node: t.clone()
         });
     } else if !self.predicate_tab.apply(&self.trait_tab.trait_sub, &type1) {
@@ -616,7 +616,7 @@ fn type_check_mul(&mut self, t: &Rc<AST>,
     if let Type::Var(tv1) = &type1 {
         self.constraints.push(Constraint {
             tv: tv1.clone(),
-            trait_sig: Bound::Trait(self.trait_tab.trait_mul.clone()),
+            bound: Bound::Trait(self.trait_tab.trait_mul.clone()),
             node: t.clone()
         });
     } else if !self.predicate_tab.apply(&self.trait_tab.trait_mul, &type1) {
@@ -635,7 +635,7 @@ fn type_check_mod(&mut self, t: &Rc<AST>,
     if let Type::Var(tv1) = &type1 {
         self.constraints.push(Constraint {
             tv: tv1.clone(),
-            trait_sig: Bound::Trait(self.trait_tab.trait_mod.clone()),
+            bound: Bound::Trait(self.trait_tab.trait_mod.clone()),
             node: t.clone()
         });
     } else if !self.predicate_tab.apply(&self.trait_tab.trait_mod, &type1) {
@@ -717,6 +717,8 @@ fn index_homogeneous(&mut self, t: &AST, ty_index: &Type, ty: Type)
         }
     } else if is_atomic_type(&ty_index, &tab.type_int) {
         return Ok(ty);
+    } else if is_atomic_type(&ty_index, &tab.type_object) {
+        return Ok(tab.type_object());
     }
     Err(type_error(t.line, t.col, format!(
         "a[i] is not defined for i: {}.", ty_index)))
@@ -726,17 +728,33 @@ fn type_check_operator_index(&mut self, env: &Env, t: &AST)
 -> Result<Type, Error>
 {
     let a = t.argv();
-    if a.len()>2 {
+    if a.len() > 2 {
         return Err(type_error(t.line, t.col, String::from(
             "in a[...]: expected only one index."
         )));
     }
 
     let ty_seq = self.type_check_node(env, &a[0])?;
-    let ty_index = self.type_check_node(env, &a[1])?;
+    let mut ty_index = self.type_check_node(env, &a[1])?;
+    
+    if let Type::Var(_) = ty_index {
+        let type_int = self.tab.type_int();
+        match self.subs.unify(&ty_index, &type_int, &mut None) {
+            Ok(()) => {ty_index = type_int},
+            _ => return Err(type_error(t.line, t.col, format!(
+                "expected type int,\n  found type {}.", ty_index)))
+        }
+    }
 
     if let Some(a) = ty_seq.is_app(&self.tab.type_list) {
-        return self.index_homogeneous(t,&ty_index,a[0].clone());
+        return self.index_homogeneous(t, &ty_index, a[0].clone());
+    } else if let Type::Var(_) = &ty_seq {
+        let tv = self.new_uniq_anonymous_type_var(t);
+        if let Ok(()) = self.subs.unify(&ty_seq,
+            &self.tab.list_of(tv.clone()), &mut None
+        ) {
+            return Ok(tv);
+        }
     } else if let Some(_a) = ty_seq.is_app(&self.tab.type_tuple) {
         todo!();
     }
@@ -880,18 +898,19 @@ fn type_check_let(&mut self, env_rec: &Env, t: &AST)
 {
     let is_var = match t.info {Info::Var => true, _ => false};
 
+    let environment;
     let (env, sig) = if let Info::TypeVars(type_variables) = &t.info {
         let sig = self.poly_sig(type_variables);
-        let env = Environment::from_sig(env_rec, &sig);
-        (env, Some(sig))
+        environment = Environment::from_sig(env_rec, &sig);
+        (&environment, Some(sig))
     } else {
-        (env_rec.clone(), None)
+        (env_rec, None)
     };
 
     let a = t.argv();
     let id = match &a[0].info {Info::Id(id) => id.clone(), _ => unreachable!()};
-    let ty = self.type_from_signature_or_none(&env, &a[1])?;
-    let ty_expr = self.type_check_node(&env, &a[2])?;
+    let ty = self.type_from_signature_or_none(env, &a[1])?;
+    let ty_expr = self.type_check_node(env, &a[2])?;
 
     let mut ty_of_id = if let Type::None = ty {
         ty_expr
@@ -980,16 +999,15 @@ fn type_check_list(&mut self, env: &Env, t: &AST)
         ]));
     }
     let ty0 = self.type_check_node(env, &a[0])?;
-    for (k,x) in (&a[1..]).iter().enumerate() {
+    let mut upcast = false;
+    for x in &a[1..] {
         let ty = self.type_check_node(env, x)?;
-        match self.unify(&ty0, &ty) {
+        match self.subs.unify(&ty0, &ty, &mut None) {
             Ok(()) => {},
-            _ => return Err(type_error(x.line, x.col,
-                format!("in list literal at index {}:{}",
-                k + 1, self.unify_log())))
+            _ => {upcast = true;}
         }
     }
-    Ok(self.tab.list_of(ty0))
+    Ok(self.tab.list_of(if upcast {self.tab.type_object()} else {ty0}))
 }
 
 fn unify_log(&mut self) -> String {
@@ -1052,9 +1070,16 @@ fn instantiate_rec(&self, typ: &Type,
 // => id: Int -> Int
 // => id(0): Int.
 
-fn instantiate_poly_type(&mut self, poly: &PolyType) -> Type {
-    let mapping: HashMap<Rc<str>, TypeId> = poly.variables.iter()
-        .map(|x| (x.id.clone(), self.new_uniq_type_id())).collect();
+fn instantiate_poly_type(&mut self, poly: &PolyType, t: &Rc<AST>) -> Type {
+    let mapping: HashMap<Rc<str>, TypeId> = poly.variables.iter().map(|x| {
+        let id = self.new_uniq_type_id();
+        if !matches!(x.bound, Bound::None) {
+            self.constraints.push(Constraint {
+                tv: id, bound: x.bound.clone(), node: t.clone()
+            });
+        }
+        (x.id.clone(), id)
+    }).collect();
     self.instantiate_rec(&poly.scheme, &mapping)
 }
 
@@ -1066,7 +1091,7 @@ fn fn_type_from_app(&mut self, t: &AST, argc: usize) -> (Type, Type) {
     (typ, ret)
 }
 
-fn type_check_application(&mut self, env: &Env, t: &AST)
+fn type_check_application(&mut self, env: &Env, t: &Rc<AST>)
 -> Result<Type, Error>
 {
     let a = t.argv();
@@ -1075,11 +1100,9 @@ fn type_check_application(&mut self, env: &Env, t: &AST)
     let fn_type = self.type_check_node(env, &a[0])?;
 
     let sig = match &fn_type {
-        Type::Poly(poly) => self.instantiate_poly_type(poly),
+        Type::Poly(poly) => self.instantiate_poly_type(poly, t),
         typ => typ.clone()
     };
-    // Todo: add trait constraints to the type variables
-    // of instantiated poly types.
 
     if let Type::Fn(ref sig) = sig {
         if argc < sig.argc_min || argc > sig.argc_max {
@@ -1447,6 +1470,7 @@ fn type_check_node_plain(&mut self, env: &Env, t: &Rc<AST>)
         }
         Symbol::As => {
             let a = t.argv();
+            self.type_check_node(env, &a[0])?;
             Ok(self.type_from_signature(env, &a[1])?)
         },
         Symbol::Dot => {
@@ -1478,8 +1502,8 @@ pub fn check_constraints(&self) -> Result<(), Error> {
             return Ok(());
         }
         
-        let trait_sig = &constraint.trait_sig;
-        let trait_id = match trait_sig {
+        let bound = &constraint.bound;
+        let trait_id = match bound {
             Bound::Trait(value) => value,
             _ => todo!()
         };
@@ -1487,7 +1511,7 @@ pub fn check_constraints(&self) -> Result<(), Error> {
             let node = &constraint.node;
             return Err(type_error(node.line, node.col, format!(
                 "constraint not fulfilled: {} of trait {}",
-                typ, trait_sig
+                typ, bound
             )));
         }
     }

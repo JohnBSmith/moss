@@ -65,17 +65,23 @@ fn is_option(arg: &str) -> bool {
 
 struct CmdInfo {
     id: Option<String>,
-    debug_mode: bool
+    debug_mode: bool,
+    eval: bool
 }
 
 impl CmdInfo {
     pub fn new() -> Self {
-        let mut info = CmdInfo {id: None, debug_mode: false};
+        let mut info = CmdInfo {
+            id: None,
+            debug_mode: false,
+            eval: false
+        };
         let mut first = true;
         for arg in env::args() {
             if first {first = false; continue;}
             if is_option(&arg) {
                 if arg == "-d" {info.debug_mode = true;}
+                else if arg == "-e" {info.eval = true;}
             } else {
                 info.id = Some(arg);
             }
@@ -105,6 +111,10 @@ fn main_result() -> Result<(), ()> {
                 println!("{}", e);
                 return Err(());
             }
+        }
+        if info.eval {
+            let _ = std::process::Command::new("moss")
+                .arg(format!("{}.bin", id)).status();
         }
     } else {
         println!("{}", HELP_MESSAGE);
