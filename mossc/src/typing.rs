@@ -133,7 +133,6 @@ impl TypeTable {
 struct TraitTable {
     map: HashMap<String, Rc<str>>,
     trait_ord: Rc<str>,
-    #[allow(dead_code)]
     trait_eq: Rc<str>,
     trait_add: Rc<str>,
     trait_sub: Rc<str>,
@@ -424,10 +423,28 @@ fn is_atomic_type(ty: &Type, id: &Rc<str>) -> bool {
     false
 }
 
+fn error_text(app: &AppInfo, typ: &Type) -> String {
+    match app {
+        AppInfo::Add => format!("x + y not defined for x: {}", typ),
+        AppInfo::Sub => format!("x - y not defined for x: {}", typ),
+        AppInfo::Mul => format!("x*y not defined for x: {}", typ),
+        AppInfo::Mod => format!("x%y not defined for x: {}", typ),
+        AppInfo::Eq  => format!("x == y not defined for x: {}", typ),
+        AppInfo::Fn(index) => format!(
+            "function not defined for argument {}: {}", 
+            index, typ)
+    }
+}
+
+enum AppInfo {
+    Add, Sub, Mul, Mod, Eq, Fn(u32)
+}
+
 struct Constraint {
-    tv: TypeId,
+    typ: Type,
     bound: Bound,
-    node: Rc<AST>
+    node: Rc<AST>,
+    app: AppInfo
 }
 
 pub struct TypeChecker {
@@ -577,16 +594,12 @@ fn type_check_add(&mut self, t: &Rc<AST>,
     type1: Type, type2: Type
 ) -> Result<Type, Error>
 {
-    if let Type::Var(id1) = &type1 {
-        self.constraints.push(Constraint {
-            tv: *id1,
-            bound: Bound::Trait(self.trait_tab.trait_add.clone()),
-            node: t.clone()
-        });
-    } else if !self.predicate_tab.apply(&self.trait_tab.trait_add, &type1) {
-        return Err(type_error(t.line, t.col, format!(
-            "x + y is not defined for x: {}, y: {}.", type1, type2)));
-    }
+    self.constraints.push(Constraint {
+        typ: type1.clone(),
+        bound: Bound::Trait(self.trait_tab.trait_add.clone()),
+        node: t.clone(),
+        app: AppInfo::Add
+    });
     self.unify_binary_operator(t, &type1, &type2)?;
     Ok(type1)
 }
@@ -595,16 +608,12 @@ fn type_check_sub(&mut self, t: &Rc<AST>,
     type1: Type, type2: Type
 ) -> Result<Type, Error>
 {
-    if let Type::Var(tv1) = &type1 {
-        self.constraints.push(Constraint {
-            tv: tv1.clone(),
-            bound: Bound::Trait(self.trait_tab.trait_sub.clone()),
-            node: t.clone()
-        });
-    } else if !self.predicate_tab.apply(&self.trait_tab.trait_sub, &type1) {
-        return Err(type_error(t.line, t.col, format!(
-            "x - y is not defined for x: {}, y: {}.", type1, type2)));
-    }
+    self.constraints.push(Constraint {
+        typ: type1.clone(),
+        bound: Bound::Trait(self.trait_tab.trait_sub.clone()),
+        node: t.clone(),
+        app: AppInfo::Sub
+    });
     self.unify_binary_operator(t, &type1, &type2)?;
     Ok(type1)
 }
@@ -613,17 +622,12 @@ fn type_check_mul(&mut self, t: &Rc<AST>,
     type1: Type, type2: Type
 ) -> Result<Type, Error>
 {
-    if let Type::Var(tv1) = &type1 {
-        self.constraints.push(Constraint {
-            tv: tv1.clone(),
-            bound: Bound::Trait(self.trait_tab.trait_mul.clone()),
-            node: t.clone()
-        });
-    } else if !self.predicate_tab.apply(&self.trait_tab.trait_mul, &type1) {
-        return Err(type_error(t.line, t.col, format!(
-            "x*y is not defined for x: {}, y: {}.", type1, type2
-        )));
-    }
+    self.constraints.push(Constraint {
+        typ: type1.clone(),
+        bound: Bound::Trait(self.trait_tab.trait_mul.clone()),
+        node: t.clone(),
+        app: AppInfo::Mul
+    });
     self.unify_binary_operator(t, &type1, &type2)?;
     Ok(type1)
 }
@@ -632,16 +636,12 @@ fn type_check_mod(&mut self, t: &Rc<AST>,
     type1: Type, type2: Type
 ) -> Result<Type, Error>
 {
-    if let Type::Var(tv1) = &type1 {
-        self.constraints.push(Constraint {
-            tv: tv1.clone(),
-            bound: Bound::Trait(self.trait_tab.trait_mod.clone()),
-            node: t.clone()
-        });
-    } else if !self.predicate_tab.apply(&self.trait_tab.trait_mod, &type1) {
-        return Err(type_error(t.line, t.col, format!(
-            "x%y is not defined for x: {}, y: {}.", type1, type2)));
-    }
+    self.constraints.push(Constraint {
+        typ: type1.clone(),
+        bound: Bound::Trait(self.trait_tab.trait_mod.clone()),
+        node: t.clone(),
+        app: AppInfo::Mod
+    });
     self.unify_binary_operator(t, &type1, &type2)?;
     Ok(type1)
 }
@@ -816,12 +816,19 @@ fn type_check_comparison(&mut self, env: &Env, t: &AST)
     }
 }
 
-fn type_check_eq(&mut self, env: &Env, t: &AST)
+fn type_check_eq(&mut self, env: &Env, t: &Rc<AST>)
 -> Result<Type, Error>
 {
     let a = t.argv();
     let type1 = self.type_check_node(env, &a[0])?;
     let type2 = self.type_check_node(env, &a[1])?;
+
+    self.constraints.push(Constraint {
+        typ: type1.clone(),
+        bound: Bound::Trait(self.trait_tab.trait_eq.clone()),
+        node: t.clone(),
+        app: AppInfo::Eq
+    });
     match self.unify(&type1, &type2) {
         Ok(()) => Ok(self.tab.type_bool()),
         _ => Err(type_error(t.line, t.col, self.unify_log()))
@@ -1071,11 +1078,15 @@ fn instantiate_rec(&self, typ: &Type,
 // => id(0): Int.
 
 fn instantiate_poly_type(&mut self, poly: &PolyType, t: &Rc<AST>) -> Type {
-    let mapping: HashMap<Rc<str>, TypeId> = poly.variables.iter().map(|x| {
+    let mapping: HashMap<Rc<str>, TypeId> = poly.variables.iter()
+        .enumerate().map(|(index, x)| {
         let id = self.new_uniq_type_id();
         if !matches!(x.bound, Bound::None) {
             self.constraints.push(Constraint {
-                tv: id, bound: x.bound.clone(), node: t.clone()
+                typ: Type::Var(id),
+                bound: x.bound.clone(),
+                node: t.clone(),
+                app: AppInfo::Fn(index as u32)
             });
         }
         (x.id.clone(), id)
@@ -1094,10 +1105,16 @@ fn fn_type_from_app(&mut self, t: &AST, argc: usize) -> (Type, Type) {
 fn type_check_application(&mut self, env: &Env, t: &Rc<AST>)
 -> Result<Type, Error>
 {
-    let a = t.argv();
+    let a = t.argv();    
     let argv = &a[1..];
     let argc = argv.len();
     let fn_type = self.type_check_node(env, &a[0])?;
+    let self_arg_type = if a[0].value == Symbol::Dot {
+        let self_arg = &a[0].argv()[0];
+        self.types[self_arg.typ.index.get()].clone()
+    } else {
+        self.tab.type_unit()
+    };
 
     let sig = match &fn_type {
         Type::Poly(poly) => self.instantiate_poly_type(poly, t),
@@ -1124,6 +1141,11 @@ fn type_check_application(&mut self, env: &Env, t: &Rc<AST>)
                 _ => return Err(type_error(t.line, t.col,
                     format!("Function argument {}: {}.", i, self.unify_log())))
             }
+        }
+        match self.unify(&sig.arg_self, &self_arg_type) {
+            Ok(()) => {},
+            _ => return Err(type_error(t.line, t.col,
+                format!("Function self argument: {}.", self.unify_log())))
         }
         return Ok(sig.ret.clone());
     } else if sig.is_atomic(&self.tab.type_object) {
@@ -1493,7 +1515,7 @@ pub fn apply_types(&mut self) {
 
 pub fn check_constraints(&self) -> Result<(), Error> {
     for constraint in &self.constraints {
-        let typ = self.subs.apply(&Type::Var(constraint.tv));
+        let typ = self.subs.apply(&constraint.typ);
         if let Type::Var(_) = typ {
             // I would like to have this because of convenience.
             // Can this result in any unsoundness?
@@ -1501,17 +1523,14 @@ pub fn check_constraints(&self) -> Result<(), Error> {
             // the trait is the empty set?
             return Ok(());
         }
-        
+
         let bound = &constraint.bound;
-        let trait_id = match bound {
-            Bound::Trait(value) => value,
-            _ => todo!()
-        };
-        if !self.predicate_tab.apply(trait_id, &typ) {
+        if !self.predicate_tab.apply_bound(&bound, &typ) {
             let node = &constraint.node;
+            let err = error_text(&constraint.app, &typ);
             return Err(type_error(node.line, node.col, format!(
-                "constraint not fulfilled: {} of trait {}",
-                typ, bound
+                "{}.\nNote:\n    {} not in {}.",
+                err, typ, bound
             )));
         }
     }

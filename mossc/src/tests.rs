@@ -33,7 +33,7 @@ static TESTS1: &[(&str, &str, Expect)] = &[
     ("1.18", "let a: List[String] = [1, 2]", Expect::TypeError),
     ("1.19", "let a: List[_] = [1, 2]", Expect::Ok),
     ("1.20", "let a: List[_] = []", Expect::Ok),
-    ("1.21", "let a: List[_] = [true, 1]", Expect::TypeError),
+    ("1.21", "let a: List[Object] = [true, 1]", Expect::Ok),
     ("1.22", "let a: List[List[_]] = [[1, 2], [3, 4]]", Expect::Ok),
     ("1.23", "let a: List[List[_]] = [[], [1, 2]]", Expect::Ok),
     ("1.24", "let a: List[List[_]] = [[1, 2], []]", Expect::Ok),
@@ -43,8 +43,8 @@ static TESTS1: &[(&str, &str, Expect)] = &[
     ("1.28", "let a: List[_] = [[], [1, 2]]", Expect::Ok),
     ("1.29", "let a: List[_] = [[1, 2], []]", Expect::Ok),
     ("1.30", "let a: List[_] = [[], []]", Expect::Ok),
-    ("1.31", "let a = [[1, 2], [true]]", Expect::TypeError),
-    ("1.32", "let a = [[true], [1, 2]]", Expect::TypeError),
+    ("1.31", "let a: List[Object] = [[1, 2], [true]]", Expect::Ok),
+    ("1.32", "let a: List[Object] = [[true], [1, 2]]", Expect::Ok),
     ("1.33", "let a: F[Int] = []", Expect::UndefinedType),
     ("1.34", "let f = |x| x + 1", Expect::Ok),
     ("1.35", "let f: Int -> Int = |x| x + 1", Expect::Ok),
@@ -72,7 +72,7 @@ static TESTS1: &[(&str, &str, Expect)] = &[
     ("1.57", "let f: () -> List[String] = || []", Expect::Ok),
     ("1.58", "let f: () -> List[_] = || []", Expect::Ok),
     ("1.59", "let f: () -> _ = || []", Expect::Ok),
-    ("1.60", "let f = || [1, true]", Expect::TypeError),
+    ("1.60", "let f = || [1, true]", Expect::Ok),
     ("1.61", "let f: () -> List[Int] = || [1, true]", Expect::TypeError),
     ("1.62", "let f: () -> List[Int] = || [true, true]", Expect::TypeError),
     ("1.63", "let f: () -> Int = || []", Expect::TypeError),
@@ -172,7 +172,19 @@ static TESTS3: &[(&str, &str, Expect)] = &[
     ("3.31", "let f[T: Add] = |x: T| x + x; f([1, 2])", Expect::Ok),
     ("3.32", "let f[T: Sub] = |x: T| x - x; f([1, 2])", Expect::TypeError),
     ("3.33", "let f[T: Add] = |x: T| x + x; f([])", Expect::Ok),
-    ("3.34", "let f[T: Sub] = |x: T| x - x; f([])", Expect::TypeError)
+    ("3.34", "let f[T: Sub] = |x: T| x - x; f([])", Expect::TypeError),
+    ("3.35", "let f = |x, y| x == y; f(0, 0)", Expect::Ok),
+    ("3.36", "let f = |x, y| [x] == [y]; f(0, 0)", Expect::Ok),
+    ("3.37", "let f = |x, y| [[x]] == [[y]]; f(0, 0)", Expect::Ok),
+    ("3.38", "[] == []", Expect::TypeError),
+    ("3.39", "[0] == []", Expect::Ok),
+    ("3.40", "[] == [0]", Expect::Ok)
+];
+
+static TESTS4: &[(&str, &str, Expect)] = &[
+    ("4.01", "[1, 2].map(|x| 2*x)", Expect::Ok),
+    ("4.02", "[true, true].map(|x| 2*x)", Expect::TypeError),
+    ("4.03", "[true, true].map(|x| x*x)", Expect::TypeError)
 ];
 
 fn is_expected(result: &Result<(), Error>, expected: Expect) -> bool {
@@ -203,4 +215,5 @@ fn test0() {
     test_list(TESTS1);
     test_list(TESTS2);
     test_list(TESTS3);
+    test_list(TESTS4);
 }

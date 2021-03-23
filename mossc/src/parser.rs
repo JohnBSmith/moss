@@ -499,26 +499,26 @@ impl AST {
         info: Info, a: Option<Box<[Rc<AST>]>>
     ) -> Rc<AST>
     {
-        Rc::new(AST{line,col,value,info,a, typ: TypeRef::none()})
+        Rc::new(AST{line, col, value, info, a, typ: TypeRef::none()})
     }
 
     pub fn operator(line: usize, col: usize, value: Symbol, a: Box<[Rc<AST>]>
     ) -> Rc<AST>
     {
-        Rc::new(AST{line,col,value,info: Info::None, a: Some(a), typ: TypeRef::none()})
+        Rc::new(AST{line, col, value, info: Info::None, a: Some(a), typ: TypeRef::none()})
     }
 
     pub fn symbol(line: usize, col: usize, value: Symbol) -> Rc<AST> {
-        Rc::new(AST{line,col,value,info: Info::None, a: None, typ: TypeRef::none()})
+        Rc::new(AST{line, col, value, info: Info::None, a: None, typ: TypeRef::none()})
     }
 
     pub fn apply(line: usize, col: usize, a: Box<[Rc<AST>]>) -> Rc<AST> {
-        Rc::new(AST{line,col,value: Symbol::Application,
+        Rc::new(AST{line, col, value: Symbol::Application,
             info: Info::None, a: Some(a), typ: TypeRef::none()})
     }
 
     pub fn identifier(id: &str, line: usize, col: usize) -> Rc<AST> {
-        Rc::new(AST {line,col,value: Symbol::Item,
+        Rc::new(AST {line, col, value: Symbol::Item,
             info: Info::Id(id.into()), a: None, typ: TypeRef::none()})
     }
 
@@ -718,7 +718,7 @@ fn identifier(&mut self, i: &TokenIterator)
 fn atom(&mut self, i: &TokenIterator)
 -> Result<Rc<AST>,Error>
 {
-    let t = i.get();
+    let t = i.get_skip_nl();
     let value = t.value;
     if value == Symbol::Item {
         i.advance();

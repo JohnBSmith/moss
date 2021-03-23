@@ -27,7 +27,7 @@ use crate::typing::{Type, TypeId, TypeTable, TraitTable, Bound};
 use crate::typing::unify::Substitution;
 
 enum Condition {
-    None
+    None, Bound(Type, Bound)
 }
 
 struct Rules {
@@ -41,6 +41,8 @@ pub struct PredicateTable {
     map: HashMap<TraitId, Rules>
 }
 
+const VAR0: u32 = 10000000;
+
 fn init_table(type_tab: &TypeTable, trait_tab: &TraitTable)
 -> PredicateTable
 {
@@ -51,7 +53,7 @@ fn init_table(type_tab: &TypeTable, trait_tab: &TraitTable)
         Type::Atom(type_tab.type_string.clone()),
         Type::Atom(type_tab.type_object.clone())
     ], clauses: vec![
-        (type_tab.list_of(Type::Var(TypeId(0))), Condition::None)
+        (type_tab.list_of(Type::Var(TypeId(VAR0))), Condition::None)
     ]});
     map.insert(trait_tab.trait_sub.clone(), Rules {leaf: vec![
         Type::Atom(type_tab.type_int.clone()),
@@ -67,6 +69,17 @@ fn init_table(type_tab: &TypeTable, trait_tab: &TraitTable)
         Type::Atom(type_tab.type_float.clone()),
         Type::Atom(type_tab.type_object.clone())
     ], clauses: vec![]});
+    map.insert(trait_tab.trait_eq.clone(), Rules {leaf: vec![
+        Type::Atom(type_tab.type_bool.clone()),
+        Type::Atom(type_tab.type_int.clone()),
+        Type::Atom(type_tab.type_float.clone()),
+        Type::Atom(type_tab.type_string.clone()),
+        Type::Atom(type_tab.type_object.clone())
+    ], clauses: vec![
+        (type_tab.list_of(Type::Var(TypeId(VAR0))),
+        Condition::Bound(Type::Var(TypeId(VAR0)),
+            Bound::Trait(trait_tab.trait_eq.clone())))
+    ]});
     PredicateTable {map}
 }
 
@@ -84,7 +97,7 @@ impl PredicateTable {
     pub(super) fn new(type_table: &TypeTable, trait_table: &TraitTable) -> Self {
         init_table(type_table, trait_table)
     }
-    pub fn apply(&self, trait_id: &TraitId, typ: &Type) -> bool {
+    fn apply(&self, trait_id: &TraitId, typ: &Type) -> bool {
         let rules = match self.map.get(trait_id) {
             Some(value) => value,
             None => unreachable!("Trait does not exist: {}", trait_id)
@@ -103,9 +116,22 @@ impl PredicateTable {
         }
         false
     }
-    fn check_clause(&self, _subs: Substitution, cond: &Condition) -> bool {
+    pub fn apply_bound(&self, bound: &Bound, typ: &Type) -> bool {
+        match bound {
+            Bound::None => true,
+            Bound::Trait(trait_id) => self.apply(trait_id, typ),
+            Bound::Union(list) =>  list.iter()
+                .all(|trait_id| self.apply(trait_id, typ))
+        }
+    }
+    fn check_clause(&self, subs: Substitution, cond: &Condition) -> bool {
         match cond {
-            Condition::None => true
+            Condition::None => true,
+            Condition::Bound(typ, pred) => {
+                let typ = subs.apply(typ);
+                if let Type::Var(_) = typ {return false;}
+                self.apply_bound(pred, &typ)
+            }
         }
     }
     pub fn extend(&mut self, trait_id: &TraitId, typ: Type) {
