@@ -69,6 +69,11 @@ fn init_table(type_tab: &TypeTable, trait_tab: &TraitTable)
         Type::Atom(type_tab.type_float.clone()),
         Type::Atom(type_tab.type_object.clone())
     ], clauses: vec![]});
+    map.insert(trait_tab.trait_mod.clone(), Rules {leaf: vec![
+        Type::Atom(type_tab.type_int.clone()),
+        Type::Atom(type_tab.type_float.clone()),
+        Type::Atom(type_tab.type_object.clone())
+    ], clauses: vec![]});
     map.insert(trait_tab.trait_eq.clone(), Rules {leaf: vec![
         Type::Atom(type_tab.type_bool.clone()),
         Type::Atom(type_tab.type_int.clone()),

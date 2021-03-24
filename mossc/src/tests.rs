@@ -131,7 +131,7 @@ static TESTS2: &[(&str, &str, Expect)] = &[
     ("2.14", "let f = |x: Int, y: _| x + y", Expect::Ok),
     ("2.15", "let f = |x: _, y: Int| x + y", Expect::Ok),
     ("2.16", "let f = |x, y| x + y", Expect::Ok),
-    ("2.17", "let f: (_, _) -> _ = |x, y| x + y", Expect::Ok),
+    ("2.17", "let f: (_, _) -> _ = |x, y| x + y", Expect::Ok)
 ];
 
 static TESTS3: &[(&str, &str, Expect)] = &[
@@ -171,7 +171,7 @@ static TESTS3: &[(&str, &str, Expect)] = &[
         [x + y, x - y])", Expect::Ok),
     ("3.31", "let f[T: Add] = |x: T| x + x; f([1, 2])", Expect::Ok),
     ("3.32", "let f[T: Sub] = |x: T| x - x; f([1, 2])", Expect::TypeError),
-    ("3.33", "let f[T: Add] = |x: T| x + x; f([])", Expect::Ok),
+    ("3.33", "let f[T: Add] = |x: T| x + x; f([])", Expect::TypeError),
     ("3.34", "let f[T: Sub] = |x: T| x - x; f([])", Expect::TypeError),
     ("3.35", "let f = |x, y| x == y; f(0, 0)", Expect::Ok),
     ("3.36", "let f = |x, y| [x] == [y]; f(0, 0)", Expect::Ok),

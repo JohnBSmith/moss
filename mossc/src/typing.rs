@@ -218,6 +218,17 @@ impl ClassTable {
         let type_of_any = type_of_all.clone();
 
         let tv: Rc<str> = Rc::from("T");
+        let type_of_count = tab.method_type(1, 1,
+            tab.list_of(Type::Atom(tv.clone())),
+            vec![tab.fn_type(1, 1,
+                vec![Type::Atom(tv.clone())],
+                tab.type_bool()
+            )],
+            tab.type_int()
+        );
+        let type_of_count = Type::poly1(tv, type_of_count);
+
+        let tv: Rc<str> = Rc::from("T");
         let type_of_shuffle = tab.method_type(0, 0,
             tab.list_of(Type::Atom(tv.clone())),
             vec![],
@@ -232,6 +243,7 @@ impl ClassTable {
         list_map.insert("shuffle".to_string(), type_of_shuffle);
         list_map.insert("all".to_string(), type_of_all);
         list_map.insert("any".to_string(), type_of_any);
+        list_map.insert("count".to_string(), type_of_count);
 
         let mut class_map = HashMap::new();
         class_map.insert(tab.type_list.clone(), Class {map: list_map});
@@ -1516,17 +1528,17 @@ pub fn apply_types(&mut self) {
 pub fn check_constraints(&self) -> Result<(), Error> {
     for constraint in &self.constraints {
         let typ = self.subs.apply(&constraint.typ);
+        let node = &constraint.node;
         if let Type::Var(_) = typ {
-            // I would like to have this because of convenience.
-            // Can this result in any unsoundness?
-            // Say, there are conflicting traits, or equivalently,
-            // the trait is the empty set?
             return Ok(());
+        } else if typ.contains_var() {
+            let err = error_text(&constraint.app, &typ);
+            return Err(type_error(node.line, node.col, format!(
+                "Type annotation needed,\n{}.", err)));
         }
 
         let bound = &constraint.bound;
         if !self.predicate_tab.apply_bound(&bound, &typ) {
-            let node = &constraint.node;
             let err = error_text(&constraint.app, &typ);
             return Err(type_error(node.line, node.col, format!(
                 "{}.\nNote:\n    {} not in {}.",
